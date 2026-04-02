@@ -1,2 +1,2 @@
 build_from:
-  amd64: "ghcr.io/minhquanghp86/remote-webview-server:latest"
+  amd64: "ghcr.io/minhquanghp86/ha-darboard-server:latest"
