@@ -1,3 +1,7 @@
+# Quan trọng
+- Repo này là bản phối lại, kết hợp thêm một số chức năng. Xin cám ơn tới strange-v vì công sức anh ấy bỏ ra cho dự án này. Đường link dẫn tới repo của anh ấy nếu bạn thấy hứng thú: https://github.com/strange-v/RemoteWebViewServer
+- Đồng thời cũng cám ơn đến ý tưởng và công sức của SleepinDevil. Người đưa ra ý tưởng tích hợp thêm bàn phím rất tuyệt. Link tham khảo nếu bạn muốn ghé thăm: https://github.com/SleepinDevil/RemoteWebViewServer
+  
 # Remote WebView Server
 
 Trình duyệt Headless browser hiển thị các trang web mục tiêu (ví dụ: bảng điều khiển Home Assistant) và truyền phát chúng dưới dạng các ô hình ảnh qua WebSocket đến các trang web nhẹ [clients](https://github.com/minhquanghp86/RemoteWebViewClient) (ESP32 displays). Máy chủ hỗ trợ nhiều máy khách cùng lúc, mỗi máy khách có độ phân giải màn hình, hướng và cài đặt riêng cho từng thiết bị.
