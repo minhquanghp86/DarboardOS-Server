@@ -546,8 +546,11 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
   }
 
   const { targetId } = await root.send<{ targetId: string }>('Target.createTarget', {
-    url: 'about:blank', width: cfg.width, height: cfg.height,
-  });
+    url: 'about:blank',
+    // width/height removed: Chrome stable does not support
+    // position params for new targets — viewport set via
+    // Emulation.setDeviceMetricsOverride in setupStableViewport()
+});
   const { sessionId } = await root.send<{ sessionId: string }>('Target.attachToTarget', {
     targetId, flatten: true
   });
