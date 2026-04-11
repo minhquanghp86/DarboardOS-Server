@@ -2,9 +2,11 @@ name: Build & Push to ghcr.io
 
 on:
   push:
-    branches: [main]
+    branches: 
+      - main
+      - feature/**    # ← thêm dòng này
     tags:
-      - "v*"
+    - "v*"
   workflow_dispatch:
 
 permissions:
