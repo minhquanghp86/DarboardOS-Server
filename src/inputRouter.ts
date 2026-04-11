@@ -30,18 +30,24 @@ export class InputRouter {
 
   public async handleOpenURLPacketAsync(dev: DeviceSession, buf: Buffer): Promise<void> {
     const pkt = parseOpenURLPacket(buf);
-      if (!pkt) return;
+    if (!pkt) return;
 
-      if (pkt.url === "self-test") {
+    if (pkt.url === "self-test") {
         await dev.selfTestRunner.startAsync(dev.deviceId, dev.cdp);
-      } else {
+    } else {
         dev.selfTestRunner.stop();
-        
-        if (dev.url !== pkt.url)
-          await dev.cdp.send('Page.navigate', { url: pkt.url });
-      }
-  }
 
+        // FIX: luôn navigate nếu url giống nhau để refresh frame sau khi reconnect
+        const sameUrl = dev.url === pkt.url;
+        if (!sameUrl) {
+            await dev.cdp.send('Page.navigate', { url: pkt.url });
+        } else {
+            // URL không đổi → không navigate lại nhưng force full frame
+            dev.processor.requestFullFrame();
+        }
+        dev.url = pkt.url;  // đảm bảo url được update
+    }
+}
   private async _dispatchTouchAsync(dev: DeviceSession, kind: TouchKind, x: number, y: number): Promise<void> {
     try {
       const id = 1; // single-finger id
