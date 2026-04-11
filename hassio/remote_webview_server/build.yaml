@@ -1,2 +1,5 @@
 build_from:
-  amd64: "ghcr.io/minhquanghp86/ha-darboard-server:sha-cd8a385"
+  build_from:
+  amd64: "ghcr.io/minhquanghp86/ha-darboard-server:feature-chrome-h264"
+  aarch64: "ghcr.io/minhquanghp86/ha-darboard-server:feature-chrome-h264"
+ # amd64: "ghcr.io/minhquanghp86/ha-darboard-server:sha-cd8a385"
