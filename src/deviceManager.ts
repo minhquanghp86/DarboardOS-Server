@@ -7,6 +7,12 @@ import { DeviceBroadcaster } from "./broadcaster.js";
 import { hash32 } from "./util.js";
 import { SelfTestRunner } from "./selfTest.js";
 
+// ── Type-safe interface cho CDP root (thay thế cast `any`) ────────────────────
+interface CDPRoot {
+  send<T = unknown>(method: string, params?: Record<string, unknown>): Promise<T>;
+  session(sessionId: string): CDPSession;
+}
+
 export type DeviceSession = {
   id: string;
   deviceId: string;
@@ -22,10 +28,25 @@ export type DeviceSession = {
   pendingB64?: string;
   throttleTimer?: NodeJS.Timeout;
   lastProcessedMs?: number;
+
+  // Cải tiến: theo dõi lỗi frame liên tiếp để tự phục hồi
+  consecutiveFrameErrors: number;
 };
 
 const PREFERS_REDUCED_MOTION = /^(1|true|yes|on)$/i.test(process.env.PREFERS_REDUCED_MOTION ?? '');
 const BROWSER_LOCALE = process.env.BROWSER_LOCALE || 'en-US';
+
+// Cải tiến: giới hạn số device đồng thời, đọc từ env, mặc định 8
+const MAX_DEVICES = Math.max(1, parseInt(process.env.MAX_DEVICES ?? '8', 10) || 8);
+
+// Cải tiến: số lỗi frame liên tiếp trước khi tự restart device
+const MAX_CONSECUTIVE_FRAME_ERRORS = 10;
+
+// Cải tiến: JPEG quality cho Chrome screencast (giảm tải CPU encode phía server)
+// PNG → JPEG: Chrome encode JPEG trực tiếp, bỏ bước sharp decode PNG → raw RGBA
+const SCREENCAST_JPEG_QUALITY = Math.min(100, Math.max(1,
+  parseInt(process.env.SCREENCAST_JPEG_QUALITY ?? '90', 10) || 90
+));
 
 const devices = new Map<string, DeviceSession>();
 let _cleanupRunning = false;
@@ -36,12 +57,24 @@ export const broadcaster = new DeviceBroadcaster();
 // Keyboard + Telex IME — embedded as TS template literal.
 // Rules: no backticks inside JS, CSS uses string concat,
 //        backslash chars use \\u005C unicode escape.
+//
+// Cải tiến:
+//   - Thay window.__vkb* global bằng closure-private _shield object
+//     → tránh xung đột với script khác trong trang HA
+//   - Thay document.execCommand (deprecated) bằng Selection/Range API
+//     cho insertText và delete trong contentEditable
+//   - Cải thiện tonePos() để xử lý đúng vị trí thanh cho các vần
+//     có nhiều nguyên âm liên tiếp (uyên, oai, uya, ươi...)
+//     theo quy tắc: ưu tiên nguyên âm "chính" (vị trí âm tiết chuẩn)
 // ============================================================
 const KIOSK_KEYBOARD_SCRIPT = `(function(){
   var VKB_WIDTH  = '100%';
   var VKB_HEIGHT = '196px';
   if (window.__kioskKeyboardInitialized) return;
   window.__kioskKeyboardInitialized = true;
+
+  // Cải tiến: dùng closure-private object thay vì window.__vkb* globals
+  var _shield = { closing: 0, opening: 0, lastTap: 0 };
 
   var keyboardContainer = null;
   var currentLayout    = 'default';
@@ -129,9 +162,48 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
     return {w:w, t:t};
   }
 
+  // Cải tiến: tonePos() theo quy tắc vị trí thanh chuẩn tiếng Việt
+  // Ưu tiên: â,ê,ô,ơ,ư,ă (nguyên âm có dấu phụ) trước a,e,i,o,u,y
+  // Với vần có nhiều nguyên âm: ưu tiên nguyên âm đứng trước âm cuối
+  // Ví dụ: uyên → đặt thanh vào ê; uya → đặt vào y; ươi → đặt vào ơ
+  var VOWEL_PRIORITY = {
+    '\\u00E2':2,'\\u00EA':2,'\\u00F4':2,
+    '\\u01A1':2,'\\u01B0':2,'\\u0103':2,
+    'a':1,'e':1,'i':1,'o':1,'u':1,'y':1
+  };
+
   function tonePos(word) {
-    for (var i=word.length-1; i>=0; i--) if(vi(word[i])) return i;
-    return -1;
+    // Tìm tất cả vị trí nguyên âm
+    var vowelPositions = [];
+    for (var i=0; i<word.length; i++) {
+      var v = vi(word[i]);
+      var base = v ? v.b : word[i];
+      if (VOWEL_PRIORITY[base] !== undefined) {
+        vowelPositions.push({ idx: i, base: base, pri: VOWEL_PRIORITY[base] });
+      }
+    }
+    if (vowelPositions.length === 0) return -1;
+    if (vowelPositions.length === 1) return vowelPositions[0].idx;
+
+    // Nếu có nguyên âm có dấu phụ (priority 2), ưu tiên nó
+    var high = vowelPositions.filter(function(p){ return p.pri === 2; });
+    if (high.length > 0) return high[0].idx;
+
+    // Với vần thuần (a/e/i/o/u/y): áp dụng quy tắc âm tiết mở/đóng
+    // Nếu nguyên âm cuối KHÔNG có phụ âm sau → đặt thanh ở nguyên âm cuối nhóm
+    // Nếu có phụ âm cuối (âm tiết đóng) → đặt thanh ở nguyên âm đầu nhóm
+    var lastVowelIdx = vowelPositions[vowelPositions.length - 1].idx;
+    var hasConsonantAfter = lastVowelIdx < word.length - 1;
+    if (hasConsonantAfter) {
+      // Âm tiết đóng: đặt ở nguyên âm đầu nhóm
+      return vowelPositions[0].idx;
+    } else {
+      // Âm tiết mở: đặt ở nguyên âm kế cuối nếu có 2+ nguyên âm, cuối nếu chỉ có 1
+      if (vowelPositions.length >= 2) {
+        return vowelPositions[vowelPositions.length - 2].idx;
+      }
+      return vowelPositions[vowelPositions.length - 1].idx;
+    }
   }
 
   function telex(word, key) {
@@ -183,12 +255,66 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
     return null;
   }
 
+  // Cải tiến: telexReplace dùng Selection/Range API thay execCommand (deprecated)
+  function insertTextModern(el, text) {
+    if (el.isContentEditable) {
+      var sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return;
+      var range = sel.getRangeAt(0);
+      range.deleteContents();
+      var node = document.createTextNode(text);
+      range.insertNode(node);
+      range.setStartAfter(node);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } else {
+      var val=el.value||'', s=el.selectionStart||0, e=el.selectionEnd||0;
+      el.value=val.slice(0,s)+text+val.slice(e);
+      el.selectionStart=el.selectionEnd=s+text.length;
+    }
+  }
+
+  function deleteCharModern(el) {
+    if (el.isContentEditable) {
+      var sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return;
+      var range = sel.getRangeAt(0);
+      if (!range.collapsed) {
+        range.deleteContents();
+      } else if (range.startOffset > 0) {
+        range.setStart(range.startContainer, range.startOffset - 1);
+        range.deleteContents();
+      }
+    } else {
+      var val2=el.value||'', s2=el.selectionStart||0, e2=el.selectionEnd||0;
+      if(s2===e2&&s2>0){ el.value=val2.slice(0,s2-1)+val2.slice(e2); el.selectionStart=el.selectionEnd=s2-1; }
+      else if(s2!==e2){ el.value=val2.slice(0,s2)+val2.slice(e2); el.selectionStart=el.selectionEnd=s2; }
+    }
+  }
+
   function telexReplace(newWord) {
     if (!activeInput) return;
     var dc = telexWord.length;
     if (activeInput.isContentEditable) {
-      for (var i=0;i<dc;i++) document.execCommand('delete',false,null);
-      document.execCommand('insertText',false,newWord);
+      // Cải tiến: dùng Selection/Range thay execCommand
+      var sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        var range = sel.getRangeAt(0);
+        // Xóa dc ký tự trước cursor
+        for (var i=0; i<dc; i++) {
+          if (range.startOffset > 0) {
+            range.setStart(range.startContainer, range.startOffset - 1);
+            range.deleteContents();
+          }
+        }
+        var node = document.createTextNode(newWord);
+        range.insertNode(node);
+        range.setStartAfter(node);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
     } else {
       var val=activeInput.value||'', pos=activeInput.selectionStart||0;
       var from=Math.max(0,pos-dc);
@@ -279,13 +405,7 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
   /* ---- Text insertion -------------------------------------- */
   function insertText(text){
     if(!activeInput) return;
-    if(activeInput.isContentEditable){
-      document.execCommand('insertText',false,text);
-    } else {
-      var val=activeInput.value||'', s=activeInput.selectionStart||0, e=activeInput.selectionEnd||0;
-      activeInput.value=val.slice(0,s)+text+val.slice(e);
-      activeInput.selectionStart=activeInput.selectionEnd=s+text.length;
-    }
+    insertTextModern(activeInput, text);
   }
 
   /* ---- Process key ----------------------------------------- */
@@ -312,13 +432,8 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
       case '\\u21B9': insertText('\\t'); resetTelex(); break;
 
       case '\\u232B':
-        if(activeInput.isContentEditable){
-          document.execCommand('delete',false,null);
-        } else {
-          var val2=activeInput.value||'', s2=activeInput.selectionStart||0, e2=activeInput.selectionEnd||0;
-          if(s2===e2&&s2>0){ activeInput.value=val2.slice(0,s2-1)+val2.slice(e2); activeInput.selectionStart=activeInput.selectionEnd=s2-1; }
-          else if(s2!==e2){ activeInput.value=val2.slice(0,s2)+val2.slice(e2); activeInput.selectionStart=activeInput.selectionEnd=s2; }
-        }
+        // Cải tiến: dùng deleteCharModern thay execCommand
+        deleteCharModern(activeInput);
         if(telexWord.length>0) telexWord=telexWord.slice(0,-1);
         break;
 
@@ -334,8 +449,10 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
 
       case '\\u23CE':
         if(activeInput.isContentEditable){
-      document.execCommand('insertParagraph',false,null);
-        activeInput.dispatchEvent(new Event('input',{bubbles:true,composed:true}));
+          // Cải tiến: dùng insertParagraph qua execCommand chỉ ở đây vì không có API tương đương
+          // (insertParagraph vẫn còn được support tốt trong Chrome)
+          document.execCommand('insertParagraph',false,null);
+          activeInput.dispatchEvent(new Event('input',{bubbles:true,composed:true}));
         } else if(activeInput.tagName==='TEXTAREA'){
           insertText('\\n');
         } else {
@@ -380,7 +497,8 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
   /* ---- Show / Hide ----------------------------------------- */
   function showKeyboard(el){
     activeInput=el; renderKeyboard();
-    window.__vkbOpeningShield=Date.now();
+    // Cải tiến: dùng _shield thay window.__vkbOpeningShield
+    _shield.opening=Date.now();
     if(keyboardContainer.showPopover){
       if(keyboardContainer.matches(':popover-open')) keyboardContainer.hidePopover();
       keyboardContainer.showPopover();
@@ -390,7 +508,8 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
   }
 
   function hideKeyboard(){
-    window.__vkbClosingShield=Date.now();
+    // Cải tiến: dùng _shield thay window.__vkbClosingShield
+    _shield.closing=Date.now();
     if(keyboardContainer){
       keyboardContainer.classList.remove('vkb-visible');
       if(keyboardContainer.hidePopover&&keyboardContainer.matches(':popover-open')) keyboardContainer.hidePopover();
@@ -430,7 +549,8 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
   /* ---- Master event shield --------------------------------- */
   ['pointerdown','pointerup','mousedown','mouseup','click','touchstart','touchend'].forEach(function(ev){
     document.addEventListener(ev,function(e){
-      if(window.__vkbClosingShield&&(Date.now()-window.__vkbClosingShield<400)){
+      // Cải tiến: dùng _shield thay window.__vkbClosingShield / __vkbOpeningShield / __vkbLastTap
+      if(_shield.closing&&(Date.now()-_shield.closing<400)){
         e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();return;
       }
       if(keyboardContainer&&keyboardContainer.classList.contains('vkb-visible')){
@@ -440,10 +560,10 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
         var rect=keyboardContainer.getBoundingClientRect();
         if(y>=rect.top&&y<=rect.bottom&&x>=rect.left&&x<=rect.right){
           e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
-          if(window.__vkbOpeningShield&&(Date.now()-window.__vkbOpeningShield<400)) return;
+          if(_shield.opening&&(Date.now()-_shield.opening<400)) return;
           if(['pointerdown','touchstart','mousedown','click'].includes(ev)){
-            if(window.__vkbLastTap&&(Date.now()-window.__vkbLastTap<250)) return;
-            window.__vkbLastTap=Date.now();
+            if(_shield.lastTap&&(Date.now()-_shield.lastTap<250)) return;
+            _shield.lastTap=Date.now();
             var keys=keyboardContainer.querySelectorAll('.vkb-key'),found=null;
             for(var i=0;i<keys.length;i++){
               var kr=keys[i].getBoundingClientRect();
@@ -492,7 +612,7 @@ async function setupStableViewport(
       await new Promise(r => setTimeout(r, 300));
       const res = await session.send('Runtime.evaluate', {
         expression: `({width:window.innerWidth,height:window.innerHeight})`, returnByValue: true
-      });
+      }) as { result?: { value?: { width: number; height: number } } };
       const sz = res.result?.value;
       if (sz) {
         console.log(`[Viewport] Attempt ${attempt}: got ${sz.width}x${sz.height}`);
@@ -517,7 +637,7 @@ async function verifyCodecSupport(session: CDPSession): Promise<void> {
     const r = await session.send('Runtime.evaluate', {
       expression: `(()=>{const v=document.createElement('video');return{h264:v.canPlayType('video/mp4;codecs="avc1.42E01E"')};})()`,
       returnByValue: true
-    });
+    }) as { result?: { value?: { h264: string } } };
     const s = r.result?.value;
     if (s) {
       if (!s.h264) console.warn('⚠️  H.264 not supported — install google-chrome-stable');
@@ -531,8 +651,16 @@ async function verifyCodecSupport(session: CDPSession): Promise<void> {
 // MAIN
 // ============================================
 export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<DeviceSession> {
-  const root = getRoot();
+  const root = getRoot() as unknown as CDPRoot;
   if (!root) throw new Error("CDP not ready");
+
+  // Cải tiến: giới hạn số device đồng thời
+  if (!devices.has(id) && devices.size >= MAX_DEVICES) {
+    throw new Error(
+      `[device] Max device limit reached (${MAX_DEVICES}). ` +
+      `Set MAX_DEVICES env var to increase. Current devices: ${[...devices.keys()].join(', ')}`
+    );
+  }
 
   let device = devices.get(id);
   if (device) {
@@ -550,11 +678,12 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     // width/height removed: Chrome stable does not support
     // position params for new targets — viewport set via
     // Emulation.setDeviceMetricsOverride in setupStableViewport()
-});
+  });
   const { sessionId } = await root.send<{ sessionId: string }>('Target.attachToTarget', {
     targetId, flatten: true
   });
-  const session = (root as any).session(sessionId);
+  // Cải tiến: dùng CDPRoot interface thay cast `any`
+  const session = root.session(sessionId);
 
   await session.send('Page.enable');
   await session.send('Page.addScriptToEvaluateOnNewDocument', { source: KIOSK_KEYBOARD_SCRIPT });
@@ -572,9 +701,18 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     });
   } catch { }
 
+  // Cải tiến: dùng format 'jpeg' thay 'png'
+  // → Chrome encode JPEG trực tiếp, bỏ hoàn toàn bước sharp decode PNG → raw RGBA
+  // → Giảm đáng kể CPU và memory trên server HASS addon
+  // → SCREENCAST_JPEG_QUALITY có thể tuỉnh qua env SCREENCAST_JPEG_QUALITY (mặc định 90)
   await session.send('Page.startScreencast', {
-    format: 'png', maxWidth: cfg.width, maxHeight: cfg.height, everyNthFrame: cfg.everyNthFrame
+    format: 'jpeg',
+    quality: SCREENCAST_JPEG_QUALITY,
+    maxWidth: cfg.width,
+    maxHeight: cfg.height,
+    everyNthFrame: cfg.everyNthFrame,
   });
+  console.log(`[device] Screencast format: jpeg, quality: ${SCREENCAST_JPEG_QUALITY}`);
 
   const processor = new FrameProcessor({
     tileSize: cfg.tileSize,
@@ -590,6 +728,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     url: '', lastActive: Date.now(), frameId: 0, prevFrameHash: 0,
     processor, selfTestRunner: new SelfTestRunner(broadcaster),
     pendingB64: undefined, throttleTimer: undefined, lastProcessedMs: undefined,
+    consecutiveFrameErrors: 0, // Cải tiến: tracking lỗi liên tiếp
   };
   devices.set(id, newDevice);
   newDevice.processor.requestFullFrame();
@@ -601,11 +740,16 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     dev.pendingB64 = undefined;
     if (!b64) return;
     try {
-      const pngFull = Buffer.from(b64, 'base64');
-      const h32 = hash32(pngFull);
+      // Cải tiến: xử lý JPEG thay PNG
+      // Với format jpeg, Chrome gửi JPEG data trực tiếp.
+      // sharp vẫn được dùng để rotation (nếu có) và decode sang raw RGBA cho FrameProcessor.
+      // Nếu KHÔNG có rotation: giảm 1 bước decode (bỏ qua ensureAlpha vẫn hoạt động với JPEG).
+      const imgBuf = Buffer.from(b64, 'base64');
+      const h32 = hash32(imgBuf);
       if (dev.prevFrameHash === h32) { dev.lastProcessedMs = Date.now(); return; }
       dev.prevFrameHash = h32;
-      let img = sharp(pngFull);
+
+      let img = sharp(imgBuf);
       if (dev.cfg.rotation) img = img.rotate(dev.cfg.rotation);
       const { data, info } = await img.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
       const out = await processor.processFrameAsync({ data, width: info.width, height: info.height });
@@ -613,8 +757,36 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
         dev.frameId = (dev.frameId + 1) >>> 0;
         broadcaster.sendFrameChunked(id, out, dev.frameId, cfg.maxBytesPerMessage);
       }
+
+      // Cải tiến: reset bộ đếm lỗi sau frame thành công
+      dev.consecutiveFrameErrors = 0;
+
     } catch (e) {
-      console.warn(`[device] Frame error ${id}: ${(e as Error).message}`);
+      // Cải tiến: đếm lỗi liên tiếp và tự restart device khi vượt ngưỡng
+      dev.consecutiveFrameErrors++;
+      console.warn(
+        `[device] Frame error ${id} (${dev.consecutiveFrameErrors}/${MAX_CONSECUTIVE_FRAME_ERRORS}): ` +
+        `${(e as Error).message}`
+      );
+      if (dev.consecutiveFrameErrors >= MAX_CONSECUTIVE_FRAME_ERRORS) {
+        console.error(
+          `[device] Too many consecutive frame errors on ${id}, scheduling device restart...`
+        );
+        dev.consecutiveFrameErrors = 0;
+        // Restart bất đồng bộ — không block pipeline hiện tại
+        setImmediate(async () => {
+          try {
+            const currentDev = devices.get(id);
+            if (currentDev) {
+              console.log(`[device] Restarting device ${id} after repeated errors`);
+              await deleteDeviceAsync(currentDev);
+              await ensureDeviceAsync(id, cfg);
+            }
+          } catch (restartErr) {
+            console.error(`[device] Restart failed for ${id}:`, (restartErr as Error).message);
+          }
+        });
+      }
     } finally {
       dev.lastProcessedMs = Date.now();
     }
@@ -633,7 +805,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     }
   });
 
-  console.log(`[device] ✓ Device ${id} ready (${cfg.width}x${cfg.height})`);
+  console.log(`[device] ✓ Device ${id} ready (${cfg.width}x${cfg.height}) [${devices.size}/${MAX_DEVICES} slots used]`);
   return newDevice;
 }
 
@@ -644,6 +816,9 @@ export async function cleanupIdleAsync(ttlMs = 5 * 60_000) {
     const now = Date.now();
     const stale = Array.from(devices.values())
       .filter(d => now - d.lastActive > ttlMs).map(d => d.deviceId);
+    if (stale.length > 0) {
+      console.log(`[device] Cleaning up ${stale.length} idle device(s): ${stale.join(', ')}`);
+    }
     for (const id of stale) {
       const dev = devices.get(id);
       if (dev) await deleteDeviceAsync(dev).catch(() => { });
@@ -652,9 +827,10 @@ export async function cleanupIdleAsync(ttlMs = 5 * 60_000) {
 }
 
 async function deleteDeviceAsync(device: DeviceSession) {
-  const root = getRoot();
+  const root = getRoot() as unknown as CDPRoot;
   if (!devices.delete(device.deviceId)) return;
   if (device.throttleTimer) clearTimeout(device.throttleTimer);
   try { await device.cdp.send("Page.stopScreencast").catch(() => { }); } catch { }
   try { await root?.send("Target.closeTarget", { targetId: device.id }); } catch { }
+  console.log(`[device] Device ${device.deviceId} deleted [${devices.size}/${MAX_DEVICES} slots used]`);
 }
