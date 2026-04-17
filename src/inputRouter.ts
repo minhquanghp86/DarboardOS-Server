@@ -1,7 +1,6 @@
 import type { DeviceSession } from "./deviceManager.js";
 import { TouchKind, parseFrameStatsPacket, parseOpenURLPacket, parseTouchPacket } from "./protocol.js";
 import { mapPointForRotation } from "./util.js";
-
 export class InputRouter {
   private _lastMoveAt = 0;
   private readonly _moveThrottleMs: number;
