@@ -56,7 +56,7 @@ export class InputRouter {
 
     dev.url = pkt.url;
   }
-}
+
   private async _dispatchTouchAsync(dev: DeviceSession, kind: TouchKind, x: number, y: number): Promise<void> {
     try {
       const id = 1; // single-finger id
