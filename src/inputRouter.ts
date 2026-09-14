@@ -1,5 +1,6 @@
 import type { DeviceSession } from "./deviceManager.js";
 import { TouchKind, parseFrameStats, parseOpenURLPacket, parseTouchPacket } from "./protocol.js";
+import { nudgeRepaintAsync } from "./browser.js";
 import { metrics } from "./metrics.js";
 import { mapPointForRotation } from "./util.js";
 export class InputRouter {
@@ -55,7 +56,10 @@ export class InputRouter {
     } else {
       // URL giống nhau (ESP reboot/reconnect) → không navigate để tránh flicker,
       // nhưng PHẢI force full frame để ESP nhận lại toàn bộ nội dung hiện tại.
+      // (15/09/2026) Và phải ÉP VẼ LẠI: trang tĩnh thì requestFullFrame() một mình không
+      // sinh frame nào -> thiết bị kẹt ảnh cũ (màn hình trắng chỉ sáng đèn nền).
       console.log(`[inputRouter] same URL reconnect, requesting full frame: ${pkt.url}`);
+      await nudgeRepaintAsync(dev.cdp);
       await dev.processor.requestFullFrame();
     }
 

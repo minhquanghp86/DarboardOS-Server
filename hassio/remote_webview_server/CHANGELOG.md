@@ -1,3 +1,11 @@
+## V2.4.2
+### Ép vẽ lại khi thiết bị xin hiển lại trang (chống kẹt ảnh cũ/ảnh đen)
+- Trước đây khi URL KHÔNG đổi, server chỉ `requestFullFrame()` — nhưng với trang TĨNH thì
+  không có frame nào được sinh ra, nên `requestFullFrame()` vô hiệu và thiết bị vẫn kẹt ảnh
+  cũ (màn hình trắng chỉ sáng đèn nền).
+- Nay server chèn 1 điểm 2x2px gần như trong suốt và đổi màu -> Chromium buộc phải vẽ lại ->
+  screencast sinh frame -> gửi full-frame mới cho thiết bị. Điểm này vô hình với người dùng.
+
 ## V2.4.1
 ### Chống "màn hình trắng" (chỉ sáng đèn nền)
 - Ca thực tế: sau khi server restart/update, thiết bị giữ ảnh cũ (hoặc ảnh đen) và không có

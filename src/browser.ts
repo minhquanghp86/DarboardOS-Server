@@ -67,6 +67,32 @@ async function startHeadlessIfNeededAsync(): Promise<void> {
   }
 }
 
+// (15/09/2026) Ép Chromium VẼ LẠI dù trang không đổi: chèn 1 điểm 2x2px gần như trong suốt
+// rồi đổi màu -> compositor phát sinh frame mới -> screencast gửi được frame cho thiết bị.
+// Cần khi thiết bị xin hiển lại trang mà URL không đổi (trang tĩnh: không có frame nào để
+// tự vẽ lại -> màn hình có thể kẹt ảnh cũ / ảnh đen dù đèn nền vẫn sáng).
+import type { CDPSession } from 'playwright-core';
+
+export async function nudgeRepaintAsync(cdp: CDPSession): Promise<void> {
+  const expr = `(() => {
+    let d = document.getElementById('__rwv_nudge');
+    if (!d) {
+      d = document.createElement('div');
+      d.id = '__rwv_nudge';
+      d.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;z-index:2147483647;pointer-events:none;opacity:0.004';
+      (document.body || document.documentElement).appendChild(d);
+    }
+    const on = d.style.background === 'rgb(255, 0, 0)';
+    d.style.background = on ? 'rgb(0, 255, 0)' : 'rgb(255, 0, 0)';
+    return true;
+  })()`;
+  try {
+    await cdp.send('Runtime.evaluate', { expression: expr, returnByValue: true });
+  } catch {
+    /* trang có thể đang chuyển hướng - bỏ qua */
+  }
+}
+
 export async function bootstrapAsync(): Promise<void> {
   await startHeadlessIfNeededAsync();
 
