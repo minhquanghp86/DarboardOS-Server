@@ -60,6 +60,10 @@ COPY --from=base /app/node_modules ./node_modules
 COPY --from=base /app/dist ./dist
 COPY --from=base /app/package*.json ./
 
+# (14/09/2026) SỬA LỖI: selfTest.ts trỏ tới file:///app/self-test/test1.html nhưng
+# thư mục self-test KHÔNG được copy vào image -> tính năng self-test chết.
+COPY self-test ./self-test
+
 # Create user data directory
 RUN mkdir -p /pw-data && chmod 777 /pw-data
 

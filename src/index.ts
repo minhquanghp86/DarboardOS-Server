@@ -7,6 +7,7 @@ import type { DeviceSession } from './deviceManager.js';
 import { InputRouter } from "./inputRouter.js";
 import { bootstrapAsync } from './browser.js';
 import { MsgType } from './protocol.js';
+import { metrics } from './metrics.js';
 import type WebSocket from 'ws';
 
 const WS_PORT   = env.get("WS_PORT").default("8081").asIntPositive();
@@ -32,6 +33,7 @@ function routeMessage(dev: DeviceSession, buf: Buffer): void {
         .catch(() => console.warn('[ws] framestats error'));
       break;
     case MsgType.OpenURL:
+      metrics.onNavigate(dev.deviceId, '(open_url)');
       inputRouter.handleOpenURLPacketAsync(dev, buf)
         .catch(e => console.warn(`[ws] openurl error: ${(e as Error).message}`));
       break;
@@ -92,7 +94,13 @@ wss.on("connection", async (ws, req) => {
 });
 
 // ── Health check ─────────────────────────────────────────────────────────────
-http.createServer((_req, res) => {
+http.createServer((req, res) => {
+  // (14/09/2026) /metrics: số liệu thật để đo hiệu năng (GĐ0)
+  if (req.url && req.url.startsWith('/metrics')) {
+    res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+    res.end(JSON.stringify(metrics.snapshot(), null, 2));
+    return;
+  }
   res.writeHead(200); res.end('ok');
 }).listen(HEALTH_PORT);
 

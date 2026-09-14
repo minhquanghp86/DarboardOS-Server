@@ -1,3 +1,13 @@
+## V2.1.0
+### Sửa lỗi màn hình đỏ (quan trọng)
+- Trước đây khi 1 vùng ảnh vượt `max_bytes_per_message`, server thay vùng đó bằng MỘT KHỐI ĐỎ
+  toàn khung - gặp nhiều nhất ở panel có `full_frame_tile_count: 1` (JC4827 480x272, JC1060P470 1024x600).
+- Nay: tự hạ quality (x1 -> x0.75 -> x0.55 -> x0.35, sàn 20) rồi chia nhỏ vùng ảnh (2x2, đệ quy)
+  để vừa giới hạn bytes; cùng đường thì bỏ qua vùng đó (giữ nội dung cũ). KHÔNG bao giờ gửi khối đỏ.
+### Thêm
+- `GET :18080/metrics`: số liệu thật (fps, bytes, encode ms, số lần hạ quality/chia nhỏ, lỗi, số client).
+- Sửa self-test: file `self-test/test1.html` chưa được copy vào image nên tính năng self-test không chạy.
+
 ## V2.0.6
 ### Thêm hỗ trợ bàn phím Tiếng Việt
 ### Fix lỗi không hiện bàn phím

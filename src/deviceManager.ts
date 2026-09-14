@@ -5,6 +5,7 @@ import { getRoot } from "./cdpRoot.js";
 import { FrameProcessor } from "./frameProcessor.js";
 import { DeviceBroadcaster } from "./broadcaster.js";
 import { hash32 } from "./util.js";
+import { metrics } from "./metrics.js";
 import { SelfTestRunner } from "./selfTest.js";
 
 // ── Type-safe interface cho CDP root (thay thế cast `any`) ────────────────────
@@ -723,6 +724,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     maxBytesPerMessage: cfg.maxBytesPerMessage,
   });
 
+  metrics.setConfig(id, cfg);
   const newDevice: DeviceSession = {
     id: targetId, deviceId: id, cdp: session, cfg,
     url: '', lastActive: Date.now(), frameId: 0, prevFrameHash: 0,
@@ -746,13 +748,19 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
       // Nếu KHÔNG có rotation: giảm 1 bước decode (bỏ qua ensureAlpha vẫn hoạt động với JPEG).
       const imgBuf = Buffer.from(b64, 'base64');
       const h32 = hash32(imgBuf);
-      if (dev.prevFrameHash === h32) { dev.lastProcessedMs = Date.now(); return; }
+      if (dev.prevFrameHash === h32) {
+        metrics.onFrameSkipped(id);
+        dev.lastProcessedMs = Date.now();
+        return;
+      }
       dev.prevFrameHash = h32;
 
       let img = sharp(imgBuf);
       if (dev.cfg.rotation) img = img.rotate(dev.cfg.rotation);
       const { data, info } = await img.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+      const _tEnc = Date.now();
       const out = await processor.processFrameAsync({ data, width: info.width, height: info.height });
+      metrics.onFrameEncoded(id, out, processor.stats, Date.now() - _tEnc);
       if (out.rects.length > 0) {
         dev.frameId = (dev.frameId + 1) >>> 0;
         broadcaster.sendFrameChunked(id, out, dev.frameId, cfg.maxBytesPerMessage);
@@ -764,6 +772,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     } catch (e) {
       // Cải tiến: đếm lỗi liên tiếp và tự restart device khi vượt ngưỡng
       dev.consecutiveFrameErrors++;
+      metrics.onFrameError(id, (e as Error).message);
       console.warn(
         `[device] Frame error ${id} (${dev.consecutiveFrameErrors}/${MAX_CONSECUTIVE_FRAME_ERRORS}): ` +
         `${(e as Error).message}`
@@ -829,6 +838,7 @@ export async function cleanupIdleAsync(ttlMs = 5 * 60_000) {
 async function deleteDeviceAsync(device: DeviceSession) {
   const root = getRoot() as unknown as CDPRoot;
   if (!devices.delete(device.deviceId)) return;
+  metrics.removeDevice(device.deviceId);
   if (device.throttleTimer) clearTimeout(device.throttleTimer);
   try { await device.cdp.send("Page.stopScreencast").catch(() => { }); } catch { }
   try { await root?.send("Target.closeTarget", { targetId: device.id }); } catch { }
