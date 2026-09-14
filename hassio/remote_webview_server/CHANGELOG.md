@@ -1,3 +1,13 @@
+## V2.3.0
+### GĐ3 - vòng điều khiển thích nghi (tự chỉnh theo số đo thật)
+- Mỗi thiết bị được tự chỉnh CHẤT LƯỢNG JPEG và NHỊP GỬI FRAME theo thời gian decode mà
+  chính thiết bị báo về (FrameStats) + bytes/s:
+  - decode vượt ngân sách (nhịp × 0.5) → giảm quality 10 mỗi bước, chạm sàn 40 thì giãn nhịp +50ms;
+  - decode rất thấp (dưới nửa ngân sách) và mạng không căng → nâng lại +5 sau 3 mẫu tốt liên tiếp;
+  - có thời gian trễ 20s giữa 2 lần chỉnh để tránh dao động.
+- Tắt bằng `CCR_ADAPTIVE=0`. Xem trạng thái trong `/metrics`: `avgDecodeMs`, `recentMaxDecodeMs`,
+  `appliedQuality`, `appliedMinFrameIntervalMs`, `adaptiveChanges`, `lastAdaptiveReason`.
+
 ## V2.2.0
 ### GĐ2 - giảm chi phí decode trên thiết bị (mượt hơn)
 - Full-frame: gửi CẢ KHUNG trong MỘT ảnh JPEG khi vừa giới hạn bytes (thay vì chia 4 mảnh)

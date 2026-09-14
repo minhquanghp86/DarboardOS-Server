@@ -45,6 +45,11 @@ export type DeviceMetrics = {
   decodeMsTotal: number;
   decodeSamples: number;
   lastDecodeMs: number;
+  recentDecode: number[];
+  appliedQuality: number | null;
+  appliedMinFrameIntervalMs: number | null;
+  lastAdaptiveReason: string | null;
+  adaptiveChanges: number;
   lastUrl: string | null;
   lastFrameAt: number;
   lastError: string | null;
@@ -76,6 +81,11 @@ function dev(id: string): DeviceMetrics {
       decodeMsTotal: 0,
       decodeSamples: 0,
       lastDecodeMs: 0,
+      recentDecode: [],
+      appliedQuality: null,
+      appliedMinFrameIntervalMs: null,
+      lastAdaptiveReason: null,
+      adaptiveChanges: 0,
       lastUrl: null,
       lastFrameAt: 0,
       lastError: null,
@@ -124,6 +134,17 @@ export const metrics = {
     d.decodeMsTotal += ms;
     d.decodeSamples++;
     d.lastDecodeMs = ms;
+    // (14/09/2026) GĐ3: giữ 6 mẫu gần nhất để điều khiển theo TẢI HIỆN TẠI (không phải
+    // trung bình từ lúc kết nối) - dùng giá trị CAO NHẤT để tránh giật khung.
+    d.recentDecode.push(ms);
+    if (d.recentDecode.length > 6) d.recentDecode.shift();
+  },
+  onAdaptiveChange(id: string, quality: number, minFrameIntervalMs: number, reason: string): void {
+    const d = dev(id);
+    d.appliedQuality = quality;
+    d.appliedMinFrameIntervalMs = minFrameIntervalMs;
+    d.lastAdaptiveReason = reason;
+    d.adaptiveChanges++;
   },
   onNavigate(id: string, url: string): void {
     const d = dev(id);
@@ -144,6 +165,7 @@ export const metrics = {
         avgFrameBytes: d.framesSent ? Math.round(d.bytesSent / d.framesSent) : 0,
         avgEncodeMs: d.framesSent ? +(d.encodeMsTotal / d.framesSent).toFixed(1) : 0,
         avgDecodeMs: d.decodeSamples ? +(d.decodeMsTotal / d.decodeSamples).toFixed(1) : null,
+        recentMaxDecodeMs: d.recentDecode.length ? Math.max(...d.recentDecode) : null,
         msSinceLastFrame: d.lastFrameAt ? now - d.lastFrameAt : null,
       };
     });

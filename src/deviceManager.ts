@@ -6,6 +6,7 @@ import { FrameProcessor } from "./frameProcessor.js";
 import { DeviceBroadcaster } from "./broadcaster.js";
 import { hash32 } from "./util.js";
 import { metrics } from "./metrics.js";
+import { AdaptiveState, DEFAULT_ADAPTIVE_CFG, decideAdaptive, initialAdaptiveState } from "./adaptive.js";
 import { SelfTestRunner } from "./selfTest.js";
 
 // ── Type-safe interface cho CDP root (thay thế cast `any`) ────────────────────
@@ -833,6 +834,44 @@ export async function cleanupIdleAsync(ttlMs = 5 * 60_000) {
       if (dev) await deleteDeviceAsync(dev).catch(() => { });
     }
   } finally { _cleanupRunning = false; }
+}
+
+// (14/09/2026) GĐ3: vòng điều khiển thích nghi cho TỪNG thiết bị.
+// Chạy định kỳ; đọc số đo thật (decode mới nhất do thiết bị báo, bytes/s) rồi chỉnh
+// quality/nhịp. Tắt bằng biến môi trường CCR_ADAPTIVE=0.
+const adaptiveStates = new Map<string, AdaptiveState>();
+
+export function runAdaptiveTick(): void {
+  if (process.env.CCR_ADAPTIVE === '0') return;
+  const now = Date.now();
+  const snap = metrics.snapshot();
+  for (const m of snap.devices) {
+    const device = devices.get(m.id);
+    if (!device || !m.decodeSamples) continue;
+    let st = adaptiveStates.get(m.id);
+    if (!st) {
+      st = initialAdaptiveState(device.cfg.jpegQuality, device.cfg.minFrameInterval, now);
+      adaptiveStates.set(m.id, st);
+    }
+    const cfgA = { ...DEFAULT_ADAPTIVE_CFG, maxQuality: device.cfg.jpegQuality };
+    const bytesPerSec = m.uptimeSec > 0 ? m.bytesSent / m.uptimeSec : 0;
+    const res = decideAdaptive(
+      {
+        decodeMs: m.recentMaxDecodeMs ?? m.avgDecodeMs ?? null,
+        bytesPerSec,
+        frameErrors: m.frameErrors,
+      },
+      st,
+      cfgA,
+      now
+    );
+    adaptiveStates.set(m.id, res.state);
+    if (!res.changed) continue;
+    device.processor.setTuning({ jpegQuality: res.state.quality });
+    device.cfg.minFrameInterval = res.state.minFrameIntervalMs;
+    metrics.onAdaptiveChange(m.id, res.state.quality, res.state.minFrameIntervalMs, res.reason);
+    console.log(`[adaptive] ${m.id}: ${res.reason}`);
+  }
 }
 
 // (14/09/2026) GD2: dinh ky xin MOI thiet bi bao so lieu decode (FrameStats).

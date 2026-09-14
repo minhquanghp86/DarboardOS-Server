@@ -1,0 +1,99 @@
+import { describe, expect, it } from "vitest";
+import { DEFAULT_ADAPTIVE_CFG, decideAdaptive, initialAdaptiveState, adaptiveBudgetMs } from "./adaptive.js";
+
+const cfg = { ...DEFAULT_ADAPTIVE_CFG };
+const t0 = 1_000_000;
+
+describe("GĐ3 - bộ điều khiển thích nghi", () => {
+  it("ngân sách decode = nhịp × tỉ lệ", () => {
+    const st = initialAdaptiveState(60, 100, t0);
+    expect(adaptiveBudgetMs(st, cfg)).toBe(50);
+  });
+
+  it("chưa có số đo -> không chỉnh gì", () => {
+    const st = initialAdaptiveState(60, 100, t0);
+    const r = decideAdaptive({ decodeMs: null, bytesPerSec: 0, frameErrors: 0 }, st, cfg, t0 + 60_000);
+    expect(r.changed).toBe(false);
+  });
+
+  it("decode vượt ngân sách -> GIẢM quality một bước", () => {
+    const st = initialAdaptiveState(60, 100, t0);
+    const r = decideAdaptive({ decodeMs: 90, bytesPerSec: 1000, frameErrors: 0 }, st, cfg, t0 + 60_000);
+    expect(r.changed).toBe(true);
+    expect(r.state.quality).toBe(50);
+    expect(r.state.minFrameIntervalMs).toBe(100);
+  });
+
+  it("trong thời gian trễ -> không chỉnh tiếp", () => {
+    const st = { ...initialAdaptiveState(60, 100, t0), lastChangeAt: t0 + 60_000, quality: 50 };
+    const r = decideAdaptive({ decodeMs: 90, bytesPerSec: 1000, frameErrors: 0 }, st, cfg, t0 + 60_000 + 5_000);
+    expect(r.changed).toBe(false);
+    expect(r.state.quality).toBe(50);
+  });
+
+  it("quá tải liên tục: giảm dần quality tới sàn rồi mới giãn nhịp", () => {
+    let st = initialAdaptiveState(60, 100, t0);
+    let now = t0;
+    // 60 -> 50 -> 40 (chạm sàn)
+    for (let i = 0; i < 2; i++) {
+      now += 30_000;
+      st = decideAdaptive({ decodeMs: 200, bytesPerSec: 1000, frameErrors: 0 }, st, cfg, now).state;
+    }
+    expect(st.quality).toBe(40);
+    const budget0 = adaptiveBudgetMs(st, cfg);
+    expect(budget0).toBe(50);
+    now += 30_000;
+    const r = decideAdaptive({ decodeMs: 200, bytesPerSec: 1000, frameErrors: 0 }, st, cfg, now);
+    expect(r.changed).toBe(true);
+    expect(r.state.quality).toBe(40);
+    expect(r.state.minFrameIntervalMs).toBe(150); // giãn nhịp 100 -> 150
+  });
+
+  it("nhịp giãn làm ngân sách rộng ra -> hết quá tải", () => {
+    const st = { ...initialAdaptiveState(40, 150, t0) };
+    // ngân sách = 75ms; decode 60ms -> không vượt -> ổn định
+    const r = decideAdaptive({ decodeMs: 60, bytesPerSec: 1000, frameErrors: 0 }, st, cfg, t0 + 30_000);
+    expect(r.changed).toBe(false);
+    expect(r.reason).toBe("ổn định");
+  });
+
+  it("dư địa: cần 3 mẫu tốt liên tiếp mới TĂNG quality", () => {
+    let st = initialAdaptiveState(40, 100, t0);
+    let now = t0 + 30_000;
+    const good = { decodeMs: 10, bytesPerSec: 10_000, frameErrors: 0 };
+    for (let i = 0; i < 2; i++) {
+      const r = decideAdaptive(good, st, cfg, now);
+      expect(r.changed).toBe(false);
+      st = r.state;
+      now += 30_000;
+    }
+    const r3 = decideAdaptive(good, st, cfg, now);
+    expect(r3.changed).toBe(true);
+    expect(r3.state.quality).toBe(45);
+  });
+
+  it("mạng đã căng -> KHÔNG nâng chất lượng dù decode rất thấp", () => {
+    let st = initialAdaptiveState(40, 100, t0);
+    let now = t0 + 30_000;
+    const heavy = { decodeMs: 5, bytesPerSec: cfg.maxBytesPerSec + 1, frameErrors: 0 };
+    for (let i = 0; i < 5; i++) {
+      const r = decideAdaptive(heavy, st, cfg, now);
+      expect(r.changed).toBe(false);
+      st = r.state;
+      now += 30_000;
+    }
+    expect(st.quality).toBe(40);
+  });
+
+  it("không vượt quá chất lượng thiết bị yêu cầu (maxQuality)", () => {
+    const cfgLow = { ...cfg, maxQuality: 60 };
+    let st = initialAdaptiveState(55, 100, t0);
+    let now = t0;
+    for (let i = 0; i < 6; i++) {
+      now += 30_000;
+      st = decideAdaptive({ decodeMs: 5, bytesPerSec: 1000, frameErrors: 0 }, st, cfgLow, now).state;
+    }
+    expect(st.quality).toBeLessThanOrEqual(60);
+    expect(st.quality).toBe(60);
+  });
+});

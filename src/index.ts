@@ -2,7 +2,7 @@ import http from 'http';
 import { WebSocketServer } from "ws"
 import env from "env-var";
 import { makeConfigFromParams, setConfigFor, logDeviceConfig } from "./config.js";
-import { broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices } from './deviceManager.js';
+import { broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick } from './deviceManager.js';
 import type { DeviceSession } from './deviceManager.js';
 import { InputRouter } from "./inputRouter.js";
 import { bootstrapAsync } from './browser.js';
@@ -107,4 +107,6 @@ http.createServer((req, res) => {
 setInterval(() => cleanupIdleAsync(), 60_000);
 // (14/09/2026) GD2: 30s/lan xin so lieu decode tu cac thiet bi -> /metrics
 setInterval(() => requestStatsFromDevices(), 30_000);
+// (14/09/2026) GĐ3: 15s/lan chinh quality/nhip theo so do thuc (tat bang CCR_ADAPTIVE=0)
+setInterval(() => runAdaptiveTick(), 15_000);
 console.log(`[server] WebSocket listening on :${WS_PORT}`);

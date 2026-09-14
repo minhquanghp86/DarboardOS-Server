@@ -50,6 +50,17 @@ export class FrameProcessor {
     this._cfg = cfg;
   }
 
+  // (14/09/2026) GĐ3: bộ điều khiển thích nghi chỉnh được chất lượng khi đang chạy
+  public setTuning(t: { jpegQuality?: number }): void {
+    if (t.jpegQuality !== undefined) {
+      this._cfg.jpegQuality = Math.max(1, Math.min(100, Math.round(t.jpegQuality)));
+    }
+  }
+
+  public get tuning(): { jpegQuality: number } {
+    return { jpegQuality: this._cfg.jpegQuality };
+  }
+
   public requestFullFrame(): void {
     this._iter = 0;
     this._fullFrameRequested = true;
