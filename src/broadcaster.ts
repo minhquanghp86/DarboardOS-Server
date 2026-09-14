@@ -1,6 +1,7 @@
 import { WebSocket } from "ws";
 import { buildFrameStatsPacket, buildFramePackets } from "./protocol.js";
 import type { FrameOut } from "./frameProcessor.js";
+import { metrics } from "./metrics.js";
 
 type OutFrame = { frameId: number; packets: Buffer[] };
 type BroadcasterState = { queue: OutFrame[]; sending: boolean };
@@ -23,9 +24,17 @@ export class DeviceBroadcaster {
 
     if (!this._state.has(id)) this._state.set(id, { queue: [], sending: false });
 
-    console.log(`[broadcaster] Client connected to device ${id}, total clients: ${this._clients.get(id)?.size}`);
+    const nClients = this._clients.get(id)?.size ?? 0;
+    console.log(`[broadcaster] Client connected to device ${id}, total clients: ${nClients}`);
+    metrics.setClientCount(id, nClients);
     ws.once("close", () => this.removeClient(id, ws));
-    ws.once("error", () => this.removeClient(id, ws));
+    // (14/09/2026) SỬA LỖI: lỗi tạm thời (error) KHÔNG có nghĩa là đã ngắt.
+    // Trước đây chỉ cần 1 sự kiện 'error' là socket bị loại khỏi danh sách phát
+    // -> panel không nhận frame nữa (đứng hình) dù TCP vẫn ESTABLISHED, và
+    // /metrics báo clients=0. Nay chỉ loại khi socket thực sự không còn OPEN.
+    ws.once("error", () => {
+      if (ws.readyState !== WebSocket.OPEN) this.removeClient(id, ws);
+    });
   }
 
   removeClient(id: string, ws: WebSocket): void {
@@ -35,6 +44,7 @@ export class DeviceBroadcaster {
       this._state.delete(id);
     }
     console.log(`[broadcaster] Client disconnected from device ${id}, total clients: ${this._clients.get(id)?.size ?? 0}`);
+    metrics.setClientCount(id, this._clients.get(id)?.size ?? 0);
   }
 
   getClientCount(id: string): number {
@@ -83,6 +93,7 @@ export class DeviceBroadcaster {
       while (st.queue.length) {
         const f = st.queue.shift()!;
         for (const pkt of f.packets) {
+          let sentOnce = false;
           for (const ws of new Set(peers)) {
             if (ws.readyState !== WebSocket.OPEN) {
               peers.delete(ws);
@@ -90,11 +101,13 @@ export class DeviceBroadcaster {
             }
             try {
               ws.send(pkt, { binary: true });
+              sentOnce = true;
             } catch {
               try { ws.close(); } catch {}
               peers.delete(ws);
             }
           }
+          if (sentOnce) metrics.onPacket(id, pkt.length);
           if (peers.size === 0) { st.queue.length = 0; return; }
           await Promise.resolve();
         }

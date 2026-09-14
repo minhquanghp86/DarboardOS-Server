@@ -1,4 +1,4 @@
-  import env from "env-var";
+import env from "env-var";
 import { mkdir } from 'fs/promises';
 import { chromium } from 'playwright-core';
 import { initCdpRootAsync, waitForCdpReadyAsync } from './cdpRoot.js';
@@ -9,6 +9,12 @@ const USER_DATA_DIR = process.env.USER_DATA_DIR || (process.platform === 'win32'
   ? 'C:\\Temp\\remotewebview-profile'
   : '/var/temp/remotewebview-profile');
 const BROWSER_LOCALE = env.get("BROWSER_LOCALE").default("en-US").asString();
+
+const CHROME_EXECUTABLE =
+  process.env.CHROME_EXECUTABLE ||
+  (process.platform === 'win32'
+    ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+    : '/usr/bin/google-chrome-stable');
 
 async function fetchJsonVersionAsync(): Promise<{ webSocketDebuggerUrl: string } | null> {
   try {
@@ -25,18 +31,28 @@ async function startHeadlessIfNeededAsync(): Promise<void> {
   if (info?.webSocketDebuggerUrl) return;
 
   await mkdir(USER_DATA_DIR, { recursive: true });
+
   const args = [
     `--remote-debugging-port=${DEBUG_PORT}`,
     '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-dev-shm-usage',
     '--force-device-scale-factor=1',
     '--headless=new',
+    '--enable-features=VaapiVideoDecoder',
+    '--disable-features=UseChromeOSDirectVideoDecoder',
+    '--disable-background-timer-throttling',
+    '--disable-backgrounding-occluded-windows',
+    '--disable-renderer-backgrounding',
     ...(PREFERS_REDUCED_MOTION ? ['--force-prefers-reduced-motion'] : []),
   ];
 
+  console.log(`[browser] Launching Chrome: ${CHROME_EXECUTABLE}`);
   if (PREFERS_REDUCED_MOTION)
-    console.log('[browser] Launching with prefers-reduced-motion');
+    console.log('[browser] prefers-reduced-motion enabled');
 
   await chromium.launchPersistentContext(USER_DATA_DIR, {
+    executablePath: CHROME_EXECUTABLE,
     headless: true,
     locale: BROWSER_LOCALE,
     args,

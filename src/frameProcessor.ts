@@ -2,6 +2,7 @@ import os from "node:os";
 import sharp from "sharp";
 import { Encoding, FRAME_HEADER_BYTES, TILE_HEADER_BYTES } from "./protocol.js";
 import { hash32 } from "./util.js";
+import type { FrameProcessorStats } from "./metrics.js";
 
 sharp.concurrency(Math.max(1, os.cpus().length - 1));
 
@@ -25,6 +26,18 @@ export type FrameProcessorCfg = {
 };
 
 export class FrameProcessor {
+  // Thống kê để đẩy ra /metrics (GĐ0)
+  public readonly stats: FrameProcessorStats = {
+    frames: 0,
+    rects: 0,
+    bytes: 0,
+    encodeMs: 0,
+    qualityFallbacks: 0,
+    splits: 0,
+    droppedRects: 0,
+    oversizeDropped: 0,
+  };
+
   private _cfg: FrameProcessorCfg;
   private _cols = 0;
   private _rows = 0;
@@ -43,6 +56,7 @@ export class FrameProcessor {
 
   public async processFrameAsync(rgba: RGBA): Promise<FrameOut> {
     if (!this._prev) this._initGrid(rgba.width, rgba.height);
+    const t0 = Date.now();
 
     let forceFull = (this._iter % this._cfg.fullFrameEvery) === 0;
     if (this._fullFrameRequested) {
@@ -84,14 +98,22 @@ export class FrameProcessor {
       out = await this._processPartialFrame(rgba, tiles, chosenEncoding);
     }
 
-    const maxBytesPerTile = this._cfg.maxBytesPerMessage - FRAME_HEADER_BYTES - TILE_HEADER_BYTES;
-    for (let i = 0; i < out.rects.length; i++) {
-      const r = out.rects[i];
-      if (r.data.length > maxBytesPerTile) {
-        const redData = await this._makeRedFrameAsync(r.w, r.h, chosenEncoding);
-        out.rects[i] = { x: r.x, y: r.y, w: r.w, h: r.h, data: redData };
-      }
-    }
+    // (14/09/2026) LƯỚI AN TOÀN CUỐI: KHÔNG gửi khối đỏ nữa.
+    // Rect nào vẫn vượt cap (đáng ra không xảy ra vì _encodeRectFitting đã hạ quality
+    // hoặc chia nhỏ) thì BỎ QUA - vùng đó giữ nội dung cũ trên màn hình tới lần
+    // full-frame kế tiếp - và đếm lại để theo dõi qua /metrics.
+    const capBytes = this._cfg.maxBytesPerMessage - FRAME_HEADER_BYTES - TILE_HEADER_BYTES;
+    out.rects = out.rects.filter((r) => {
+      if (r.data.length <= capBytes) return true;
+      this.stats.oversizeDropped++;
+      console.warn(`[frame] bỏ rect ${r.w}x${r.h} vì vượt cap (${r.data.length} > ${capBytes})`);
+      return false;
+    });
+
+    this.stats.frames++;
+    this.stats.rects += out.rects.length;
+    this.stats.bytes += out.rects.reduce((a, r) => a + r.data.length, 0);
+    this.stats.encodeMs += Date.now() - t0;
 
     this._iter++;
     return out;
@@ -105,10 +127,9 @@ export class FrameProcessor {
     const rectsForFull = this._splitWholeFrame(rgba.width, rgba.height, this._cfg.fullframeTileCount);
     const rects: Rect[] = [];
 
+    const cap = this._cfg.maxBytesPerMessage - FRAME_HEADER_BYTES - TILE_HEADER_BYTES;
     for (const r of rectsForFull) {
-      const raw = this._extractRaw(rgba, r.x, r.y, r.w, r.h);
-      const data = await this._encode(raw, r.w, r.h, encoding);
-      rects.push({ x: r.x, y: r.y, w: r.w, h: r.h, data });
+      rects.push(...await this._encodeRectFitting(rgba, r.x, r.y, r.w, r.h, encoding, cap));
     }
 
     for (const t of tilesInfo) this._prev![t.idx] = t.h32;
@@ -123,11 +144,10 @@ export class FrameProcessor {
   ): Promise<FrameOut> {
     const mergedRects = this._mergeChangedTiles(tiles, rgba.width, rgba.height);
 
+    const cap = this._cfg.maxBytesPerMessage - FRAME_HEADER_BYTES - TILE_HEADER_BYTES;
     const out: Rect[] = [];
     for (const r of mergedRects) {
-      const raw = this._extractRaw(rgba, r.x, r.y, r.w, r.h);
-      const data = await this._encode(raw, r.w, r.h, encoding);
-      out.push({ ...r, data });
+      out.push(...await this._encodeRectFitting(rgba, r.x, r.y, r.w, r.h, encoding, cap));
     }
     for (const t of tiles) if (t.changed) this._prev![t.idx] = t.h32;
 
@@ -286,10 +306,65 @@ export class FrameProcessor {
     return out;
   }
 
+  // (14/09/2026) Encode 1 vùng sao cho VỪA cap bytes - thay cho việc gửi khối ĐỎ.
+  // 1) thử quality cấu hình rồi hạ dần (×0.75 → ×0.55 → ×0.35, sàn 20)
+  // 2) vẫn quá lớn → chia 2×2 và đệ quy (mỗi mảnh vẽ đúng x/y/w/h, KHÔNG cần đổi
+  //    giao thức v1 vì thiết bị chỉ vẽ từng rect theo toạ độ của nó)
+  // 3) cùng đường → bỏ qua rect (trả rỗng), tuyệt đối không gửi khối đỏ
+  private async _encodeRectFitting(
+    rgba: RGBA,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    enc: Encoding,
+    cap: number,
+    depth = 0
+  ): Promise<Rect[]> {
+    const raw = this._extractRaw(rgba, x, y, w, h);
+    for (const factor of [1, 0.75, 0.55, 0.35]) {
+      const q = Math.max(20, Math.round(this._cfg.jpegQuality * factor));
+      const data = await this._encodeWithQuality(raw, w, h, enc, q);
+      if (data.length <= cap) {
+        if (factor < 1) this.stats.qualityFallbacks++;
+        return [{ x, y, w, h, data }];
+      }
+    }
+
+    if (depth < 3 && w >= 32 && h >= 32) {
+      this.stats.splits++;
+      const w1 = Math.floor(w / 2);
+      const h1 = Math.floor(h / 2);
+      const parts: [number, number, number, number][] = [
+        [x, y, w1, h1],
+        [x + w1, y, w - w1, h1],
+        [x, y + h1, w1, h - h1],
+        [x + w1, y + h1, w - w1, h - h1],
+      ];
+      const out: Rect[] = [];
+      for (const [px, py, pw, ph] of parts) {
+        if (pw <= 0 || ph <= 0) continue;
+        out.push(...await this._encodeRectFitting(rgba, px, py, pw, ph, enc, cap, depth + 1));
+      }
+      return out;
+    }
+
+    this.stats.droppedRects++;
+    console.warn(`[frame] bỏ qua rect ${w}x${h} (không thể nén vừa ${cap} bytes)`);
+    return [];
+  }
+
+  private async _encodeWithQuality(rawRgba: Buffer, w: number, h: number, enc: Encoding, quality: number): Promise<Buffer> {
+    if (enc === Encoding.RAW565) return this._encodeRAW565(rawRgba);
+    return sharp(rawRgba, { raw: { width: w, height: h, channels: 4 } })
+      .jpeg({ quality, mozjpeg: false, chromaSubsampling: "4:2:0" })
+      .toBuffer();
+  }
+
   private async _encode(rawRgba: Buffer, w: number, h: number, enc: Encoding): Promise<Buffer> {
     switch (enc) {
       case Encoding.JPEG:
-        return this._encodeJPEG(rawRgba, w, h);
+        return this._encodeWithQuality(rawRgba, w, h, enc, this._cfg.jpegQuality);
       case Encoding.RAW565:
         return this._encodeRAW565(rawRgba);
       default:
