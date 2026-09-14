@@ -36,6 +36,7 @@ export class FrameProcessor {
     splits: 0,
     droppedRects: 0,
     oversizeDropped: 0,
+    wholeFrameHits: 0,
   };
 
   private _cfg: FrameProcessorCfg;
@@ -124,10 +125,25 @@ export class FrameProcessor {
     tilesInfo: { idx: number; h32: number }[],
     encoding: Encoding
   ): Promise<FrameOut> {
+    const cap = this._cfg.maxBytesPerMessage - FRAME_HEADER_BYTES - TILE_HEADER_BYTES;
+
+    // (14/09/2026) GD2: thử gửi CẢ KHUNG trong MỘT ảnh JPEG -> thiết bị chỉ phải decode
+    // 1 lần thay vì N mảnh (decode là chi phí lớn nhất trên ESP32-S3). Hạ quality dần
+    // cho vừa cap; nếu vẫn không vừa thì quay về cách chia mảnh như trước.
+    const rawWhole = this._extractRaw(rgba, 0, 0, rgba.width, rgba.height);
+    for (const factor of [1, 0.75, 0.55, 0.35]) {
+      const q = Math.max(20, Math.round(this._cfg.jpegQuality * factor));
+      const data = await this._encodeWithQuality(rawWhole, rgba.width, rgba.height, encoding, q);
+      if (data.length <= cap) {
+        if (factor < 1) this.stats.qualityFallbacks++;
+        this.stats.wholeFrameHits++;
+        for (const t of tilesInfo) this._prev![t.idx] = t.h32;
+        return { rects: [{ x: 0, y: 0, w: rgba.width, h: rgba.height, data }], isFullFrame: true, encoding };
+      }
+    }
+
     const rectsForFull = this._splitWholeFrame(rgba.width, rgba.height, this._cfg.fullframeTileCount);
     const rects: Rect[] = [];
-
-    const cap = this._cfg.maxBytesPerMessage - FRAME_HEADER_BYTES - TILE_HEADER_BYTES;
     for (const r of rectsForFull) {
       rects.push(...await this._encodeRectFitting(rgba, r.x, r.y, r.w, r.h, encoding, cap));
     }

@@ -110,3 +110,27 @@ describe("FrameProcessor - không bao giờ trả về khối đỏ", () => {
     expect(proc.stats.oversizeDropped).toBe(0);
   });
 });
+
+describe("GD2 - full-frame gửi 1 ảnh khi vừa giới hạn", () => {
+  it("UI 480x480 fftc=4: full-frame chỉ 1 rect (1 lần decode trên thiết bị)", async () => {
+    const proc = mkProc({ fullframeTileCount: 4 });
+    const out = await proc.processFrameAsync(makeFrame(480, 480, "ui"));
+    expect(out.isFullFrame).toBe(true);
+    expect(out.rects.length).toBe(1);
+    expect(out.rects[0].w).toBe(480);
+    expect(out.rects[0].h).toBe(480);
+    expect(out.rects[0].data.length).toBeLessThanOrEqual(CAP_TILE);
+    expect(proc.stats.wholeFrameHits).toBe(1);
+  });
+
+  it("nội dung chi tiết vượt cap: tự quay về chia mảnh, không đỏ, không quá cap", async () => {
+    const proc = mkProc({ fullframeTileCount: 4 });
+    const out = await proc.processFrameAsync(makeFrame(480, 480, "noise"));
+    expect(out.isFullFrame).toBe(true);
+    expect(out.rects.length).toBeGreaterThanOrEqual(1);
+    for (const r of out.rects) {
+      expect(r.data.length).toBeLessThanOrEqual(CAP_TILE);
+      expect(await isUniformRed(r.data)).toBe(false);
+    }
+  });
+});

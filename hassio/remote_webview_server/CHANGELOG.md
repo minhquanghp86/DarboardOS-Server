@@ -1,3 +1,10 @@
+## V2.2.0
+### GĐ2 - giảm chi phí decode trên thiết bị (mượt hơn)
+- Full-frame: gửi CẢ KHUNG trong MỘT ảnh JPEG khi vừa giới hạn bytes (thay vì chia 4 mảnh)
+  -> thiết bị chỉ decode 1 lần. Không vừa thì tự quay về cách chia mảnh cũ.
+- Đo được thời gian decode THẬT của thiết bị: server định kỳ 30s hỏi FrameStats,
+  `/metrics` trả thêm `avgDecodeMs` / `lastDecodeMs` cho từng màn.
+
 ## V2.1.0
 ### Sửa lỗi màn hình đỏ (quan trọng)
 - Trước đây khi 1 vùng ảnh vượt `max_bytes_per_message`, server thay vùng đó bằng MỘT KHỐI ĐỎ

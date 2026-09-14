@@ -22,6 +22,7 @@ export type FrameProcessorStats = {
   splits: number;
   droppedRects: number;
   oversizeDropped: number;
+  wholeFrameHits: number;
 };
 
 export type DeviceMetrics = {
@@ -41,6 +42,9 @@ export type DeviceMetrics = {
   oversizeDropped: number;
   frameErrors: number;
   navigations: number;
+  decodeMsTotal: number;
+  decodeSamples: number;
+  lastDecodeMs: number;
   lastUrl: string | null;
   lastFrameAt: number;
   lastError: string | null;
@@ -69,6 +73,9 @@ function dev(id: string): DeviceMetrics {
       oversizeDropped: 0,
       frameErrors: 0,
       navigations: 0,
+      decodeMsTotal: 0,
+      decodeSamples: 0,
+      lastDecodeMs: 0,
       lastUrl: null,
       lastFrameAt: 0,
       lastError: null,
@@ -111,6 +118,13 @@ export const metrics = {
     d.frameErrors++;
     d.lastError = String(msg).slice(0, 200);
   },
+  // (14/09/2026) GD2: thoi gian decode MA THIET BI bao ve (qua FrameStats)
+  onDeviceDecodeMs(id: string, ms: number): void {
+    const d = dev(id);
+    d.decodeMsTotal += ms;
+    d.decodeSamples++;
+    d.lastDecodeMs = ms;
+  },
   onNavigate(id: string, url: string): void {
     const d = dev(id);
     d.navigations++;
@@ -129,6 +143,7 @@ export const metrics = {
         avgFps: +(d.framesSent / upS).toFixed(2),
         avgFrameBytes: d.framesSent ? Math.round(d.bytesSent / d.framesSent) : 0,
         avgEncodeMs: d.framesSent ? +(d.encodeMsTotal / d.framesSent).toFixed(1) : 0,
+        avgDecodeMs: d.decodeSamples ? +(d.decodeMsTotal / d.decodeSamples).toFixed(1) : null,
         msSinceLastFrame: d.lastFrameAt ? now - d.lastFrameAt : null,
       };
     });

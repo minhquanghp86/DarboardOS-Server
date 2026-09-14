@@ -1,5 +1,6 @@
 import type { DeviceSession } from "./deviceManager.js";
 import { TouchKind, parseFrameStatsPacket, parseOpenURLPacket, parseTouchPacket } from "./protocol.js";
+import { metrics } from "./metrics.js";
 import { mapPointForRotation } from "./util.js";
 export class InputRouter {
   private _lastMoveAt = 0;
@@ -24,6 +25,8 @@ export class InputRouter {
 
   public async handleFrameStatsPacketAsync(dev: DeviceSession, buf: Buffer): Promise<void> {
     const value = parseFrameStatsPacket(buf);
+    // (14/09/2026) GD2: luu lai thoi gian decode ma thiet bi vua bao -> /metrics
+    metrics.onDeviceDecodeMs(dev.deviceId, value ?? 0);
     dev.selfTestRunner?.setFrameRenderTimeAsync(value ?? 0, dev.cdp);
   }
 

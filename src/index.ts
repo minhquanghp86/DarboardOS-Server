@@ -2,7 +2,7 @@ import http from 'http';
 import { WebSocketServer } from "ws"
 import env from "env-var";
 import { makeConfigFromParams, setConfigFor, logDeviceConfig } from "./config.js";
-import { broadcaster, ensureDeviceAsync, cleanupIdleAsync } from './deviceManager.js';
+import { broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices } from './deviceManager.js';
 import type { DeviceSession } from './deviceManager.js';
 import { InputRouter } from "./inputRouter.js";
 import { bootstrapAsync } from './browser.js';
@@ -105,4 +105,6 @@ http.createServer((req, res) => {
 }).listen(HEALTH_PORT);
 
 setInterval(() => cleanupIdleAsync(), 60_000);
+// (14/09/2026) GD2: 30s/lan xin so lieu decode tu cac thiet bi -> /metrics
+setInterval(() => requestStatsFromDevices(), 30_000);
 console.log(`[server] WebSocket listening on :${WS_PORT}`);

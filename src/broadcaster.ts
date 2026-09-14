@@ -62,6 +62,11 @@ export class DeviceBroadcaster {
     this._drainAsync(id).catch(() => {});
   }
 
+  // (14/09/2026) GD2: ten chung cho viec "xin thiet bi bao so lieu decode" (dung ca cho self-test)
+  public requestFrameStats(id: string): void {
+    this.startSelfTestMeasurement(id);
+  }
+
   public startSelfTestMeasurement(id: string): void {
     const peers = this._clients.get(id);
     if (!peers || peers.size === 0) return;

@@ -835,6 +835,14 @@ export async function cleanupIdleAsync(ttlMs = 5 * 60_000) {
   } finally { _cleanupRunning = false; }
 }
 
+// (14/09/2026) GD2: dinh ky xin MOI thiet bi bao so lieu decode (FrameStats).
+// Thiet bi chi tra loi khi duoc hoi, nen khong hoi thi khong co so lieu de do.
+export function requestStatsFromDevices(): void {
+  for (const d of devices.values()) {
+    try { broadcaster.requestFrameStats(d.deviceId); } catch { /* bo qua */ }
+  }
+}
+
 async function deleteDeviceAsync(device: DeviceSession) {
   const root = getRoot() as unknown as CDPRoot;
   if (!devices.delete(device.deviceId)) return;
