@@ -28,7 +28,13 @@ export class DeviceBroadcaster {
     console.log(`[broadcaster] Client connected to device ${id}, total clients: ${nClients}`);
     metrics.setClientCount(id, nClients);
     ws.once("close", () => this.removeClient(id, ws));
-    ws.once("error", () => this.removeClient(id, ws));
+    // (14/09/2026) SỬA LỖI: lỗi tạm thời (error) KHÔNG có nghĩa là đã ngắt.
+    // Trước đây chỉ cần 1 sự kiện 'error' là socket bị loại khỏi danh sách phát
+    // -> panel không nhận frame nữa (đứng hình) dù TCP vẫn ESTABLISHED, và
+    // /metrics báo clients=0. Nay chỉ loại khi socket thực sự không còn OPEN.
+    ws.once("error", () => {
+      if (ws.readyState !== WebSocket.OPEN) this.removeClient(id, ws);
+    });
   }
 
   removeClient(id: string, ws: WebSocket): void {
