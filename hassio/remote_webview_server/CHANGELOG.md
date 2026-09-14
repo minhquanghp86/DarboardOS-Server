@@ -1,3 +1,11 @@
+## V2.4.1
+### Chống "màn hình trắng" (chỉ sáng đèn nền)
+- Ca thực tế: sau khi server restart/update, thiết bị giữ ảnh cũ (hoặc ảnh đen) và không có
+  frame mới nào để tự vẽ lại -> màn hình trắng. Nhất là khi lệnh "mở trang" ban đầu bị mất.
+- Thêm bảo hiểm phía server: **60s/lan ép gửi 1 full-frame** cho mỗi thiết bị (`CCR_REFRESH_MS`,
+  đặt 0 để tắt). Kèm với sửa phía component (tự gửi lại URL khi không nhận frame > 60s) đã nạp
+  cho các panel -> màn hình luôn tự khôi phục.
+
 ## V2.4.0
 ### GĐ3.5 - telemetry RAM của thiết bị + phanh an toàn theo heap
 - Gói `FrameStats` từ thiết bị nay có thể chứa thêm `heap_free` + `psram_free` (18 byte);

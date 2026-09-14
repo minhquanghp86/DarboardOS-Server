@@ -836,6 +836,18 @@ export async function cleanupIdleAsync(ttlMs = 5 * 60_000) {
   } finally { _cleanupRunning = false; }
 }
 
+// (15/09/2026) BẢO HIỂM LÀM MỚI MÀN HÌNH: định kỳ ép gửi 1 full-frame cho mỗi thiết bị.
+// Ca thực tế đã gặp: server khởi động lại / trang bị đen -> thiết bị giữ ảnh cũ (màn hình
+// trắng chỉ sáng đèn nền) mà KHÔNG có frame mới để tự sửa. Ép full-frame định kỳ bảo đảm
+// màn hình luôn được vẽ lại (chi phí ~10-25KB mỗi 60s, không đáng kể).
+export function refreshDisplaysTick(): void {
+  const ms = Number(process.env.CCR_REFRESH_MS ?? 60_000);
+  if (!ms) return;
+  for (const d of devices.values()) {
+    try { d.processor.requestFullFrame(); } catch { /* bỏ qua */ }
+  }
+}
+
 // (14/09/2026) GĐ3: vòng điều khiển thích nghi cho TỪNG thiết bị.
 // Chạy định kỳ; đọc số đo thật (decode mới nhất do thiết bị báo, bytes/s) rồi chỉnh
 // quality/nhịp. Tắt bằng biến môi trường CCR_ADAPTIVE=0.
