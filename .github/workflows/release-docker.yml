@@ -45,6 +45,10 @@ jobs:
             type=ref,event=tag
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
+            # (14/09/2026) Nhánh SẢN XUẤT: hassio/remote_webview_server/build.yaml
+            # trỏ tới tag này (ghcr.io/...:chrome-h264) nhưng workflow trước đây
+            # KHÔNG hề tạo tag đó -> build xong add-on vẫn dùng image cũ.
+            type=raw,value=chrome-h264,enable=${{ github.ref == 'refs/heads/chrome-h264' }}
 
       - name: Build & Push
         uses: docker/build-push-action@v6
