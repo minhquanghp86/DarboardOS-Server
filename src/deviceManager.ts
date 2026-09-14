@@ -860,6 +860,7 @@ export function runAdaptiveTick(): void {
         decodeMs: m.recentMaxDecodeMs ?? m.avgDecodeMs ?? null,
         bytesPerSec,
         frameErrors: m.frameErrors,
+        heapFree: m.deviceHeapFree ?? null,
       },
       st,
       cfgA,

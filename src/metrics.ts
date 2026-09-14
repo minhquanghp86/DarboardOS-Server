@@ -46,6 +46,8 @@ export type DeviceMetrics = {
   decodeSamples: number;
   lastDecodeMs: number;
   recentDecode: number[];
+  deviceHeapFree: number | null;
+  devicePsramFree: number | null;
   appliedQuality: number | null;
   appliedMinFrameIntervalMs: number | null;
   lastAdaptiveReason: string | null;
@@ -82,6 +84,8 @@ function dev(id: string): DeviceMetrics {
       decodeSamples: 0,
       lastDecodeMs: 0,
       recentDecode: [],
+      deviceHeapFree: null,
+      devicePsramFree: null,
       appliedQuality: null,
       appliedMinFrameIntervalMs: null,
       lastAdaptiveReason: null,
@@ -138,6 +142,12 @@ export const metrics = {
     // trung bình từ lúc kết nối) - dùng giá trị CAO NHẤT để tránh giật khung.
     d.recentDecode.push(ms);
     if (d.recentDecode.length > 6) d.recentDecode.shift();
+  },
+  // (14/09/2026) GD3.5: RAM/PSRAM do thiet bi bao qua FrameStats
+  onDeviceMemory(id: string, heapFree: number, psramFree: number): void {
+    const d = dev(id);
+    d.deviceHeapFree = heapFree;
+    d.devicePsramFree = psramFree;
   },
   onAdaptiveChange(id: string, quality: number, minFrameIntervalMs: number, reason: string): void {
     const d = dev(id);

@@ -18,6 +18,7 @@ export type AdaptiveCfg = {
   goodStreakNeeded: number;   // số mẫu tốt liên tiếp trước khi nâng lại
   cooldownMs: number;         // thời gian chờ tối thiểu giữa 2 lần chỉnh
   maxBytesPerSec: number;     // trên ngưỡng này thì KHÔNG nâng chất lượng
+  minDeviceHeapFree: number;  // heap nội bộ tối thiểu của thiết bị (dưới ngưỡng -> hạ tải)
 };
 
 export const DEFAULT_ADAPTIVE_CFG: AdaptiveCfg = {
@@ -31,6 +32,7 @@ export const DEFAULT_ADAPTIVE_CFG: AdaptiveCfg = {
   goodStreakNeeded: 3,
   cooldownMs: 20_000,
   maxBytesPerSec: 1_500_000,
+  minDeviceHeapFree: 25_000,
 };
 
 export type AdaptiveState = {
@@ -46,6 +48,8 @@ export type AdaptiveSample = {
   decodeMs: number | null;
   bytesPerSec: number;
   frameErrors: number;
+  // (14/09/2026) GD3.5: heap noi bo con lai cua thiet bi (null = firmware cu, khong biet)
+  heapFree?: number | null;
 };
 
 export function initialAdaptiveState(quality: number, minFrameIntervalMs: number, now: number): AdaptiveState {
@@ -71,6 +75,27 @@ export function decideAdaptive(
 ): { state: AdaptiveState; changed: boolean; reason: string } {
   const out: AdaptiveState = { ...state };
   const budget = adaptiveBudgetMs(state, cfg);
+
+  // (14/09/2026) GD3.5: RAM nội bộ của thiết bị quá thấp -> hạ tải NGAY (không chờ decode).
+  // Đây là "phanh an toan": thà mất chất lượng còn hơn tràn RAM/reboot.
+  if (sample.heapFree != null && sample.heapFree < cfg.minDeviceHeapFree) {
+    if (now - state.lastChangeAt < cfg.cooldownMs) {
+      return { state: out, changed: false, reason: 'heap thấp nhưng đang trong thời gian trễ' };
+    }
+    if (out.quality > cfg.minQuality) {
+      out.quality = Math.max(cfg.minQuality, out.quality - cfg.qualityStepDown);
+      out.lastReason = `heap thiet bi ${sample.heapFree}B < ${cfg.minDeviceHeapFree}B → giảm quality còn ${out.quality}`;
+    } else if (out.minFrameIntervalMs < cfg.maxIntervalMs) {
+      out.minFrameIntervalMs = Math.min(cfg.maxIntervalMs, out.minFrameIntervalMs + cfg.intervalStepMs);
+      out.lastReason = `heap thiet bi ${sample.heapFree}B < ${cfg.minDeviceHeapFree}B → giãn nhịp còn ${out.minFrameIntervalMs}ms`;
+    } else {
+      return { state: out, changed: false, reason: 'heap thấp nhưng đã ở mức thấp nhất' };
+    }
+    out.lastChangeAt = now;
+    out.goodStreak = 0;
+    out.changes = state.changes + 1;
+    return { state: out, changed: true, reason: out.lastReason };
+  }
 
   if (sample.decodeMs == null || sample.decodeMs <= 0) {
     return { state: out, changed: false, reason: 'chưa có số đo decode' };

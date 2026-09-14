@@ -73,7 +73,8 @@ export interface TouchPacket {
 export const FRAME_HEADER_BYTES = 1 + 1 + 4 + 1 + 2 + 2;  // 11
 export const TILE_HEADER_BYTES  = 2 + 2 + 2 + 2 + 4;      // 12
 export const TOUCH_BYTES        = 1 + 1 + 1 + 1 + 2 + 2;  // 8
-export const FRAME_STATS_BYTES  = 1 + 1 + 4 + 4;          // 10
+export const FRAME_STATS_BYTES  = 1 + 1 + 4 + 4 + 4 + 4;  // 18 (v2.4: them heap/psram)
+export const FRAME_STATS_BYTES_LEGACY = 1 + 1 + 4 + 4;    // 10 (firmware cu)
 export const OPENURL_HEADER_BYTES = 1 + 1 + 2 + 4;        // 8
 
 const clampU16 = (v: number) => (v < 0 ? 0 : v > 0xffff ? 0xffff : v|0);
@@ -104,12 +105,27 @@ export function parseTouchPacket(buf: Buffer): TouchPacket | null {
   return { kind, pointerId, x, y };
 }
 
-export function parseFrameStatsPacket(buf: Buffer): number | null {
-  if (!Buffer.isBuffer(buf) || buf.length < FRAME_STATS_BYTES) return null;
+// (14/09/2026) GD3.5: goi FrameStats tu thiet bi co the la 10 byte (firmware cu) hoac
+// 18 byte (them heap_free + psram_free) -> doc duoc CA HAI.
+export type FrameStats = { avgTimeMs: number; heapFree: number | null; psramFree: number | null };
+
+export function parseFrameStats(buf: Buffer): FrameStats | null {
+  if (!Buffer.isBuffer(buf) || buf.length < FRAME_STATS_BYTES_LEGACY) return null;
   if (buf.readUInt8(0) !== MsgType.FrameStats) return null;
   if (buf.readUInt8(1) !== PROTOCOL_VERSION) return null;
 
-  return buf.readUInt32LE(2);
+  let heapFree: number | null = null;
+  let psramFree: number | null = null;
+  if (buf.length >= FRAME_STATS_BYTES) {
+    heapFree = buf.readUInt32LE(10);
+    psramFree = buf.readUInt32LE(14);
+  }
+  return { avgTimeMs: buf.readUInt32LE(2), heapFree, psramFree };
+}
+
+export function parseFrameStatsPacket(buf: Buffer): number | null {
+  const s = parseFrameStats(buf);
+  return s ? s.avgTimeMs : null;
 }
 
 export function parseOpenURLPacket(buf: Buffer): { flags: number; url: string } | null {

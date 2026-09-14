@@ -1,3 +1,12 @@
+## V2.4.0
+### GĐ3.5 - telemetry RAM của thiết bị + phanh an toàn theo heap
+- Gói `FrameStats` từ thiết bị nay có thể chứa thêm `heap_free` + `psram_free` (18 byte);
+  server VẪN đọc được gói 10 byte của firmware cũ (tương thích ngược).
+- `/metrics` thêm `deviceHeapFree`, `devicePsramFree`.
+- Bộ điều khiển thích nghi có thêm "phanh": heap nội bộ thiết bị < 25 KB → hạ chất lượng
+  (hoặc giãn nhịp) ngay, không chờ decode vượt ngân sách — thà giảm chất lượng còn hơn
+  tràn RAM gây reboot.
+
 ## V2.3.0
 ### GĐ3 - vòng điều khiển thích nghi (tự chỉnh theo số đo thật)
 - Mỗi thiết bị được tự chỉnh CHẤT LƯỢNG JPEG và NHỊP GỬI FRAME theo thời gian decode mà

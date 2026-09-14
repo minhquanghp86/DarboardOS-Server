@@ -1,5 +1,5 @@
 import type { DeviceSession } from "./deviceManager.js";
-import { TouchKind, parseFrameStatsPacket, parseOpenURLPacket, parseTouchPacket } from "./protocol.js";
+import { TouchKind, parseFrameStats, parseOpenURLPacket, parseTouchPacket } from "./protocol.js";
 import { metrics } from "./metrics.js";
 import { mapPointForRotation } from "./util.js";
 export class InputRouter {
@@ -24,10 +24,13 @@ export class InputRouter {
   }
 
   public async handleFrameStatsPacketAsync(dev: DeviceSession, buf: Buffer): Promise<void> {
-    const value = parseFrameStatsPacket(buf);
+    const stats = parseFrameStats(buf);
+    if (!stats) return;
     // (14/09/2026) GD2: luu lai thoi gian decode ma thiet bi vua bao -> /metrics
-    metrics.onDeviceDecodeMs(dev.deviceId, value ?? 0);
-    dev.selfTestRunner?.setFrameRenderTimeAsync(value ?? 0, dev.cdp);
+    metrics.onDeviceDecodeMs(dev.deviceId, stats.avgTimeMs);
+    // (14/09/2026) GD3.5: heap/PSRAM thiet bi bao (chi co o firmware >= 2.4)
+    if (stats.heapFree != null) metrics.onDeviceMemory(dev.deviceId, stats.heapFree, stats.psramFree ?? 0);
+    dev.selfTestRunner?.setFrameRenderTimeAsync(stats.avgTimeMs, dev.cdp);
   }
 
   
