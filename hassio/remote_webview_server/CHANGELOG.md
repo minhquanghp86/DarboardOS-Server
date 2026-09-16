@@ -1,3 +1,39 @@
+## V2.5.0
+### Bỏ nén JPEG hai lần — chuyển thẳng ảnh của Chrome khi đang phát video
+Đường cũ nén JPEG **hai lần**: Chrome encode JPEG → `sharp` giải nén ra RGBA → FrameProcessor
+encode lại. Tốn CPU cả hai đầu và mất chất lượng thế hệ thứ hai. (Lưu ý: `encodeMs` trong
+`/metrics` đo SAU bước `sharp` decode, nên chi phí giải nén trước đó chưa từng được tính.)
+
+Khi đang phát video thì gần như khung nào cũng đổi toàn bộ, tức kiểu gì cũng gửi full-frame —
+lúc đó ảnh của Chrome dùng được ngay. Nay server **chuyển thẳng**, bỏ cả decode lẫn encode.
+
+- Nhận biết "đang phát video" bằng **nhịp đến của screencast** (>= `PASSTHROUGH_MIN_FPS`, mặc
+  định 8 fps, tính trên 6 khung gần nhất) — không dùng kết quả của FrameProcessor vì muốn biết
+  kết quả đó thì đã phải giải nén rồi.
+- Điều kiện: nhịp đủ cao · không xoay · kích thước JPEG khớp đúng màn hình (đọc bằng
+  `sharp().metadata()`, chỉ đọc header) · vừa `maxBytesPerMessage`.
+- Sau mỗi lần đi đường tắt, gọi `requestFullFrame()` để khung kế tiếp đi đường thường dựng lại
+  nền so sánh cho đúng (bảng băm tile không được cập nhật khi đi đường tắt).
+- Đặt `PASSTHROUGH_MIN_FPS=0` để tắt hẳn.
+
+### Chất lượng screencast chọn theo từng thiết bị
+Thiết bị có `maxBytesPerMessage >= 128KB` (đi được đường tắt) nay cho Chrome encode thẳng ở
+`jpeg_quality` của chính thiết bị đó, thay vì luôn q90. Vì với chúng ảnh của Chrome CHÍNH LÀ
+ảnh gửi đi — để q90 thì khung nặng hơn ~33%, và khi bị chặn băng thông thì fps tụt.
+
+Thiết bị cap nhỏ (S3 32KB) không bao giờ đi được đường tắt nên **giữ nguyên q90**: chúng luôn
+phải giải nén rồi nén lại theo tile, hạ nguồn xuống q60 sẽ thành nén hai lần ở q60 = ảnh xấu đi.
+
+### Số đo thật (ESP32-P4 1024x600, trang động toàn khung)
+| | Trước | Sau |
+|---|---|---|
+| fps | 26,42 | **30,29** |
+| encode trên server | 18,86 ms | **0,00 ms** |
+| byte/frame | 26.073 B | 23.355 B |
+| số lần nén JPEG | 2 | **1** |
+
+0 frame bị bỏ · 0 frameErrors · 0 oversizeDropped · 0 qualityFallbacks.
+
 ## V2.4.2
 ### Ép vẽ lại khi thiết bị xin hiển lại trang (chống kẹt ảnh cũ/ảnh đen)
 - Trước đây khi URL KHÔNG đổi, server chỉ `requestFullFrame()` — nhưng với trang TĨNH thì

@@ -8,6 +8,7 @@ import { hash32 } from "./util.js";
 import { metrics } from "./metrics.js";
 import { AdaptiveState, DEFAULT_ADAPTIVE_CFG, decideAdaptive, initialAdaptiveState } from "./adaptive.js";
 import { SelfTestRunner } from "./selfTest.js";
+import { Encoding, FRAME_HEADER_BYTES, TILE_HEADER_BYTES } from "./protocol.js";
 
 // ── Type-safe interface cho CDP root (thay thế cast `any`) ────────────────────
 interface CDPRoot {
@@ -33,6 +34,11 @@ export type DeviceSession = {
 
   // Cải tiến: theo dõi lỗi frame liên tiếp để tự phục hồi
   consecutiveFrameErrors: number;
+
+  // (16/09/2026) Đường tắt "chuyển thẳng JPEG của Chrome" — xem flushPending
+  recentFrameMs: number[];
+  passthroughFrames: number;
+  passthroughOn: boolean;
 };
 
 const PREFERS_REDUCED_MOTION = /^(1|true|yes|on)$/i.test(process.env.PREFERS_REDUCED_MOTION ?? '');
@@ -49,6 +55,12 @@ const MAX_CONSECUTIVE_FRAME_ERRORS = 10;
 const SCREENCAST_JPEG_QUALITY = Math.min(100, Math.max(1,
   parseInt(process.env.SCREENCAST_JPEG_QUALITY ?? '90', 10) || 90
 ));
+// (16/09/2026) Đường tắt "chuyển thẳng JPEG của Chrome" — xem giải thích đầy đủ
+// trong flushPending. Bật khi nhịp screencast đủ cao (nội dung động kiểu video),
+// vì khi đó khung nào cũng sẽ là full-frame.
+// Đặt PASSTHROUGH_MIN_FPS = 0 để tắt hẳn tính năng này.
+const PASSTHROUGH_MIN_FPS = Math.max(0, parseFloat(process.env.PASSTHROUGH_MIN_FPS ?? '8') || 0);
+const PASSTHROUGH_RATE_WINDOW = 6; // số khung gần nhất dùng để tính nhịp
 
 const devices = new Map<string, DeviceSession>();
 let _cleanupRunning = false;
@@ -707,14 +719,27 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
   // → Chrome encode JPEG trực tiếp, bỏ hoàn toàn bước sharp decode PNG → raw RGBA
   // → Giảm đáng kể CPU và memory trên server HASS addon
   // → SCREENCAST_JPEG_QUALITY có thể tuỉnh qua env SCREENCAST_JPEG_QUALITY (mặc định 90)
+  // (16/09/2026) Chất lượng screencast chọn theo TỪNG thiết bị.
+  //
+  // Thiết bị có cap message đủ lớn để chứa cả khung (ví dụ P4: 256KB) sẽ dùng
+  // đường tắt chuyển thẳng JPEG. Với chúng, ảnh của Chrome CHÍNH LÀ ảnh gửi đi,
+  // nên phải encode ngay ở chất lượng đích — để q90 thì khung nặng hơn ~33% và
+  // khi bị chặn băng thông thì fps tụt (đo thật: 26,4 → 20,1 fps). Encode thẳng
+  // ở chất lượng đích vừa lấy lại fps vừa cho ảnh ĐẸP HƠN vì chỉ nén MỘT lần.
+  //
+  // Thiết bị cap nhỏ (S3: 32KB) không bao giờ đi được đường tắt — chúng luôn
+  // phải giải nén rồi nén lại theo tile. Với chúng phải GIỮ ảnh nguồn chất
+  // lượng cao, nếu hạ xuống q60 thì thành nén hai lần ở q60 = ảnh xấu đi.
+  const canPassthrough = PASSTHROUGH_MIN_FPS > 0 && cfg.maxBytesPerMessage >= 131072;
+  const screencastQuality = canPassthrough ? cfg.jpegQuality : SCREENCAST_JPEG_QUALITY;
   await session.send('Page.startScreencast', {
     format: 'jpeg',
-    quality: SCREENCAST_JPEG_QUALITY,
+    quality: screencastQuality,
     maxWidth: cfg.width,
     maxHeight: cfg.height,
     everyNthFrame: cfg.everyNthFrame,
   });
-  console.log(`[device] Screencast format: jpeg, quality: ${SCREENCAST_JPEG_QUALITY}`);
+  console.log(`[device] Screencast format: jpeg, quality: ${screencastQuality}` + (canPassthrough ? ' (theo jpeg_quality cua thiet bi — co the di duong tat)' : ''));
 
   const processor = new FrameProcessor({
     tileSize: cfg.tileSize,
@@ -732,6 +757,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     processor, selfTestRunner: new SelfTestRunner(broadcaster),
     pendingB64: undefined, throttleTimer: undefined, lastProcessedMs: undefined,
     consecutiveFrameErrors: 0, // Cải tiến: tracking lỗi liên tiếp
+    recentFrameMs: [], passthroughFrames: 0, passthroughOn: false,
   };
   devices.set(id, newDevice);
   newDevice.processor.requestFullFrame();
@@ -755,6 +781,68 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
         return;
       }
       dev.prevFrameHash = h32;
+
+      // ════════════════════════════════════════════════════════════════════
+      // (16/09/2026) ĐƯỜNG TẮT: CHUYỂN THẲNG JPEG CỦA CHROME
+      // ────────────────────────────────────────────────────────────────────
+      // Đường thường nén JPEG HAI LẦN: Chrome đã encode JPEG, ta giải nén ra
+      // RGBA rồi encode lại. Vừa tốn CPU cả hai đầu vừa mất chất lượng thế hệ
+      // thứ hai. (Lưu ý: `encodeMs` trong /metrics đo SAU bước sharp decode,
+      // nên chi phí giải nén trước đó chưa từng được tính.)
+      //
+      // Khi đang phát VIDEO thì gần như khung nào cũng đổi toàn bộ, tức kiểu gì
+      // cũng gửi full-frame. Lúc đó ảnh của Chrome dùng được ngay — chuyển
+      // thẳng, bỏ cả decode lẫn encode.
+      //
+      // Nhận biết "đang phát video" bằng NHỊP ĐẾN của screencast, không phải
+      // bằng kết quả của FrameProcessor: muốn biết kết quả đó thì đã phải giải
+      // nén rồi (bài toán con gà - quả trứng). Chrome chỉ phát khi trang vẽ lại
+      // nên nhịp cao = nội dung động.
+      //
+      // QUAN TRỌNG: mỗi lần đi đường tắt, bảng băm tile trong FrameProcessor
+      // không được cập nhật -> phải requestFullFrame() để khung kế tiếp đi
+      // đường thường dựng lại nền so sánh cho đúng, nếu không sẽ sinh khung
+      // rách khi quay về chế độ vi sai.
+      const nowMs = Date.now();
+      dev.recentFrameMs.push(nowMs);
+      if (dev.recentFrameMs.length > PASSTHROUGH_RATE_WINDOW) dev.recentFrameMs.shift();
+      let fps = 0;
+      if (dev.recentFrameMs.length >= PASSTHROUGH_RATE_WINDOW) {
+        const span = nowMs - dev.recentFrameMs[0];
+        if (span > 0) fps = (dev.recentFrameMs.length - 1) * 1000 / span;
+      }
+
+      if (fps >= PASSTHROUGH_MIN_FPS && !dev.cfg.rotation) {
+        const capBytes = dev.cfg.maxBytesPerMessage - FRAME_HEADER_BYTES - TILE_HEADER_BYTES;
+        if (imgBuf.length <= capBytes) {
+          // metadata() chỉ đọc header JPEG (không giải nén pixel) nên rất rẻ.
+          const meta = await sharp(imgBuf).metadata();
+          if (meta.width === dev.cfg.width && meta.height === dev.cfg.height) {
+            const out = {
+              rects: [{ x: 0, y: 0, w: meta.width, h: meta.height, data: imgBuf }],
+              isFullFrame: true,
+              encoding: Encoding.JPEG,
+            };
+            processor.requestFullFrame();
+            dev.passthroughFrames++;
+            if (!dev.passthroughOn) {
+              dev.passthroughOn = true;
+              console.log(`[passthrough] ${id}: bật (nhịp ${fps.toFixed(1)} fps, ${imgBuf.length} B/khung)`);
+            }
+            metrics.onFrameEncoded(id, out, processor.stats, 0);
+            dev.frameId = (dev.frameId + 1) >>> 0;
+            broadcaster.sendFrameChunked(id, out, dev.frameId, dev.cfg.maxBytesPerMessage);
+            dev.consecutiveFrameErrors = 0;
+            dev.lastProcessedMs = Date.now();
+            return;
+          }
+        }
+      }
+      if (dev.passthroughOn) {
+        dev.passthroughOn = false;
+        console.log(`[passthrough] ${id}: tắt (nhịp ${fps.toFixed(1)} fps) — quay về đường thường`);
+      }
+      // ════════════════════════════════════════════════════════════════════
 
       let img = sharp(imgBuf);
       if (dev.cfg.rotation) img = img.rotate(dev.cfg.rotation);
