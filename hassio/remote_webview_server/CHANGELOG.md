@@ -1,3 +1,16 @@
+## V2.6.2
+### Sửa lỗi điều nhịp — nhịp thực tế co lại còn bằng thời gian encode
+Đo thật sau 2.6.1: bộ điều tiết đặt `minFrameInterval=400` (lẽ ra 2.5fps) nhưng server vẫn gửi
+**3.93fps** — nhanh hơn 57% so với nhịp đã đặt.
+
+`flushPending` xoá `throttleTimer` **ngay đầu hàm**, nhưng `lastProcessedMs` chỉ cập nhật ở
+**cuối** — sau ~200ms encode. Trong khoảng trống đó, khung screencast mới đến thấy
+`throttleTimer` rỗng **và** `since` đã lớn hơn nhịp → `delay = 0` → chạy ngay. Nhịp thực tế co
+lại còn bằng thời gian encode thay vì `effInterval`.
+
+→ Đánh mốc `lastProcessedMs` ngay khi **bắt đầu** xử lý. `finally` vẫn ghi đè bằng thời điểm kết
+thúc, nên nhịp vẫn được tính từ lúc xong khung trước — đúng như thiết kế.
+
 ## V2.6.1
 ### Bộ điều khiển thích nghi tự vô hiệu hoá chính nó — sửa hai lỗi
 Đo thật trên ESP32-P4 (tab 5 thẻ camera): nhật ký cho thấy vòng điều khiển đã hạ tải tới **kịch
