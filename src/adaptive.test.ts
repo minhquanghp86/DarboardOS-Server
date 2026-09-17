@@ -26,9 +26,41 @@ describe("GĐ3 - bộ điều khiển thích nghi", () => {
 
   it("trong thời gian trễ -> không chỉnh tiếp", () => {
     const st = { ...initialAdaptiveState(60, 100, t0), lastChangeAt: t0 + 60_000, quality: 50 };
-    const r = decideAdaptive({ decodeMs: 90, bytesPerSec: 1000, frameErrors: 0 }, st, cfg, t0 + 60_000 + 5_000);
+    // 2s < cooldownDownMs (5s) -> vẫn trong thời gian trễ
+    const r = decideAdaptive({ decodeMs: 90, bytesPerSec: 1000, frameErrors: 0 }, st, cfg, t0 + 60_000 + 2_000);
     expect(r.changed).toBe(false);
     expect(r.state.quality).toBe(50);
+  });
+
+  it("AIMD: hạ tải dùng trễ NGẮN, nâng lại dùng trễ DÀI", () => {
+    // Cùng một mốc 6s: quá tải thì được phép hạ (trễ 5s), còn dư địa thì chưa
+    // được phép nâng (trễ 20s). Hỏng phải lùi nhanh, hồi phục phải chậm.
+    const st = { ...initialAdaptiveState(60, 100, t0), lastChangeAt: t0, quality: 50 };
+    const down = decideAdaptive({ decodeMs: 90, bytesPerSec: 1000, frameErrors: 0 }, st, cfg, t0 + 6_000);
+    expect(down.changed).toBe(true);
+    expect(down.state.quality).toBe(40);
+
+    const up = decideAdaptive({ decodeMs: 5, bytesPerSec: 1000, frameErrors: 0 }, st, cfg, t0 + 6_000);
+    expect(up.changed).toBe(false);
+  });
+
+  it("AIMD: từ trần 33ms (30fps) chạm đáy 400ms trong 4 bước", () => {
+    // Đây là lý do phải đổi sang giảm nhân. Với bước cộng 50ms thì mất 8 bước;
+    // nhân với thời gian trễ là gần 3 phút thiết bị bị dội 30fps.
+    let st = { ...initialAdaptiveState(40, 33, t0), quality: 40 }; // quality đã chạm sàn
+    let now = t0;
+    const seen: number[] = [];
+    for (let i = 0; i < 6; i++) {
+      now += 30_000;
+      const r = decideAdaptive({ decodeMs: 500, bytesPerSec: 1000, frameErrors: 0 }, st, cfg, now);
+      st = r.state;
+      if (r.changed) seen.push(st.minFrameIntervalMs);
+      if (st.minFrameIntervalMs >= cfg.maxIntervalMs) break;
+    }
+    // 33*2=66 nhung san "it nhat mot buoc" (33+50=83) lon hon nen thang o buoc
+    // dau; tu do tro di he so nhan chiem uu the.
+    expect(seen).toEqual([83, 166, 332, 400]);
+    expect(seen.length).toBeLessThanOrEqual(4);
   });
 
   it("quá tải liên tục: giảm dần quality tới sàn rồi mới giãn nhịp", () => {
@@ -46,7 +78,7 @@ describe("GĐ3 - bộ điều khiển thích nghi", () => {
     const r = decideAdaptive({ decodeMs: 200, bytesPerSec: 1000, frameErrors: 0 }, st, cfg, now);
     expect(r.changed).toBe(true);
     expect(r.state.quality).toBe(40);
-    expect(r.state.minFrameIntervalMs).toBe(150); // giãn nhịp 100 -> 150
+    expect(r.state.minFrameIntervalMs).toBe(200); // AIMD: giãn nhịp 100 -> 200 (nhân 2)
   });
 
   it("hết quá tải -> RÚT nhịp về mức gốc trước, rồi mới nâng quality", () => {
@@ -80,7 +112,7 @@ describe("GĐ3 - bộ điều khiển thích nghi", () => {
       st, cfg, t0 + 60_000
     );
     expect(r.changed).toBe(true);
-    expect(r.state.minFrameIntervalMs).toBe(150);
+    expect(r.state.minFrameIntervalMs).toBe(200); // AIMD: nhân 2
     expect(r.state.quality).toBe(70); // giãn nhịp TRƯỚC, chưa đụng quality
   });
 

@@ -60,7 +60,7 @@ describe("GĐ3.5 - phanh an toàn theo heap thiết bị", () => {
       st, cfg, t0 + 60_000
     );
     expect(r.changed).toBe(true);
-    expect(r.state.minFrameIntervalMs).toBe(150);
+    expect(r.state.minFrameIntervalMs).toBe(200); // AIMD: gian nhip nhan 2 (truoc day cong 50)
   });
 
   it("heap khoẻ -> không can thiệp (để đường decode quyết định)", () => {

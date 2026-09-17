@@ -2,7 +2,7 @@ import http from 'http';
 import { WebSocketServer } from "ws"
 import env from "env-var";
 import { makeConfigFromParams, setConfigFor, logDeviceConfig } from "./config.js";
-import { broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick, refreshDisplaysTick } from './deviceManager.js';
+import { broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick, refreshDisplaysTick, markInteraction } from './deviceManager.js';
 import type { DeviceSession } from './deviceManager.js';
 import { InputRouter } from "./inputRouter.js";
 import { bootstrapAsync } from './browser.js';
@@ -22,6 +22,8 @@ await bootstrapAsync();
 function routeMessage(dev: DeviceSession, buf: Buffer): void {
   switch (buf.readUInt8(0)) {
     case MsgType.Touch:
+      // (17/09/2026) Mo cua so uu tien do muot: nguoi dung dang thao tac.
+      markInteraction(dev.deviceId);
       inputRouter.handleTouchPacketAsync(dev, buf)
         .catch(e => console.warn(`[ws] touch error: ${(e as Error).message}`));
       break;

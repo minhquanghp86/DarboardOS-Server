@@ -1,3 +1,25 @@
+## V2.7.0
+### AIMD — giảm nhân, tăng cộng
+Để dashboard mượt thì trần fps phía thiết bị phải nâng lên (100ms → 33ms, tức 30fps). Nhưng với
+bước giãn cộng 50ms như cũ, đi từ 33ms đến 400ms mất **8 bước**; nhân với thời gian trễ là gần
+**3 phút** thiết bị bị dội 30fps — đúng vùng đã gây crash.
+
+- Giãn nhịp nay **nhân** `intervalBackoffFactor` (mặc định 2): `83 → 166 → 332 → 400`, **4 bước**.
+- Hồi phục vẫn **cộng** từng bước 50ms như cũ.
+- Thêm `cooldownDownMs` (5s) tách khỏi `cooldownMs` (20s): **hạ tải phản ứng nhanh, nâng lại
+  vẫn từ tốn**.
+
+Đây là nguyên tắc của mọi thuật toán chống nghẽn mạng, và lý do cũng y hệt: hỏng thì phải lùi
+nhanh, hồi phục thì phải chậm.
+
+### Ưu tiên độ mượt khi người dùng đang thao tác
+Độ mượt chỉ thực sự quan trọng lúc **đang** vuốt/cuộn/bấm; tab camera treo tường thì 2.5fps không
+ai để ý.
+
+- Mỗi sự kiện chạm mở một cửa sổ `CCR_INTERACTION_BOOST_MS` (mặc định 2000ms).
+- Trong cửa sổ đó server dùng **nhịp gốc** (trần fps thiết bị yêu cầu) thay vì nhịp đã điều tiết,
+  hết cửa sổ thì trả về mức đã điều tiết.
+
 ## V2.6.2
 ### Sửa lỗi điều nhịp — nhịp thực tế co lại còn bằng thời gian encode
 Đo thật sau 2.6.1: bộ điều tiết đặt `minFrameInterval=400` (lẽ ra 2.5fps) nhưng server vẫn gửi

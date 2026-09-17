@@ -50,6 +50,13 @@ export type DeviceSession = {
   // Nay `cfg` bat bien; moi dieu tiet nam o day.
   tunedMinFrameIntervalMs?: number;
 
+  // (17/09/2026) Thoi diem cuoi cung nhan su kien cham tu thiet bi.
+  // Do muot CHI thuc su quan trong khi nguoi dung DANG thao tac — vuot, cuon,
+  // bam. Tab camera treo tuong thi 2.5fps khong ai de y. Trong
+  // INTERACTION_BOOST_MS sau moi lan cham, bo qua nhip da dieu tiet va chay o
+  // nhip GOC (tran fps thiet bi yeu cau), sau do tra ve muc da dieu tiet.
+  lastInputMs?: number;
+
   // Cải tiến: theo dõi lỗi frame liên tiếp để tự phục hồi
   consecutiveFrameErrors: number;
 
@@ -92,6 +99,11 @@ const PASSTHROUGH_RATE_WINDOW = 6; // số khung gần nhất dùng để tính 
 // WebSocket mà trên mức đó thì BỎ khung mới thay vì dồn thêm. Một full-frame
 // 1024x600 ở quality 70 vào khoảng 100-150KB, nên 192KB ~ "đang nợ hơn một
 // khung" — đủ rộng để không phản ứng thái quá với biến động bình thường.
+// (17/09/2026) Cua so "dang thao tac" sau moi su kien cham.
+const INTERACTION_BOOST_MS = Math.max(0,
+  parseInt(process.env.CCR_INTERACTION_BOOST_MS ?? '2000', 10) || 0
+);
+
 const WS_HIGH_WATER_BYTES = Math.max(
   16_384,
   parseInt(process.env.CCR_WS_HIGH_WATER ?? '196608', 10) || 196608
@@ -792,6 +804,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     processor, selfTestRunner: new SelfTestRunner(broadcaster),
     pendingB64: undefined, throttleTimer: undefined, lastProcessedMs: undefined,
     lastBacklogLogMs: undefined, tunedMinFrameIntervalMs: undefined,
+    lastInputMs: undefined,
     consecutiveFrameErrors: 0, // Cải tiến: tracking lỗi liên tiếp
     recentFrameMs: [], passthroughFrames: 0, passthroughOn: false,
   };
@@ -964,7 +977,13 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     const now = Date.now();
     const since = newDevice.lastProcessedMs ? (now - newDevice.lastProcessedMs) : Infinity;
     if (!newDevice.throttleTimer) {
-      const effInterval = newDevice.tunedMinFrameIntervalMs ?? cfg.minFrameInterval;
+      // Dang thao tac -> uu tien do muot, dung nhip GOC thay vi nhip da dieu tiet.
+      const interacting = INTERACTION_BOOST_MS > 0
+        && newDevice.lastInputMs != null
+        && (now - newDevice.lastInputMs) < INTERACTION_BOOST_MS;
+      const effInterval = interacting
+        ? cfg.minFrameInterval
+        : (newDevice.tunedMinFrameIntervalMs ?? cfg.minFrameInterval);
       const delay = Math.max(0, effInterval - (Number.isFinite(since) ? since : 0));
       newDevice.throttleTimer = setTimeout(flushPending, delay);
     }
@@ -1007,6 +1026,12 @@ export function refreshDisplaysTick(): void {
 // Chạy định kỳ; đọc số đo thật (decode mới nhất do thiết bị báo, bytes/s) rồi chỉnh
 // quality/nhịp. Tắt bằng biến môi trường CCR_ADAPTIVE=0.
 const adaptiveStates = new Map<string, AdaptiveState>();
+
+/** (17/09/2026) Danh dau thiet bi vua nhan su kien cham — xem lastInputMs. */
+export function markInteraction(deviceId: string): void {
+  const d = devices.get(deviceId);
+  if (d) d.lastInputMs = Date.now();
+}
 
 export function runAdaptiveTick(): void {
   if (process.env.CCR_ADAPTIVE === '0') return;
