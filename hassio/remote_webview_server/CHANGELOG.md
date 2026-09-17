@@ -1,3 +1,16 @@
+## V2.7.5
+### Nới tỉ lệ ngân sách decode 0.5 → 0.7 (fps cao hơn)
+Đo thật trên tab 5 thẻ camera: decode 40ms, nên với tỉ lệ 0.5 điểm cân bằng rơi đúng **100ms
+(10fps)** — nhanh hơn nữa thì ngân sách (50 → 25ms) không còn đủ. Tỉ lệ **0.7** cho phép ~70ms
+(≈14fps) mà vẫn còn **30% dự phòng**.
+
+Đây là **giảm mức dự phòng**, nên chỉ làm sau khi đã có đủ lưới an toàn: áp lực ngược (2.6.0)
+phản ứng tức thì, AIMD (2.7.0) lùi nhanh, khởi động thận trọng (2.7.4). Không nên nâng tiếp lên
+0.8+ mà không đo lại.
+
+Test: hai khẳng định cũ mã hoá cứng con số 50 (= 100 × 0.5) nay **suy ra từ cấu hình**, để lần
+chỉnh sau không làm hỏng test.
+
 ## V2.7.4
 ### Khởi động thận trọng — sửa lỗi thiết bị "mất tích" trên HASS sau mỗi lần khởi động lại
 Từ khi `min_frame_interval` đổi vai trò thành **trần fps mong muốn** (33ms = 30fps), mỗi lần
