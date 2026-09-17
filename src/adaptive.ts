@@ -28,7 +28,9 @@ export const DEFAULT_ADAPTIVE_CFG: AdaptiveCfg = {
   minQuality: 40,
   maxQuality: 80,
   qualityStepDown: 10,
-  qualityStepUp: 5,
+  // (17/09/2026) 5 -> 10. Hoi phuc quality tu san 40 len tran 80 truoc day mat
+  // 8 buoc; nay 4 buoc.
+  qualityStepUp: 10,
   intervalStepMs: 50,
   intervalBackoffFactor: 2,
   maxIntervalMs: 400,
@@ -41,8 +43,21 @@ export const DEFAULT_ADAPTIVE_CFG: AdaptiveCfg = {
   // ap luc nguoc (2.6.0) phan ung tuc thi, AIMD (2.7.0) lui nhanh, va khoi
   // dong than trong (2.7.4). Khong nen nang tiep len 0.8+ ma khong do lai.
   decodeBudgetRatio: 0.7,
-  goodStreakNeeded: 3,
-  cooldownMs: 20_000,
+  // (17/09/2026) 3 -> 2 mau tot lien tiep, va tre khi NANG LAI 20s -> 10s.
+  //
+  // Tinh bat doi xung VAN GIU (ha tai 5s, nang lai 10s) — chi la "cham" truoc
+  // day cham qua muc can thiet: tu quality 40 len 80 mat ~4 PHUT, du nguoi
+  // dung chi vua chuyen tab. Do nguoi dung phan anh truc tiep.
+  //
+  // Co so de noi: dieu kien "thoai mai" da doi decode phai duoi MOT NUA ngan
+  // sach, tuc khi nhanh hoi phuc chay thi da co gap doi du dia — bo tung buoc
+  // nho trong tinh huong do la thua than trong. Rui ro dao dong van duoc chan
+  // boi: van can 2 mau tot LIEN TIEP, van kiem tra ton dong socket, va chieu
+  // ha tai thi nhanh hon han (nhan 2, tre 5s).
+  //
+  // Tong: tu 40 len 80 con ~1 phut thay vi ~4 phut.
+  goodStreakNeeded: 2,
+  cooldownMs: 10_000,
   maxBytesPerSec: 1_500_000,
   minDeviceHeapFree: 25_000,
   maxBacklogBytes: 98_304,

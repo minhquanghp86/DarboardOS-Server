@@ -1,3 +1,23 @@
+## V2.7.6
+### Hồi phục nhanh hơn 4 lần sau khi đổi tab
+Người dùng phản ánh trực tiếp: sau khi chuyển tab, quality bò từ sàn 40 lên trần 80 mất **~4
+phút** — 8 bước, mỗi bước cần 3 mẫu tốt liên tiếp **và** chờ 20 giây.
+
+Nguyên tắc "hồi phục chậm" là đúng, nhưng đã đặt **chậm quá mức cần thiết**. Cơ sở để nới: điều
+kiện "thoải mái" vốn đã đòi decode phải dưới **một nửa** ngân sách — tức khi nhánh hồi phục chạy
+thì đã có gấp đôi dư địa; bò từng bước nhỏ trong tình huống đó là thừa thận trọng.
+
+- `qualityStepUp` 5 → **10** (8 bước → 4 bước)
+- `goodStreakNeeded` 3 → **2**
+- `cooldownMs` (chỉ áp cho chiều NÂNG LẠI) 20s → **10s**
+
+Tổng: từ 40 lên 80 còn **~1 phút**. Tính bất đối xứng vẫn giữ nguyên — hạ tải trễ 5s và nhân 2,
+nâng lại trễ 10s và cộng dần. Rủi ro dao động vẫn được chặn bởi: vẫn cần mẫu tốt **liên tiếp**, và
+vẫn kiểm tra tồn đọng socket.
+
+Test: các khẳng định mã hoá cứng "3 mẫu" và "bước +5" nay **suy ra từ cấu hình**; thêm một test
+ràng buộc **số bước** hồi phục từ sàn lên trần (chống hồi quy).
+
 ## V2.7.5
 ### Nới tỉ lệ ngân sách decode 0.5 → 0.7 (fps cao hơn)
 Đo thật trên tab 5 thẻ camera: decode 40ms, nên với tỉ lệ 0.5 điểm cân bằng rơi đúng **100ms
