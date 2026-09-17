@@ -104,6 +104,21 @@ const INTERACTION_BOOST_MS = Math.max(0,
   parseInt(process.env.CCR_INTERACTION_BOOST_MS ?? '2000', 10) || 0
 );
 
+// (17/09/2026) KHOI DONG THAN TRONG.
+//
+// Tu khi min_frame_interval doi vai tro thanh "TRAN fps mong muon" (33ms =
+// 30fps), moi lan thiet bi HOAC server khoi dong lai deu bat dau o ngay tran do
+// va doi 30fps cho toi khi vong dieu tiet keo xuong (~55 giay). Trong khoang do
+// loopTask cua ESPHome bi doi, thiet bi khong phuc vu noi API -> ket noi HA don
+// day 10 khe max_connections -> thiet bi "mat tich" tren HASS. Da xay ra that.
+//
+// Nguyen tac: BAT DAU CHAM, TU KIEM CHUNG ROI MOI NHANH LEN. Phien moi khoi dau
+// o muc an toan nay; nhanh hoi phuc (LIFO) se rut dan ve tran ma thiet bi yeu
+// cau khi no chung minh duoc la theo kip.
+const SAFE_START_INTERVAL_MS = Math.max(0,
+  parseInt(process.env.CCR_SAFE_START_MS ?? '200', 10) || 0
+);
+
 const WS_HIGH_WATER_BYTES = Math.max(
   16_384,
   parseInt(process.env.CCR_WS_HIGH_WATER ?? '196608', 10) || 196608
@@ -803,7 +818,8 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     url: '', lastActive: Date.now(), frameId: 0, prevFrameHash: 0,
     processor, selfTestRunner: new SelfTestRunner(broadcaster),
     pendingB64: undefined, throttleTimer: undefined, lastProcessedMs: undefined,
-    lastBacklogLogMs: undefined, tunedMinFrameIntervalMs: undefined,
+    lastBacklogLogMs: undefined,
+    tunedMinFrameIntervalMs: Math.max(cfg.minFrameInterval, SAFE_START_INTERVAL_MS),
     lastInputMs: undefined,
     consecutiveFrameErrors: 0, // Cải tiến: tracking lỗi liên tiếp
     recentFrameMs: [], passthroughFrames: 0, passthroughOn: false,
@@ -1043,6 +1059,9 @@ export function runAdaptiveTick(): void {
     let st = adaptiveStates.get(m.id);
     if (!st) {
       st = initialAdaptiveState(device.cfg.jpegQuality, device.cfg.minFrameInterval, now);
+      // Bat dau o muc an toan, nhung baseIntervalMs giu nguyen tran thiet bi
+      // yeu cau -> nhanh hoi phuc van co duong rut ve tran do.
+      st.minFrameIntervalMs = device.tunedMinFrameIntervalMs ?? st.minFrameIntervalMs;
       adaptiveStates.set(m.id, st);
     }
     const cfgA = { ...DEFAULT_ADAPTIVE_CFG, maxQuality: device.cfg.jpegQuality };
