@@ -1,3 +1,36 @@
+## V2.6.0
+### Áp lực ngược theo `bufferedAmount` của WebSocket
+Server trước đây gửi **vô điều kiện**, không bao giờ nhìn `bufferedAmount`. Thư viện `ws` của
+Node đệm **không giới hạn** trong RAM khi phía nhận chậm, nên khi thiết bị không giải mã kịp thì
+server vẫn dồn tiếp — thiết bị càng ngộp mà server không hề biết.
+
+Đo thật trên ESP32-P4 với tab 5 thẻ camera: trong **200 giây** thiết bị vứt **1720 gói** vì hàng
+đợi decode đầy, chỉ vẽ trọn **1 khung**. Kết nối API của ESPHome cũng bị reset liên tục.
+
+- `broadcaster.backlogBytes(id)` — số byte còn kẹt trong bộ đệm gửi của socket.
+- `flushPending` bỏ **nguyên khung** khi tồn đọng vượt ngưỡng (mặc định 192KB, đổi bằng
+  `CCR_WS_HIGH_WATER`).
+- **Phải chặn TRƯỚC `processFrameAsync()`**: nếu bỏ khung ở tầng broadcaster thì FrameProcessor
+  đã tính sai phân xong và coi như thiết bị **đã nhận** các tile đó — vùng ảnh ấy hỏng vĩnh viễn
+  cho tới full-frame kế tiếp. Bỏ ở đây thì nền so sánh giữ nguyên, khung sau vẫn diff đúng.
+- Bỏ nguyên khung (không bỏ một phần) để không bao giờ sinh khung rách.
+
+### Bộ điều khiển thích nghi dùng được tồn đọng làm tín hiệu
+Trước đây vòng điều khiển chỉ dựa vào `decodeMs` do **thiết bị báo về**. Nhưng khi quá tải nặng
+thì chính gói `FrameStats` cũng không lọt — tức là **mù đúng lúc cần nhất**.
+
+- Thêm `backlogBytes` vào `AdaptiveSample`, `maxBacklogBytes` vào cấu hình.
+- Xét **trước** nhánh "chưa có số đo decode".
+- Còn tồn đọng thì **không hồi phục** dù decode nhanh.
+
+### Sửa lỗi bánh cóc — nhịp frame không bao giờ hồi phục
+Nhánh hồi phục chỉ nâng lại `quality`, không bao giờ rút ngắn `minFrameIntervalMs`. Hậu quả: tab
+nặng ép nhịp 100ms → 400ms, rồi khi chuyển sang tab nhẹ thiết bị **vẫn kẹt ở 2.5fps vĩnh viễn**.
+
+- Thêm `baseIntervalMs` (nhịp gốc thiết bị yêu cầu từ YAML).
+- Hồi phục theo thứ tự **ngược** với lúc hạ tải (LIFO): rút nhịp về mức gốc trước, hết mới nâng
+  quality. Không bao giờ vượt quá nhịp gốc.
+
 ## V2.5.0
 ### Bỏ nén JPEG hai lần — chuyển thẳng ảnh của Chrome khi đang phát video
 Đường cũ nén JPEG **hai lần**: Chrome encode JPEG → `sharp` giải nén ra RGBA → FrameProcessor
