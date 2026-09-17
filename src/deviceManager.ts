@@ -801,6 +801,16 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
   const flushPending = async () => {
     const dev = newDevice;
     dev.throttleTimer = undefined;
+    // (17/09/2026) SUA LOI DIEU NHIP: danh moc NGAY KHI BAT DAU, khong doi den
+    // `finally`. Truoc day `throttleTimer` duoc xoa o dau ham nhung
+    // `lastProcessedMs` chi cap nhat o CUOI — sau ~200ms encode. Trong khoang
+    // trong do, khung screencast moi den se thay throttleTimer rong VA `since`
+    // da lon hon nhip -> delay = 0 -> chay ngay. Nhip thuc te co lai con bang
+    // thoi gian encode thay vi effInterval.
+    // Do that: adaptive dat mfi=400 (le ra 2.5fps) nhung server van gui 3.93fps.
+    // `finally` van ghi de lai bang thoi diem KET THUC, nen nhip van duoc tinh
+    // tu luc xong khung truoc — dung nhu thiet ke.
+    dev.lastProcessedMs = Date.now();
     const b64 = dev.pendingB64;
     dev.pendingB64 = undefined;
     if (!b64) return;
