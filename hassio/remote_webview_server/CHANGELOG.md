@@ -1,3 +1,11 @@
+## V2.7.3
+### Hạ chu kỳ xin số liệu 30s → 10s
+Sau khi hạ chu kỳ vòng điều tiết về 5s (2.7.2), chính chu kỳ **xin số liệu decode** trở thành thứ
+chặn tốc độ phản ứng: vòng điều khiển chạy 5s/lần nhưng vẫn đọc lại cùng một mẫu decode cũ cho
+tới khi có mẫu mới.
+
+Đo thật: hạ tải 7 bước mất **55 giây**, trong khi lý thuyết (tick 5s + trễ 5s) là ~35 giây.
+
 ## V2.7.2
 ### Hạ chu kỳ vòng điều tiết 15s → 5s
 Đo thật trên 2.7.1: AIMD hoàn tất 7 bước hạ tải trong **90 giây**, không phải ~25 giây như tính
