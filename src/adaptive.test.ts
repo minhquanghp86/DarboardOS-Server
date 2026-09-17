@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_ADAPTIVE_CFG, decideAdaptive, initialAdaptiveState, adaptiveBudgetMs } from "./adaptive.js";
+import type { AdaptiveState, AdaptiveSample } from "./adaptive.js";
 
 const cfg = { ...DEFAULT_ADAPTIVE_CFG };
 const t0 = 1_000_000;
@@ -8,6 +9,17 @@ describe("GĐ3 - bộ điều khiển thích nghi", () => {
   // Suy ra tu cfg thay vi ma hoa cung, de viec chinh decodeBudgetRatio khong
   // lam hong test (da tung hong khi doi 0.5 -> 0.7).
   const budgetFor = (ms: number) => Math.max(20, Math.round(ms * cfg.decodeBudgetRatio));
+
+  /** Nap du mau tot de kich hoat DUNG MOT buoc hoi phuc. */
+  function feedGood(st: AdaptiveState, sample: AdaptiveSample, startAt: number) {
+    let now = startAt;
+    let out = st;
+    for (let i = 0; i < cfg.goodStreakNeeded; i++) {
+      now += cfg.cooldownMs + 5_000;
+      out = decideAdaptive(sample, out, cfg, now).state;
+    }
+    return { state: out, now };
+  }
 
   it("ngân sách decode = nhịp × tỉ lệ", () => {
     const st = initialAdaptiveState(60, 100, t0);
@@ -92,19 +104,19 @@ describe("GĐ3 - bộ điều khiển thích nghi", () => {
     let now = t0;
     const light = { decodeMs: 5, bytesPerSec: 1000, frameErrors: 0 };
 
-    // 3 mẫu tốt -> rút 200 -> 150
-    for (let i = 0; i < 3; i++) { now += 30_000; st = decideAdaptive(light, st, cfg, now).state; }
-    expect(st.minFrameIntervalMs).toBe(150);
+    // đủ mẫu tốt -> rút 200 -> 150
+    ({ state: st, now } = feedGood(st, light, now));
+    expect(st.minFrameIntervalMs).toBe(200 - cfg.intervalStepMs);
     expect(st.quality).toBe(40); // quality chưa đụng tới
 
-    // 3 mẫu tốt nữa -> rút 150 -> 100 (mức gốc)
-    for (let i = 0; i < 3; i++) { now += 30_000; st = decideAdaptive(light, st, cfg, now).state; }
+    // đủ mẫu tốt nữa -> rút tiếp về 100 (mức gốc)
+    ({ state: st, now } = feedGood(st, light, now));
     expect(st.minFrameIntervalMs).toBe(100);
 
     // Đã về gốc: KHÔNG vượt qua nữa, chuyển sang nâng quality
-    for (let i = 0; i < 3; i++) { now += 30_000; st = decideAdaptive(light, st, cfg, now).state; }
+    ({ state: st, now } = feedGood(st, light, now));
     expect(st.minFrameIntervalMs).toBe(100);
-    expect(st.quality).toBe(45);
+    expect(st.quality).toBe(40 + cfg.qualityStepUp);
   });
 
   it("tồn đọng socket cao -> giãn nhịp NGAY cả khi chưa có số đo decode", () => {
@@ -138,19 +150,37 @@ describe("GĐ3 - bộ điều khiển thích nghi", () => {
     expect(r.reason).toBe("ổn định");
   });
 
-  it("dư địa: cần 3 mẫu tốt liên tiếp mới TĂNG quality", () => {
+  it("dư địa: cần đủ mẫu tốt LIÊN TIẾP mới TĂNG quality", () => {
     let st = initialAdaptiveState(40, 100, t0);
-    let now = t0 + 30_000;
+    let now = t0 + cfg.cooldownMs + 5_000;
     const good = { decodeMs: 10, bytesPerSec: 10_000, frameErrors: 0 };
-    for (let i = 0; i < 2; i++) {
+    // các mẫu trước mẫu cuối cùng: chưa đủ chuỗi -> chưa đổi
+    for (let i = 0; i < cfg.goodStreakNeeded - 1; i++) {
       const r = decideAdaptive(good, st, cfg, now);
       expect(r.changed).toBe(false);
       st = r.state;
-      now += 30_000;
+      now += cfg.cooldownMs + 5_000;
     }
-    const r3 = decideAdaptive(good, st, cfg, now);
-    expect(r3.changed).toBe(true);
-    expect(r3.state.quality).toBe(45);
+    const last = decideAdaptive(good, st, cfg, now);
+    expect(last.changed).toBe(true);
+    expect(last.state.quality).toBe(40 + cfg.qualityStepUp);
+  });
+
+  it("hồi phục quality từ sàn lên trần trong số bước hợp lý", () => {
+    // Người dùng phản ánh: sau khi chuyển tab, quality bò từ 40 lên 80 mất ~4 phút.
+    // Đây là ràng buộc chống hồi quy cho số BƯỚC (thời gian thật = bước × trễ).
+    let st = { ...initialAdaptiveState(80, 100, t0), quality: cfg.minQuality };
+    let now = t0;
+    let steps = 0;
+    const light = { decodeMs: 5, bytesPerSec: 1000, frameErrors: 0 };
+    while (st.quality < 80 && steps < 50) {
+      now += cfg.cooldownMs + 5_000;
+      const r = decideAdaptive(light, st, cfg, now);
+      st = r.state;
+      if (r.changed) steps++;
+    }
+    expect(st.quality).toBe(80);
+    expect(steps).toBeLessThanOrEqual(4);
   });
 
   it("mạng đã căng -> KHÔNG nâng chất lượng dù decode rất thấp", () => {
