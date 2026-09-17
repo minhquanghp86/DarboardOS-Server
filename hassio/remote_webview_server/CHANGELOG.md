@@ -1,3 +1,17 @@
+## V2.7.9
+### Giãn nhịp ép full-frame 60s → 5 phút, và sửa biến môi trường không có tác dụng
+`refreshDisplaysTick` là **bảo hiểm** chống "màn hình giữ ảnh cũ", không phải cơ chế chính. Nhưng
+mỗi lần chạy là một full-frame (~50KB) cho **mỗi** thiết bị — ở nhịp 60s đó là một cú sốc tải đều
+đặn mỗi phút, và nó chính là thứ làm các phép đo dao động trong suốt buổi điều tra. Bản gốc của
+strange-v **không có** cơ chế này.
+
+Giờ đã có các tuyến phòng thủ khác (áp lực ngược, vòng điều tiết, `full_frame_every` của chính
+FrameProcessor) nên bảo hiểm này chỉ cần chạy thưa thớt.
+
+**Lỗi kèm theo:** `CCR_REFRESH_MS` **chưa bao giờ điều khiển được nhịp** — nó chỉ được đọc bên
+trong hàm để làm cờ bật/tắt, còn nhịp thật bị ghi cứng `60_000` ở `index.ts`. Nay biến điều khiển
+cả hai; đặt `CCR_REFRESH_MS=0` để tắt hẳn.
+
 ## V2.7.8
 ### Trả tỉ lệ ngân sách decode về 0.5
 Đã thử 0.5 → 0.7 rồi trả lại. Với 0.7, đo thật trên tab 5 thẻ camera: fps lên 15.97 nhưng hệ
