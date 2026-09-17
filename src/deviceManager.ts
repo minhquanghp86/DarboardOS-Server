@@ -58,7 +58,15 @@ const SCREENCAST_JPEG_QUALITY = Math.min(100, Math.max(1,
 // (16/09/2026) Đường tắt "chuyển thẳng JPEG của Chrome" — xem giải thích đầy đủ
 // trong flushPending. Bật khi nhịp screencast đủ cao (nội dung động kiểu video),
 // vì khi đó khung nào cũng sẽ là full-frame.
-// Đặt PASSTHROUGH_MIN_FPS = 0 để tắt hẳn tính năng này.
+//
+// TẮT HẲN tính năng này: đặt PASSTHROUGH_MIN_FPS = 0 (không phải một số rất
+// lớn như 99999). Một ngưỡng cực cao chỉ khiến điều kiện chuyển mạch thực tế
+// (dòng "fps >= PASSTHROUGH_MIN_FPS" bên dưới) không bao giờ đạt được, nhưng
+// `canPassthrough` (dùng để chọn screencastQuality — xem flushPending) vẫn
+// coi là true vì nó chỉ kiểm tra "> 0". Kết quả: ảnh vẫn bị encode ở chất
+// lượng đích của thiết bị (cfg.jpegQuality) thay vì SCREENCAST_JPEG_QUALITY,
+// dù đường tắt không bao giờ thực sự kích hoạt — khác hành vi so với tắt
+// thật bằng 0. (Phát hiện khi debug sống trên addon 17/09/2026.)
 const PASSTHROUGH_MIN_FPS = Math.max(0, parseFloat(process.env.PASSTHROUGH_MIN_FPS ?? '8') || 0);
 const PASSTHROUGH_RATE_WINDOW = 6; // số khung gần nhất dùng để tính nhịp
 
