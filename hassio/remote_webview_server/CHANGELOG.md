@@ -1,3 +1,15 @@
+## V2.7.2
+### Hạ chu kỳ vòng điều tiết 15s → 5s
+Đo thật trên 2.7.1: AIMD hoàn tất 7 bước hạ tải trong **90 giây**, không phải ~25 giây như tính
+toán (bước đầu 14:26:56 → bước cuối 14:28:26).
+
+Nguyên nhân: `runAdaptiveTick` chỉ chạy **mỗi 15 giây**, nên chính chu kỳ tick mới là thứ chi
+phối — còn `cooldownDownMs` (5s) thêm ở 2.7.0 **gần như không có tác dụng** vì nó ngắn hơn chu kỳ
+tick.
+
+→ Hạ tick về 5s để `cooldownDownMs` thực sự có hiệu lực. Nhịp **nâng lại** không bị ảnh hưởng:
+vẫn bị `cooldownMs` (20s) giữ chậm như cũ.
+
 ## V2.7.1
 Giống hệt 2.7.0 về mã nguồn — chỉ tăng số hiệu để HA mời cập nhật lại.
 

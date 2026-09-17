@@ -110,7 +110,12 @@ setInterval(() => cleanupIdleAsync(), 60_000);
 // (14/09/2026) GD2: 30s/lan xin so lieu decode tu cac thiet bi -> /metrics
 setInterval(() => requestStatsFromDevices(), 30_000);
 // (14/09/2026) GĐ3: 15s/lan chinh quality/nhip theo so do thuc (tat bang CCR_ADAPTIVE=0)
-setInterval(() => runAdaptiveTick(), 15_000);
+// (17/09/2026) 15s -> 5s. Do that: AIMD hoan tat 7 buoc trong 90 giay chu khong
+// phai ~25 giay nhu tinh toan. Ly do: chu ky tick nay CHI PHOI, con cooldownDownMs
+// (5s) them o 2.7.0 gan nhu khong co tac dung vi no NGAN HON chu ky tick.
+// Ha tick ve 5s de cooldownDownMs thuc su co hieu luc -> ha tai xong trong ~35s.
+// Nhip NANG LAI khong bi anh huong: van bi cooldownMs (20s) giu cham nhu cu.
+setInterval(() => runAdaptiveTick(), 5_000);
 // (15/09/2026) 60s/lan ep full-frame -> chong "man hinh trang" (tat bang CCR_REFRESH_MS=0)
 setInterval(() => refreshDisplaysTick(), 60_000);
 console.log(`[server] WebSocket listening on :${WS_PORT}`);
