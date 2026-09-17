@@ -142,6 +142,49 @@ describe("GĐ3 - bộ điều khiển thích nghi", () => {
     expect(r.state.minFrameIntervalMs).toBe(200);
   });
 
+  it("ngưỡng tránh nghẽn: KHÔNG rút lại xuống nhịp vừa gây quá tải", () => {
+    // Đo thật (tab 5 thẻ camera, tỉ lệ ngân sách 0.7): hệ dao động vô hạn —
+    //   50ms quá tải -> giãn 200ms -> rút 150/100/50 -> quá tải -> lặp
+    // Dao động đó chiếm hết các lượt hồi phục nên quality kẹt ở sàn 40.
+    let st = { ...initialAdaptiveState(80, 33, t0), quality: 40, minFrameIntervalMs: 50 };
+    let now = t0 + 60_000;
+
+    // Quá tải ở 50ms -> ghi nhớ ngưỡng và giãn ra
+    const bad = decideAdaptive({ decodeMs: 200, bytesPerSec: 1000, frameErrors: 0 }, st, cfg, now);
+    expect(bad.changed).toBe(true);
+    st = bad.state;
+    expect(st.probeFloorMs).toBe(50);
+    const stretched = st.minFrameIntervalMs;
+    expect(stretched).toBeGreaterThan(50);
+
+    // Rất thoải mái -> hồi phục, NHƯNG trong khi ngưỡng còn hiệu lực thì không
+    // được chạm lại 50ms. (Sau `probeRetryAfter` vòng, ngưỡng được nới để thử
+    // lại — có chủ ý, nếu không thì một lần quá tải nhất thời sẽ khoá fps
+    // vĩnh viễn. Nên chỉ kiểm trong cửa sổ trước khi nới.)
+    const light = { decodeMs: 5, bytesPerSec: 1000, frameErrors: 0 };
+    const qualityBefore = st.quality;
+    for (let i = 0; i < cfg.probeRetryAfter - 1; i++) {
+      now += cfg.cooldownMs + 5_000;
+      st = decideAdaptive(light, st, cfg, now).state;
+      expect(st.minFrameIntervalMs).toBeGreaterThan(50);
+    }
+    // Và lượt hồi phục phải tự nhường cho quality thay vì bị nhịp chiếm hết
+    expect(st.quality).toBeGreaterThan(qualityBefore);
+  });
+
+  it("ngưỡng tránh nghẽn tự nới sau khi ổn định lâu (không khoá fps vĩnh viễn)", () => {
+    let st = { ...initialAdaptiveState(80, 33, t0), quality: 80, minFrameIntervalMs: 100,
+               probeFloorMs: 50, probeBlocked: 0 };
+    let now = t0;
+    const light = { decodeMs: 5, bytesPerSec: 1000, frameErrors: 0 };
+    for (let i = 0; i < cfg.probeRetryAfter + 2; i++) {
+      now += cfg.cooldownMs + 5_000;
+      st = decideAdaptive(light, st, cfg, now).state;
+    }
+    // da noi (hoac bo han) nguong -> khong khoa cung o 100ms nua
+    expect(st.probeFloorMs == null || st.probeFloorMs < 50).toBe(true);
+  });
+
   it("nhịp giãn làm ngân sách rộng ra -> hết quá tải", () => {
     const st = { ...initialAdaptiveState(40, 150, t0) };
     // ngân sách = 75ms; decode 60ms -> không vượt -> ổn định
