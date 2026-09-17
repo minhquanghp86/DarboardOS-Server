@@ -36,14 +36,23 @@ export const DEFAULT_ADAPTIVE_CFG: AdaptiveCfg = {
   intervalBackoffFactor: 2,
   maxIntervalMs: 400,
   cooldownDownMs: 5_000,
-  // (17/09/2026) 0.5 -> 0.7. Do that tren tab 5 the camera: decode 40ms, nen
-  // voi ti le 0.5 diem can bang roi dung 100ms (10fps) — nhanh hon nua thi
-  // ngan sach (50 -> 25ms) khong con du. Ti le 0.7 cho phep ~70ms (14fps) ma
-  // van con 30% du phong.
-  // Day la GIAM MUC DU PHONG, nen chi lam sau khi da co day du luoi an toan:
-  // ap luc nguoc (2.6.0) phan ung tuc thi, AIMD (2.7.0) lui nhanh, va khoi
-  // dong than trong (2.7.4). Khong nen nang tiep len 0.8+ ma khong do lai.
-  decodeBudgetRatio: 0.7,
+  // (17/09/2026) Da thu 0.5 -> 0.7 roi TRA VE 0.5.
+  //
+  // Voi 0.7, do that tren tab 5 the camera: fps len 15.97 nhung he DAO DONG —
+  // diem can bang roi vao vung 50ms, ma o do decode (37ms) chi hon ngan sach
+  // (35ms) mot chut, nen chi can mot dao dong nho la lat qua lat lai:
+  //     50ms -> qua tai -> quality 70->40, gian 100ms -> "rat thap" -> 50ms
+  // Ap luc nguoc phai can thiep 7 lan/7 phut va quality ket o san 40 — tuc
+  // NGUOI DUNG XIN THEM CHAT LUONG MA NHAN LAI IT HON.
+  //
+  // Nguong tranh nghen (probeFloorMs) da chan duoc dao dong do, nhung diem can
+  // bang on dinh nhat van la 100ms/10fps — dung bang voi ti le 0.5. Tuc 0.7
+  // khong doi lai duoc gi ma chi day he toi sat mep. Nguoi dung quyet dinh tra
+  // ve 0.5 sau khi thu thuc te.
+  //
+  // Bai hoc: ti le nay khong phai "muc du phong thua" ma la KHOANG CACH AN
+  // TOAN toi vung mat on dinh.
+  decodeBudgetRatio: 0.5,
   // (17/09/2026) 3 -> 2 mau tot lien tiep, va tre khi NANG LAI 20s -> 10s.
   //
   // Tinh bat doi xung VAN GIU (ha tai 5s, nang lai 10s) — chi la "cham" truoc

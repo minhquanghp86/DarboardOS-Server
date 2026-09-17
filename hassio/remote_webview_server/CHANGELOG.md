@@ -1,3 +1,19 @@
+## V2.7.8
+### Trả tỉ lệ ngân sách decode về 0.5
+Đã thử 0.5 → 0.7 rồi trả lại. Với 0.7, đo thật trên tab 5 thẻ camera: fps lên 15.97 nhưng hệ
+**dao động** — điểm cân bằng rơi vào vùng 50ms, mà ở đó decode (37ms) chỉ hơn ngân sách (35ms)
+một chút, nên chỉ cần dao động nhỏ là lật qua lật lại. Áp lực ngược can thiệp 7 lần/7 phút và
+quality kẹt ở sàn 40 — tức **xin thêm chất lượng mà nhận lại ít hơn**.
+
+Ngưỡng tránh nghẽn (2.7.7) đã chặn được dao động đó, nhưng điểm cân bằng ổn định nhất vẫn là
+**100ms / 10fps** — đúng bằng với tỉ lệ 0.5. Tức 0.7 không đổi lại được gì mà chỉ đẩy hệ tới sát
+mép.
+
+**Bài học:** tỉ lệ này không phải "mức dự phòng thừa" mà là **khoảng cách an toàn** tới vùng mất
+ổn định.
+
+Ngưỡng tránh nghẽn vẫn giữ nguyên làm lưới an toàn.
+
 ## V2.7.7
 ### Ngưỡng tránh nghẽn — chặn dao động vô hạn (tương tự `ssthresh` của TCP)
 Sau khi nới tỉ lệ ngân sách lên 0.7, đo thật trên tab 5 thẻ camera cho thấy hệ **dao động vô
