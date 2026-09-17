@@ -1,3 +1,15 @@
+## V2.7.1
+Giống hệt 2.7.0 về mã nguồn — chỉ tăng số hiệu để HA mời cập nhật lại.
+
+Khi cập nhật lên 2.7.0, addon đã kéo về image `chrome-h264` **chưa kịp build xong**, nên tuy HA
+hiển thị 2.7.0 nhưng mã chạy thật vẫn là 2.6.2 (kiểm chứng: `backoffInterval` xuất hiện 0 lần,
+`markInteraction` 0 lần trong `/app/dist/`). Vì `config.yaml` đã ghi 2.7.0 và addon cũng đang ở
+2.7.0, HA sẽ **không** mời cập nhật lại — nên phải tăng số hiệu.
+
+**Chỉ bấm Update sau khi GitHub Actions đã build xong (xanh).** Số hiệu nằm trong `config.yaml`,
+còn mã chạy thật nằm trong image do Actions build ở tag `chrome-h264` — hai thứ này không đồng bộ
+với nhau.
+
 ## V2.7.0
 ### AIMD — giảm nhân, tăng cộng
 Để dashboard mượt thì trần fps phía thiết bị phải nâng lên (100ms → 33ms, tức 30fps). Nhưng với
