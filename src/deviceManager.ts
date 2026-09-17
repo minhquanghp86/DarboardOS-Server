@@ -31,6 +31,8 @@ export type DeviceSession = {
   pendingB64?: string;
   throttleTimer?: NodeJS.Timeout;
   lastProcessedMs?: number;
+  /** (17/09/2026) han che tan suat log canh bao ap luc nguoc */
+  lastBacklogLogMs?: number;
 
   // Cải tiến: theo dõi lỗi frame liên tiếp để tự phục hồi
   consecutiveFrameErrors: number;
@@ -69,6 +71,15 @@ const SCREENCAST_JPEG_QUALITY = Math.min(100, Math.max(1,
 // thật bằng 0. (Phát hiện khi debug sống trên addon 17/09/2026.)
 const PASSTHROUGH_MIN_FPS = Math.max(0, parseFloat(process.env.PASSTHROUGH_MIN_FPS ?? '8') || 0);
 const PASSTHROUGH_RATE_WINDOW = 6; // số khung gần nhất dùng để tính nhịp
+
+// (17/09/2026) Ngưỡng áp lực ngược: số byte còn kẹt trong bộ đệm gửi của
+// WebSocket mà trên mức đó thì BỎ khung mới thay vì dồn thêm. Một full-frame
+// 1024x600 ở quality 70 vào khoảng 100-150KB, nên 192KB ~ "đang nợ hơn một
+// khung" — đủ rộng để không phản ứng thái quá với biến động bình thường.
+const WS_HIGH_WATER_BYTES = Math.max(
+  16_384,
+  parseInt(process.env.CCR_WS_HIGH_WATER ?? '196608', 10) || 196608
+);
 
 const devices = new Map<string, DeviceSession>();
 let _cleanupRunning = false;
@@ -764,6 +775,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     url: '', lastActive: Date.now(), frameId: 0, prevFrameHash: 0,
     processor, selfTestRunner: new SelfTestRunner(broadcaster),
     pendingB64: undefined, throttleTimer: undefined, lastProcessedMs: undefined,
+    lastBacklogLogMs: undefined,
     consecutiveFrameErrors: 0, // Cải tiến: tracking lỗi liên tiếp
     recentFrameMs: [], passthroughFrames: 0, passthroughOn: false,
   };
@@ -776,6 +788,26 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     const b64 = dev.pendingB64;
     dev.pendingB64 = undefined;
     if (!b64) return;
+
+    // (17/09/2026) ÁP LỰC NGƯỢC — bỏ khung khi thiết bị chưa tiêu hoá kịp.
+    //
+    // PHẢI chặn Ở ĐÂY, TRƯỚC processFrameAsync(). Nếu bỏ khung ở tầng
+    // broadcaster thì FrameProcessor đã tính sai phân xong và coi như thiết bị
+    // ĐÃ NHẬN các tile đó; vứt đi = vùng ảnh ấy hỏng vĩnh viễn cho tới full-frame
+    // kế tiếp. Bỏ ở đây thì nền so sánh giữ nguyên, khung sau vẫn diff đúng.
+    //
+    // Bỏ nguyên khung (không bỏ một phần) để không bao giờ sinh khung rách.
+    const backlog = broadcaster.backlogBytes(id);
+    if (backlog > WS_HIGH_WATER_BYTES) {
+      metrics.onFrameSkipped(id);
+      dev.lastProcessedMs = Date.now();
+      if (Date.now() - (dev.lastBacklogLogMs ?? 0) > 5000) {
+        dev.lastBacklogLogMs = Date.now();
+        console.warn(`[device] ${id}: bo khung, ton dong socket ${backlog}B > ${WS_HIGH_WATER_BYTES}B`);
+      }
+      return;
+    }
+
     try {
       // Cải tiến: xử lý JPEG thay PNG
       // Với format jpeg, Chrome gửi JPEG data trực tiếp.
@@ -969,6 +1001,7 @@ export function runAdaptiveTick(): void {
         bytesPerSec,
         frameErrors: m.frameErrors,
         heapFree: m.deviceHeapFree ?? null,
+        backlogBytes: broadcaster.backlogBytes(m.id),
       },
       st,
       cfgA,
