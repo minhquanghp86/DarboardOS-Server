@@ -1,3 +1,24 @@
+## V2.7.7
+### Ngưỡng tránh nghẽn — chặn dao động vô hạn (tương tự `ssthresh` của TCP)
+Sau khi nới tỉ lệ ngân sách lên 0.7, đo thật trên tab 5 thẻ camera cho thấy hệ **dao động vô
+hạn**:
+
+    50ms  → decode 37ms > ngân sách 35ms → quality 70→60→50→40 → giãn 100ms
+    100ms → decode 32ms "rất thấp"       → rút lại về 50ms
+    (lặp lại; áp lực ngược can thiệp 7 lần / 7 phút)
+
+**Hai triệu chứng, một nguyên nhân.** Bộ điều tiết **không nhớ** rằng 50ms vừa thất bại nên cứ
+lao xuống lại. Và vì hồi phục ưu tiên nhịp trước quality, dao động đó **chiếm hết các lượt hồi
+phục** → quality kẹt vĩnh viễn ở sàn 40.
+
+- `AdaptiveState.probeFloorMs` ghi nhớ nhịp vừa gây quá tải.
+- Sàn hồi phục = `max(trần thiết bị, probeFloorMs + một bước)`.
+- Nới dần: bị chặn `probeRetryAfter` (6) vòng mà vẫn rất thoải mái thì hạ ngưỡng một bước để thử
+  lại — không có cơ chế này thì **một lần quá tải nhất thời sẽ khoá fps vĩnh viễn**.
+
+Đã cân nhắc đảo thứ tự hồi phục thành quality-trước, nhưng **không cần**: khi nhịp bị ngưỡng chặn,
+lượt hồi phục **tự nhường** cho quality. Nguyên nhân thật là thiếu tính trễ, không phải thứ tự.
+
 ## V2.7.6
 ### Hồi phục nhanh hơn 4 lần sau khi đổi tab
 Người dùng phản ánh trực tiếp: sau khi chuyển tab, quality bò từ sàn 40 lên trần 80 mất **~4
