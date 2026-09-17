@@ -108,7 +108,11 @@ http.createServer((req, res) => {
 
 setInterval(() => cleanupIdleAsync(), 60_000);
 // (14/09/2026) GD2: 30s/lan xin so lieu decode tu cac thiet bi -> /metrics
-setInterval(() => requestStatsFromDevices(), 30_000);
+// (17/09/2026) 30s -> 10s. Sau khi ha tick dieu tiet ve 5s, chinh chu ky XIN
+// SO LIEU nay tro thanh thu chan toc do phan ung: vong dieu khien chay 5s/lan
+// nhung van doc lai cung mot mau decode cu cho den khi co mau moi.
+// Do that: ha tai 7 buoc mat 55s, trong khi ly thuyet (tick 5s + tre 5s) la ~35s.
+setInterval(() => requestStatsFromDevices(), 10_000);
 // (14/09/2026) GĐ3: 15s/lan chinh quality/nhip theo so do thuc (tat bang CCR_ADAPTIVE=0)
 // (17/09/2026) 15s -> 5s. Do that: AIMD hoan tat 7 buoc trong 90 giay chu khong
 // phai ~25 giay nhu tinh toan. Ly do: chu ky tick nay CHI PHOI, con cooldownDownMs
