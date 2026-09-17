@@ -49,6 +49,28 @@ describe("GĐ3 - bộ điều khiển thích nghi", () => {
     expect(r.state.minFrameIntervalMs).toBe(150); // giãn nhịp 100 -> 150
   });
 
+  it("hết quá tải -> RÚT nhịp về mức gốc trước, rồi mới nâng quality", () => {
+    // Mô phỏng: tab 5 thẻ camera đã ép nhịp 100 -> 200ms, quality chạm sàn 40.
+    // Sang tab nhẹ (decode rất thấp) thì phải hồi phục được về 100ms.
+    let st = { ...initialAdaptiveState(60, 100, t0), quality: 40, minFrameIntervalMs: 200 };
+    let now = t0;
+    const light = { decodeMs: 5, bytesPerSec: 1000, frameErrors: 0 };
+
+    // 3 mẫu tốt -> rút 200 -> 150
+    for (let i = 0; i < 3; i++) { now += 30_000; st = decideAdaptive(light, st, cfg, now).state; }
+    expect(st.minFrameIntervalMs).toBe(150);
+    expect(st.quality).toBe(40); // quality chưa đụng tới
+
+    // 3 mẫu tốt nữa -> rút 150 -> 100 (mức gốc)
+    for (let i = 0; i < 3; i++) { now += 30_000; st = decideAdaptive(light, st, cfg, now).state; }
+    expect(st.minFrameIntervalMs).toBe(100);
+
+    // Đã về gốc: KHÔNG vượt qua nữa, chuyển sang nâng quality
+    for (let i = 0; i < 3; i++) { now += 30_000; st = decideAdaptive(light, st, cfg, now).state; }
+    expect(st.minFrameIntervalMs).toBe(100);
+    expect(st.quality).toBe(45);
+  });
+
   it("nhịp giãn làm ngân sách rộng ra -> hết quá tải", () => {
     const st = { ...initialAdaptiveState(40, 150, t0) };
     // ngân sách = 75ms; decode 60ms -> không vượt -> ổn định

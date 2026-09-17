@@ -38,6 +38,8 @@ export const DEFAULT_ADAPTIVE_CFG: AdaptiveCfg = {
 export type AdaptiveState = {
   quality: number;
   minFrameIntervalMs: number;
+  /** Nhịp gốc do thiết bị yêu cầu (YAML). Là TRẦN fps; hồi phục không bao giờ vượt qua. */
+  baseIntervalMs?: number;
   lastChangeAt: number;
   goodStreak: number;
   changes: number;
@@ -56,6 +58,7 @@ export function initialAdaptiveState(quality: number, minFrameIntervalMs: number
   return {
     quality,
     minFrameIntervalMs,
+    baseIntervalMs: minFrameIntervalMs,
     lastChangeAt: now,
     goodStreak: 0,
     changes: 0,
@@ -123,6 +126,26 @@ export function decideAdaptive(
 
   // Dư địa -> nâng lại dần, cần nhiều mẫu tốt liên tiếp và mạng không căng
   const comfortable = sample.decodeMs < budget * 0.5 && sample.bytesPerSec < cfg.maxBytesPerSec;
+
+  // (17/09/2026) SUA LOI BANH COC: truoc day nhanh hoi phuc CHI nang lai quality,
+  // khong bao gio rut ngan minFrameIntervalMs. Hau qua: mot tab nang (vd 5 the
+  // camera) gian nhip 100ms -> 400ms, roi khi chuyen sang tab nhe thiet bi VAN
+  // ket o 2.5fps vinh vien. Hoi phuc theo thu tu nguoc voi luc ha tai (LIFO):
+  // rut nhip ve truoc, het moi nang quality.
+  const baseIntervalMs = out.baseIntervalMs ?? out.minFrameIntervalMs;
+  if (comfortable && out.minFrameIntervalMs > baseIntervalMs) {
+    out.goodStreak = state.goodStreak + 1;
+    if (out.goodStreak >= cfg.goodStreakNeeded) {
+      out.minFrameIntervalMs = Math.max(baseIntervalMs, out.minFrameIntervalMs - cfg.intervalStepMs);
+      out.goodStreak = 0;
+      out.lastChangeAt = now;
+      out.changes = state.changes + 1;
+      out.lastReason = `decode ${sample.decodeMs.toFixed(1)}ms rất thấp → rút nhịp về ${out.minFrameIntervalMs}ms`;
+      return { state: out, changed: true, reason: out.lastReason };
+    }
+    return { state: out, changed: false, reason: `tốt ${out.goodStreak}/${cfg.goodStreakNeeded}` };
+  }
+
   if (comfortable && out.quality < cfg.maxQuality) {
     out.goodStreak = state.goodStreak + 1;
     if (out.goodStreak >= cfg.goodStreakNeeded) {
