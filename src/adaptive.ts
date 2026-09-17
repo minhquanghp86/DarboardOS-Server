@@ -19,6 +19,7 @@ export type AdaptiveCfg = {
   cooldownMs: number;         // thời gian chờ tối thiểu giữa 2 lần chỉnh
   maxBytesPerSec: number;     // trên ngưỡng này thì KHÔNG nâng chất lượng
   minDeviceHeapFree: number;  // heap nội bộ tối thiểu của thiết bị (dưới ngưỡng -> hạ tải)
+  maxBacklogBytes: number;    // tồn đọng bộ đệm gửi WS tối đa (trên ngưỡng -> hạ tải)
 };
 
 export const DEFAULT_ADAPTIVE_CFG: AdaptiveCfg = {
@@ -33,6 +34,7 @@ export const DEFAULT_ADAPTIVE_CFG: AdaptiveCfg = {
   cooldownMs: 20_000,
   maxBytesPerSec: 1_500_000,
   minDeviceHeapFree: 25_000,
+  maxBacklogBytes: 98_304,
 };
 
 export type AdaptiveState = {
@@ -52,6 +54,9 @@ export type AdaptiveSample = {
   frameErrors: number;
   // (14/09/2026) GD3.5: heap noi bo con lai cua thiet bi (null = firmware cu, khong biet)
   heapFree?: number | null;
+  // (17/09/2026) Byte còn kẹt trong bộ đệm gửi WebSocket. Tín hiệu quá tải DUY
+  // NHẤT không phụ thuộc vào việc thiết bị báo được số liệu về hay không.
+  backlogBytes?: number | null;
 };
 
 export function initialAdaptiveState(quality: number, minFrameIntervalMs: number, now: number): AdaptiveState {
@@ -100,6 +105,29 @@ export function decideAdaptive(
     return { state: out, changed: true, reason: out.lastReason };
   }
 
+  // (17/09/2026) Tồn đọng socket cao -> thiết bị KHÔNG tiêu hoá kịp. Phải xét
+  // TRƯỚC nhánh "chưa có số đo decode": khi quá tải nặng thì chính gói FrameStats
+  // cũng không lọt về, nên nếu chờ decodeMs thì vòng điều khiển sẽ mù đúng lúc
+  // cần nó nhất. Đây là lỗ hổng đã quan sát được trên thiết bị thật.
+  if (sample.backlogBytes != null && sample.backlogBytes > cfg.maxBacklogBytes) {
+    if (now - state.lastChangeAt < cfg.cooldownMs) {
+      return { state: out, changed: false, reason: 'tồn đọng cao nhưng đang trong thời gian trễ' };
+    }
+    if (out.minFrameIntervalMs < cfg.maxIntervalMs) {
+      out.minFrameIntervalMs = Math.min(cfg.maxIntervalMs, out.minFrameIntervalMs + cfg.intervalStepMs);
+      out.lastReason = `ton dong ${sample.backlogBytes}B > ${cfg.maxBacklogBytes}B → giãn nhịp còn ${out.minFrameIntervalMs}ms`;
+    } else if (out.quality > cfg.minQuality) {
+      out.quality = Math.max(cfg.minQuality, out.quality - cfg.qualityStepDown);
+      out.lastReason = `ton dong ${sample.backlogBytes}B > ${cfg.maxBacklogBytes}B → giảm quality còn ${out.quality}`;
+    } else {
+      return { state: out, changed: false, reason: 'tồn đọng cao nhưng đã ở mức thấp nhất' };
+    }
+    out.lastChangeAt = now;
+    out.goodStreak = 0;
+    out.changes = state.changes + 1;
+    return { state: out, changed: true, reason: out.lastReason };
+  }
+
   if (sample.decodeMs == null || sample.decodeMs <= 0) {
     return { state: out, changed: false, reason: 'chưa có số đo decode' };
   }
@@ -125,7 +153,9 @@ export function decideAdaptive(
   }
 
   // Dư địa -> nâng lại dần, cần nhiều mẫu tốt liên tiếp và mạng không căng
-  const comfortable = sample.decodeMs < budget * 0.5 && sample.bytesPerSec < cfg.maxBytesPerSec;
+  const comfortable = sample.decodeMs < budget * 0.5
+    && sample.bytesPerSec < cfg.maxBytesPerSec
+    && (sample.backlogBytes ?? 0) <= cfg.maxBacklogBytes / 2;
 
   // (17/09/2026) SUA LOI BANH COC: truoc day nhanh hoi phuc CHI nang lai quality,
   // khong bao gio rut ngan minFrameIntervalMs. Hau qua: mot tab nang (vd 5 the

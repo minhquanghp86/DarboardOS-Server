@@ -71,6 +71,29 @@ describe("GĐ3 - bộ điều khiển thích nghi", () => {
     expect(st.quality).toBe(45);
   });
 
+  it("tồn đọng socket cao -> giãn nhịp NGAY cả khi chưa có số đo decode", () => {
+    // Đúng lúc quá tải nặng thì gói FrameStats cũng không lọt về, nên decodeMs
+    // là null. Trước đây vòng điều khiển bó tay đúng lúc cần nó nhất.
+    const st = initialAdaptiveState(70, 100, t0);
+    const r = decideAdaptive(
+      { decodeMs: null, bytesPerSec: 1000, frameErrors: 0, backlogBytes: 200_000 },
+      st, cfg, t0 + 60_000
+    );
+    expect(r.changed).toBe(true);
+    expect(r.state.minFrameIntervalMs).toBe(150);
+    expect(r.state.quality).toBe(70); // giãn nhịp TRƯỚC, chưa đụng quality
+  });
+
+  it("tồn đọng còn cao -> KHÔNG hồi phục dù decode nhanh", () => {
+    const st = { ...initialAdaptiveState(60, 100, t0), quality: 40, minFrameIntervalMs: 200 };
+    const r = decideAdaptive(
+      { decodeMs: 5, bytesPerSec: 1000, frameErrors: 0, backlogBytes: 60_000 },
+      st, cfg, t0 + 60_000
+    );
+    expect(r.changed).toBe(false);
+    expect(r.state.minFrameIntervalMs).toBe(200);
+  });
+
   it("nhịp giãn làm ngân sách rộng ra -> hết quá tải", () => {
     const st = { ...initialAdaptiveState(40, 150, t0) };
     // ngân sách = 75ms; decode 60ms -> không vượt -> ổn định

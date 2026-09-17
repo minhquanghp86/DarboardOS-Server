@@ -51,6 +51,27 @@ export class DeviceBroadcaster {
     return this._clients.get(id)?.size ?? 0;
   }
 
+  // (17/09/2026) ÁP LỰC NGƯỢC: số byte đang kẹt trong bộ đệm gửi của socket.
+  //
+  // Trước đây server gửi vô điều kiện. Thư viện `ws` của Node đệm KHÔNG GIỚI HẠN
+  // trong RAM khi phía nhận chậm, nên khi thiết bị không giải mã kịp thì server
+  // vẫn dồn tiếp — thiết bị càng ngộp. Đo thật trên ESP32-P4 với tab 5 thẻ
+  // camera: 1720 gói bị thiết bị vứt vì hàng đợi đầy, chỉ 1 khung được vẽ trọn
+  // trong 200 giây.
+  //
+  // `bufferedAmount` là tín hiệu quá tải ĐÁNG TIN NHẤT vì nó không phụ thuộc
+  // vào việc thiết bị có báo số liệu về được hay không — mà đúng lúc quá tải
+  // thì gói FrameStats cũng chính là thứ không lọt.
+  backlogBytes(id: string): number {
+    const peers = this._clients.get(id);
+    if (!peers) return 0;
+    let max = 0;
+    for (const ws of peers) {
+      if (ws.readyState === WebSocket.OPEN && ws.bufferedAmount > max) max = ws.bufferedAmount;
+    }
+    return max;
+  }
+
   public sendFrameChunked(id: string, data: FrameOut, frameId: number, maxBytes = 12_000): void {
     const peers = this._clients.get(id);
     if (!peers || peers.size === 0 || data.rects.length === 0) return;
