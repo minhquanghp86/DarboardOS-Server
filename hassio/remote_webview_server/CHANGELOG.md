@@ -1,3 +1,24 @@
+## V2.6.1
+### Bộ điều khiển thích nghi tự vô hiệu hoá chính nó — sửa hai lỗi
+Đo thật trên ESP32-P4 (tab 5 thẻ camera): nhật ký cho thấy vòng điều khiển đã hạ tải tới **kịch
+sàn** (quality 70→40, nhịp 100→400ms), nhưng `/metrics` **cùng lúc đó** vẫn báo
+`minFrameInterval=100`, `jpegQuality=70`, `adaptiveChanges=0`. Hai lỗi chồng nhau:
+
+**1. Điều tiết ghi đè lên `cfg` — tự phá huỷ phiên thiết bị mỗi lần nối lại.**
+`runAdaptiveTick` ghi thẳng vào `device.cfg.minFrameInterval`. Nhưng `cfg` là bản sao **duy nhất**
+của "thiết bị yêu cầu gì" (từ tham số URI). Ghi đè nó làm `deviceConfigsEqual()` sai ngay lần nối
+lại kế tiếp (cfg=400 vs URI=100) → nhánh `Reconfiguring` → `deleteDeviceAsync()` → **dựng lại cả
+target Chromium**. Tức là chính hành động điều tiết tự bảo đảm phiên thiết bị sẽ bị phá huỷ.
+
+→ `cfg` nay **bất biến**; giá trị đã điều tiết nằm ở `tunedMinFrameIntervalMs`.
+
+**2. `adaptiveStates` không bao giờ được dọn.**
+Phiên mới của cùng một thiết bị thừa kế trạng thái "đã kịch sàn" của phiên cũ → `decideAdaptive`
+trả `changed=false` → **không giá trị nào được áp vào cfg mới**. Thiết bị chạy full tải vĩnh viễn
+còn vòng điều khiển thì tưởng mình đã hạ tải xong.
+
+→ `deleteDeviceAsync()` nay xoá luôn trạng thái thích nghi.
+
 ## V2.6.0
 ### Áp lực ngược theo `bufferedAmount` của WebSocket
 Server trước đây gửi **vô điều kiện**, không bao giờ nhìn `bufferedAmount`. Thư viện `ws` của

@@ -34,6 +34,22 @@ export type DeviceSession = {
   /** (17/09/2026) han che tan suat log canh bao ap luc nguoc */
   lastBacklogLogMs?: number;
 
+  // (17/09/2026) GIA TRI DA DIEU TIET — TACH HAN khoi `cfg`.
+  //
+  // Truoc day runAdaptiveTick ghi thang vao `device.cfg.minFrameInterval`. Hai
+  // hau qua nghiem trong, do duoc tren thiet bi that:
+  //   1. `cfg` la ban sao DUY NHAT cua "thiet bi yeu cau gi" (tu tham so URI).
+  //      Ghi de no lam deviceConfigsEqual() o ensureDeviceAsync SAI ngay lan noi
+  //      lai ke tiep (cfg=400 vs URI=100) -> di nhanh "Reconfiguring" ->
+  //      deleteDeviceAsync() -> DUNG LAI CA TARGET CHROMIUM. Tuc la chinh hanh
+  //      dong dieu tiet tu bao dam phien thiet bi se bi pha huy khi noi lai.
+  //   2. Phien moi lay lai cfg goc (100ms/q70) trong khi adaptiveStates van nho
+  //      "da kich san" -> decideAdaptive tra changed=false -> gia tri da ha
+  //      KHONG BAO GIO duoc ap lai. Thiet bi chay full tai vinh vien con vong
+  //      dieu khien thi tuong minh da ha tai xong.
+  // Nay `cfg` bat bien; moi dieu tiet nam o day.
+  tunedMinFrameIntervalMs?: number;
+
   // Cải tiến: theo dõi lỗi frame liên tiếp để tự phục hồi
   consecutiveFrameErrors: number;
 
@@ -775,7 +791,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     url: '', lastActive: Date.now(), frameId: 0, prevFrameHash: 0,
     processor, selfTestRunner: new SelfTestRunner(broadcaster),
     pendingB64: undefined, throttleTimer: undefined, lastProcessedMs: undefined,
-    lastBacklogLogMs: undefined,
+    lastBacklogLogMs: undefined, tunedMinFrameIntervalMs: undefined,
     consecutiveFrameErrors: 0, // Cải tiến: tracking lỗi liên tiếp
     recentFrameMs: [], passthroughFrames: 0, passthroughOn: false,
   };
@@ -938,7 +954,8 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     const now = Date.now();
     const since = newDevice.lastProcessedMs ? (now - newDevice.lastProcessedMs) : Infinity;
     if (!newDevice.throttleTimer) {
-      const delay = Math.max(0, cfg.minFrameInterval - (Number.isFinite(since) ? since : 0));
+      const effInterval = newDevice.tunedMinFrameIntervalMs ?? cfg.minFrameInterval;
+      const delay = Math.max(0, effInterval - (Number.isFinite(since) ? since : 0));
       newDevice.throttleTimer = setTimeout(flushPending, delay);
     }
   });
@@ -1010,7 +1027,7 @@ export function runAdaptiveTick(): void {
     adaptiveStates.set(m.id, res.state);
     if (!res.changed) continue;
     device.processor.setTuning({ jpegQuality: res.state.quality });
-    device.cfg.minFrameInterval = res.state.minFrameIntervalMs;
+    device.tunedMinFrameIntervalMs = res.state.minFrameIntervalMs;
     metrics.onAdaptiveChange(m.id, res.state.quality, res.state.minFrameIntervalMs, res.reason);
     console.log(`[adaptive] ${m.id}: ${res.reason}`);
   }
@@ -1028,6 +1045,13 @@ async function deleteDeviceAsync(device: DeviceSession) {
   const root = getRoot() as unknown as CDPRoot;
   if (!devices.delete(device.deviceId)) return;
   metrics.removeDevice(device.deviceId);
+  // (17/09/2026) Phai xoa CA trang thai thich nghi. Truoc day Map nay khong bao
+  // gio duoc don, nen phien moi cua cung mot thiet bi thua ke trang thai "da
+  // kich san" cua phien cu -> decideAdaptive tra changed=false -> khong gia tri
+  // nao duoc ap vao cfg moi. Vong dieu khien im lang trong khi thiet bi chay
+  // full tai (quan sat that: log bao da gian nhip len 400ms, nhung /metrics van
+  // bao minFrameInterval=100 va adaptiveChanges=0).
+  adaptiveStates.delete(device.deviceId);
   if (device.throttleTimer) clearTimeout(device.throttleTimer);
   try { await device.cdp.send("Page.stopScreencast").catch(() => { }); } catch { }
   try { await root?.send("Target.closeTarget", { targetId: device.id }); } catch { }
