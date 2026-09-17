@@ -121,5 +121,10 @@ setInterval(() => requestStatsFromDevices(), 10_000);
 // Nhip NANG LAI khong bi anh huong: van bi cooldownMs (20s) giu cham nhu cu.
 setInterval(() => runAdaptiveTick(), 5_000);
 // (15/09/2026) 60s/lan ep full-frame -> chong "man hinh trang" (tat bang CCR_REFRESH_MS=0)
-setInterval(() => refreshDisplaysTick(), 60_000);
+// (17/09/2026) 60s -> 5 phut, VA doc dung bien moi truong.
+// Truoc day CCR_REFRESH_MS chi duoc doc BEN TRONG refreshDisplaysTick() de lam
+// co bat/tat — con nhip that bi ghi cung 60_000 ngay day, nen dat bien do
+// khong bao gio doi duoc nhip. Nay bien dieu khien ca hai.
+const REFRESH_MS = Number(process.env.CCR_REFRESH_MS ?? 300_000);
+if (REFRESH_MS > 0) setInterval(() => refreshDisplaysTick(), REFRESH_MS);
 console.log(`[server] WebSocket listening on :${WS_PORT}`);

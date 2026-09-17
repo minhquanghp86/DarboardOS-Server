@@ -1031,7 +1031,18 @@ export async function cleanupIdleAsync(ttlMs = 5 * 60_000) {
 // trắng chỉ sáng đèn nền) mà KHÔNG có frame mới để tự sửa. Ép full-frame định kỳ bảo đảm
 // màn hình luôn được vẽ lại (chi phí ~10-25KB mỗi 60s, không đáng kể).
 export function refreshDisplaysTick(): void {
-  const ms = Number(process.env.CCR_REFRESH_MS ?? 60_000);
+  // (17/09/2026) 60s -> 5 phut.
+  //
+  // Day la BAO HIEM chong "man hinh giu anh cu", khong phai co che chinh. Nhung
+  // moi lan chay la mot full-frame (~50KB) cho MOI thiet bi — o nhip 60s thi do
+  // la mot cu soc tai deu dan moi phut, va no chinh la thu lam cac phep do dao
+  // dong trong suot buoi dieu tra.
+  //
+  // Ban goc cua strange-v KHONG co co che nay. Gio da co cac tuyen phong thu
+  // khac (ap luc nguoc, vong dieu tiet, full_frame_every cua chinh
+  // FrameProcessor), nen bao hiem nay chi can chay thua thot.
+  // Dat CCR_REFRESH_MS=0 de tat han.
+  const ms = Number(process.env.CCR_REFRESH_MS ?? 300_000);
   if (!ms) return;
   for (const d of devices.values()) {
     try { d.processor.requestFullFrame(); } catch { /* bỏ qua */ }
