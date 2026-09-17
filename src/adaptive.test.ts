@@ -5,9 +5,13 @@ const cfg = { ...DEFAULT_ADAPTIVE_CFG };
 const t0 = 1_000_000;
 
 describe("GĐ3 - bộ điều khiển thích nghi", () => {
+  // Suy ra tu cfg thay vi ma hoa cung, de viec chinh decodeBudgetRatio khong
+  // lam hong test (da tung hong khi doi 0.5 -> 0.7).
+  const budgetFor = (ms: number) => Math.max(20, Math.round(ms * cfg.decodeBudgetRatio));
+
   it("ngân sách decode = nhịp × tỉ lệ", () => {
     const st = initialAdaptiveState(60, 100, t0);
-    expect(adaptiveBudgetMs(st, cfg)).toBe(50);
+    expect(adaptiveBudgetMs(st, cfg)).toBe(budgetFor(100));
   });
 
   it("chưa có số đo -> không chỉnh gì", () => {
@@ -73,7 +77,7 @@ describe("GĐ3 - bộ điều khiển thích nghi", () => {
     }
     expect(st.quality).toBe(40);
     const budget0 = adaptiveBudgetMs(st, cfg);
-    expect(budget0).toBe(50);
+    expect(budget0).toBe(budgetFor(100));
     now += 30_000;
     const r = decideAdaptive({ decodeMs: 200, bytesPerSec: 1000, frameErrors: 0 }, st, cfg, now);
     expect(r.changed).toBe(true);

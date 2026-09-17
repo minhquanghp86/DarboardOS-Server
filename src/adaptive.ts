@@ -33,7 +33,14 @@ export const DEFAULT_ADAPTIVE_CFG: AdaptiveCfg = {
   intervalBackoffFactor: 2,
   maxIntervalMs: 400,
   cooldownDownMs: 5_000,
-  decodeBudgetRatio: 0.5,
+  // (17/09/2026) 0.5 -> 0.7. Do that tren tab 5 the camera: decode 40ms, nen
+  // voi ti le 0.5 diem can bang roi dung 100ms (10fps) — nhanh hon nua thi
+  // ngan sach (50 -> 25ms) khong con du. Ti le 0.7 cho phep ~70ms (14fps) ma
+  // van con 30% du phong.
+  // Day la GIAM MUC DU PHONG, nen chi lam sau khi da co day du luoi an toan:
+  // ap luc nguoc (2.6.0) phan ung tuc thi, AIMD (2.7.0) lui nhanh, va khoi
+  // dong than trong (2.7.4). Khong nen nang tiep len 0.8+ ma khong do lai.
+  decodeBudgetRatio: 0.7,
   goodStreakNeeded: 3,
   cooldownMs: 20_000,
   maxBytesPerSec: 1_500_000,
