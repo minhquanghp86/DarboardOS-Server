@@ -1,3 +1,18 @@
+## V2.7.4
+### Khởi động thận trọng — sửa lỗi thiết bị "mất tích" trên HASS sau mỗi lần khởi động lại
+Từ khi `min_frame_interval` đổi vai trò thành **trần fps mong muốn** (33ms = 30fps), mỗi lần
+thiết bị **hoặc** server khởi động lại đều bắt đầu ngay ở trần đó và dội 30fps cho tới khi vòng
+điều tiết kéo xuống (~55 giây).
+
+Trong khoảng đó `loopTask` của ESPHome bị đói, thiết bị **không phục vụ nổi API** → kết nối HA dồn
+đầy 10 khe `max_connections` → thiết bị "mất tích" trên HASS. Đã xảy ra thật.
+
+→ Phiên mới khởi đầu ở `CCR_SAFE_START_MS` (mặc định 200ms = 5fps). Nhánh hồi phục (LIFO) sẽ rút
+dần về trần mà thiết bị yêu cầu **khi nó chứng minh được là theo kịp**.
+
+Nguyên tắc: **bắt đầu chậm, tự kiểm chứng rồi mới nhanh lên.** Đối xứng với AIMD ở 2.7.0 (hỏng thì
+lùi nhanh) — cộng lại thành một vòng điều khiển an toàn ở cả hai đầu.
+
 ## V2.7.3
 ### Hạ chu kỳ xin số liệu 30s → 10s
 Sau khi hạ chu kỳ vòng điều tiết về 5s (2.7.2), chính chu kỳ **xin số liệu decode** trở thành thứ
