@@ -1,5 +1,5 @@
 import { WebSocket } from "ws";
-import { buildFrameStatsPacket, buildFramePackets } from "./protocol.js";
+import { buildFrameStatsPacket, buildFramePackets, buildCurrentURLPacket } from "./protocol.js";
 import type { FrameOut } from "./frameProcessor.js";
 import { metrics } from "./metrics.js";
 
@@ -95,6 +95,21 @@ export class DeviceBroadcaster {
     const packet = buildFrameStatsPacket();
     const st = this._ensureState(id);
     st.queue.push({ frameId: 42, packets: [packet] });
+    this._drainAsync(id).catch(() => {});
+  }
+
+  /**
+   * (18/09/2026) Bao cho thiet bi biet URL dang hien thi THUC TE.
+   * Goi moi khi Chromium dieu huong — ke ca dieu huong trong cung trang (SPA),
+   * vi dashboard Home Assistant chuyen tab bang history.pushState chu khong
+   * tai lai trang.
+   */
+  public sendCurrentURL(id: string, url: string): void {
+    const peers = this._clients.get(id);
+    if (!peers || peers.size === 0) return;
+
+    const st = this._ensureState(id);
+    st.queue.push({ frameId: -1, packets: [buildCurrentURLPacket(url)] });
     this._drainAsync(id).catch(() => {});
   }
 

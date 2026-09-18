@@ -1,3 +1,25 @@
+## V2.8.0
+### Đồng bộ URL hai chiều — sửa lỗi "Go Home không có tác dụng"
+Trước đây URL chỉ đi **một chiều** (HA → thiết bị). Khi người dùng tự chạm chuyển tab trên
+dashboard, server không theo dõi gì cả, nên thiết bị và HA đều giữ giá trị cũ.
+
+Hậu quả người dùng gặp: nút **Go Home mất tác dụng**. Nó làm `text.set` với đúng giá trị đang có,
+mà ESPHome chỉ kích `set_action` khi giá trị **thay đổi**.
+
+- `protocol.ts`: thêm `MsgType.CurrentURL = 6` + `buildCurrentURLPacket()`
+- `broadcaster.ts`: `sendCurrentURL(id, url)`
+- `deviceManager.ts`: lắng nghe **cả hai** sự kiện điều hướng:
+  - `Page.frameNavigated` — điều hướng đầy đủ (chỉ khung chính, bỏ qua iframe)
+  - `Page.navigatedWithinDocument` — **điều hướng trong cùng trang**
+
+Sự kiện thứ hai **không thể thiếu**: dashboard Home Assistant là ứng dụng một trang, chuyển tab
+chỉ đổi URL bằng `history.pushState` chứ không tải lại. Chỉ bắt `frameNavigated` sẽ bỏ sót đúng
+trường hợp thường gặp nhất.
+
+Cơ chế này **có sẵn trong bản gốc của strange-v**; fork này đã lược mất.
+
+Phía thiết bị cần firmware có `current_url_sensor` (xem repo Client).
+
 ## V2.7.9
 ### Giãn nhịp ép full-frame 60s → 5 phút, và sửa biến môi trường không có tác dụng
 `refreshDisplaysTick` là **bảo hiểm** chống "màn hình giữ ảnh cũ", không phải cơ chế chính. Nhưng
