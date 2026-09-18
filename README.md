@@ -96,3 +96,16 @@ services:
       - "TCP-LISTEN:9222,fork,reuseaddr,keepalive" # external DevTools port
       - "TCP:127.0.0.1:9221"
 ```
+
+## Giấy phép
+
+Dự án dùng **hai giấy phép**, vì nó phát triển tiếp từ [strange-v/RemoteWebViewServer](https://github.com/strange-v/RemoteWebViewServer):
+
+| Phần | Giấy phép | File |
+|---|---|---|
+| Mã gốc của `strange_v` | MIT © 2025 strange_v | `LICENSE-MIT` |
+| Sửa đổi và bổ sung trong repo này | Apache License 2.0 © 2026 minhquanghp86 | `LICENSE` |
+
+Đo trên `src/`: 1353 dòng giữ nguyên từ upstream, 1297 dòng viết mới — trong đó `adaptive.ts` (điều khiển tắc nghẽn AIMD), `metrics.ts` và ba file kiểm thử là hoàn toàn mới. Mọi file đã bị sửa đều mang thông báo ở đầu file theo yêu cầu của Apache-2.0 §4(b). Xem `NOTICE` để biết chi tiết ghi công.
+
+Khi dùng lại mã nguồn này, bạn cần giữ cả hai thông báo bản quyền.

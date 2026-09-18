@@ -1,0 +1,13 @@
+HA-Darboard-Server
+Copyright (c) 2026 minhquanghp86
+
+This product includes software developed by strange_v
+(https://github.com/strange-v/RemoteWebViewServer).
+
+The server in src/ is derived from RemoteWebViewServer, which is licensed
+under the MIT License. The original MIT License text is reproduced in
+LICENSE-MIT and continues to apply to those portions of the code.
+
+Modifications and additions made in this repository are licensed under the
+Apache License, Version 2.0 (see LICENSE). Files that were modified from the
+original carry a notice to that effect at the top of the file.
