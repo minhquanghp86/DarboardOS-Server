@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 import { describe, expect, it } from "vitest";
 import { DEFAULT_ADAPTIVE_CFG, decideAdaptive, initialAdaptiveState, adaptiveBudgetMs } from "./adaptive.js";
 import type { AdaptiveState, AdaptiveSample } from "./adaptive.js";

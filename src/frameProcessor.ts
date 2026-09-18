@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0 AND MIT
+//
+// Portions Copyright (c) 2025 strange_v - MIT License (see LICENSE-MIT).
+// Modifications Copyright (c) 2026 minhquanghp86 - Apache License 2.0 (see LICENSE).
+//
+// Derived from strange-v/RemoteWebViewServer. THIS FILE HAS BEEN MODIFIED.
+
 import os from "node:os";
 import sharp from "sharp";
 import { Encoding, FRAME_HEADER_BYTES, TILE_HEADER_BYTES } from "./protocol.js";
