@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Camera</title>
+
+<!--
+  Trang xem camera cho màn hình ESPHome (P4 1024x600, S3 480x480, S3 480x272).
+
+  Dùng:
+    http://192.168.1.2:8123/local/cam.html?src=ezviz
+    http://192.168.1.2:8123/local/cam.html?src=ezviz&poster=<URL ảnh đã urlencode>
+
+  Tham số:
+    src     tên luồng trong go2rtc            (mặc định ezviz)
+    poster  ảnh hiện NGAY trong lúc chờ       (thường là entity_picture của
+            image.<camera>_person do Frigate sinh lúc phát hiện)
+    fit     cover | contain                   (mặc định cover)
+    host    địa chỉ go2rtc                    (mặc định 192.168.1.2:1984)
+    mode    mse | mjpeg                       (mặc định mse)
+
+  ---------------------------------------------------------------------------
+  VÌ SAO DÙNG MSE CHỨ KHÔNG PHẢI MJPEG
+
+  Đo thực tế trên Chromium của server, mỗi chế độ khởi động nguội:
+
+      mode=mjpeg    không có khung nào trong 25 giây   (480x272)
+      mode=webrtc   9962 ms                            (1920x1080)
+      mode=mse        67 ms                            (1920x1080)
+
+  MJPEG bắt go2rtc chạy một tiến trình ffmpeg transcode H264 -> MJPEG, và
+  ffmpeg không giải mã được cho tới khi gặp một KHUNG KHOÁ. Camera ezviz phát
+  khung khoá mỗi 4,885 giây nên phải chờ trung bình ~2,4 giây, cộng ~2-3 giây
+  dựng pipeline. Nối lại nhanh cũng không giúp: đo được nghỉ 0,5 giây vẫn mất
+  9,1 giây.
+
+  MSE thì truyền THẲNG H264 cho Chromium qua WebSocket — không transcode,
+  không sinh tiến trình, và luồng RTSP gốc vốn đã chạy sẵn 24/7 vì Frigate cần
+  nó để ghi hình và phát hiện chuyển động. Nhờ vậy vừa nhanh hơn ~120 lần vừa
+  được ảnh gốc 1920x1080 thay vì 480x272 phóng to.
+
+  MJPEG vẫn được giữ làm ĐƯỜNG LÙI: nếu MSE không ra khung trong 6 giây thì
+  trang tự chuyển sang MJPEG.
+  ---------------------------------------------------------------------------
+  ẢNH TĨNH (poster)
+
+  Dành cho kịch bản báo động: Frigate phát hiện người -> automation truyền ảnh
+  chụp của chính lần phát hiện đó -> màn hình có nội dung sau ~30ms, rồi
+  chuyển sang video trực tiếp.
+
+  Ảnh luôn có nhãn rõ ràng ở đáy màn. Hiển thị khung hình cũ như thể đang trực
+  tiếp là điều nguy hiểm với camera an ninh.
+  ---------------------------------------------------------------------------
+-->
+
+<style>
+  :root { color-scheme: dark; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; width: 100%;
+    background: #000; overflow: hidden;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .lop { position: fixed; inset: 0; width: 100%; height: 100%; }
+
+  /* Trình phát MSE và ảnh MJPEG dự phòng đều phủ kín màn hình */
+  #phat, #phat video, #mjpeg {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    background: #000;
+    display: block;
+  }
+  #phat, #mjpeg { display: none; }
+  #phat.hien, #mjpeg.hien { display: block; }
+
+  /* go2rtc vẽ đè một lớp gỡ lỗi <div class="info"> chứa trạng thái và tên chế
+     độ ("MSE") ở góc phải trên. Trên màn hình camera thì đó chỉ là rác. */
+  #phat .info { display: none !important; }
+
+  #anh { object-fit: cover; background: #000; display: none; }
+  #anh.hien { display: block; }
+
+  #nhanAnh {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    display: none; align-items: center; gap: 10px;
+    padding: 9px 14px;
+    background: linear-gradient(to top, rgba(0,0,0,.88), rgba(0,0,0,0));
+    color: #ffd9a0; font-size: 13px; letter-spacing: .2px;
+  }
+  #nhanAnh.hien { display: flex; }
+  #nhanAnh .cham {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #ffb340; flex: none; animation: nhay 1.1s ease-in-out infinite;
+  }
+  @keyframes nhay { 50% { opacity: .25; } }
+  #nhanAnh .phu { margin-left: auto; color: #9aa3ad; font-variant-numeric: tabular-nums; }
+
+  #cho {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 14px; color: #d8dde3; background: #000;
+  }
+  #cho.an { display: none; }
+  .vong {
+    width: 46px; height: 46px;
+    border: 3px solid #2a3038; border-top-color: #4a9eff;
+    border-radius: 50%; animation: quay 900ms linear infinite;
+  }
+  @keyframes quay { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    .vong { animation-duration: 3s; }
+    #nhanAnh .cham { animation: none; }
+  }
+  .nhan { font-size: 15px; }
+  .dem  { font-size: 12px; color: #6b747e; font-variant-numeric: tabular-nums; }
+
+  @media (max-height: 300px) {
+    .vong { width: 32px; height: 32px; border-width: 2px; }
+    .nhan { font-size: 13px; }
+    #cho  { gap: 9px; }
+    #nhanAnh { font-size: 11px; padding: 6px 10px; }
+  }
+</style>
+</head>
+<body>
+
+<img id="anh" class="lop" alt="">
+<div id="phat" class="lop"></div>
+<img id="mjpeg" class="lop" alt="">
+
+<div id="nhanAnh">
+  <span class="cham" aria-hidden="true"></span>
+  <span>Ảnh chụp lúc phát hiện — đang tải video trực tiếp</span>
+  <span class="phu" id="demAnh"></span>
+</div>
+
+<div id="cho" class="lop">
+  <div class="vong" aria-hidden="true"></div>
+  <div class="nhan" id="nhan">Đang kết nối camera…</div>
+  <div class="dem" id="dem"></div>
+</div>
+
+<script type="module">
+  const q      = new URLSearchParams(location.search);
+  const src    = q.get('src')    || 'ezviz';
+  const host   = q.get('host')   || '192.168.1.2:1984';
+  const fit    = q.get('fit')    || 'cover';
+  const mode   = q.get('mode')   || 'mse';
+  const poster = q.get('poster') || '';
+
+  const anh     = document.getElementById('anh');
+  const phat    = document.getElementById('phat');
+  const mjpeg   = document.getElementById('mjpeg');
+  const cho     = document.getElementById('cho');
+  const nhanAnh = document.getElementById('nhanAnh');
+  const demAnh  = document.getElementById('demAnh');
+  const dem     = document.getElementById('dem');
+  const nhan    = document.getElementById('nhan');
+
+  const objFit = fit === 'contain' ? 'contain' : 'cover';
+  for (const el of [anh, mjpeg]) el.style.objectFit = objFit;
+
+  const t0 = Date.now();
+  let daCoKhung = false, timer = null, daLui = false;
+
+  // ---- Ảnh tĩnh: hiện ngay, không chờ trình phát ----
+  if (poster) {
+    // MSE thường ra khung sau ~70ms. Nếu hiện ảnh tĩnh ngay thì nó chỉ loé lên
+    // rồi biến mất — vừa giật vừa vô nghĩa. Nên chỉ hiện khi video thật sự
+    // chậm; lúc đó ảnh tĩnh mới có giá trị.
+    const NGUONG_MS = 250;
+    let daTai = false;
+    const thuHien = () => {
+      if (daCoKhung || !daTai || anh.classList.contains('hien')) return;
+      anh.classList.add('hien');
+      cho.classList.add('an');
+      nhanAnh.classList.add('hien');
+      console.log(`[cam] hien anh tinh sau ${Date.now() - t0} ms (video con cham)`);
+    };
+    anh.addEventListener('load', () => {
+      daTai = true;
+      if (Date.now() - t0 >= NGUONG_MS) thuHien();
+    });
+    anh.src = poster;
+    setTimeout(thuHien, NGUONG_MS);
+  }
+
+  timer = setInterval(() => {
+    const g = (Date.now() - t0) / 1000;
+    dem.textContent = `${g.toFixed(1)}s`;
+    demAnh.textContent = `${g.toFixed(1)}s`;
+  }, 100);
+
+  function coKhung(nguon, el) {
+    if (daCoKhung) return;
+    daCoKhung = true;
+    clearInterval(timer);
+    el.classList.add('hien');
+    cho.classList.add('an');
+    nhanAnh.classList.remove('hien');
+    anh.classList.remove('hien');
+    console.log(`[cam] khung dau tien sau ${Date.now() - t0} ms (${nguon})`);
+  }
+
+  // ---- Đường lùi: MJPEG qua <img>, Chromium hiểu multipart sẵn ----
+  function luiSangMjpeg() {
+    if (daCoKhung || daLui) return;
+    daLui = true;
+    console.log('[cam] MSE khong ra khung, lui sang MJPEG');
+    nhan.textContent = 'Đang thử chế độ dự phòng…';
+    mjpeg.src = `http://${host}/api/stream.mjpeg?src=${encodeURIComponent(src)}&_=${Date.now()}`;
+    (function doi() {
+      if (daCoKhung) return;
+      if (mjpeg.naturalWidth > 0) return coKhung('mjpeg', mjpeg);
+      requestAnimationFrame(doi);
+    })();
+  }
+
+  // ---- MSE: truyền thẳng H264, không transcode ----
+  if (mode === 'mjpeg') {
+    luiSangMjpeg();
+  } else {
+    // video-stream.js là ES module và nạp bất đồng bộ, nên phải đợi phần tử
+    // tuỳ biến được đăng ký rồi mới dựng.
+    import(`http://${host}/video-stream.js`)
+      .then(() => customElements.whenDefined('video-stream'))
+      .then(() => {
+        const v = document.createElement('video-stream');
+        v.background = true;               // vẫn chạy khi tab không hiển thị
+        v.mode = mode;                     // 'mse'
+        v.src = new URL(`api/ws?src=${encodeURIComponent(src)}`, `http://${host}/`);
+        phat.appendChild(v);
+
+        (function doi() {
+          if (daCoKhung) return;
+          const vid = v.querySelector('video') ||
+                      (v.shadowRoot && v.shadowRoot.querySelector('video'));
+          if (vid && vid.videoWidth > 0) {
+            vid.style.objectFit = objFit;
+            return coKhung(mode, phat);
+          }
+          requestAnimationFrame(doi);
+        })();
+      })
+      .catch((e) => { console.log('[cam] khong nap duoc trinh phat: ' + e.message); luiSangMjpeg(); });
+
+    // MSE bình thường ra khung trong ~70ms. Quá 6 giây là có sự cố -> lùi.
+    setTimeout(luiSangMjpeg, 6000);
+  }
+
+  // Cả hai đường đều tắc thì tải lại trang
+  setTimeout(() => { if (!daCoKhung) location.reload(); }, 45000);
+</script>
+</body>
+</html>

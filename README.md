@@ -97,6 +97,27 @@ services:
       - "TCP:127.0.0.1:9221"
 ```
 
+## Trang tĩnh nội bộ: `public/`
+
+Server phục vụ thêm vài trang HTML tĩnh trực tiếp ở `HEALTH_PORT` (mặc định
+`18080`), ví dụ `http://<server>:18080/cam.html`.
+
+**Vì sao không đặt trong `/config/www/` của Home Assistant:** HA phục vụ
+`/local/` (tức `www/`) **không cần đăng nhập**, theo thiết kế — phục vụ cho
+ảnh, custom card... Nếu HA của bạn được lộ ra internet (qua Cloudflare
+Tunnel, reverse proxy, port-forward...), mọi file trong `www/` cũng lộ theo,
+không mật khẩu, không cảnh báo. Đã xác minh thật trên một HASS có Cloudflare
+Tunnel: `https://<domain>/local/cam.html` trả về `200` từ ngoài internet.
+
+`HEALTH_PORT` của server này thường **không** nằm trong danh sách máy chủ
+được reverse-proxy/tunnel ra ngoài (nó chỉ để giám sát nội bộ), nên phục vụ
+trang ở đây giữ nó ở đúng phạm vi LAN — cùng mức phơi bày mà các dịch vụ khác
+trong hệ thống (go2rtc, ESPHome native API) vốn đã chấp nhận. Trước khi tin
+tưởng điều này, hãy tự kiểm tra: `curl -I https://<domain-cong-khai>/` xem
+cổng `HEALTH_PORT` có bị proxy ra ngoài dưới path nào không, và kiểm tra
+router có luật NAT port-forward thủ công nào trỏ thẳng vào `HEALTH_PORT`
+không — đó là điều một request `curl` từ máy chủ không thể tự xác minh.
+
 ## Giấy phép
 
 Dự án dùng **hai giấy phép**, vì nó phát triển tiếp từ [strange-v/RemoteWebViewServer](https://github.com/strange-v/RemoteWebViewServer):
