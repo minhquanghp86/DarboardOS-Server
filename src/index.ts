@@ -6,6 +6,9 @@
 // Derived from strange-v/RemoteWebViewServer. THIS FILE HAS BEEN MODIFIED.
 
 import http from 'http';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { WebSocketServer } from "ws"
 import env from "env-var";
 import { makeConfigFromParams, setConfigFor, logDeviceConfig } from "./config.js";
@@ -102,14 +105,43 @@ wss.on("connection", async (ws, req) => {
   pendingOpenURLs.length = 0;
 });
 
-// ── Health check ─────────────────────────────────────────────────────────────
+// ── Health check + trang tĩnh nội bộ ─────────────────────────────────────────
+// (18/09/2026) cam.html (trang xem camera qua go2rtc MSE, xem docs/PUBLIC.md)
+// PHẢI phục vụ ở đây, KHÔNG được đặt trong /config/www/ của Home Assistant.
+// Lý do: HA_PORT phục vụ /local/ tuyệt đối không cần đăng nhập — người dùng
+// này lộ HA ra internet qua Cloudflare Tunnel, nên bất kỳ file nào trong
+// /config/www/ đều công khai. Đã xác minh thật: /local/cam.html trả về 200
+// không cần đăng nhập từ ngoài internet. HEALTH_PORT thì KHÔNG có trong danh
+// sách ingress của Cloudflare Tunnel — chỉ tiếp cận được từ mạng LAN, đúng
+// mức phơi bày mà go2rtc/ESPHome API vốn đã chấp nhận.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const CAM_HTML_PATH = path.join(__dirname, '..', 'public', 'cam.html');
+let camHtmlCache: Buffer | null = null;
+try {
+  camHtmlCache = fs.readFileSync(CAM_HTML_PATH);
+} catch (e) {
+  console.warn(`[static] khong doc duoc ${CAM_HTML_PATH}: ${(e as Error).message}`);
+}
+
 http.createServer((req, res) => {
+  const pathname = new URL(req.url || "/", `http://localhost:${HEALTH_PORT}`).pathname;
+
   // (14/09/2026) /metrics: số liệu thật để đo hiệu năng (GĐ0)
-  if (req.url && req.url.startsWith('/metrics')) {
+  if (pathname.startsWith('/metrics')) {
     res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
     res.end(JSON.stringify(metrics.snapshot(), null, 2));
     return;
   }
+
+  if (pathname === '/cam.html') {
+    if (!camHtmlCache) { res.writeHead(500); res.end('cam.html khong tai duoc'); return; }
+    // no-store: file co the duoc cap nhat qua rebuild addon, khong muon
+    // Chromium cache lau nhu HA tung lam voi /local/ (31 ngay).
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+    res.end(camHtmlCache);
+    return;
+  }
+
   res.writeHead(200); res.end('ok');
 }).listen(HEALTH_PORT);
 

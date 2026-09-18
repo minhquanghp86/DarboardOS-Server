@@ -64,6 +64,11 @@ COPY --from=base /app/package*.json ./
 # thư mục self-test KHÔNG được copy vào image -> tính năng self-test chết.
 COPY self-test ./self-test
 
+# (18/09/2026) public/cam.html: trang xem camera qua go2rtc MSE, phục vụ ở
+# HEALTH_PORT (KHÔNG tunnel ra ngoài) thay vì /config/www/ của HA (bị lộ ra
+# internet qua Cloudflare Tunnel). Xem ghi chú trong src/index.ts.
+COPY public ./public
+
 # Create user data directory
 RUN mkdir -p /pw-data && chmod 777 /pw-data
 
