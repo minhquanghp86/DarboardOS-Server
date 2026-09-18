@@ -985,6 +985,38 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     }
   };
 
+  // (18/09/2026) DONG BO URL HAI CHIEU.
+  //
+  // Truoc day URL chi di MOT CHIEU (HA -> thiet bi). Khi nguoi dung tu cham
+  // chuyen tab tren dashboard, server khong theo doi gi ca, nen thiet bi va HA
+  // deu giu gia tri cu. Hau qua nguoi dung gap: nut "Go Home" mat tac dung —
+  // no lam text.set voi dung gia tri dang co, ma ESPHome chi kich set_action
+  // khi gia tri THAY DOI.
+  //
+  // Phai bat CA HAI su kien:
+  //   - Page.frameNavigated        : dieu huong day du (tai lai trang)
+  //   - Page.navigatedWithinDocument: dieu huong TRONG CUNG TRANG
+  // Cai thu hai moi la then chot: dashboard Home Assistant la ung dung MOT
+  // TRANG, chuyen tab chi doi URL bang history.pushState chu khong tai lai.
+  // Chi bat frameNavigated se bo sot dung truong hop thuong gap nhat.
+  const handleNavigation = (url: string) => {
+    if (!url || url === 'about:blank') return;
+    if (newDevice.url === url) return;
+    newDevice.url = url;
+    broadcaster.sendCurrentURL(newDevice.deviceId, url);
+    metrics.onNavigate(newDevice.deviceId, url);
+    console.log(`[device] ${id}: URL doi thanh ${url}`);
+  };
+
+  session.on('Page.frameNavigated', (evt: any) => {
+    // Chi theo doi khung chinh, bo qua iframe
+    if (!evt?.frame?.parentId) handleNavigation(evt?.frame?.url);
+  });
+
+  session.on('Page.navigatedWithinDocument', (evt: any) => {
+    handleNavigation(evt?.url);
+  });
+
   session.on('Page.screencastFrame', async (evt: any) => {
     session.send('Page.screencastFrameAck', { sessionId: evt.sessionId }).catch(() => { });
     if (broadcaster.getClientCount(newDevice.deviceId) === 0) return;

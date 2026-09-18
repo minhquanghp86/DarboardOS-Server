@@ -26,6 +26,12 @@ export enum MsgType {
   FrameStats  = 3,
   OpenURL     = 4,
   Keepalive   = 5,
+  // (18/09/2026) Server -> thiet bi: bao URL dang hien thi THUC TE.
+  // Truoc day URL chi di MOT CHIEU (HA -> thiet bi), nen khi nguoi dung tu
+  // chuyen tab tren dashboard thi HA khong he biet, va nut Go Home mat tac dung
+  // (no lam text.set voi dung gia tri cu -> ESPHome khong kich set_action).
+  // Loai goi nay co san trong ban goc strange-v, fork cua ta da luoc mat.
+  CurrentURL  = 6,
 }
 
 export enum Encoding {
@@ -78,6 +84,19 @@ export const FRAME_STATS_BYTES_LEGACY = 1 + 1 + 4 + 4;    // 10 (firmware cu)
 export const OPENURL_HEADER_BYTES = 1 + 1 + 2 + 4;        // 8
 
 const clampU16 = (v: number) => (v < 0 ? 0 : v > 0xffff ? 0xffff : v|0);
+
+/** Header goi CurrentURL: [type][version][url_len u32le] = 6 byte, roi den URL utf8. */
+export const CURRENTURL_HEADER_BYTES = 6;
+
+export function buildCurrentURLPacket(url: string): Buffer {
+  const urlBuf = Buffer.from(url, 'utf8');
+  const buf = Buffer.alloc(CURRENTURL_HEADER_BYTES + urlBuf.length);
+  buf.writeUInt8(MsgType.CurrentURL, 0);
+  buf.writeUInt8(PROTOCOL_VERSION, 1);
+  buf.writeUInt32LE(urlBuf.length, 2);
+  urlBuf.copy(buf, CURRENTURL_HEADER_BYTES);
+  return buf;
+}
 
 export function buildTouchPacket(kind: TouchKind, x: number, y: number, pointerId = 0): Buffer {
   const buf = Buffer.alloc(TOUCH_BYTES);
