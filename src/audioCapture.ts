@@ -51,7 +51,12 @@ const subscribers = new Set<string>();
 // luon nhan dung nhip ~25 goi/giay bat ke ffmpeg giao don hay deu, giong
 // het vai tro "jitter buffer" chuan trong moi he thong streaming audio.
 const FRAME_MS = 40;
-const MAX_JITTER_BYTES = FRAME_BYTES * 25; // ~1s du phong — qua do la ffmpeg dang vuot xa toc do phat thuc, bo bot du lieu CU nhat de khoi tre dan
+// (23/09/2026 v10) ~1s -> ~200ms. Bo dem cang lon thi am thanh cang di SAU
+// hinh: 1 giay o day CONG THEM 1 giay cua buffer_duration phia loa (da ha
+// xuong 250ms) lam tieng tre han so voi video — nguoi dung bao "ca video lan
+// am thanh deu lag". 200ms du hap thu do giat cua mang/WS ma do lech con
+// gan nhu khong nhan ra.
+const MAX_JITTER_BYTES = FRAME_BYTES * 5;
 let jitterBuf: Buffer = Buffer.alloc(0);
 let jitterTimer: NodeJS.Timeout | null = null;
 

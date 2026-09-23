@@ -1,3 +1,21 @@
+## V2.9.16
+### Tối ưu hiệu năng: bỏ resample trên ESP32 và cắt độ trễ đệm
+Người dùng xác nhận **đã có âm thanh** sau V2.9.15, nhưng **cả video lẫn âm thanh đều lag**. Hai nguyên
+nhân đo được từ chính cấu hình đang chạy:
+
+1. **Resample liên tục trên ESP32**: loa phần cứng chạy `sample_rate: 44100` trong khi server gửi PCM
+   16kHz → resampler phải chuyển đổi 16k→44.1k cho **từng mẫu**, và mixer phải trộn ở 44100 mẫu/giây.
+   CPU này lấy trực tiếp từ cùng con chip đang giải mã JPEG 1024×600 → video giật theo. Hạ phần cứng về
+   đúng `16000` Hz: đường media thành **pass-through, không resample một mẫu nào**, mixer làm việc trên
+   số mẫu ít hơn **2,76 lần**. (TTS vẫn chạy tốt — `announcement_pipeline` có resampler riêng, và 16kHz
+   là chuẩn cho tiếng nói.)
+2. **Độ trễ đệm chồng nhau**: `buffer_duration: 1000ms` ở loa + ~1s ở jitter buffer phía server = âm
+   thanh đi sau hình tới ~2 giây. Hạ xuống 250ms (loa) + ~200ms (server) — vẫn đủ chống giật nhưng độ
+   lệch gần như không nhận ra. Vùng ring buffer PSRAM cũng tụt từ 88200B xuống 8000B.
+
+- `src/audioCapture.ts`: `MAX_JITTER_BYTES` ~1s → ~200ms
+- Firmware (repo Client): `sample_rate: 44100` → `16000`, `buffer_duration: 1000ms` → `250ms`
+
 ## V2.9.15
 ### NGUYÊN NHÂN GỐC THẬT SỰ của "video chạy nhưng không có tiếng": Playwright tự thêm `--mute-audio`
 Phép thử quyết định lẽ ra phải làm từ đầu: đo **nội dung** PCM bắt được thay vì chỉ đếm số byte.
