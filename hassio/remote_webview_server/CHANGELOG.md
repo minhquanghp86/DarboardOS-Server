@@ -1,3 +1,15 @@
+## V2.9.12
+### Dọn log rác + xác định đúng nguyên nhân gốc của lỗi V2.9.11
+`-fragment_size 1024` (V2.9.11) hoá ra KHÔNG phải nguyên nhân chính — kiểm chứng lại bằng log ESPHome
+thật sau khi triển khai cho thấy chu kỳ Starting/Stopped vẫn đều đặn ~2.0s y hệt trước. Nguyên nhân thật
+là timeout mặc định 500ms của từng nguồn trong `speaker: platform: mixer` (component `mixer_speaker.cpp`
+của ESPHome) — sửa ở phía firmware (repo Client, `timeout: 5s` cho `media_spk_mixer_input`), không phải
+ở server. Nhân tiện dọn `-flush_packets 1` (không có tác dụng với đầu ra `s16le` thô, chỉ gây spam log
+cảnh báo "non monotonically increasing dts"). `-fragment_size 1024` vẫn giữ lại (không sai, chỉ không
+phải nguyên nhân chính) vì vẫn hợp lý cho độ trễ thấp.
+
+- `src/audioCapture.ts`: bỏ `-flush_packets 1`
+
 ## V2.9.11
 ### Sửa lỗi thật: gần như không nghe được âm thanh video — PulseAudio đệm theo đợt lớn ~2 giây
 Người dùng báo: TTS qua Speaker Media Player nghe rõ, nhưng mở YouTube thì không nghe thấy gì. Xác nhận
