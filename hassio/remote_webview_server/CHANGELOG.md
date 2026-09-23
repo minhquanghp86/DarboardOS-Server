@@ -46,6 +46,34 @@ xin số liệu xếp *sau* cả hàng đợi khung hình, nên đúng lúc thi�
 `stats_requested_`; decode task tự trả lời sau mỗi gói. Không hàng đợi, không cấp phát, không bao giờ bị
 rớt — đúng cách đã làm cho `AudioFrame` hôm trước.
 
+**4. Điều tiết bằng TRUNG VỊ, không phải giá trị LỚN NHẤT** (`src/metrics.ts`, `src/deviceManager.ts`)
+Ngay khi số liệu thật bắt đầu chảy về, lỗi tiếp theo lộ ra. Log của chính thiết bị, 20 khung liên tiếp:
+```
+frame 5987..6006: 29, 33, 30, 33, 32, 30, 31, 30, 30, 29 ms
+```
+Đều đặn quanh 30 ms. Nhưng `/metrics` cùng lúc báo `recentMaxDecodeMs = 81`, và bộ điều tiết ghi lý do:
+`"decode 713.0ms > ngân sách 200ms → giảm quality còn 40"` — **một gai nhiễu 713 ms đã quyết định số
+phận cả hệ**. Lấy lớn nhất của 6 mẫu nghĩa là một gai khoá hành vi suốt 30 giây, mà chiều hạ tải chỉ trễ
+5 giây nên trong 30 giây đó nó phạt được tới sáu lần từ cùng một gai. Kết quả đo được: quality tụt về sàn
+40, nhịp giãn ra 400 ms (2,5 fps) trong khi thiết bị thật sự chỉ bận 30 ms/khung.
+Nay bộ điều tiết ăn **trung vị** của cửa sổ; `recentMaxDecodeMs` vẫn còn trong `/metrics` để người đọc
+nhìn thấy gai.
+
+### Kết quả đo trên máy thật (P4, YouTube, mỗi lần một cửa sổ 180 giây)
+
+| Cấu hình | fps | encode/khung | byte/khung | bỏ khung | số lần điều chỉnh |
+|---|---|---|---|---|---|
+| Trước (2.9.18) | 12,0* | **146,1 ms** | 55 KB | — | — |
+| + bỏ thang vô ích, trần q70 | 5,4-6,6 | 20,0 ms | 90 KB | 23-43 | 4-7 |
+| + `decodeBudgetRatio` 0,65 (**đã loại**) | 2,88 | 19,7 ms | 84 KB | 43 | 9 (dao động) |
+| **+ trần q55 (chốt)** | **9,99** | **19,5 ms** | 65 KB | **0** | **0** |
+
+\* Con số 12 fps cũ **không so sánh được**: lúc đó thiết bị không hề báo số liệu về, server đẩy nhiều hơn
+mức thiết bị vẽ kịp nên phần lớn khung bị chính thiết bị vứt — đúng cái người dùng thấy là "lag".
+
+Một lần nữa xác nhận ghi chú có sẵn trong `adaptive.ts`: `decodeBudgetRatio` **không phải "mức dự phòng
+thừa"** mà là khoảng cách an toàn tới vùng mất ổn định. Nới ra là hệ dao động ngay.
+
 ## V2.9.18
 ### Chặn âm thanh cho thiết bị không có loa — tránh lẫn tiếng nếu S3 cũng mở YouTube
 Người dùng yêu cầu nghiên cứu kỹ giải pháp: nếu sau này panel S3 (chưa khai báo `speaker_id`) cũng mở

@@ -1411,7 +1411,28 @@ export function runAdaptiveTick(): void {
     const bytesPerSec = m.uptimeSec > 0 ? m.bytesSent / m.uptimeSec : 0;
     const res = decideAdaptive(
       {
-        decodeMs: m.recentMaxDecodeMs ?? m.avgDecodeMs ?? null,
+        // ══════════════════════════════════════════════════════════════════
+        // (23/09/2026) TRUNG VI thay cho LON NHAT.
+        //
+        // Do that tren P4 dang phat YouTube, doc thang tu log thiet bi:
+        //     frame 5987..6006: 29, 33, 30, 33, 32, 30, 31, 30, 30, 29 ms
+        // Deu dan quanh 30ms. Nhung /metrics cung luc do bao
+        // recentMaxDecodeMs = 81, va bo dieu tiet ghi ly do:
+        //     "decode 713.0ms > ngan sach 200ms -> giam quality con 40"
+        // — mot GAI NHIEU 713ms (dieu huong trang / WiFi tre mot nhip) da
+        // quyet dinh so phan cua ca he.
+        //
+        // Lay LON NHAT cua 6 mau nghia la: mot gai duy nhat khoa hanh vi
+        // trong 30 giay (6 mau x 5s), ma chieu ha tai chi tre 5 giay nen
+        // trong 30 giay do no phat duoc TOI SAU LAN tu cung mot gai. Ket qua
+        // do duoc: quality tut ve san 40 va nhip gian ra 400ms (2,5fps) trong
+        // khi thiet bi that su chi ban 30ms/khung — tuc dang ranh ba phan tu
+        // thoi gian.
+        //
+        // Trung vi giu nguyen y do ban dau ("dung tai HIEN TAI, khong phai
+        // trung binh tu luc ket noi") nhung mien nhiem voi mot mau lac loai.
+        // Van con recentMaxDecodeMs trong /metrics de con nguoi nhin thay gai.
+        decodeMs: m.recentMedianDecodeMs ?? m.avgDecodeMs ?? null,
         bytesPerSec,
         frameErrors: m.frameErrors,
         heapFree: m.deviceHeapFree ?? null,
