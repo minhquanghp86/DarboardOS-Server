@@ -478,7 +478,10 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
 
   function renderKeyboard(){
     if(!keyboardContainer) return;
-    keyboardContainer.innerHTML='';
+    // Khong dung innerHTML='' — trang co Trusted Types CSP (vd accounts.google.com)
+    // chan thang tay gan chuoi vao innerHTML, nem TypeError va lam crash showKeyboard()
+    // giua chung (truoc khi kip them class vkb-visible) -> ban phim khong bao gio hien.
+    while(keyboardContainer.firstChild) keyboardContainer.removeChild(keyboardContainer.firstChild);
     layouts[currentLayout].forEach(function(row){
       var rd=document.createElement('div');
       rd.className='vkb-row';
@@ -713,18 +716,58 @@ function buildLauncherScript(homeUrl: string | undefined): string {
 
   var HOME_URL = ${homeUrlJson};
   var APPS = [];
-  if (HOME_URL) APPS.push({ label: 'Home', icon: '\\uD83C\\uDFE0', url: HOME_URL });
-  APPS.push({ label: 'YouTube', icon: '\\u25B6\\uFE0F', url: 'https://m.youtube.com' });
+  if (HOME_URL) APPS.push({ label: 'Home', kind: 'home', url: HOME_URL });
+  APPS.push({ label: 'YouTube', kind: 'youtube', url: 'https://m.youtube.com' });
 
   var Z = 2147483647;
+  var SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // Ve icon bang DOM API (createElementNS), KHONG dung innerHTML — trang co
+  // Trusted Types CSP (vd accounts.google.com) chan gan chuoi HTML truc tiep,
+  // nem TypeError (khop loi da gap voi ban phim ao — xem renderKeyboard()).
+  // Icon don sac (stroke/fill=currentColor), nen trong suot cho hop dropdown toi.
+  function svgEl(tag, attrs){
+    var el = document.createElementNS(SVG_NS, tag);
+    for (var k in attrs) el.setAttribute(k, attrs[k]);
+    return el;
+  }
+  function makeIcon(kind){
+    var svg = svgEl('svg', { viewBox: '0 0 24 24', width: '18', height: '18' });
+    svg.style.cssText = 'flex:none;display:block';
+    if (kind === 'home') {
+      svg.appendChild(svgEl('path', {
+        d: 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z',
+        fill: 'none', stroke: 'currentColor', 'stroke-width': '2',
+        'stroke-linecap': 'round', 'stroke-linejoin': 'round'
+      }));
+      svg.appendChild(svgEl('path', {
+        d: 'M9 22V12h6v10',
+        fill: 'none', stroke: 'currentColor', 'stroke-width': '2',
+        'stroke-linecap': 'round', 'stroke-linejoin': 'round'
+      }));
+    } else {
+      svg.appendChild(svgEl('rect', {
+        x: '2', y: '5', width: '20', height: '14', rx: '4', ry: '4',
+        fill: 'none', stroke: 'currentColor', 'stroke-width': '2'
+      }));
+      svg.appendChild(svgEl('path', { d: 'M10 9l5 3-5 3z', fill: 'currentColor', stroke: 'none' }));
+    }
+    return svg;
+  }
 
   var btn = document.createElement('div');
-  btn.textContent = '\\u25BC';
+  var chevron = svgEl('svg', { viewBox: '0 0 24 24', width: '16', height: '16' });
+  chevron.style.cssText = 'display:block';
+  chevron.appendChild(svgEl('path', {
+    d: 'M6 9l6 6 6-6', fill: 'none', stroke: 'currentColor', 'stroke-width': '2',
+    'stroke-linecap': 'round', 'stroke-linejoin': 'round'
+  }));
+  btn.appendChild(chevron);
   btn.style.cssText = [
     'position:fixed', 'top:6px', 'right:6px', 'width:34px', 'height:34px',
     'display:flex', 'align-items:center', 'justify-content:center',
     'background:rgba(20,20,20,0.55)', 'color:#fff', 'border-radius:8px',
-    'font-size:14px', 'z-index:' + Z, 'user-select:none',
+    'z-index:' + Z, 'user-select:none',
     '-webkit-user-select:none', 'touch-action:manipulation'
   ].join(';');
 
@@ -737,11 +780,15 @@ function buildLauncherScript(homeUrl: string | undefined): string {
 
   APPS.forEach(function(app){
     var item = document.createElement('div');
-    item.textContent = app.icon + '  ' + app.label;
     item.style.cssText = [
+      'display:flex', 'align-items:center', 'gap:10px',
       'padding:12px 16px', 'color:#fff', 'font-size:15px',
       'font-family:sans-serif', 'cursor:pointer', 'white-space:nowrap'
     ].join(';');
+    item.appendChild(makeIcon(app.kind));
+    var label = document.createElement('span');
+    label.textContent = app.label;
+    item.appendChild(label);
     item.addEventListener('click', function(e){
       e.stopPropagation();
       panel.style.display = 'none';

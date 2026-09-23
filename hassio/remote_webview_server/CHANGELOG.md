@@ -1,3 +1,46 @@
+## V2.9.5
+### Sửa bàn phím ảo không hiện trên trang có Trusted Types CSP (vd đăng nhập Google)
+Người dùng báo: chạm vào ô nhập trên trang đăng nhập YouTube/Google, bàn phím ảo không hiện lên
+(trong khi Dashboard HA vẫn hoạt động bình thường). Điều tra bằng CDP trực tiếp trên trang đăng
+nhập thật (`accounts.google.com`, không nhập thông tin đăng nhập) cho thấy `resolveInput()` vẫn
+nhận diện đúng ô nhập, `checkAndShow()` vẫn chạy — nhưng `renderKeyboard()` ném `TypeError: Failed
+to set the 'innerHTML' property... This document requires 'TrustedHTML' assignment` ngay từ dòng
+`keyboardContainer.innerHTML=''`, làm crash `showKeyboard()` **trước khi** kịp thêm class
+`vkb-visible` → bàn phím được tạo trong DOM nhưng không bao giờ hiện ra. `accounts.google.com`
+bắt buộc Trusted Types (chặn gán chuỗi trực tiếp vào `innerHTML`), khác các trang thường.
+
+- `deviceManager.ts`: `renderKeyboard()` đổi `innerHTML=''` sang vòng lặp
+  `removeChild(firstChild)` — API DOM thuần, không bị Trusted Types chặn
+
+### Icon dropdown launcher: chuyển sang SVG đơn sắc + sửa icon Home hay bị thiếu
+Hai lỗi người dùng báo cùng lúc:
+1. Icon Home/YouTube là emoji màu (🏠/▶️) — đổi sang SVG outline đơn sắc (`currentColor`, nền
+   trong suốt), vẽ bằng `createElementNS` **không dùng `innerHTML`** (né đúng lỗi Trusted Types ở
+   trên — hộp dropdown có thể hiện trên bất kỳ trang nào, kể cả trang đăng nhập).
+2. Icon Home hay biến mất: `on_boot` (firmware) đợi `ws_connected` **rồi mới** gọi
+   `set_home_url()` — nghĩa là lần kết nối WebSocket đầu tiên luôn thiếu `?home=` (giá trị còn
+   rỗng lúc `build_ws_uri_()` chạy). `set_home_url()` chỉ lưu biến RAM, không tự gửi lại gì cả.
+   Sửa ở firmware (repo Client): gọi `reconnect_ws()` ngay sau `set_home_url()` — cả trong
+   `on_boot` (áp dụng lần đầu) lẫn `set_action` của `rwv_default_url` (áp dụng khi đổi Home URL
+   sau này) — để buộc `build_ws_uri_()` chạy lại với giá trị đã đúng.
+
+### Sửa đèn nền tắt khi đang mở YouTube dù chưa hết thời gian "luôn sáng"
+`video_active` gộp chung điều kiện `is_video && is_receiving_frames(5000)` cho cả camera/stream
+LẪN YouTube — đúng với camera (cần phát hiện mất kết nối) nhưng sai với YouTube: trang tĩnh (đang
+đọc mô tả, lướt danh sách, video tạm dừng) không tạo frame mới liên tục nên `is_receiving_frames`
+trả về false, khiến `inactivity_timer` vẫn tắt đèn sau thời gian đặt dù trang YouTube đang mở.
+
+- Firmware (repo Client, cả P4 và S3 480x480): tách `is_youtube` khỏi `is_stream` — YouTube giữ
+  đèn sáng **miễn là URL còn khớp `youtube.com`**, không đòi hỏi frame thay đổi liên tục; camera/
+  stream vẫn giữ nguyên yêu cầu frame sống (an toàn khi mất kết nối camera)
+
+### Vá lỗ hổng bảo mật phát sinh ngoài dự kiến: mật khẩu WiFi dạng plaintext trên máy thật
+Trong lúc đối chiếu file đang chạy thật với repo, phát hiện 2 file YAML trên HASS
+(`7inch-jc1060p470c-v2.yaml`, `guition-webview-4848s040.yaml`) đang chứa mật khẩu WiFi + mật khẩu
+AP fallback dạng chữ thường (không dùng `!secret`) — khác bản trong repo. Đã thêm khoá
+`ap_fallback_password` vào `secrets.yaml` và đổi cả 2 file về `!secret wifi_ssid` /
+`!secret wifi_password` / `!secret ap_fallback_password`, khớp quy tắc bảo mật của dự án.
+
 ## V2.9.4
 ### Launcher: nút dropdown Home/YouTube trên góc màn hình
 Tiêm thêm một script (cùng cơ chế `Page.addScriptToEvaluateOnNewDocument` đã dùng cho bàn phím
