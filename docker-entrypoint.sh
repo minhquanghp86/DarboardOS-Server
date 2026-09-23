@@ -18,6 +18,17 @@ set -e
 
 if command -v pulseaudio >/dev/null 2>&1; then
   mkdir -p /var/run/pulse
+  # ══════════════════════════════════════════════════════════════════════════
+  # (23/09/2026) DON RAC CUA LAN CHAY TRUOC — BAT BUOC.
+  #
+  # Loi that da gap: `docker restart` (hoac Supervisor khoi dong lai addon)
+  # KHONG xoa he thong tap tin cua container, nen /var/run/pulse/pid va socket
+  # `native` cua lan chay truoc van con. PulseAudio thay tap tin pid la tu
+  # choi khoi dong ("Daemon startup failed"), trong khi socket cu van nam do —
+  # nen moi thu NHIN co ve binh thuong, chi co parec bao "Connection refused"
+  # va tinh nang am thanh chet im. Pid trong tap tin la cua tien trinh o lan
+  # chay TRUOC, khong con ton tai trong container moi.
+  rm -f /var/run/pulse/pid /var/run/pulse/native 2>/dev/null || true
   pulseaudio \
     --system \
     --disallow-exit \
@@ -29,12 +40,22 @@ if command -v pulseaudio >/dev/null 2>&1; then
     2>/var/log/pulseaudio-start.log \
     || echo "[entrypoint] canh bao: khong khoi dong duoc pulseaudio, tinh nang audio se khong hoat dong (xem /var/log/pulseaudio-start.log)"
 
-  if command -v pactl >/dev/null 2>&1; then
-    pactl set-default-sink chrome_out 2>/dev/null || true
-  fi
-
   export PULSE_SERVER="unix:/var/run/pulse/native"
-  echo "[entrypoint] PulseAudio san sang, sink=chrome_out, PULSE_SERVER=$PULSE_SERVER"
+
+  # KIEM CHUNG THAT SU, dung chi in ra "san sang".
+  # Ban truoc in dong "san sang" VO DIEU KIEN ngay ca khi daemon chet — dung
+  # kieu bao cao da lam mat nhieu thoi gian tim loi o tren.
+  if command -v pactl >/dev/null 2>&1; then
+    if pactl info >/dev/null 2>&1; then
+      pactl set-default-sink chrome_out 2>/dev/null || true
+      echo "[entrypoint] PulseAudio san sang, sink=chrome_out, PULSE_SERVER=$PULSE_SERVER"
+    else
+      echo "[entrypoint] LOI: PulseAudio KHONG nhan ket noi — am thanh se khong hoat dong."
+      sed -n '1,20p' /var/log/pulseaudio-start.log 2>/dev/null || true
+    fi
+  else
+    echo "[entrypoint] PulseAudio da khoi dong (khong co pactl de kiem chung), PULSE_SERVER=$PULSE_SERVER"
+  fi
 else
   echo "[entrypoint] pulseaudio chua duoc cai — bo qua, Chrome chay khong co audio output"
 fi

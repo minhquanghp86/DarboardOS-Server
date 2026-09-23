@@ -95,14 +95,28 @@ export class DeviceBroadcaster {
     this.startSelfTestMeasurement(id);
   }
 
+  // (23/09/2026) Goi XIN SO LIEU gui THANG, khong qua hang doi khung hinh.
+  //
+  // Nghich ly da do duoc tren addon 2.9.18: P4 chay 571 giay, server hoi so
+  // lieu ~57 lan (10 giay/lan), nhung /metrics bao decodeSamples = 1. Tuc vong
+  // dieu khien thich nghi da lai NHIP 200ms -> 50ms dua tren DUY NHAT mot mau
+  // 13ms do tu 9 phut truoc — no dang bay mu.
+  //
+  // Ly do: goi nay truoc day xep SAU ca hang doi khung hinh. Dung luc thiet bi
+  // ngop (chinh luc can do nhat) thi hang doi dai nhat, nen goi do hoac den
+  // muon hang chuc giay hoac khong den. Dung bang chung nguoc voi y do: bien
+  // dung de PHAT HIEN nghen lai bi chinh su nghen do lam cam.
+  //
+  // Goi chi 8 byte — gui thang khong lam nang them ap luc mang that su.
   public startSelfTestMeasurement(id: string): void {
     const peers = this._clients.get(id);
     if (!peers || peers.size === 0) return;
 
     const packet = buildFrameStatsPacket();
-    const st = this._ensureState(id);
-    st.queue.push({ frameId: 42, packets: [packet] });
-    this._drainAsync(id).catch(() => {});
+    for (const ws of peers) {
+      if (ws.readyState !== WebSocket.OPEN) continue;
+      try { ws.send(packet, { binary: true }); } catch { }
+    }
   }
 
   /**
