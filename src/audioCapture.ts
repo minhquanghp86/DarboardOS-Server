@@ -60,12 +60,23 @@ function startCapture(): void {
   console.log(`[audio] Bat dau bat am thanh tu ${PULSE_MONITOR_SOURCE} (${AUDIO_SAMPLE_RATE}Hz/${AUDIO_BITS}bit/${AUDIO_CHANNELS}ch)`);
 
   const proc = spawn('ffmpeg', [
+    // (23/09/2026 v3) SUA LOI THAT DA GAP: khong dat -fragment_size, ffmpeg
+    // de PulseAudio tu chon kich thuoc doan mac dinh cho monitor source —
+    // do that tren may that: PulseAudio don du lieu thanh cac dot lon cach
+    // nhau DUNG ~2.0 GIAY (kiem chung qua log ESPHome that: Starting o
+    // t=1.2s/3.1s/5.1s/7.1s/9.1s/11.1s — deu nhau tuyet doi). Giua hai dot,
+    // ring buffer phia loa (88200 byte, ~2.75s o 16kHz) can kiet -> tu dong
+    // "Stopped", chi "Starting" lai khi dot moi toi -> ket qua nghe duoc la
+    // am thanh bi cat vun 0.6-0.8s moi ~2s, gan nhu khong nghe ra. 1024 byte
+    // (~32ms o 16kHz/16bit/mono) ep PulseAudio giao doan nho, gan lien tuc.
+    '-fragment_size', '1024',
     '-f', 'pulse',
     '-i', PULSE_MONITOR_SOURCE,
     '-ac', String(AUDIO_CHANNELS),
     '-ar', String(AUDIO_SAMPLE_RATE),
     '-f', 's16le',
     '-acodec', 'pcm_s16le',
+    '-flush_packets', '1',
     '-loglevel', 'error',
     'pipe:1',
   ]);

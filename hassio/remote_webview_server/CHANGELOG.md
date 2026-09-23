@@ -1,3 +1,20 @@
+## V2.9.11
+### Sửa lỗi thật: gần như không nghe được âm thanh video — PulseAudio đệm theo đợt lớn ~2 giây
+Người dùng báo: TTS qua Speaker Media Player nghe rõ, nhưng mở YouTube thì không nghe thấy gì. Xác nhận
+qua `pactl list sink-inputs`: Chrome **có** phát âm thanh thật vào sink (2 stream, không mute, không
+corked). Xác nhận qua log ESPHome trực tiếp trên thiết bị thật (kết nối có giới hạn thời gian, tự ngắt):
+chuỗi `resampler_speaker`/`speaker_mixer`/`i2s_audio.speaker` cứ **Starting rồi Stopped lặp lại đều đặn
+tuyệt đối mỗi ~2.0 giây** (đo được: 1.2s / 3.1s / 5.1s / 7.1s / 9.1s / 11.1s).
+
+**Nguyên nhân**: không đặt `-fragment_size` cho ffmpeg khi đọc từ `chrome_out.monitor`, nên PulseAudio
+tự chọn kích thước đoạn mặc định — trên máy thật, việc này khiến dữ liệu chỉ được giao cho ffmpeg theo
+từng đợt lớn cách nhau đúng ~2 giây thay vì gần như liên tục. Ring buffer phía loa ESP32 (88200 byte,
+~2.75s ở 16kHz) cạn kiệt giữa hai đợt, khiến `Speaker` component tự dừng — âm thanh thật sự phát ra chỉ
+là những mảnh ~0.6-0.8 giây mỗi 2 giây, gần như không nghe ra được là có tiếng.
+
+- `src/audioCapture.ts`: thêm `-fragment_size 1024` (input option, ép PulseAudio giao đoạn nhỏ ~32ms
+  thay vì mặc định) và `-flush_packets 1` cho ffmpeg
+
 ## V2.9.10
 ### Sửa lỗi rò rỉ tiến trình ffmpeg khi thiết bị reconnect nhanh
 Kiểm chứng trên máy thật ngay sau khi triển khai V2.9.9: `ps aux` bên trong container cho thấy **2 tiến
