@@ -73,6 +73,28 @@ export type DeviceSession = {
   passthroughOn: boolean;
 };
 
+// (23/09/2026) SUA LOI: "man ngu tu bat lai nhung khong hien gi, phai vuot
+// lan 2" — chi xay ra sau khi da xem camera (che do passthrough) roi Go Home
+// ve dashboard tinh, ngu, roi thuc.
+//
+// Nguyen nhan: flushPending() lay `dev.prevFrameHash` de BO QUA khung TRUNG
+// HET VOI KHUNG TRUOC (xem check `if (dev.prevFrameHash === h32) return;`
+// ngay dau flushPending, o TREN CA nhanh passthrough lan nhanh thuong). Khung
+// "nudge" ma server tu ve khi thiet bi resume() (mot the <div> 2x2px, opacity
+// 0.004 doi mau — xem nudgeRepaintAsync) qua nho: sau khi Chrome nen JPEG,
+// xac suat cao no round-trip ve BYTE Y HET khung tinh truoc luc ngu -> h32
+// TRUNG -> flushPending tra ve SOM, khong bao gio cham toi doan
+// requestFullFrame() da dat san -> thiet bi ket "man den" cho toi khi nguoi
+// dung tu tay cham that (tao ra thay doi diem anh lon, khong the trung hash).
+//
+// Sua tan goc: MOI LAN xin full frame, VO HIEU HOA LUON prevFrameHash bang
+// gia tri khong bao gio trung that (-1 — hash32() luon >>> 0 nen >= 0). Nho
+// vay khung ke tiep, du trung byte tuyet doi voi khung cu, VAN duoc xu ly.
+export function requestFullFrameFor(dev: DeviceSession): void {
+  dev.processor.requestFullFrame();
+  dev.prevFrameHash = -1;
+}
+
 const PREFERS_REDUCED_MOTION = /^(1|true|yes|on)$/i.test(process.env.PREFERS_REDUCED_MOTION ?? '');
 const BROWSER_LOCALE = process.env.BROWSER_LOCALE || 'en-US';
 
@@ -749,7 +771,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
   if (device) {
     if (deviceConfigsEqual(device.cfg, cfg)) {
       device.lastActive = Date.now();
-      device.processor.requestFullFrame();
+      requestFullFrameFor(device);
       return device;
     }
     console.log(`[device] Reconfiguring ${id}`);
@@ -832,7 +854,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     recentFrameMs: [], passthroughFrames: 0, passthroughOn: false,
   };
   devices.set(id, newDevice);
-  newDevice.processor.requestFullFrame();
+  requestFullFrameFor(newDevice);
 
   const flushPending = async () => {
     const dev = newDevice;
@@ -925,7 +947,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
               isFullFrame: true,
               encoding: Encoding.JPEG,
             };
-            processor.requestFullFrame();
+            requestFullFrameFor(dev);
             dev.passthroughFrames++;
             if (!dev.passthroughOn) {
               dev.passthroughOn = true;
@@ -1084,7 +1106,7 @@ export function refreshDisplaysTick(): void {
   const ms = Number(process.env.CCR_REFRESH_MS ?? 300_000);
   if (!ms) return;
   for (const d of devices.values()) {
-    try { d.processor.requestFullFrame(); } catch { /* bỏ qua */ }
+    try { requestFullFrameFor(d); } catch { /* bỏ qua */ }
   }
 }
 
