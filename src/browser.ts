@@ -61,6 +61,13 @@ async function startHeadlessIfNeededAsync(): Promise<void> {
     // (Client Hints, WebGL fingerprint, risk-scoring server-side theo thiet
     // bi/vi tri moi la...) ma mot addon tu luu trai khong the gia mao het.
     '--disable-blink-features=AutomationControlled',
+    // (23/09/2026 v9) NGUYEN NHAN GOC cua "video chay nhung khong co tieng":
+    // YouTube bi chan autoplay khi khong co cu cham duoc tinh la user gesture
+    // (do that: play() nem NotAllowedError) — trinh phat YouTube xu ly loi do
+    // bang cach TU PHAT LAI O CHE DO MUTED. Ket qua: hinh chay binh thuong
+    // nhung khong bao gio co am thanh. Cho phep autoplay khong can cu cham
+    // de trinh phat khong phai lui ve che do muted.
+    '--autoplay-policy=no-user-gesture-required',
     ...(PREFERS_REDUCED_MOTION ? ['--force-prefers-reduced-motion'] : []),
   ];
 
@@ -73,6 +80,17 @@ async function startHeadlessIfNeededAsync(): Promise<void> {
     headless: true,
     locale: BROWSER_LOCALE,
     args,
+    // (23/09/2026 v9) NGUYEN NHAN GOC THU HAI, va la cai chan tuyet doi:
+    // Playwright TU DONG them "--mute-audio" vao tham so mac dinh cua Chrome.
+    // Da xac minh bang chinh dong lenh that cua tien trinh Chrome dang chay
+    // (ps aux). Hau qua do duoc: PulseAudio bao sink RUNNING, sink-input cua
+    // Chrome "Corked: no / Mute: no / Volume 100%" — nhin dau cung binh
+    // thuong — nhung noi dung Chrome ghi vao la SO 0 TUYET DOI (do bang
+    // volumedetect: max_volume = -91.0 dB, tuc digital silence). Moi thu da
+    // xay dung phia sau (sink ao, ffmpeg, jitter buffer, hang doi/task rieng
+    // o firmware) deu dung nhung chi cho IM LANG.
+    // ignoreDefaultArgs chi go DUNG mot co nay, giu nguyen cac mac dinh khac.
+    ignoreDefaultArgs: ['--mute-audio'],
   });
 
   const t0 = Date.now();
