@@ -76,7 +76,11 @@ function startCapture(): void {
     '-ar', String(AUDIO_SAMPLE_RATE),
     '-f', 's16le',
     '-acodec', 'pcm_s16le',
-    '-flush_packets', '1',
+    // (23/09/2026 v4) BO -flush_packets 1: khong co tac dung voi dau ra
+    // s16le tho (khong co khai niem "packet"/muxer that su) — chi lam
+    // ffmpeg spam canh bao "non monotonically increasing dts" moi vong doi
+    // tien trinh, khong giup gi cho do tre thuc te (do la -fragment_size o
+    // dau vao moi giai quyet).
     '-loglevel', 'error',
     'pipe:1',
   ]);
