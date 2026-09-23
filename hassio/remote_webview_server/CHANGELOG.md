@@ -1,3 +1,27 @@
+## V2.9.18
+### Chặn âm thanh cho thiết bị không có loa — tránh lẫn tiếng nếu S3 cũng mở YouTube
+Người dùng yêu cầu nghiên cứu kỹ giải pháp: nếu sau này panel S3 (chưa khai báo `speaker_id`) cũng mở
+YouTube, âm thanh của nó sẽ chảy vào cùng sink PulseAudio với P4 và bị trộn lẫn gửi nhầm sang loa P4 —
+nghe được là âm thanh không khớp với hình đang xem.
+
+**Kiểm tra kỹ trước khi chọn hướng**: một kết quả tìm kiếm gợi ý `Emulation.setAudioMuted` — đối chiếu
+trực tiếp với JSON spec gốc của Chrome DevTools Protocol (`browser_protocol.json`) xác nhận **lệnh này
+không tồn tại** trong toàn bộ giao thức (không riêng domain `Emulation`) — chỉ là kết quả tóm tắt sai
+của công cụ tìm kiếm, không dùng. CDP hoàn toàn không có cơ chế "tắt tiếng theo từng target/tab" nào.
+
+**Giải pháp không cần tách tiến trình Chrome**: vì thiết bị không khai báo `speaker_id` không bao giờ
+cần *nghe* được gì cả, chỉ cần đảm bảo trang của nó không *tạo ra* âm thanh ở tầng nguồn. Tiêm một script
+(cùng cơ chế `Page.addScriptToEvaluateOnNewDocument` đã dùng cho bàn phím/launcher) ghi đè thẳng lên
+`HTMLMediaElement.prototype`: `muted` luôn đọc ra `true`, `volume` luôn đọc ra `0`, mọi lần gán đều bị
+bỏ qua — áp dụng cho mọi `<video>`/`<audio>` hiện có lẫn sẽ được tạo sau, không cần theo dõi từng phần tử.
+
+**Đã kiểm chứng trên máy thật**: mở tab test, tiêm script, phát video, cố ép bật tiếng bằng mọi cách
+(`v.muted = false`, `v.volume = 1.0`, `removeAttribute('muted')`) — video vẫn phát bình thường
+(`paused: false`) nhưng `muted`/`volume` đọc lại vẫn luôn là `true`/`0`.
+
+- `src/deviceManager.ts`: `buildAudioMuteScript()` (mới), tiêm cho mọi thiết bị có `cfg.audioEnabled ===
+  false`, trước cả script bàn phím
+
 ## V2.9.17
 ### Sửa tiếng "tạch" đều đặn mỗi 2 giây: đổi nguồn bắt âm thanh từ `ffmpeg` sang `parec`
 Người dùng báo đã nghe được tiếng nhưng **có tiếng "tạch" lẫn vào đều đặn mỗi ~2 giây**. Lần này **đo

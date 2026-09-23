@@ -705,6 +705,41 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
   console.log('[VKB] Ready — Telex Vietnamese IME active.');
 })();`;
 
+// (23/09/2026) CAM AM THANH cho thiet bi KHONG khai bao speaker_id (hien
+// tai: ca hai panel S3). Ly do ton tai: kien truc dung CHUNG mot tien trinh
+// Chrome cho ca ba thiet bi -> CHUNG mot sink PulseAudio duy nhat (xem
+// AUDIO-FEATURE-PLAN-2026-09-23.md muc 7.2 — da xac minh KHONG co cach nao
+// tach am thanh theo tung tab/target tu ben ngoai trang: setSinkId() can
+// HTTPS + cu chi nguoi dung that, CDP hoan toan khong co lenh "mute theo
+// target" nao — da doi chieu truc tiep voi JSON spec goc cua giao thuc,
+// khong chi mot ket qua tim kiem). Neu thiet bi khong co loa (S3) lo mo
+// YouTube, am thanh trang do van chay vao sink chung va bi tron lan, gui
+// NHAM sang loa cua thiet bi CO loa (P4) — nghe duoc la am thanh la khong
+// khop voi hinh dang xem.
+//
+// Giai phap: khong can tach tien trinh Chrome (dat, phuc tap). Vi thiet bi
+// khong co speaker_id KHONG BAO GIO can nghe duoc gi ca, chi can dam bao
+// trang cua NO khong bao gio tao ra am thanh o tang nguon — ghi de thang
+// len HTMLMediaElement.prototype (muted luon doc ra true, gan gi cung bi
+// bo qua; volume luon doc ra 0, gan gi cung bi bo qua). Ap dung cho MOI
+// <video>/<audio> hien co lan se duoc tao sau nay, khong can theo doi tung
+// phan tu rieng le.
+function buildAudioMuteScript(): string {
+  return `(function(){
+  if (window.__rwvAudioMuted) return;
+  window.__rwvAudioMuted = true;
+  try {
+    var proto = HTMLMediaElement.prototype;
+    Object.defineProperty(proto, 'muted', {
+      get: function(){ return true; }, set: function(){}, configurable: true
+    });
+    Object.defineProperty(proto, 'volume', {
+      get: function(){ return 0; }, set: function(){}, configurable: true
+    });
+  } catch (e) {}
+})();`;
+}
+
 // (23/09/2026) Launcher: nut mui ten goc tren-phai, xo xuong dropdown chon
 // "ung dung" (hien tai: Home ve dashboard, YouTube). Tiem CUNG CO CHE voi
 // ban phim (Page.addScriptToEvaluateOnNewDocument -> ton tai tren MOI trang,
@@ -982,6 +1017,16 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
   const session = root.session(sessionId);
 
   await session.send('Page.enable');
+
+  // (23/09/2026) Thiet bi KHONG khai bao speaker_id (chua tu bao ?audio=1)
+  // -> khong bao gio duoc phep tao ra am thanh that vao sink chung — xem
+  // chu thich day du o buildAudioMuteScript(). PHAI tiem TRUOC bat ky script
+  // nao khac va truoc ca lan dieu huong dau tien.
+  if (!cfg.audioEnabled) {
+    await session.send('Page.addScriptToEvaluateOnNewDocument', { source: buildAudioMuteScript() });
+    console.log('[device] ✓ Da cam am thanh (thiet bi khong khai bao speaker_id)');
+  }
+
   await session.send('Page.addScriptToEvaluateOnNewDocument', { source: KIOSK_KEYBOARD_SCRIPT });
   console.log('[device] ✓ Keyboard + Telex IME registered');
 
