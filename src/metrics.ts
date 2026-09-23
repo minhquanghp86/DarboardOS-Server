@@ -65,6 +65,13 @@ export type DeviceMetrics = {
 const startedAt = Date.now();
 const devices = new Map<string, DeviceMetrics>();
 
+/** Trung vị — chịu được một mẫu lạc loài, khác hẳn trung bình và lớn nhất. */
+function median(xs: number[]): number {
+  const s = [...xs].sort((a, b) => a - b);
+  const mid = s.length >> 1;
+  return s.length % 2 ? s[mid] : +((s[mid - 1] + s[mid]) / 2).toFixed(1);
+}
+
 function dev(id: string): DeviceMetrics {
   let d = devices.get(id);
   if (!d) {
@@ -181,6 +188,9 @@ export const metrics = {
         avgEncodeMs: d.framesSent ? +(d.encodeMsTotal / d.framesSent).toFixed(1) : 0,
         avgDecodeMs: d.decodeSamples ? +(d.decodeMsTotal / d.decodeSamples).toFixed(1) : null,
         recentMaxDecodeMs: d.recentDecode.length ? Math.max(...d.recentDecode) : null,
+        // (23/09/2026) TRUNG VI, khong phai LON NHAT — day moi la so dung de
+        // dieu tiet. Xem giai thich day du o runAdaptiveTick (deviceManager).
+        recentMedianDecodeMs: d.recentDecode.length ? median(d.recentDecode) : null,
         msSinceLastFrame: d.lastFrameAt ? now - d.lastFrameAt : null,
       };
     });
