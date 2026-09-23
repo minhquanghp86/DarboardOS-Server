@@ -47,10 +47,18 @@ RUN npm run build
 FROM mcr.microsoft.com/playwright:v1.55.0-jammy
 
 # Cài Chrome lại ở production stage
+# (23/09/2026) + pulseaudio/pulseaudio-utils: sink ao "chrome_out" de Chrome
+# co noi xuat audio thuc su (container khong co card ALSA that — xac minh
+# /proc/asound/cards khong ton tai). Phuc vu tinh nang audio "nhu dien
+# thoai" — xem docker-entrypoint.sh va docs/AUDIO-FEATURE-PLAN-2026-09-23.md
+# (repo Client) muc 7.
 RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome-keyring.gpg \
     && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
     && apt-get update \
-    && apt-get install -y --no-install-recommends google-chrome-stable \
+    && apt-get install -y --no-install-recommends \
+        google-chrome-stable \
+        pulseaudio \
+        pulseaudio-utils \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -71,6 +79,14 @@ COPY public ./public
 
 # Create user data directory
 RUN mkdir -p /pw-data && chmod 777 /pw-data
+
+# (23/09/2026) Entrypoint khoi dong PulseAudio truoc, roi exec lenh chinh —
+# boc ca duong chay Docker thuan (CMD ben duoi) lan duong chay addon HA OS
+# (hassio/remote_webview_server/Dockerfile dat CMD la "/run.sh", ke thua
+# ENTRYPOINT nay tu image goc).
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+ENTRYPOINT ["/docker-entrypoint.sh"]
 
 # Environment variables với defaults
 ENV TILE_SIZE=32

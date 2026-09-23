@@ -26,6 +26,12 @@ export type DeviceConfig = {
   // URL" tren HA) khong duoc phep kich "Reconfiguring" -> pha Chromium
   // target, dung y het bai hoc da ghi o deviceManager.ts dong 49.
   homeUrl?: string;
+  // (23/09/2026) Thiet bi tu bao "toi co loa, gui audio cho toi" qua tham so
+  // ?audio=1 — chi firmware co goi set_speaker() (P4) moi gui co nay, S3
+  // khong dung nen mac dinh false, khong nhan goi AudioFrame nao. Giong
+  // homeUrl, KHONG dua vao deviceConfigsEqual() vi day la co dinh theo
+  // firmware, khong phai thu can kich "Reconfiguring" khi doi.
+  audioEnabled: boolean;
 };
 
 const DEFAULTS = {
@@ -124,6 +130,7 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
   // URLSearchParams.get() tu giai ma percent-encoding — khop voi
   // append_q_str_encoded_() ben phia firmware.
   const homeUrl = params.get("home") || undefined;
+  const audioEnabled = params.get("audio") === "1";
 
   const dimensions = getRotatedDimensions(width, height, rotation);
 
@@ -140,6 +147,7 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
     maxBytesPerMessage,
     rotation,
     homeUrl,
+    audioEnabled,
   };
 }
 
@@ -176,6 +184,7 @@ export function logDeviceConfig(id: string, cfg: DeviceConfig): void {
     ["jpegQuality", cfg.jpegQuality],
     ["maxBytesPerMessage", cfg.maxBytesPerMessage],
     ["rotation", cfg.rotation],
+    ["audioEnabled", cfg.audioEnabled ? "1" : "0"],
   ];
 
   const head = `[client_connect] id=${id}`;

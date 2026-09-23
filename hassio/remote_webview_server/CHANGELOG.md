@@ -1,3 +1,27 @@
+## V2.9.9
+### Tính năng mới: âm thanh "như điện thoại" — chỉ P4
+Bắt âm thanh Chrome đưa ra qua sink PulseAudio ảo (`chrome_out`, xem `docker-entrypoint.sh` mới),
+phát lại qua WebSocket cho **đúng P4** — hai panel S3 không bị ảnh hưởng gì (không khai báo `speaker_id`
+ở firmware thì không gửi `?audio=1`, server không bao giờ gửi `AudioFrame` cho chúng).
+
+Kiến trúc: một tiến trình Chrome dùng chung như hiện tại (không tách theo thiết bị — đã xác nhận không
+cần thiết vì chỉ có một đích duy nhất, xem `AUDIO-FEATURE-PLAN-2026-09-23.md` mục 7.6 ở repo Client),
+một tiến trình `ffmpeg` bắt liên tục từ `chrome_out.monitor` (PCM 16-bit/16kHz/mono, không nén — không
+cần codec nào chạy trên ESP32), đóng gói thành gói tin WebSocket mới (`AudioFrame`, MsgType=7), gửi
+**thẳng** (không qua hàng đợi video) để tránh audio bị kẹt sau backlog ảnh khi mạng tải nặng.
+
+- `docker-entrypoint.sh` (mới): khởi động PulseAudio (`--system`, sink ảo `chrome_out`, socket Unix)
+  trước khi chạy lệnh chính — bọc cả đường chạy Docker thuần lẫn addon HA OS (`run.sh`)
+  qua cơ chế ENTRYPOINT kế thừa
+- `dockerfile`: cài thêm `pulseaudio`/`pulseaudio-utils` ở production stage
+- `src/protocol.ts`: `MsgType.AudioFrame = 7`, `buildAudioFramePacket()`
+- `src/broadcaster.ts`: `sendAudioFrame()` — gửi trực tiếp, không qua `_drainAsync`/hàng đợi video
+- `src/config.ts`: `DeviceConfig.audioEnabled` (từ `?audio=1`, thiết bị tự báo qua firmware, không nằm
+  trong `deviceConfigsEqual()` như `homeUrl`)
+- `src/audioCapture.ts` (mới): quản lý tiến trình `ffmpeg` bắt audio, đóng khung ~40ms/gói, chỉ chạy khi
+  có thiết bị đăng ký nghe (tiết kiệm CPU khi không cần)
+- `src/index.ts`: đăng ký/hủy đăng ký nhận audio theo vòng đời kết nối WS mỗi thiết bị
+
 ## V2.9.8
 ### Sửa tiếp V2.9.7: bỏ UA override lộ nguyên chữ "HeadlessChrome"
 Kiểm chứng trực tiếp trên máy thật sau khi triển khai V2.9.7 (bỏ hẳn `Emulation.setUserAgentOverride`)
