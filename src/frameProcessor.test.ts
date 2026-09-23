@@ -116,6 +116,67 @@ describe("FrameProcessor - không bao giờ trả về khối đỏ", () => {
   });
 });
 
+// (23/09/2026) Nhớ "cỡ này không nén vừa cap" để bỏ thang chất lượng vô ích.
+// Đo trên addon thật (P4 1024x600, cap 16KB): thang 4 nấc trên CẢ KHUNG tốn
+// 67ms và KHÔNG nấc nào vừa, lại chạy hai lần mỗi khung -> 73% thời gian nén
+// là vô ích. Điều kiện bắt buộc của bản vá: KẾT QUẢ KHÔNG ĐƯỢC ĐỔI.
+
+/** Ảnh nhiều chi tiết nhưng TẤT ĐỊNH (không dùng Math.random) để so hai khung. */
+function makeSeededDetail(w: number, h: number): RGBA {
+  const data = Buffer.allocUnsafe(w * h * 4);
+  let s = 0x2545f491;
+  for (let i = 0; i < w * h; i++) {
+    s ^= s << 13; s >>>= 0;
+    s ^= s >> 17;
+    s ^= s << 5; s >>>= 0;
+    const o = i * 4;
+    data[o] = s & 0xff;
+    data[o + 1] = (s >> 8) & 0xff;
+    data[o + 2] = (s >> 16) & 0xff;
+    data[o + 3] = 255;
+  }
+  return { data, width: w, height: h };
+}
+
+describe("bỏ thang chất lượng khi đã biết chắc không vừa cap", () => {
+  it("khung 2 (bỏ thang) cho ra ĐÚNG kết quả như khung 1 (chạy thang)", async () => {
+    const m = 16 * 1024;
+    const cap = m - FRAME_HEADER_BYTES - TILE_HEADER_BYTES;
+    const proc = mkProc({
+      fullframeTileCount: 1, fullFrameEvery: 1,
+      jpegQuality: 70, maxBytesPerMessage: m, tileSize: 128,
+    });
+    const frame = makeSeededDetail(1024, 600);
+
+    const a = await proc.processFrameAsync(frame);
+    const b = await proc.processFrameAsync(frame);
+
+    // cả khung không đời nào vừa 16KB -> phải chia nhỏ, không có wholeFrameHit
+    expect(proc.stats.wholeFrameHits).toBe(0);
+    expect(a.rects.length).toBeGreaterThan(1);
+    const shape = (o: typeof a) => o.rects.map((r) => [r.x, r.y, r.w, r.h, r.data.length]);
+    expect(shape(b)).toEqual(shape(a));
+    for (const r of b.rects) expect(r.data.length).toBeLessThanOrEqual(cap);
+  });
+
+  it("đổi trần chất lượng thì số đo đã nhớ hết hiệu lực", async () => {
+    const proc = mkProc({
+      fullframeTileCount: 1, fullFrameEvery: 1,
+      jpegQuality: 80, maxBytesPerMessage: 256 * 1024, tileSize: 128,
+    });
+    const frame = makeSeededDetail(480, 272);
+    const a = await proc.processFrameAsync(frame);
+
+    // Hạ trần -> ảnh phải NHỎ ĐI. Nếu bộ nhớ không được xoá thì thang bị bỏ
+    // qua theo số đo của trần cũ và kích thước sẽ không đổi.
+    proc.setTuning({ jpegQuality: 30 });
+    const b = await proc.processFrameAsync(frame);
+    expect(b.rects.length).toBeGreaterThan(0);
+    const bytesOf = (o: typeof a) => o.rects.reduce((n, r) => n + r.data.length, 0);
+    expect(bytesOf(b)).toBeLessThan(bytesOf(a));
+  });
+});
+
 describe("GD2 - full-frame gửi 1 ảnh khi vừa giới hạn", () => {
   it("UI 480x480 fftc=4: full-frame chỉ 1 rect (1 lần decode trên thiết bị)", async () => {
     const proc = mkProc({ fullframeTileCount: 4 });

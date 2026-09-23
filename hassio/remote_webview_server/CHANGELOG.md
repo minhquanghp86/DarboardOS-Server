@@ -1,3 +1,51 @@
+## V2.9.19
+### Đo lại toàn bộ tham số server: 73% thời gian mã hoá của server là vô ích
+
+Người dùng yêu cầu rà soát xem cấu hình server đã tối ưu chưa. Thay vì suy đoán, đo bằng chính thư viện
+`sharp` của addon, trên ảnh YouTube 1024x600 thật, với đúng cấu hình P4 đang chạy:
+
+| Bước | Kết quả | Thời gian |
+|---|---|---|
+| Thang chất lượng trên **cả khung** (cap 16 KB) | q70→75.748 B, q53→59.510 B, q39→50.515 B, q25→39.933 B — **không nấc nào vừa** | 67,0 ms |
+| ... và `full_frame_tile_count: 1` khiến thang đó chạy **hai lần** mỗi khung | | +67,0 ms |
+| Bốn góc phần tư 512x300 (kết quả thực sự được gửi) | 11.411 / 19.713 / 18.885 / 27.925 B | 50,8 ms |
+| **Tổng một khung** | | **184,8 ms — trong đó 134,0 ms (73%) vô ích** |
+
+Khớp với `/metrics`: `avgEncodeMs = 146 ms`. Nút thắt là **CPU mã hoá của server**, không phải băng thông.
+Ghi chú v15 ("đã chạm trần mạng ~670 KB/s, không phải CPU") là **kết luận sai** — suy ra từ băng thông mà
+chưa từng đo thời gian mã hoá.
+
+**1. Bỏ thang chất lượng khi đã biết chắc không vừa cap** (`src/frameProcessor.ts`)
+Cả `_processFullFrame` lẫn `_encodeRectFitting` đều chạy thang `[1, 0.75, 0.55, 0.35]` rồi mới chịu chia
+nhỏ, và không hề nhớ kết quả lần trước. Nay nhớ đáy thang theo từng cỡ rect; cỡ nào đã biết là không vừa
+thì chia nhỏ ngay. Vẫn thử lại mỗi 120 khung (~0,5% chi phí) để tự sửa khi nội dung đổi hẳn
+(video → dashboard tĩnh), và xoá sạch khi bộ điều tiết đổi trần chất lượng.
+*Test mới*: khung 2 (bỏ thang) phải cho ra **đúng** kết quả như khung 1 (chạy thang) — bản vá chỉ được
+bớt thời gian, không được đổi ảnh.
+
+**2. Một khung một lúc** (`src/deviceManager.ts`)
+`flushPending` là hàm async không tự loại trừ. Bản vá 17/09 đánh mốc `lastProcessedMs` ngay khi bắt đầu,
+nhưng mốc đó chỉ bảo đảm *khoảng cách giữa hai lần bắt đầu*, không bảo đảm lần trước đã xong. Mã hoá
+146 ms trong khi nhịp điều tiết 50 ms ⇒ cứ 50 ms lại có thêm một `flushPending` **chạy chồng lên**.
+Bằng chứng: `encodeMsTotal = 629 giây` trên `uptime 400 giây` — hơn 100% thời gian tường. Hậu quả kép:
+2-3 đường ống sharp tranh CPU, và `processor._prev` (bảng băm tile) bị hai lần chạy cùng sửa ⇒ vi sai
+tính sai ⇒ khung rách. Nay có khoá `flushInFlight`; khung mới không bị bỏ vì `pendingB64` luôn giữ khung
+mới nhất.
+
+**3. Vòng điều khiển thích nghi đang bay mù** (`src/broadcaster.ts`, `src/index.ts`)
+`/metrics` cho thấy P4 chạy 571 giây, server hỏi số liệu ~57 lần, nhưng `decodeSamples = 1`. Tức bộ điều
+tiết đã lái nhịp 200 ms → 50 ms dựa trên **duy nhất một mẫu 13 ms đo từ 9 phút trước**. Nguyên nhân: gói
+xin số liệu xếp *sau* cả hàng đợi khung hình, nên đúng lúc thiết bị ngộp (chính lúc cần đo nhất) thì nó
+đến muộn hoặc không đến. Thứ dùng để *phát hiện* nghẽn lại bị chính sự nghẽn đó làm câm.
+- Gói xin số liệu nay gửi **thẳng** trên socket, không qua hàng đợi (chỉ 8 byte).
+- Chu kỳ hỏi 10s → **5s**, bằng đúng chu kỳ `runAdaptiveTick`. Để 10s thì mỗi mẫu bị dùng cho hai lần
+  quyết định liên tiếp — một lần đo xấu bị phạt hai lần, một lần đo tốt kéo nhịp lên hai nấc mà không có
+  bằng chứng mới.
+
+**Phía firmware** (repo client, cùng ngày): gói xin số liệu không vào hàng đợi giải mã nữa mà chỉ đặt cờ
+`stats_requested_`; decode task tự trả lời sau mỗi gói. Không hàng đợi, không cấp phát, không bao giờ bị
+rớt — đúng cách đã làm cho `AudioFrame` hôm trước.
+
 ## V2.9.18
 ### Chặn âm thanh cho thiết bị không có loa — tránh lẫn tiếng nếu S3 cũng mở YouTube
 Người dùng yêu cầu nghiên cứu kỹ giải pháp: nếu sau này panel S3 (chưa khai báo `speaker_id`) cũng mở

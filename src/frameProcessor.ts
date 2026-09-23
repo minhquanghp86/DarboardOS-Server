@@ -53,14 +53,53 @@ export class FrameProcessor {
   private _iter = 0;
   private _fullFrameRequested = false;
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // (23/09/2026) TRÍ NHỚ "CỠ NÀY CÓ NÉN VỪA CAP KHÔNG"
+  // ──────────────────────────────────────────────────────────────────────────
+  // Cả hai chỗ nén (_processFullFrame và _encodeRectFitting) đều chạy một THANG
+  // CHẤT LƯỢNG [1, 0.75, 0.55, 0.35] rồi mới chịu chia nhỏ. Thang đó KHÔNG hề
+  // nhớ kết quả lần trước, nên khi một cỡ rect không đời nào vừa cap thì nó vẫn
+  // nén đủ 4 lần, MỖI KHUNG.
+  //
+  // Đo thật trên chính addon (P4 1024x600, cap 16 KB, ảnh YouTube):
+  //     cả khung q70/53/39/25 -> 75748 / 59510 / 50515 / 39933 B, hết 67,0 ms
+  //     ... và cả 4 lần đều VƯỢT cap 16368 B. Không lần nào có cơ hội vừa.
+  // Vì full_frame_tile_count=1 nên _encodeRectFitting lại chạy ĐÚNG thang đó
+  // trên CẢ KHUNG một lần nữa: 67 ms x2 = 134 ms đốt bỏ, trên tổng 184,8 ms.
+  // Tức 73% thời gian nén của server là vô ích — và đây chính là avgEncodeMs
+  // 146 ms đã thấy trong /metrics.
+  //
+  // Cách chữa: nhớ kích thước nén được NHỎ NHẤT (đáy thang) cho từng cỡ rect.
+  // Lần sau nếu đáy đó vẫn lớn hơn cap thì bỏ hẳn thang, chia nhỏ ngay.
+  // Vẫn thử lại định kỳ vì nội dung có thể đổi hẳn (video -> dashboard tĩnh):
+  // một lần thử thừa mỗi 120 khung ~ 0,5% chi phí, đổi lấy khả năng tự sửa.
+  private _ladderFloor = new Map<string, number>();
+  private static readonly LADDER_PROBE_EVERY = 120;
+
   constructor(cfg: FrameProcessorCfg) {
     this._cfg = cfg;
+  }
+
+  /** Cỡ rect này có chắc chắn KHÔNG nén vừa `cap` không? (theo số đo lần trước) */
+  private _ladderHopeless(w: number, h: number, cap: number): boolean {
+    const floor = this._ladderFloor.get(`${w}x${h}`);
+    if (floor === undefined || floor <= cap) return false;
+    return (this._iter % FrameProcessor.LADDER_PROBE_EVERY) !== 0;
+  }
+
+  /** Ghi lại đáy thang (kích thước ở chất lượng thấp nhất) cho cỡ rect này. */
+  private _rememberLadderFloor(w: number, h: number, bytes: number): void {
+    this._ladderFloor.set(`${w}x${h}`, bytes);
   }
 
   // (14/09/2026) GĐ3: bộ điều khiển thích nghi chỉnh được chất lượng khi đang chạy
   public setTuning(t: { jpegQuality?: number }): void {
     if (t.jpegQuality !== undefined) {
-      this._cfg.jpegQuality = Math.max(1, Math.min(100, Math.round(t.jpegQuality)));
+      const q = Math.max(1, Math.min(100, Math.round(t.jpegQuality)));
+      // Thang chất lượng tính theo _cfg.jpegQuality, nên đổi trần là mọi số đo
+      // đã nhớ đều hết hiệu lực.
+      if (q !== this._cfg.jpegQuality) this._ladderFloor.clear();
+      this._cfg.jpegQuality = q;
     }
   }
 
@@ -148,16 +187,25 @@ export class FrameProcessor {
     // (14/09/2026) GD2: thử gửi CẢ KHUNG trong MỘT ảnh JPEG -> thiết bị chỉ phải decode
     // 1 lần thay vì N mảnh (decode là chi phí lớn nhất trên ESP32-S3). Hạ quality dần
     // cho vừa cap; nếu vẫn không vừa thì quay về cách chia mảnh như trước.
-    const rawWhole = this._extractRaw(rgba, 0, 0, rgba.width, rgba.height);
-    for (const factor of [1, 0.75, 0.55, 0.35]) {
-      const q = Math.max(20, Math.round(this._cfg.jpegQuality * factor));
-      const data = await this._encodeWithQuality(rawWhole, rgba.width, rgba.height, encoding, q);
-      if (data.length <= cap) {
-        if (factor < 1) this.stats.qualityFallbacks++;
-        this.stats.wholeFrameHits++;
-        for (const t of tilesInfo) this._prev![t.idx] = t.h32;
-        return { rects: [{ x: 0, y: 0, w: rgba.width, h: rgba.height, data }], isFullFrame: true, encoding };
+    // (23/09/2026) Bỏ hẳn thang khi đã biết chắc cả khung không vừa cap — xem
+    // giải thích ở `_ladderFloor`. Cũng bỏ luôn `_extractRaw` cả khung (2,4 MB
+    // sao chép mỗi lần) vì không còn ai dùng tới.
+    if (!this._ladderHopeless(rgba.width, rgba.height, cap)) {
+      const rawWhole = this._extractRaw(rgba, 0, 0, rgba.width, rgba.height);
+      let lastBytes = 0;
+      for (const factor of [1, 0.75, 0.55, 0.35]) {
+        const q = Math.max(20, Math.round(this._cfg.jpegQuality * factor));
+        const data = await this._encodeWithQuality(rawWhole, rgba.width, rgba.height, encoding, q);
+        lastBytes = data.length;
+        if (data.length <= cap) {
+          if (factor < 1) this.stats.qualityFallbacks++;
+          this.stats.wholeFrameHits++;
+          this._rememberLadderFloor(rgba.width, rgba.height, data.length);
+          for (const t of tilesInfo) this._prev![t.idx] = t.h32;
+          return { rects: [{ x: 0, y: 0, w: rgba.width, h: rgba.height, data }], isFullFrame: true, encoding };
+        }
       }
+      this._rememberLadderFloor(rgba.width, rgba.height, lastBytes);
     }
 
     const rectsForFull = this._splitWholeFrame(rgba.width, rgba.height, this._cfg.fullframeTileCount);
@@ -355,17 +403,27 @@ export class FrameProcessor {
     cap: number,
     depth = 0
   ): Promise<Rect[]> {
-    const raw = this._extractRaw(rgba, x, y, w, h);
-    for (const factor of [1, 0.75, 0.55, 0.35]) {
-      const q = Math.max(20, Math.round(this._cfg.jpegQuality * factor));
-      const data = await this._encodeWithQuality(raw, w, h, enc, q);
-      if (data.length <= cap) {
-        if (factor < 1) this.stats.qualityFallbacks++;
-        return [{ x, y, w, h, data }];
+    const canSplit = depth < 3 && w >= 32 && h >= 32;
+    // (23/09/2026) Bỏ thang khi đã biết cỡ này không vừa cap — NHƯNG chỉ khi
+    // còn chia nhỏ được. Tới mức không chia được nữa thì luôn phải thử, vì
+    // nhánh dưới sẽ VỨT rect nếu không có dữ liệu nào.
+    if (!canSplit || !this._ladderHopeless(w, h, cap)) {
+      const raw = this._extractRaw(rgba, x, y, w, h);
+      let lastBytes = 0;
+      for (const factor of [1, 0.75, 0.55, 0.35]) {
+        const q = Math.max(20, Math.round(this._cfg.jpegQuality * factor));
+        const data = await this._encodeWithQuality(raw, w, h, enc, q);
+        lastBytes = data.length;
+        if (data.length <= cap) {
+          if (factor < 1) this.stats.qualityFallbacks++;
+          this._rememberLadderFloor(w, h, data.length);
+          return [{ x, y, w, h, data }];
+        }
       }
+      this._rememberLadderFloor(w, h, lastBytes);
     }
 
-    if (depth < 3 && w >= 32 && h >= 32) {
+    if (canSplit) {
       this.stats.splits++;
       const w1 = Math.floor(w / 2);
       const h1 = Math.floor(h / 2);

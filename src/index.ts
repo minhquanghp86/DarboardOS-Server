@@ -165,7 +165,16 @@ setInterval(() => cleanupIdleAsync(), 60_000);
 // SO LIEU nay tro thanh thu chan toc do phan ung: vong dieu khien chay 5s/lan
 // nhung van doc lai cung mot mau decode cu cho den khi co mau moi.
 // Do that: ha tai 7 buoc mat 55s, trong khi ly thuyet (tick 5s + tre 5s) la ~35s.
-setInterval(() => requestStatsFromDevices(), 10_000);
+// (23/09/2026) 10s -> 5s, BANG dung chu ky runAdaptiveTick ben duoi.
+//
+// Le ra buoc 17/09 da phai di den day: de 10s thi moi mau decode duoc dung cho
+// HAI lan quyet dinh lien tiep, tuc mot lan do xau co the bi phat hai lan (ha
+// quality roi lai gian nhip) va mot lan do tot co the keo nhip len hai nac ma
+// khong he co bang chung moi. Bang nhip thi moi tick co dung mot mau moi.
+//
+// Truoc day khong dam ha vi goi xin so lieu con xep trong hang doi khung hinh;
+// nay no gui thang (xem startSelfTestMeasurement) nen chi ton 8 byte/5 giay.
+setInterval(() => requestStatsFromDevices(), 5_000);
 // (14/09/2026) GĐ3: 15s/lan chinh quality/nhip theo so do thuc (tat bang CCR_ADAPTIVE=0)
 // (17/09/2026) 15s -> 5s. Do that: AIMD hoan tat 7 buoc trong 90 giay chu khong
 // phai ~25 giay nhu tinh toan. Ly do: chu ky tick nay CHI PHOI, con cooldownDownMs

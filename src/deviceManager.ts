@@ -40,6 +40,22 @@ export type DeviceSession = {
   lastProcessedMs?: number;
   /** (17/09/2026) han che tan suat log canh bao ap luc nguoc */
   lastBacklogLogMs?: number;
+  /**
+   * (23/09/2026) KHOA MOT KHUNG MOT LUC.
+   *
+   * `flushPending` la ham async khong he tu loai tru. Nhip duoc ep bang
+   * `lastProcessedMs` — danh moc NGAY KHI BAT DAU (sua loi 17/09) — nhung moc
+   * do chi bao dam KHOANG CACH GIUA HAI LAN BAT DAU, khong bao dam lan truoc
+   * da xong. Khi nen mot khung ton 146ms ma nhip dieu tiet la 50ms thi cu
+   * 50ms lai co them mot flushPending chay CHONG LEN cai dang chay.
+   *
+   * Do that tren addon 2.9.18 (P4, 571 giay): encodeMsTotal = 629 giay tren
+   * uptime 400 giay — hon 100% thoi gian tuong, chi co the giai thich bang
+   * chong cheo. Hai hau qua: (1) 2-3 duong ong sharp tranh CPU nen khung nao
+   * cung cham hon; (2) `processor._prev` (bang bam tile) bi hai lan chay cung
+   * sua -> vi sai tinh sai -> khung rach.
+   */
+  flushInFlight?: boolean;
 
   // (17/09/2026) GIA TRI DA DIEU TIET — TACH HAN khoi `cfg`.
   //
@@ -1104,6 +1120,14 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
   const flushPending = async () => {
     const dev = newDevice;
     dev.throttleTimer = undefined;
+    // (23/09/2026) MOT KHUNG MOT LUC — xem `flushInFlight`. Khong BO khung o
+    // day: `pendingB64` luon giu khung MOI NHAT, nen hen lai mot nhip ngan la
+    // khung ke tiep van la khung moi nhat tai thoi diem do.
+    if (dev.flushInFlight) {
+      if (!dev.throttleTimer) dev.throttleTimer = setTimeout(flushPending, 10);
+      return;
+    }
+    dev.flushInFlight = true;
     // (17/09/2026) SUA LOI DIEU NHIP: danh moc NGAY KHI BAT DAU, khong doi den
     // `finally`. Truoc day `throttleTimer` duoc xoa o dau ham nhung
     // `lastProcessedMs` chi cap nhat o CUOI — sau ~200ms encode. Trong khoang
@@ -1114,30 +1138,31 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     // `finally` van ghi de lai bang thoi diem KET THUC, nen nhip van duoc tinh
     // tu luc xong khung truoc — dung nhu thiet ke.
     dev.lastProcessedMs = Date.now();
-    const b64 = dev.pendingB64;
-    dev.pendingB64 = undefined;
-    if (!b64) return;
-
-    // (17/09/2026) ÁP LỰC NGƯỢC — bỏ khung khi thiết bị chưa tiêu hoá kịp.
-    //
-    // PHẢI chặn Ở ĐÂY, TRƯỚC processFrameAsync(). Nếu bỏ khung ở tầng
-    // broadcaster thì FrameProcessor đã tính sai phân xong và coi như thiết bị
-    // ĐÃ NHẬN các tile đó; vứt đi = vùng ảnh ấy hỏng vĩnh viễn cho tới full-frame
-    // kế tiếp. Bỏ ở đây thì nền so sánh giữ nguyên, khung sau vẫn diff đúng.
-    //
-    // Bỏ nguyên khung (không bỏ một phần) để không bao giờ sinh khung rách.
-    const backlog = broadcaster.backlogBytes(id);
-    if (backlog > WS_HIGH_WATER_BYTES) {
-      metrics.onFrameSkipped(id);
-      dev.lastProcessedMs = Date.now();
-      if (Date.now() - (dev.lastBacklogLogMs ?? 0) > 5000) {
-        dev.lastBacklogLogMs = Date.now();
-        console.warn(`[device] ${id}: bo khung, ton dong socket ${backlog}B > ${WS_HIGH_WATER_BYTES}B`);
-      }
-      return;
-    }
 
     try {
+      const b64 = dev.pendingB64;
+      dev.pendingB64 = undefined;
+      if (!b64) return;
+
+      // (17/09/2026) ÁP LỰC NGƯỢC — bỏ khung khi thiết bị chưa tiêu hoá kịp.
+      //
+      // PHẢI chặn Ở ĐÂY, TRƯỚC processFrameAsync(). Nếu bỏ khung ở tầng
+      // broadcaster thì FrameProcessor đã tính sai phân xong và coi như thiết bị
+      // ĐÃ NHẬN các tile đó; vứt đi = vùng ảnh ấy hỏng vĩnh viễn cho tới full-frame
+      // kế tiếp. Bỏ ở đây thì nền so sánh giữ nguyên, khung sau vẫn diff đúng.
+      //
+      // Bỏ nguyên khung (không bỏ một phần) để không bao giờ sinh khung rách.
+      const backlog = broadcaster.backlogBytes(id);
+      if (backlog > WS_HIGH_WATER_BYTES) {
+        metrics.onFrameSkipped(id);
+        dev.lastProcessedMs = Date.now();
+        if (Date.now() - (dev.lastBacklogLogMs ?? 0) > 5000) {
+          dev.lastBacklogLogMs = Date.now();
+          console.warn(`[device] ${id}: bo khung, ton dong socket ${backlog}B > ${WS_HIGH_WATER_BYTES}B`);
+        }
+        return;
+      }
+
       // Cải tiến: xử lý JPEG thay PNG
       // Với format jpeg, Chrome gửi JPEG data trực tiếp.
       // sharp vẫn được dùng để rotation (nếu có) và decode sang raw RGBA cho FrameProcessor.
@@ -1256,6 +1281,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
       }
     } finally {
       dev.lastProcessedMs = Date.now();
+      dev.flushInFlight = false;
     }
   };
 
