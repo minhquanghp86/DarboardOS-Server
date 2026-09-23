@@ -1,3 +1,24 @@
+## V2.9.14
+### Sửa lỗi thật, lớp cuối cùng: bộ đệm jitter phía server — gói AudioFrame đến theo từng đợt dồn dập
+Sau V2.9.13 (bỏ `-fragment_size`) + tách hàng đợi audio riêng ở firmware (repo Client): xác nhận qua log
+ESPHome thật gói ĐÃ tới được thiết bị, nhưng **hàng đợi audio riêng (sâu 30) vẫn tràn** — log ghi liên
+tục `"hang doi day (audio), rot goi"` thành từng cụm 6-8 dòng mỗi lần. Nguyên nhân: ffmpeg/PulseAudio
+giao dữ liệu cho Node **theo từng đợt lớn cách nhau ~2 giây** (đúng hiện tượng đã đo ở V2.9.11, chỉ khác
+là trước đây bị chặn ở tầng khác nên chưa lộ ra đến đây) — server trước đây gửi NGAY khi ffmpeg có dữ
+liệu, nghĩa là firmware nhận dồn hàng chục gói trong vài chục mili-giây rồi im lặng ~2s, làm tràn bất kỳ
+hàng đợi cỡ nào ở đầu nhận.
+
+**Sửa tận gốc, đúng vị trí kiến trúc**: thêm bộ đệm jitter (jitter buffer) phía server —
+`accumulateFromFfmpeg()` chỉ gom dữ liệu vào bộ đệm, **không gửi gì cả**; một nhịp cố định
+(`setInterval`, 40ms/lần, độc lập hoàn toàn với lúc ffmpeg thực sự giao dữ liệu) mới cắt đúng 1 khung và
+gửi đi. Nhờ vậy thiết bị luôn nhận đúng nhịp ~25 gói/giây đều đặn, bất kể ffmpeg giao dồn hay giao đều —
+đây chính là vai trò chuẩn của "jitter buffer" trong mọi hệ thống streaming audio, đáng lẽ nên có ngay
+từ đầu thay vì gửi thẳng theo nhịp giao của nguồn.
+
+- `src/audioCapture.ts`: thay `feedChunk()` (gửi ngay) bằng `accumulateFromFfmpeg()` (chỉ gom bộ đệm) +
+  `drainTick()` chạy theo `setInterval(40ms)`; giới hạn bộ đệm ở ~1s dữ liệu, cắt bớt phần cũ nhất nếu
+  vượt (tránh trễ ngày càng tăng nếu ffmpeg giao nhanh hơn tốc độ phát thực tế)
+
 ## V2.9.13
 ### Sửa lỗi thật: hoàn toàn không nghe được âm thanh video — 2 lớp lỗi chồng lên nhau
 Sau khi triển khai `timeout: 5s` cho mixer (phía firmware, repo Client) và tách hàng đợi/task riêng cho

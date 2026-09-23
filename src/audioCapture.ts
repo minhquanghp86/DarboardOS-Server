@@ -35,20 +35,42 @@ let ffmpegProc: ChildProcessWithoutNullStreams | null = null;
 // THAT SU da ket thuc) moi duoc phep null hoa va (neu can) khoi dong lai.
 let stopping = false;
 let restartTimer: NodeJS.Timeout | null = null;
-let leftover: Buffer = Buffer.alloc(0);
 const subscribers = new Set<string>();
 
-function feedChunk(chunk: Buffer): void {
-  if (subscribers.size === 0) return; // khong ai can nghe -> bo qua (khong ton CPU dong goi)
+// (23/09/2026 v8) SUA LOI THAT DA GAP: truoc day feedChunk() gui NGAY moi
+// khi ffmpeg co du lieu — nhung PulseAudio/ffmpeg khong giao du lieu deu,
+// ma theo tung DOT LON cach nhau ~2s (do that, xem CHANGELOG V2.9.11/13).
+// Gui thang nghia la firmware nhan CA DOT (hang chuc goi) don don trong
+// vai chuc ms roi IM LANG ~2s — hang doi phia thiet bi (dau da tach rieng,
+// sau 30) van bi TRAN ngay tai moi dot ("hang doi day, rot goi" do that).
+//
+// Sua tan goc: bo dem jitter (jitterBuf) + nhip gui CO DINH moi
+// FRAME_MS bang setInterval — accumulateFromFfmpeg() CHI gom du lieu vao
+// bo dem, KHONG gui gi ca; drainTick() (chay dung nhip, doc lap voi luc
+// ffmpeg giao du lieu) moi thuc su cat 1 khung va gui di. Nho vay thiet bi
+// luon nhan dung nhip ~25 goi/giay bat ke ffmpeg giao don hay deu, giong
+// het vai tro "jitter buffer" chuan trong moi he thong streaming audio.
+const FRAME_MS = 40;
+const MAX_JITTER_BYTES = FRAME_BYTES * 25; // ~1s du phong — qua do la ffmpeg dang vuot xa toc do phat thuc, bo bot du lieu CU nhat de khoi tre dan
+let jitterBuf: Buffer = Buffer.alloc(0);
+let jitterTimer: NodeJS.Timeout | null = null;
 
-  let buf = leftover.length ? Buffer.concat([leftover, chunk]) : chunk;
-  let off = 0;
-  while (buf.length - off >= FRAME_BYTES) {
-    const frame = buf.subarray(off, off + FRAME_BYTES);
-    for (const id of subscribers) broadcaster.sendAudioFrame(id, frame);
-    off += FRAME_BYTES;
+function accumulateFromFfmpeg(chunk: Buffer): void {
+  if (subscribers.size === 0) return; // khong ai can nghe -> bo qua (khong ton CPU/RAM dem)
+  jitterBuf = jitterBuf.length ? Buffer.concat([jitterBuf, chunk]) : chunk;
+  if (jitterBuf.length > MAX_JITTER_BYTES) {
+    // ffmpeg dang giao nhanh hon toc do phat that su cua thiet bi (vd sau
+    // mot khoang gian doan mang) — cat bot phan CU nhat, giu do tre thap
+    // thay vi de bo dem phinh to va am thanh ngay cang tre so voi hinh.
+    jitterBuf = jitterBuf.subarray(jitterBuf.length - MAX_JITTER_BYTES);
   }
-  leftover = off < buf.length ? Buffer.from(buf.subarray(off)) : Buffer.alloc(0);
+}
+
+function drainTick(): void {
+  if (jitterBuf.length < FRAME_BYTES || subscribers.size === 0) return;
+  const frame = jitterBuf.subarray(0, FRAME_BYTES);
+  jitterBuf = jitterBuf.subarray(FRAME_BYTES);
+  for (const id of subscribers) broadcaster.sendAudioFrame(id, frame);
 }
 
 function startCapture(): void {
@@ -80,8 +102,10 @@ function startCapture(): void {
     'pipe:1',
   ]);
   ffmpegProc = proc;
+  jitterBuf = Buffer.alloc(0);
+  if (!jitterTimer) jitterTimer = setInterval(drainTick, FRAME_MS);
 
-  proc.stdout.on('data', feedChunk);
+  proc.stdout.on('data', accumulateFromFfmpeg);
   proc.stderr.on('data', (d: Buffer) => console.warn(`[audio] ffmpeg: ${d.toString().trim()}`));
 
   proc.on('exit', (code, signal) => {
@@ -89,7 +113,7 @@ function startCapture(): void {
     console.warn(`[audio] ffmpeg thoat (code=${code}, signal=${signal}, chu dong=${wasDeliberate})`);
     ffmpegProc = null;
     stopping = false;
-    leftover = Buffer.alloc(0);
+    jitterBuf = Buffer.alloc(0);
 
     if (subscribers.size === 0) return; // khong ai can nghe nua -> khong khoi dong lai
 
@@ -113,13 +137,14 @@ function startCapture(): void {
 
 function stopCapture(): void {
   if (restartTimer) { clearTimeout(restartTimer); restartTimer = null; }
+  if (jitterTimer) { clearInterval(jitterTimer); jitterTimer = null; }
   if (ffmpegProc && !stopping) {
     console.log('[audio] Dung bat am thanh (khong con thiet bi nao can nghe)');
     stopping = true;
     ffmpegProc.kill('SIGTERM');
     // KHONG null hoa ffmpegProc o day — xem chu thich o dau file.
   }
-  leftover = Buffer.alloc(0);
+  jitterBuf = Buffer.alloc(0);
 }
 
 export function subscribeDeviceAudio(id: string): void {
