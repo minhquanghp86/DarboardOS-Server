@@ -51,6 +51,16 @@ async function startHeadlessIfNeededAsync(): Promise<void> {
     '--disable-background-timer-throttling',
     '--disable-backgrounding-occluded-windows',
     '--disable-renderer-backgrounding',
+    // (23/09/2026) Giam dau hieu tu dong hoa ro nhat: mac dinh Chrome dat
+    // navigator.webdriver = true khi bi dieu khien qua CDP (xac nhan bang
+    // Runtime.evaluate truc tiep), day la tin hieu DAU TIEN cac trang chong
+    // bot (vd dang nhap Google/YouTube) kiem tra. Co KHONG the loai bo hoan
+    // toan (kien truc du an dua hoan toan vao CDP — Page.startScreencast,
+    // Input.dispatch*Event...), nhung co nay giam duoc mot lop phat hien ro
+    // rang. KHONG bao dam het bi chan — Google con nhieu tin hieu khac
+    // (Client Hints, WebGL fingerprint, risk-scoring server-side theo thiet
+    // bi/vi tri moi la...) ma mot addon tu luu trai khong the gia mao het.
+    '--disable-blink-features=AutomationControlled',
     ...(PREFERS_REDUCED_MOTION ? ['--force-prefers-reduced-motion'] : []),
   ];
 
