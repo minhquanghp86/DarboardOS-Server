@@ -25,6 +25,15 @@ const AUDIO_BITS = 16;
 const FRAME_BYTES = Math.round(AUDIO_SAMPLE_RATE * (AUDIO_BITS / 8) * AUDIO_CHANNELS * 0.04);
 
 let ffmpegProc: ChildProcessWithoutNullStreams | null = null;
+// (23/09/2026 v2) SUA LOI THAT DA GAP: dat ffmpegProc = null NGAY sau khi
+// goi .kill() (khong doi su kien 'exit' that su) tao ke ho — neu thiet bi
+// disconnect/reconnect rat nhanh (do that: 309ms), startCapture() moi thay
+// ffmpegProc == null nen spawn tien trinh THU HAI trong khi tien trinh CU
+// co the con dang giu nguon PulseAudio (chua kip don xong sau SIGTERM) ->
+// tien trinh moi bi tu choi, thoat ngay voi code 255. Sua: KHONG null hoa
+// ffmpegProc trong stopCapture(); chi handler 'exit' (xac nhan tien trinh
+// THAT SU da ket thuc) moi duoc phep null hoa va (neu can) khoi dong lai.
+let stopping = false;
 let restartTimer: NodeJS.Timeout | null = null;
 let leftover: Buffer = Buffer.alloc(0);
 const subscribers = new Set<string>();
@@ -43,7 +52,10 @@ function feedChunk(chunk: Buffer): void {
 }
 
 function startCapture(): void {
-  if (ffmpegProc) return;
+  // Dang co tien trinh song, HOAC dang doi tien trinh cu thoat han (SIGTERM
+  // vua gui) — nhanh nay se duoc goi lai tu handler 'exit' khi that su san
+  // sang, khong spawn chong len tien trinh cu.
+  if (ffmpegProc || stopping) return;
 
   console.log(`[audio] Bat dau bat am thanh tu ${PULSE_MONITOR_SOURCE} (${AUDIO_SAMPLE_RATE}Hz/${AUDIO_BITS}bit/${AUDIO_CHANNELS}ch)`);
 
@@ -63,31 +75,39 @@ function startCapture(): void {
   proc.stderr.on('data', (d: Buffer) => console.warn(`[audio] ffmpeg: ${d.toString().trim()}`));
 
   proc.on('exit', (code, signal) => {
-    console.warn(`[audio] ffmpeg thoat (code=${code}, signal=${signal})`);
+    const wasDeliberate = stopping; // ta tu kill() de dung/khoi dong lai, khong phai loi that
+    console.warn(`[audio] ffmpeg thoat (code=${code}, signal=${signal}, chu dong=${wasDeliberate})`);
     ffmpegProc = null;
+    stopping = false;
     leftover = Buffer.alloc(0);
-    if (subscribers.size > 0 && !restartTimer) {
-      // (23/09/2026) Tu khoi dong lai neu con thiet bi dang can nghe — vd
-      // PulseAudio server tam gian doan luc container moi khoi dong.
-      restartTimer = setTimeout(() => {
-        restartTimer = null;
-        if (subscribers.size > 0) startCapture();
-      }, 3000);
-    }
+
+    if (subscribers.size === 0) return; // khong ai can nghe nua -> khong khoi dong lai
+
+    if (restartTimer) return; // da co lich khoi dong lai roi
+    // Thoat CHU DONG (ta vua kill de restart nhanh, vd do subscriber doi
+    // lien tuc) -> thu lai gan nhu ngay. Thoat NGOAI Y MUON (loi that,
+    // PulseAudio gian doan...) -> doi lau hon, tranh vong lap loi lien tuc.
+    const delayMs = wasDeliberate ? 200 : 3000;
+    restartTimer = setTimeout(() => {
+      restartTimer = null;
+      if (subscribers.size > 0) startCapture();
+    }, delayMs);
   });
 
   proc.on('error', (err) => {
     console.error(`[audio] Khong chay duoc ffmpeg: ${err.message}`);
     ffmpegProc = null;
+    stopping = false;
   });
 }
 
 function stopCapture(): void {
   if (restartTimer) { clearTimeout(restartTimer); restartTimer = null; }
-  if (ffmpegProc) {
+  if (ffmpegProc && !stopping) {
     console.log('[audio] Dung bat am thanh (khong con thiet bi nao can nghe)');
+    stopping = true;
     ffmpegProc.kill('SIGTERM');
-    ffmpegProc = null;
+    // KHONG null hoa ffmpegProc o day — xem chu thich o dau file.
   }
   leftover = Buffer.alloc(0);
 }

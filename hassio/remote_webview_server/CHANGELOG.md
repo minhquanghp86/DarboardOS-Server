@@ -1,3 +1,18 @@
+## V2.9.10
+### Sửa lỗi rò rỉ tiến trình ffmpeg khi thiết bị reconnect nhanh
+Kiểm chứng trên máy thật ngay sau khi triển khai V2.9.9: `ps aux` bên trong container cho thấy **2 tiến
+trình `ffmpeg` cùng chạy** đọc chung `chrome_out.monitor`. Nguyên nhân: `stopCapture()` đặt
+`ffmpegProc = null` **ngay** sau khi gọi `.kill()`, không đợi tiến trình thật sự thoát. Khi thiết bị
+disconnect/reconnect rất nhanh (đo thật: 309ms — không hiếm, đã thấy nhiều lần trong dự án do
+`reconnect_ws()` firmware gọi ở nhiều chỗ), `startCapture()` gọi lại thấy `ffmpegProc == null` nên spawn
+tiến trình MỚI trong khi tiến trình CŨ có thể chưa dọn xong — có lúc gây `ffmpeg thoát code=255` (giành
+nguồn), có lúc (như lần đo được) cả hai tiến trình cùng sống sót, tiến trình cũ bị rò rỉ vĩnh viễn.
+
+- `src/audioCapture.ts`: không còn null hoá `ffmpegProc` trong `stopCapture()` — chỉ handler `exit`
+  (xác nhận tiến trình THẬT SỰ đã kết thúc) mới được phép null hoá và khởi động lại. Thêm cờ `stopping`
+  để `startCapture()` biết cần đợi thay vì spawn chồng. Phân biệt thoát chủ động (do chính server
+  `kill()` để khởi động lại nhanh, delay 200ms) và thoát ngoài ý muốn (lỗi thật, delay 3s tránh vòng lặp)
+
 ## V2.9.9
 ### Tính năng mới: âm thanh "như điện thoại" — chỉ P4
 Bắt âm thanh Chrome đưa ra qua sink PulseAudio ảo (`chrome_out`, xem `docker-entrypoint.sh` mới),
