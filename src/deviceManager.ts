@@ -974,12 +974,19 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
 
   await verifyCodecSupport(session);
 
-  try {
-    await session.send('Emulation.setUserAgentOverride', {
-      userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      platform: 'Linux x86_64'
-    });
-  } catch { }
+  // (23/09/2026) DA BO Emulation.setUserAgentOverride() — chuoi UA bi dong
+  // cung "Chrome/120.0.0.0" trong khi image lien tuc apt-update Chrome that
+  // (thuc te dang chay 153.x luc phat hien). Lech phien ban UA-so-voi-engine-
+  // that la mot dau hieu automation manh: Client Hints (navigator.userAgentData)
+  // va hanh vi JS thuc te van bao dung phien ban that (153), chi rieng chuoi
+  // UA header noi doi ve 120 — cang de bi coi la bot/scraper hon la mot trinh
+  // duyet that (nguoi dung that hau nhu luon chay Chrome moi nhat, tu cap
+  // nhat). Xac nhan day la mot phan nguyen nhan Google chan dang nhap YouTube
+  // voi thong bao "Trinh duyet nay co the khong an toan". Khong con ly do ky
+  // thuat nao can override: setupStableViewport() da dat mobile:false trong
+  // Emulation.setDeviceMetricsOverride, khong can UA gia de "ép" che do desktop
+  // nua. De Chrome tu bao dung UA that cua no — tu dong khop moi lan Chrome
+  // trong image duoc cap nhat, khong con drift nhu truoc.
 
   // Cải tiến: dùng format 'jpeg' thay 'png'
   // → Chrome encode JPEG trực tiếp, bỏ hoàn toàn bước sharp decode PNG → raw RGBA

@@ -1,3 +1,31 @@
+## V2.9.7
+### Giảm dấu hiệu tự động hóa khiến Google chặn đăng nhập YouTube
+Người dùng báo: khi thử đăng nhập YouTube thật trên panel, Google báo *"Không thể đăng nhập cho bạn.
+Trình duyệt hoặc ứng dụng này có thể không an toàn"* — chặn tự động hóa (anti-bot) tiêu chuẩn của
+Google, không phải lỗi của dự án theo nghĩa "bug", nhưng có 2 điểm góp phần làm tín hiệu automation rõ
+hơn mức cần thiết:
+
+1. **User-Agent bị ép cứng lệch phiên bản thật**: `Emulation.setUserAgentOverride` gán cố định
+   `Chrome/120.0.0.0`, trong khi Chrome thật trong image (tự cập nhật liên tục qua apt) đang chạy
+   `153.0.8010.36` — lệch 33 phiên bản. Client Hints (`navigator.userAgentData`) và hành vi JS thật
+   vẫn báo đúng bản 153, chỉ riêng chuỗi UA nói dối — đây là dấu hiệu automation/scraper khá rõ (người
+   dùng thật hầu như luôn chạy bản mới nhất). Không tìm được lý do kỹ thuật nào bắt buộc phải override
+   (viewport đã `mobile: false` sẵn) — bỏ hẳn, để Chrome tự báo UA thật, tự khớp mọi lần Chrome trong
+   image được cập nhật.
+2. **`navigator.webdriver = true`** (xác nhận trực tiếp qua CDP) — tín hiệu automation rõ ràng nhất mà
+   các trang chống bot (đăng nhập Google) thường kiểm tra đầu tiên. Thêm cờ khởi chạy Chrome
+   `--disable-blink-features=AutomationControlled`.
+
+**Không đảm bảo hết bị chặn**: kiến trúc dự án dựa hoàn toàn vào CDP (screencast, input, script tiêm)
+nên không thể loại bỏ hết dấu hiệu automation, và Google còn nhiều tín hiệu chấm điểm rủi ro phía
+server (thiết bị/vị trí đăng nhập mới lạ, v.v.) không thể giả mạo từ một addon tự lưu trữ. Nếu sau khi
+cập nhật vẫn bị chặn, hướng đáng tin cậy hơn là **chuyển session cookie** từ một lần đăng nhập thật
+trên trình duyệt cá nhân của người dùng vào profile Chrome của server, thay vì cố vượt qua chính bước
+thử thách đăng nhập.
+
+- `src/deviceManager.ts`: bỏ `Emulation.setUserAgentOverride` cố định
+- `src/browser.ts`: thêm `--disable-blink-features=AutomationControlled` vào args khởi chạy Chrome
+
 ## V2.9.6
 ### Nút "Home" trong dropdown launcher vẫn thiếu dù firmware đã gọi `reconnect_ws()`
 Sau khi vá race lúc khởi động ở V2.9.5 (firmware gọi `reconnect_ws()` ngay sau `set_home_url()`),
