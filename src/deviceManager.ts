@@ -694,6 +694,79 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
   console.log('[VKB] Ready — Telex Vietnamese IME active.');
 })();`;
 
+// (23/09/2026) Launcher: nut mui ten goc tren-phai, xo xuong dropdown chon
+// "ung dung" (hien tai: Home ve dashboard, YouTube). Tiem CUNG CO CHE voi
+// ban phim (Page.addScriptToEvaluateOnNewDocument -> ton tai tren MOI trang,
+// ke ca sau khi Go Home/doi URL). Rieng cua no, khong phai cua dashboard —
+// noi tren cung du dang xem trang nao.
+//
+// homeUrl la GIA TRI RIENG TUNG THIET BI, thiet bi tu gui len qua tham so
+// ket noi ?home= (xem build_ws_uri_ ben firmware) — server khong tu biet
+// duoc theo cach nao khac, vi day von la cai dat chi song tren ESP32 ("Home
+// URL"). Neu thieu (thiet bi cu chua OTA ban co ?home=), nut Home tu an,
+// chi con YouTube.
+function buildLauncherScript(homeUrl: string | undefined): string {
+  const homeUrlJson = JSON.stringify(homeUrl || '');
+  return `(function(){
+  if (window.__launcherInitialized) return;
+  window.__launcherInitialized = true;
+
+  var HOME_URL = ${homeUrlJson};
+  var APPS = [];
+  if (HOME_URL) APPS.push({ label: 'Home', icon: '\\uD83C\\uDFE0', url: HOME_URL });
+  APPS.push({ label: 'YouTube', icon: '\\u25B6\\uFE0F', url: 'https://m.youtube.com' });
+
+  var Z = 2147483647;
+
+  var btn = document.createElement('div');
+  btn.textContent = '\\u25BC';
+  btn.style.cssText = [
+    'position:fixed', 'top:6px', 'right:6px', 'width:34px', 'height:34px',
+    'display:flex', 'align-items:center', 'justify-content:center',
+    'background:rgba(20,20,20,0.55)', 'color:#fff', 'border-radius:8px',
+    'font-size:14px', 'z-index:' + Z, 'user-select:none',
+    '-webkit-user-select:none', 'touch-action:manipulation'
+  ].join(';');
+
+  var panel = document.createElement('div');
+  panel.style.cssText = [
+    'position:fixed', 'top:44px', 'right:6px', 'display:none',
+    'background:rgba(30,30,30,0.92)', 'border-radius:10px', 'overflow:hidden',
+    'z-index:' + Z, 'min-width:150px', 'box-shadow:0 2px 10px rgba(0,0,0,0.4)'
+  ].join(';');
+
+  APPS.forEach(function(app){
+    var item = document.createElement('div');
+    item.textContent = app.icon + '  ' + app.label;
+    item.style.cssText = [
+      'padding:12px 16px', 'color:#fff', 'font-size:15px',
+      'font-family:sans-serif', 'cursor:pointer', 'white-space:nowrap'
+    ].join(';');
+    item.addEventListener('click', function(e){
+      e.stopPropagation();
+      panel.style.display = 'none';
+      location.href = app.url;
+    });
+    panel.appendChild(item);
+  });
+
+  btn.addEventListener('click', function(e){
+    e.stopPropagation();
+    panel.style.display = (panel.style.display === 'block') ? 'none' : 'block';
+  });
+  // Cham ra ngoai dropdown -> tu dong an (khop hanh vi da mo ta: chon xong
+  // tu an, nhung cung nen an neu nguoi dung doi y khong chon gi).
+  document.addEventListener('click', function(){ panel.style.display = 'none'; }, true);
+
+  function mount(){
+    if (!document.body) { requestAnimationFrame(mount); return; }
+    document.body.appendChild(btn);
+    document.body.appendChild(panel);
+  }
+  mount();
+})();`;
+}
+
 // ============================================
 // HELPER: Setup viewport
 // ============================================
@@ -793,6 +866,9 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
   await session.send('Page.enable');
   await session.send('Page.addScriptToEvaluateOnNewDocument', { source: KIOSK_KEYBOARD_SCRIPT });
   console.log('[device] ✓ Keyboard + Telex IME registered');
+
+  await session.send('Page.addScriptToEvaluateOnNewDocument', { source: buildLauncherScript(cfg.homeUrl) });
+  console.log(`[device] ✓ Launcher registered${cfg.homeUrl ? '' : ' (chua co homeUrl — chi hien YouTube)'}`);
 
   const vpOk = await setupStableViewport(session, cfg.width, cfg.height);
   if (!vpOk) console.warn(`[device] ⚠️ Viewport mismatch ${cfg.width}x${cfg.height}`);
