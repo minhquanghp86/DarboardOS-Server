@@ -1,3 +1,21 @@
+## V2.9.13
+### Sửa lỗi thật: hoàn toàn không nghe được âm thanh video — 2 lớp lỗi chồng lên nhau
+Sau khi triển khai `timeout: 5s` cho mixer (phía firmware, repo Client) và tách hàng đợi/task riêng cho
+audio (không còn bị video tranh chấp), kiểm chứng lại trên máy thật bằng log ESPHome trực tiếp: **vẫn
+0 log Starting/Stopped nào trong khi video đang giải mã liên tục** — nghĩa là gói AudioFrame không hề
+tới được thiết bị nữa, không phải lỗi ở firmware.
+
+Soi log server: `-fragment_size 1024` (thêm ở V2.9.11 với giả thuyết SAI về chu kỳ ~2.0s, đã bác bỏ)
+khiến ffmpeg spam cảnh báo `"non monotonically increasing dts to muxer"` **hàng chục lần mỗi giây liên
+tục** — dấu hiệu rõ ràng của một pipeline ffmpeg đang gặp trục trặc thật, không chỉ là log ồn. Bỏ hẳn
+`-fragment_size`, quay về mặc định của PulseAudio cho input `pulse` — không còn dấu hiệu lỗi này.
+
+**An toàn khi bỏ**: PulseAudio mặc định gom dữ liệu thành đợt ~2.0s một lần (đây là hiện tượng đã đo ở
+V2.9.11) — nhưng giờ mixer phía firmware đã chịu được khoảng trống tới `timeout: 5s`, dư sức hấp thụ chu
+kỳ ~2s tự nhiên này mà không tự ngắt kênh nữa. Không cần `-fragment_size` mà vẫn không bị cắt vụn.
+
+- `src/audioCapture.ts`: bỏ hẳn `-fragment_size 1024`
+
 ## V2.9.12
 ### Dọn log rác + xác định đúng nguyên nhân gốc của lỗi V2.9.11
 `-fragment_size 1024` (V2.9.11) hoá ra KHÔNG phải nguyên nhân chính — kiểm chứng lại bằng log ESPHome
