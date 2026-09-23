@@ -1,3 +1,27 @@
+## V2.9.15
+### NGUYÊN NHÂN GỐC THẬT SỰ của "video chạy nhưng không có tiếng": Playwright tự thêm `--mute-audio`
+Phép thử quyết định lẽ ra phải làm từ đầu: đo **nội dung** PCM bắt được thay vì chỉ đếm số byte.
+`ffmpeg -af volumedetect` trên `chrome_out.monitor` cho kết quả **`max_volume: -91.0 dB`** — tức là số 0
+tuyệt đối (digital silence), kể cả khi video YouTube đang phát thật, không mute, volume 1.
+
+Điều này phủ định mọi "xác nhận" trước đó (ffmpeg ghi ~32KB/s, `pactl` báo sink RUNNING, sink-input
+`Corked: no` / `Mute: no` / volume 100%): **null-sink luôn sinh ra byte đều đặn kể cả khi hoàn toàn im
+lặng**, nên lưu lượng byte không chứng minh được gì về nội dung.
+
+Soi dòng lệnh thật của tiến trình Chrome đang chạy (`ps aux`) tìm ra thủ phạm: **Playwright tự động
+thêm `--mute-audio`** vào tham số khởi chạy mặc định. Chrome tắt tiếng ở tầng trong — mọi hạ tầng phía
+sau (sink ảo, ffmpeg, jitter buffer, hàng đợi/task riêng ở firmware, timeout mixer) đều hoạt động đúng
+nhưng chỉ chở im lặng.
+
+- `src/browser.ts`: `ignoreDefaultArgs: ['--mute-audio']` — gỡ đúng một cờ này, giữ nguyên các mặc định
+  khác của Playwright
+- `src/browser.ts`: thêm `--autoplay-policy=no-user-gesture-required` — đã đo được `play()` ném
+  `NotAllowedError` khi thiếu cử chỉ người dùng, và trình phát YouTube xử lý lỗi đó bằng cách **tự phát
+  lại ở chế độ muted**, một đường dẫn tới im lặng thứ hai cần chặn
+
+**Bài học**: kiểm tra dòng lệnh thật của tiến trình trước khi suy luận qua các tầng phía dưới; và với
+audio, luôn đo **biên độ tín hiệu**, không bao giờ dùng "có byte chảy qua" làm bằng chứng có âm thanh.
+
 ## V2.9.14
 ### Sửa lỗi thật, lớp cuối cùng: bộ đệm jitter phía server — gói AudioFrame đến theo từng đợt dồn dập
 Sau V2.9.13 (bỏ `-fragment_size`) + tách hàng đợi audio riêng ở firmware (repo Client): xác nhận qua log
