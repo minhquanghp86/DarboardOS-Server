@@ -1,3 +1,25 @@
+## V2.9.17
+### Sửa tiếng "tạch" đều đặn mỗi 2 giây: đổi nguồn bắt âm thanh từ `ffmpeg` sang `parec`
+Người dùng báo đã nghe được tiếng nhưng **có tiếng "tạch" lẫn vào đều đặn mỗi ~2 giây**. Lần này **đo
+trước khi sửa** — chạy song song hai công cụ trên cùng một nguồn, cùng máy, cửa sổ 8 giây:
+
+| | `ffmpeg` (đang dùng) | `parec` (công cụ gốc PulseAudio) |
+|---|---|---|
+| Số mảnh dữ liệu / 8s | **2** | 356 |
+| Khoảng cách giữa các mảnh | **1994ms, 1995ms** | TB **22ms**, lớn nhất 26ms |
+| Kích thước mảnh | 63.900 B | ~742 B |
+| Tốc độ thực | 23.959 B/s (**thiếu 25%**) | **31.949 B/s** (= đúng thời gian thực) |
+
+`ffmpeg` chỉ nhả dữ liệu **mỗi ~2 giây một cục lớn**. Không bộ đệm nào cứu được điều đó trừ khi đệm ≥2
+giây — mà như vậy thì tiếng đi sau hình 2 giây, còn tệ hơn. Giữa hai cục, ring buffer phía loa cạn kiệt
+→ `i2s_audio.speaker` **Stopped** → cục mới tới lại **Starting** → mỗi lần dừng/chạy sinh một transient
+nghe đúng thành tiếng "tạch". Đây cũng là lời giải cho chu kỳ ~2.0 giây bám theo suốt quá trình gỡ lỗi.
+
+`parec` là công cụ gốc của PulseAudio cho đúng việc này: xuất PCM thô, không qua tầng muxer/timestamp
+nào, `--latency-msec` chỉ định thẳng độ trễ mong muốn. Đã có sẵn trong image (gói `pulseaudio-utils`).
+
+- `src/audioCapture.ts`: `spawn('ffmpeg', ...)` → `spawn('parec', ...)` với `--latency-msec=40`
+
 ## V2.9.16
 ### Tối ưu hiệu năng: bỏ resample trên ESP32 và cắt độ trễ đệm
 Người dùng xác nhận **đã có âm thanh** sau V2.9.15, nhưng **cả video lẫn âm thanh đều lag**. Hai nguyên
