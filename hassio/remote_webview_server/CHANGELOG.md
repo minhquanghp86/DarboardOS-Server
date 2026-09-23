@@ -1,3 +1,72 @@
+## V2.9.4
+### Launcher: nút dropdown Home/YouTube trên góc màn hình
+Tiêm thêm một script (cùng cơ chế `Page.addScriptToEvaluateOnNewDocument` đã dùng cho bàn phím
+ảo) tạo nút mũi tên góc trên-phải, xổ xuống dropdown chọn "ứng dụng" — hiện tại gồm **Home** (về
+`home_url` của thiết bị) và **YouTube** (`m.youtube.com` — bản mobile, phù hợp hơn với hệ thống
+chỉ hỗ trợ chạm đơn, chưa có pinch-zoom). Tồn tại trên **mọi trang**, kể cả sau khi chuyển URL.
+
+**`home_url` là cài đặt riêng từng thiết bị** (text "Home URL" trên ESPHome) — server không có
+cách nào tự biết giá trị này. Thêm tham số kết nối mới `?home=` (thiết bị tự gửi, mã hoá phần trăm
+đúng chuẩn), đọc vào `DeviceConfig.homeUrl` **nhưng cố tình không đưa vào `deviceConfigsEqual()`**
+— đổi Home URL không được phép kích "Reconfiguring" phá huỷ Chromium target, đúng bài học đã ghi
+ở dòng 49 `deviceManager.ts`.
+
+- `config.ts`: thêm `DeviceConfig.homeUrl`, đọc từ `params.get("home")`
+- `deviceManager.ts`: `buildLauncherScript(homeUrl)` — sinh script riêng từng thiết bị, tiêm ngay
+  sau script bàn phím
+- Firmware (repo Client): `RemoteWebView::home_url_` + `set_home_url()`, gửi qua
+  `append_q_str_encoded_()` (percent-encode, không dùng `append_q_str_` cũ vì không an toàn với
+  URL thật chứa `&`/`=`)
+
+## V2.9.3
+### Sửa lỗi đóng gói addon: `run.sh` chưa bao giờ được gọi
+Phát hiện khi điều tra vì sao đổi `user_data_dir` qua giao diện addon không có tác dụng gì:
+`docker inspect` cho thấy lệnh chạy thật của container là `[node dist/index.js]` — CMD gốc của
+image nền, không phải `run.sh`. File `hassio/remote_webview_server/Dockerfile` trước đây chỉ có
+`FROM ${BUILD_FROM}`, không `COPY run.sh` vào image cũng không đổi `CMD`/`ENTRYPOINT` — file này
+tồn tại trong repo từ trước nhưng chưa từng được thực thi.
+
+**Hậu quả thật:** mọi tuỳ chọn trên giao diện addon (`tile_size`, `jpeg_quality`,
+`max_bytes_per_message`, `user_data_dir`, ...) trừ `browser_locale` không bao giờ được áp dụng, dù
+hiện trên UI như đang hoạt động bình thường.
+
+- `Dockerfile`: `COPY run.sh`, `chmod +x`, đổi `CMD` sang chạy nó
+- `run.sh`: export đầy đủ các biến môi trường (đối chiếu trực tiếp với `env.get()`/`process.env.`
+  trong từng file `src/*.ts`, không đoán tên)
+- `run.sh`: đổi `jq` (**không có sẵn trong image** — đã xác minh `command -v jq` thất bại) sang
+  `node -e` để đọc `options.json`. Giữ `jq` sẽ khiến addon crash ngay lúc khởi động dưới `set -e`,
+  biến một lỗi "tuỳ chọn không có tác dụng" thành lỗi nghiêm trọng hơn nhiều
+- `run.sh`: `mkdir -p` trước khi dùng `USER_DATA_DIR` — quan trọng khi lần đầu trỏ vào `/data`
+  (mount bền), thư mục con chưa tồn tại
+- `config.yaml`: đổi mặc định `user_data_dir` từ `/pw-data` (**không bền**, mất sạch mỗi lần
+  container tạo lại — tức mỗi lần cập nhật addon) sang `/data/pw-data` (bền qua update/restart, do
+  Supervisor tự cấp riêng cho addon này)
+
+## V2.9.2
+### Khung "nhắc vẽ lại" khi đánh thức bị bộ khử trùng lặp vứt bỏ
+Triệu chứng người dùng báo: xem camera (chế độ truyền thẳng, nhịp khung cao) → Go Home về dashboard
+→ màn ngủ → chạm màn hình → **đèn nền sáng nhưng dashboard không hiện ra**, phải chạm lần hai mới
+lên.
+
+`flushPending()` vứt khung ngay từ đầu nếu nó **trùng byte tuyệt đối** với khung trước đó (so
+`hash32`) — kiểm tra này chạy **trước cả** nhánh xử lý khung đầy đủ đã yêu cầu. Khung "nhắc vẽ lại"
+mà server tự tạo khi thiết bị `resume()` (một `<div>` 2×2px, độ mờ 0,4%, đổi màu — xem
+`nudgeRepaintAsync` trong `browser.ts`) sau khi Chrome nén JPEG có xác suất rất cao trùng byte
+tuyệt đối với khung tĩnh trước lúc ngủ. Hash trùng → `flushPending` trả về sớm → không bao giờ chạm
+tới khung đầy đủ đã đặt sẵn → thiết bị kẹt "đèn sáng, màn trống" cho tới khi người dùng tự chạm thật
+(đổi điểm ảnh đủ lớn để không thể trùng hash).
+
+- `deviceManager.ts`: thêm `requestFullFrameFor(dev)` — gọi `processor.requestFullFrame()` **đồng
+  thời** vô hiệu hoá `dev.prevFrameHash = -1` (`hash32()` luôn `>>> 0` nên `-1` không bao giờ trùng
+  thật)
+- Thay thế cả **5 điểm gọi** `requestFullFrame()` trực tiếp trong toàn server (4 trong
+  `deviceManager.ts`, 1 trong `inputRouter.ts` — chính là đường mà `resume()` kích hoạt) bằng hàm
+  này, đảm bảo khung kế tiếp không bao giờ bị vứt vì lý do trùng byte với khung trước, dù là trùng
+  thật hay trùng ngẫu nhiên do khung nhắc quá nhỏ
+
+Xác minh bằng đúng kịch bản thật (camera → Go Home → ngủ → chạm), lặp lại 2 lần: khung hình mới về
+sau **53ms**, đèn nền bật sau **412ms** — dashboard sẵn sàng trước khi đèn kịp sáng.
+
 ## V2.8.0
 ### Đồng bộ URL hai chiều — sửa lỗi "Go Home không có tác dụng"
 Trước đây URL chỉ đi **một chiều** (HA → thiết bị). Khi người dùng tự chạm chuyển tab trên

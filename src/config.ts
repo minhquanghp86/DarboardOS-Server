@@ -20,6 +20,12 @@ export type DeviceConfig = {
   jpegQuality: number;              // 1..100
   maxBytesPerMessage: number;       // bytes (>0)
   rotation: Rotation;               // degrees
+  // (23/09/2026) URL "ve nha" cua thiet bi, dung de nhung vao script
+  // launcher (nut dropdown Home/YouTube). CO Y KHONG dua vao
+  // deviceConfigsEqual() ben duoi — doi gia tri nay (nguoi dung sua "Home
+  // URL" tren HA) khong duoc phep kich "Reconfiguring" -> pha Chromium
+  // target, dung y het bai hoc da ghi o deviceManager.ts dong 49.
+  homeUrl?: string;
 };
 
 const DEFAULTS = {
@@ -115,6 +121,9 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
   const maxBytesPerMessage = intPos(params.get("mbpm")) ?? envFallbacks.maxBytesPerMessage ?? DEFAULTS.maxBytesPerMessage;
   const rotation = intNonNeg(params.get("r")) as 0 | 90 | 180 | 270 | undefined
     ?? DEFAULTS.rotation;
+  // URLSearchParams.get() tu giai ma percent-encoding — khop voi
+  // append_q_str_encoded_() ben phia firmware.
+  const homeUrl = params.get("home") || undefined;
 
   const dimensions = getRotatedDimensions(width, height, rotation);
 
@@ -130,6 +139,7 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
     jpegQuality,
     maxBytesPerMessage,
     rotation,
+    homeUrl,
   };
 }
 
