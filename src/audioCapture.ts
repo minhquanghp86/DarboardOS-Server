@@ -24,14 +24,14 @@ const AUDIO_BITS = 16;
 // luong goi WS/giay (25 goi/s, tuong duong nhip video luc tai vua phai).
 const FRAME_BYTES = Math.round(AUDIO_SAMPLE_RATE * (AUDIO_BITS / 8) * AUDIO_CHANNELS * 0.04);
 
-let ffmpegProc: ChildProcessWithoutNullStreams | null = null;
-// (23/09/2026 v2) SUA LOI THAT DA GAP: dat ffmpegProc = null NGAY sau khi
+let captureProc: ChildProcessWithoutNullStreams | null = null;
+// (23/09/2026 v2) SUA LOI THAT DA GAP: dat captureProc = null NGAY sau khi
 // goi .kill() (khong doi su kien 'exit' that su) tao ke ho — neu thiet bi
 // disconnect/reconnect rat nhanh (do that: 309ms), startCapture() moi thay
-// ffmpegProc == null nen spawn tien trinh THU HAI trong khi tien trinh CU
+// captureProc == null nen spawn tien trinh THU HAI trong khi tien trinh CU
 // co the con dang giu nguon PulseAudio (chua kip don xong sau SIGTERM) ->
 // tien trinh moi bi tu choi, thoat ngay voi code 255. Sua: KHONG null hoa
-// ffmpegProc trong stopCapture(); chi handler 'exit' (xac nhan tien trinh
+// captureProc trong stopCapture(); chi handler 'exit' (xac nhan tien trinh
 // THAT SU da ket thuc) moi duoc phep null hoa va (neu can) khoi dong lai.
 let stopping = false;
 let restartTimer: NodeJS.Timeout | null = null;
@@ -45,10 +45,10 @@ const subscribers = new Set<string>();
 // sau 30) van bi TRAN ngay tai moi dot ("hang doi day, rot goi" do that).
 //
 // Sua tan goc: bo dem jitter (jitterBuf) + nhip gui CO DINH moi
-// FRAME_MS bang setInterval — accumulateFromFfmpeg() CHI gom du lieu vao
+// FRAME_MS bang setInterval — accumulateFromSource() CHI gom du lieu vao
 // bo dem, KHONG gui gi ca; drainTick() (chay dung nhip, doc lap voi luc
 // ffmpeg giao du lieu) moi thuc su cat 1 khung va gui di. Nho vay thiet bi
-// luon nhan dung nhip ~25 goi/giay bat ke ffmpeg giao don hay deu, giong
+// luon nhan dung nhip ~25 goi/giay bat ke nguon giao don hay deu, giong
 // het vai tro "jitter buffer" chuan trong moi he thong streaming audio.
 const FRAME_MS = 40;
 // (23/09/2026 v10) ~1s -> ~200ms. Bo dem cang lon thi am thanh cang di SAU
@@ -60,11 +60,11 @@ const MAX_JITTER_BYTES = FRAME_BYTES * 5;
 let jitterBuf: Buffer = Buffer.alloc(0);
 let jitterTimer: NodeJS.Timeout | null = null;
 
-function accumulateFromFfmpeg(chunk: Buffer): void {
+function accumulateFromSource(chunk: Buffer): void {
   if (subscribers.size === 0) return; // khong ai can nghe -> bo qua (khong ton CPU/RAM dem)
   jitterBuf = jitterBuf.length ? Buffer.concat([jitterBuf, chunk]) : chunk;
   if (jitterBuf.length > MAX_JITTER_BYTES) {
-    // ffmpeg dang giao nhanh hon toc do phat that su cua thiet bi (vd sau
+    // nguon dang giao nhanh hon toc do phat that su cua thiet bi (vd sau
     // mot khoang gian doan mang) — cat bot phan CU nhat, giu do tre thap
     // thay vi de bo dem phinh to va am thanh ngay cang tre so voi hinh.
     jitterBuf = jitterBuf.subarray(jitterBuf.length - MAX_JITTER_BYTES);
@@ -82,41 +82,45 @@ function startCapture(): void {
   // Dang co tien trinh song, HOAC dang doi tien trinh cu thoat han (SIGTERM
   // vua gui) — nhanh nay se duoc goi lai tu handler 'exit' khi that su san
   // sang, khong spawn chong len tien trinh cu.
-  if (ffmpegProc || stopping) return;
+  if (captureProc || stopping) return;
 
   console.log(`[audio] Bat dau bat am thanh tu ${PULSE_MONITOR_SOURCE} (${AUDIO_SAMPLE_RATE}Hz/${AUDIO_BITS}bit/${AUDIO_CHANNELS}ch)`);
 
-  const proc = spawn('ffmpeg', [
-    // (23/09/2026 v7) SUA LOI THAT DA GAP: -fragment_size 1024 (them o v3,
-    // voi gia thuyet SAI la no gay chu ky Starting/Stopped ~2.0s — da bac bo,
-    // xem CHANGELOG V2.9.12) hoa ra con gay mot loi khac nghiem trong hon:
-    // kiem chung tren may that, ffmpeg spam canh bao "Application provided
-    // invalid, non monotonically increasing dts to muxer" HANG CHUC LAN MOI
-    // GIAY lien tuc khi co -fragment_size — nghi ngo day chinh la ly do
-    // KHONG CON goi AudioFrame nao toi duoc thiet bi (server-side pipeline tu
-    // no da hong, khong lien quan gi toi hang doi/task rieng da tach o
-    // firmware). Bo han -fragment_size, quay ve mac dinh cua PulseAudio cho
-    // pulse input — don gian hon va khong con dau hieu loi nay.
-    '-f', 'pulse',
-    '-i', PULSE_MONITOR_SOURCE,
-    '-ac', String(AUDIO_CHANNELS),
-    '-ar', String(AUDIO_SAMPLE_RATE),
-    '-f', 's16le',
-    '-acodec', 'pcm_s16le',
-    '-loglevel', 'error',
-    'pipe:1',
+  // (23/09/2026 v11) DOI TU ffmpeg SANG parec — DO THAT, khong suy luan:
+  // do nhip giao du lieu cua ca hai tren chinh may nay, cung mot nguon, 8s:
+  //     ffmpeg : 2 mang / 8s, khoang cach 1994ms va 1995ms, 63900B moi mang
+  //     parec  : 356 mang / 8s, khoang cach trung binh 22ms (max 26ms), ~742B
+  //     toc do : ffmpeg 23.959 B/s (THIEU 25%) | parec 31.949 B/s (= dung
+  //              thoi gian thuc: 16000 mau * 2 byte = 32.000 B/s)
+  //
+  // ffmpeg chi nha du lieu MOI ~2 GIAY MOT CUC LON. Khong bo dem nao cuu
+  // duoc dieu do tru khi dem >= 2 giay — ma nhu vay thi tieng di sau hinh
+  // 2 giay, con te hon. Day chinh la nguon goc tieng "tach" deu dan moi 2
+  // giay: giua hai cuc, ring buffer phia loa can kiet -> i2s speaker
+  // "Stopped" -> cuc moi toi lai "Starting" -> moi lan dung/chay sinh mot
+  // transient nghe thanh tieng tach.
+  //
+  // parec la cong cu GOC cua PulseAudio cho dung viec nay: xuat PCM tho,
+  // khong qua tang muxer/timestamp nao, va --latency-msec chi dinh thang do
+  // tre mong muon. Da co san trong image (goi pulseaudio-utils).
+  const proc = spawn('parec', [
+    `--device=${PULSE_MONITOR_SOURCE}`,
+    '--format=s16le',
+    `--rate=${AUDIO_SAMPLE_RATE}`,
+    `--channels=${AUDIO_CHANNELS}`,
+    '--latency-msec=40',
   ]);
-  ffmpegProc = proc;
+  captureProc = proc;
   jitterBuf = Buffer.alloc(0);
   if (!jitterTimer) jitterTimer = setInterval(drainTick, FRAME_MS);
 
-  proc.stdout.on('data', accumulateFromFfmpeg);
-  proc.stderr.on('data', (d: Buffer) => console.warn(`[audio] ffmpeg: ${d.toString().trim()}`));
+  proc.stdout.on('data', accumulateFromSource);
+  proc.stderr.on('data', (d: Buffer) => console.warn(`[audio] parec: ${d.toString().trim()}`));
 
   proc.on('exit', (code, signal) => {
     const wasDeliberate = stopping; // ta tu kill() de dung/khoi dong lai, khong phai loi that
-    console.warn(`[audio] ffmpeg thoat (code=${code}, signal=${signal}, chu dong=${wasDeliberate})`);
-    ffmpegProc = null;
+    console.warn(`[audio] parec thoat (code=${code}, signal=${signal}, chu dong=${wasDeliberate})`);
+    captureProc = null;
     stopping = false;
     jitterBuf = Buffer.alloc(0);
 
@@ -134,8 +138,8 @@ function startCapture(): void {
   });
 
   proc.on('error', (err) => {
-    console.error(`[audio] Khong chay duoc ffmpeg: ${err.message}`);
-    ffmpegProc = null;
+    console.error(`[audio] Khong chay duoc parec: ${err.message}`);
+    captureProc = null;
     stopping = false;
   });
 }
@@ -143,11 +147,11 @@ function startCapture(): void {
 function stopCapture(): void {
   if (restartTimer) { clearTimeout(restartTimer); restartTimer = null; }
   if (jitterTimer) { clearInterval(jitterTimer); jitterTimer = null; }
-  if (ffmpegProc && !stopping) {
+  if (captureProc && !stopping) {
     console.log('[audio] Dung bat am thanh (khong con thiet bi nao can nghe)');
     stopping = true;
-    ffmpegProc.kill('SIGTERM');
-    // KHONG null hoa ffmpegProc o day — xem chu thich o dau file.
+    captureProc.kill('SIGTERM');
+    // KHONG null hoa captureProc o day — xem chu thich o dau file.
   }
   jitterBuf = Buffer.alloc(0);
 }
