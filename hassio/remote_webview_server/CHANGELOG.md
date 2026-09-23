@@ -1,3 +1,19 @@
+## V2.9.8
+### Sửa tiếp V2.9.7: bỏ UA override lộ nguyên chữ "HeadlessChrome"
+Kiểm chứng trực tiếp trên máy thật sau khi triển khai V2.9.7 (bỏ hẳn `Emulation.setUserAgentOverride`)
+phát hiện ngay vấn đề còn tệ hơn bản cũ: UA thật của Chrome ở chế độ `--headless=new` vẫn chứa nguyên
+chữ **"HeadlessChrome/153.0.0.0"** — một trong những dấu hiệu automation lộ liễu và bị kiểm tra sớm
+nhất bởi các hệ thống chống bot (khớp chuỗi "Headless" là kiểm tra rẻ và phổ biến). Bỏ override hoàn
+toàn hoá ra tệ hơn override sai phiên bản.
+
+Sửa đúng cách: gọi `Browser.getVersion()` để lấy **UA thật** của chính Chrome đang chạy (không hardcode
+như bản trước 2.9.6 — đó là nguồn gốc lỗi lệch phiên bản), rồi chỉ thay chuỗi con `"HeadlessChrome"` →
+`"Chrome"`, giữ nguyên mọi phần còn lại (kể cả số phiên bản thật). Nhờ vậy UA luôn tự khớp mỗi lần
+Chrome trong image được cập nhật, không còn lệch phiên bản NHƯNG cũng không còn lộ "Headless".
+
+- `src/deviceManager.ts`: thêm `getRealChromeUserAgentAsync()` (gọi `Browser.getVersion`, cache lại,
+  thay thế chuỗi), áp dụng qua `Emulation.setUserAgentOverride` thay vì bỏ hẳn như V2.9.7
+
 ## V2.9.7
 ### Giảm dấu hiệu tự động hóa khiến Google chặn đăng nhập YouTube
 Người dùng báo: khi thử đăng nhập YouTube thật trên panel, Google báo *"Không thể đăng nhập cho bạn.
