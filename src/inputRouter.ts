@@ -6,6 +6,7 @@
 // Derived from strange-v/RemoteWebViewServer. THIS FILE HAS BEEN MODIFIED.
 
 import type { DeviceSession } from "./deviceManager.js";
+import { requestFullFrameFor } from "./deviceManager.js";
 import { TouchKind, parseFrameStats, parseOpenURLPacket, parseTouchPacket } from "./protocol.js";
 import { nudgeRepaintAsync } from "./browser.js";
 import { metrics } from "./metrics.js";
@@ -65,9 +66,17 @@ export class InputRouter {
       // nhưng PHẢI force full frame để ESP nhận lại toàn bộ nội dung hiện tại.
       // (15/09/2026) Và phải ÉP VẼ LẠI: trang tĩnh thì requestFullFrame() một mình không
       // sinh frame nào -> thiết bị kẹt ảnh cũ (màn hình trắng chỉ sáng đèn nền).
+      // (23/09/2026) VẪN CHƯA ĐỦ: khung "nudge" (một <div> 2x2px, opacity 0.004
+      // đổi màu) sau khi Chrome nén JPEG có xác suất cao trùng BYTE TUYỆT ĐỐI
+      // với khung tĩnh trước lúc ngủ — bị flushPending() vứt bỏ ngay ở bước
+      // khử trùng lặp (so hash32) TRƯỚC KHI kịp chạm tới cờ requestFullFrame().
+      // Thiết bị kẹt "đèn sáng, không hiển thị gì" cho tới khi người dùng tự
+      // chạm thật (đổi điểm ảnh đủ lớn để không thể trùng hash). Dùng
+      // requestFullFrameFor() thay vì gọi thẳng processor: nó VÔ HIỆU HOÁ LUÔN
+      // prevFrameHash nên khung kế tiếp không bao giờ bị vứt vì lý do này nữa.
       console.log(`[inputRouter] same URL reconnect, requesting full frame: ${pkt.url}`);
       await nudgeRepaintAsync(dev.cdp);
-      await dev.processor.requestFullFrame();
+      requestFullFrameFor(dev);
     }
 
     dev.url = pkt.url;
