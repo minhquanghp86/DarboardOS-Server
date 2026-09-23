@@ -1,3 +1,22 @@
+## V2.9.6
+### Nút "Home" trong dropdown launcher vẫn thiếu dù firmware đã gọi `reconnect_ws()`
+Sau khi vá race lúc khởi động ở V2.9.5 (firmware gọi `reconnect_ws()` ngay sau `set_home_url()`),
+kiểm tra log thật vẫn thấy `[device] ✓ Launcher registered (chua co homeUrl...)` không đổi qua
+nhiều lần thiết bị kết nối lại. Nguyên nhân: `homeUrl` **cố tình** không nằm trong
+`deviceConfigsEqual()` (để đổi Home URL không phá Chromium target) — nhưng hệ quả là khi thiết bị
+kết nối lại với `home=` khác, `ensureDeviceAsync()` thấy cấu hình "giống hệt", trả về session cũ
+mà **không hề cập nhật `device.cfg`** — `homeUrl` bị kẹt vĩnh viễn ở giá trị của lần kết nối đầu
+tiên (thường rỗng), bất kể firmware gọi `reconnect_ws()` bao nhiêu lần.
+
+- `DeviceSession`: thêm `launcherScriptId` — lưu id của script launcher đã đăng ký qua
+  `Page.addScriptToEvaluateOnNewDocument`, để gỡ ra và đăng ký lại được
+- `ensureDeviceAsync()`: trong nhánh "cấu hình giống hệt", nếu `homeUrl` đổi thì tự tay
+  `Page.removeScriptToEvaluateOnNewDocument` + đăng ký lại script mới (áp dụng cho lần tải trang
+  kế tiếp), đồng thời `Runtime.evaluate` dọn nút/dropdown cũ và chạy lại script mới NGAY trên
+  trang đang mở (không cần đợi reload) — không đụng đến Chromium target
+- `buildLauncherScript()`: gắn `id` cố định cho nút và dropdown (`__rwv_launcher_btn`/
+  `__rwv_launcher_panel`) để có chỗ bám mà gỡ khi cập nhật
+
 ## V2.9.5
 ### Sửa bàn phím ảo không hiện trên trang có Trusted Types CSP (vd đăng nhập Google)
 Người dùng báo: chạm vào ô nhập trên trang đăng nhập YouTube/Google, bàn phím ảo không hiện lên

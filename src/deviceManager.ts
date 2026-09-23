@@ -71,6 +71,14 @@ export type DeviceSession = {
   recentFrameMs: number[];
   passthroughFrames: number;
   passthroughOn: boolean;
+
+  // (23/09/2026 v3) Id cua script launcher da dang ky qua
+  // Page.addScriptToEvaluateOnNewDocument — can de GO BO va DANG KY LAI khi
+  // homeUrl doi (xem nhanh "equal config" trong ensureDeviceAsync). homeUrl
+  // KHONG nam trong deviceConfigsEqual() (co y, xem config.ts) nen doi no
+  // khong lam "Reconfiguring"/pha Target — nhung cung vi vay phai tu tay
+  // cap nhat script, server khong tu lam lai viec nay.
+  launcherScriptId?: string;
 };
 
 // (23/09/2026) SUA LOI: "man ngu tu bat lai nhung khong hien gi, phai vuot
@@ -756,6 +764,7 @@ function buildLauncherScript(homeUrl: string | undefined): string {
   }
 
   var btn = document.createElement('div');
+  btn.id = '__rwv_launcher_btn';
   var chevron = svgEl('svg', { viewBox: '0 0 24 24', width: '16', height: '16' });
   chevron.style.cssText = 'display:block';
   chevron.appendChild(svgEl('path', {
@@ -772,6 +781,7 @@ function buildLauncherScript(homeUrl: string | undefined): string {
   ].join(';');
 
   var panel = document.createElement('div');
+  panel.id = '__rwv_launcher_panel';
   panel.style.cssText = [
     'position:fixed', 'top:44px', 'right:6px', 'display:none',
     'background:rgba(30,30,30,0.92)', 'border-radius:10px', 'overflow:hidden',
@@ -892,6 +902,46 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     if (deviceConfigsEqual(device.cfg, cfg)) {
       device.lastActive = Date.now();
       requestFullFrameFor(device);
+
+      // (23/09/2026 v3) homeUrl KHONG nam trong deviceConfigsEqual() (co y —
+      // xem config.ts) nen nhanh nay khong tu cap nhat no. Ket qua that do tren
+      // may that: nut "Home" trong dropdown launcher bi ket vinh vien voi gia
+      // tri cua LAN KET NOI DAU TIEN (thuong rong do dua tren firmware —
+      // xem CHANGELOG V2.9.5), moi lan noi lai sau do (vd tu reconnect_ws()
+      // firmware vua goi) deu roi vao day va bi bo qua. Phai tu tay go +
+      // dang ky lai script KHI homeUrl thuc su doi, dong thoi ap dung NGAY
+      // cho trang dang mo (khong doi navigate/reload moi thay).
+      if (cfg.homeUrl !== device.cfg.homeUrl) {
+        const oldHomeUrl = device.cfg.homeUrl;
+        device.cfg = cfg;
+        (async () => {
+          try {
+            if (device!.launcherScriptId) {
+              await device!.cdp.send('Page.removeScriptToEvaluateOnNewDocument', {
+                identifier: device!.launcherScriptId,
+              });
+            }
+            const { identifier } = await device!.cdp.send(
+              'Page.addScriptToEvaluateOnNewDocument', { source: buildLauncherScript(cfg.homeUrl) }
+            );
+            device!.launcherScriptId = identifier;
+            // Don nut/dropdown CU tren trang DANG MO (script moi chi ap dung
+            // tu lan navigate ke tiep neu khong lam buoc nay) roi chay lai.
+            await device!.cdp.send('Runtime.evaluate', {
+              expression:
+                `(function(){` +
+                `var b=document.getElementById('__rwv_launcher_btn'); if(b) b.remove();` +
+                `var p=document.getElementById('__rwv_launcher_panel'); if(p) p.remove();` +
+                `window.__launcherInitialized=false;` +
+                `})();` + buildLauncherScript(cfg.homeUrl),
+            });
+            console.log(`[device] ✓ Launcher cap nhat homeUrl cho ${id}: "${oldHomeUrl || '(rong)'}" -> "${cfg.homeUrl}"`);
+          } catch (e) {
+            console.warn(`[device] ⚠️ Khong cap nhat duoc launcher homeUrl cho ${id}:`, e);
+          }
+        })();
+      }
+
       return device;
     }
     console.log(`[device] Reconfiguring ${id}`);
@@ -914,7 +964,9 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
   await session.send('Page.addScriptToEvaluateOnNewDocument', { source: KIOSK_KEYBOARD_SCRIPT });
   console.log('[device] ✓ Keyboard + Telex IME registered');
 
-  await session.send('Page.addScriptToEvaluateOnNewDocument', { source: buildLauncherScript(cfg.homeUrl) });
+  const { identifier: launcherScriptId } = await session.send(
+    'Page.addScriptToEvaluateOnNewDocument', { source: buildLauncherScript(cfg.homeUrl) }
+  );
   console.log(`[device] ✓ Launcher registered${cfg.homeUrl ? '' : ' (chua co homeUrl — chi hien YouTube)'}`);
 
   const vpOk = await setupStableViewport(session, cfg.width, cfg.height);
@@ -975,6 +1027,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     lastInputMs: undefined,
     consecutiveFrameErrors: 0, // Cải tiến: tracking lỗi liên tiếp
     recentFrameMs: [], passthroughFrames: 0, passthroughOn: false,
+    launcherScriptId,
   };
   devices.set(id, newDevice);
   requestFullFrameFor(newDevice);
