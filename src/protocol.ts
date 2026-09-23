@@ -23,6 +23,12 @@
 // Keepalive message:
 //   [type u8=5][ver u8=1]
 //
+// AudioFrame message (server -> thiet bi, chi thiet bi co khai bao speaker_id
+// moi nhan duoc — xem config.ts audioEnabled):
+//   [type u8=7][ver u8=1][pcm s16le mono 16kHz bytes...]
+// Khong co truong do dai/sequence rieng: toan bo phan con lai cua goi WS
+// chinh la du lieu PCM, thu tu dung nhu thu tu goi qua WebSocket (TCP giu
+// thu tu trong 1 ket noi).
 
 export const PROTOCOL_VERSION = 1 as const;
 
@@ -39,6 +45,9 @@ export enum MsgType {
   // (no lam text.set voi dung gia tri cu -> ESPHome khong kich set_action).
   // Loai goi nay co san trong ban goc strange-v, fork cua ta da luoc mat.
   CurrentURL  = 6,
+  // (23/09/2026) Am thanh cua trang dang hien thi, PCM s16le mono 16kHz,
+  // dung ho lai am thanh "nhu dien thoai" — xem AUDIO-FEATURE-PLAN muc 7.
+  AudioFrame  = 7,
 }
 
 export enum Encoding {
@@ -102,6 +111,16 @@ export function buildCurrentURLPacket(url: string): Buffer {
   buf.writeUInt8(PROTOCOL_VERSION, 1);
   buf.writeUInt32LE(urlBuf.length, 2);
   urlBuf.copy(buf, CURRENTURL_HEADER_BYTES);
+  return buf;
+}
+
+export const AUDIOFRAME_HEADER_BYTES = 2;
+
+export function buildAudioFramePacket(pcm: Buffer): Buffer {
+  const buf = Buffer.alloc(AUDIOFRAME_HEADER_BYTES + pcm.length);
+  buf.writeUInt8(MsgType.AudioFrame, 0);
+  buf.writeUInt8(PROTOCOL_VERSION, 1);
+  pcm.copy(buf, AUDIOFRAME_HEADER_BYTES);
   return buf;
 }
 

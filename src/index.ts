@@ -16,6 +16,7 @@ import { broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevic
 import type { DeviceSession } from './deviceManager.js';
 import { InputRouter } from "./inputRouter.js";
 import { bootstrapAsync } from './browser.js';
+import { subscribeDeviceAudio, unsubscribeDeviceAudio } from './audioCapture.js';
 import { MsgType } from './protocol.js';
 import { metrics } from './metrics.js';
 import type WebSocket from 'ws';
@@ -63,6 +64,11 @@ wss.on("connection", async (ws, req) => {
 
   broadcaster.addClient(id, ws);
 
+  // (23/09/2026) Dang ky nhan audio NGAY, khong doi ensureDeviceAsync — viec
+  // bat/phat am thanh doc lap hoan toan voi Chromium target cua tung thiet
+  // bi (kien truc dung chung MOT sink audio, xem audioCapture.ts).
+  if (cfg.audioEnabled) subscribeDeviceAudio(id);
+
   // ── FIX: đăng ký message handler TRƯỚC khi await ─────────────────────────
   // Buffer các OpenURL message nhận được trong khi ensureDeviceAsync chạy.
   // Touch/keepalive trong giai đoạn này bỏ qua (device chưa sẵn sàng).
@@ -87,6 +93,14 @@ wss.on("connection", async (ws, req) => {
   ws.on("close", () => {
     if (dev) dev.lastActive = Date.now();
     broadcaster.removeClient(id, ws);
+    // (23/09/2026) Chi huy dang ky audio khi KHONG CON client nao cho id
+    // nay — luc noi lai nhanh (vd reconnect_ws() firmware), addClient() cua
+    // ket noi MOI da don ws cu khoi danh sach TRUOC KHI su kien close cua no
+    // kip chay, nen getClientCount() luc nay da phan anh dung ket noi hien
+    // tai, khong bi huy dang ky nham giua chung mot lan noi lai.
+    if (cfg.audioEnabled && broadcaster.getClientCount(id) === 0) {
+      unsubscribeDeviceAudio(id);
+    }
   });
 
   // ── Tạo/lấy device session (có thể mất vài giây lần đầu) ─────────────────

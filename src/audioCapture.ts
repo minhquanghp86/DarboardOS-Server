@@ -1,0 +1,106 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86 - Apache License 2.0 (see LICENSE).
+
+// (23/09/2026) Bat am thanh Chrome dua ra qua sink PulseAudio ao (xem
+// docker-entrypoint.sh), phat lai qua WebSocket cho thiet bi da bao co loa
+// (cfg.audioEnabled — xem config.ts, ensureDeviceAsync). Kien truc: MOT
+// tien trinh Chrome dung chung cho ca ba thiet bi -> MOT sink audio duy
+// nhat -> khong the tach am thanh theo tung tab/thiet bi (da xac minh khong
+// co API nao lam duoc dieu nay tu ben ngoai trang — xem
+// AUDIO-FEATURE-PLAN-2026-09-23.md muc 7.2 o repo Client). Vi vay module
+// nay CHI gui cho cac thiet bi TU KHAI BAO audioEnabled=true (hien tai:
+// chi P4) — khong co logic "chon thiet bi dang hoat dong" vi pham vi hien
+// tai chi co dung mot dich.
+import { spawn, ChildProcessWithoutNullStreams } from 'child_process';
+import { broadcaster } from './deviceManager.js';
+
+const PULSE_MONITOR_SOURCE = process.env.PULSE_AUDIO_MONITOR || 'chrome_out.monitor';
+const AUDIO_SAMPLE_RATE = 16000;
+const AUDIO_CHANNELS = 1;
+const AUDIO_BITS = 16;
+// (23/09/2026) Kich thuoc khung gui ~40ms/goi (16000 * 2 byte/mau * 0.04s =
+// 1280 byte) — du nho de khong tao do tre lon, du lon de khong lam ngap so
+// luong goi WS/giay (25 goi/s, tuong duong nhip video luc tai vua phai).
+const FRAME_BYTES = Math.round(AUDIO_SAMPLE_RATE * (AUDIO_BITS / 8) * AUDIO_CHANNELS * 0.04);
+
+let ffmpegProc: ChildProcessWithoutNullStreams | null = null;
+let restartTimer: NodeJS.Timeout | null = null;
+let leftover: Buffer = Buffer.alloc(0);
+const subscribers = new Set<string>();
+
+function feedChunk(chunk: Buffer): void {
+  if (subscribers.size === 0) return; // khong ai can nghe -> bo qua (khong ton CPU dong goi)
+
+  let buf = leftover.length ? Buffer.concat([leftover, chunk]) : chunk;
+  let off = 0;
+  while (buf.length - off >= FRAME_BYTES) {
+    const frame = buf.subarray(off, off + FRAME_BYTES);
+    for (const id of subscribers) broadcaster.sendAudioFrame(id, frame);
+    off += FRAME_BYTES;
+  }
+  leftover = off < buf.length ? Buffer.from(buf.subarray(off)) : Buffer.alloc(0);
+}
+
+function startCapture(): void {
+  if (ffmpegProc) return;
+
+  console.log(`[audio] Bat dau bat am thanh tu ${PULSE_MONITOR_SOURCE} (${AUDIO_SAMPLE_RATE}Hz/${AUDIO_BITS}bit/${AUDIO_CHANNELS}ch)`);
+
+  const proc = spawn('ffmpeg', [
+    '-f', 'pulse',
+    '-i', PULSE_MONITOR_SOURCE,
+    '-ac', String(AUDIO_CHANNELS),
+    '-ar', String(AUDIO_SAMPLE_RATE),
+    '-f', 's16le',
+    '-acodec', 'pcm_s16le',
+    '-loglevel', 'error',
+    'pipe:1',
+  ]);
+  ffmpegProc = proc;
+
+  proc.stdout.on('data', feedChunk);
+  proc.stderr.on('data', (d: Buffer) => console.warn(`[audio] ffmpeg: ${d.toString().trim()}`));
+
+  proc.on('exit', (code, signal) => {
+    console.warn(`[audio] ffmpeg thoat (code=${code}, signal=${signal})`);
+    ffmpegProc = null;
+    leftover = Buffer.alloc(0);
+    if (subscribers.size > 0 && !restartTimer) {
+      // (23/09/2026) Tu khoi dong lai neu con thiet bi dang can nghe — vd
+      // PulseAudio server tam gian doan luc container moi khoi dong.
+      restartTimer = setTimeout(() => {
+        restartTimer = null;
+        if (subscribers.size > 0) startCapture();
+      }, 3000);
+    }
+  });
+
+  proc.on('error', (err) => {
+    console.error(`[audio] Khong chay duoc ffmpeg: ${err.message}`);
+    ffmpegProc = null;
+  });
+}
+
+function stopCapture(): void {
+  if (restartTimer) { clearTimeout(restartTimer); restartTimer = null; }
+  if (ffmpegProc) {
+    console.log('[audio] Dung bat am thanh (khong con thiet bi nao can nghe)');
+    ffmpegProc.kill('SIGTERM');
+    ffmpegProc = null;
+  }
+  leftover = Buffer.alloc(0);
+}
+
+export function subscribeDeviceAudio(id: string): void {
+  if (subscribers.has(id)) return;
+  subscribers.add(id);
+  console.log(`[audio] ${id} dang ky nhan audio (${subscribers.size} thiet bi)`);
+  startCapture();
+}
+
+export function unsubscribeDeviceAudio(id: string): void {
+  if (!subscribers.delete(id)) return;
+  console.log(`[audio] ${id} huy dang ky nhan audio (${subscribers.size} thiet bi con lai)`);
+  if (subscribers.size === 0) stopCapture();
+}

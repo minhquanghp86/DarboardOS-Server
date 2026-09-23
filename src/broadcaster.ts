@@ -6,7 +6,7 @@
 // Derived from strange-v/RemoteWebViewServer. THIS FILE HAS BEEN MODIFIED.
 
 import { WebSocket } from "ws";
-import { buildFrameStatsPacket, buildFramePackets, buildCurrentURLPacket } from "./protocol.js";
+import { buildFrameStatsPacket, buildFramePackets, buildCurrentURLPacket, buildAudioFramePacket } from "./protocol.js";
 import type { FrameOut } from "./frameProcessor.js";
 import { metrics } from "./metrics.js";
 
@@ -118,6 +118,23 @@ export class DeviceBroadcaster {
     const st = this._ensureState(id);
     st.queue.push({ frameId: -1, packets: [buildCurrentURLPacket(url)] });
     this._drainAsync(id).catch(() => {});
+  }
+
+  // (23/09/2026) Am thanh gui THANG, KHONG qua hang doi/_drainAsync nhu
+  // video. Ly do: hang doi video co the ket dong (backpressure that su khi
+  // thiet bi giai ma khong kip — dung tinh nang da co san), va am thanh xep
+  // sau mot backlog video lon se bi giat/tre ro ret hon nhieu so voi anh bi
+  // giat — tai lieu deu la goi PCM nho (~640-1280 byte/20-40ms), khong dang
+  // ke so voi kich thuoc khung anh, nen gui thang khong lam nang them tac
+  // dong nghen mang thuc su.
+  public sendAudioFrame(id: string, pcm: Buffer): void {
+    const peers = this._clients.get(id);
+    if (!peers || peers.size === 0) return;
+    const pkt = buildAudioFramePacket(pcm);
+    for (const ws of peers) {
+      if (ws.readyState !== WebSocket.OPEN) continue;
+      try { ws.send(pkt, { binary: true }); } catch { }
+    }
   }
 
   private _ensureState(id: string): BroadcasterState {
