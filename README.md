@@ -25,6 +25,7 @@ Trình duyệt Headless browser hiển thị các trang web mục tiêu (ví d�
 - Tùy chọn truy cập DevTools qua proxy TCP
 - Thêm hỗ trợ hướng xoay màn hình
 - Thêm cảm biến báo cáo chế độ phát video đang hoạt động(phục vụ việc dừng tắt màn hình trên client)
+- Dropdown launcher tiêm sẵn trên mọi trang (nút góc trên-phải): điều hướng nhanh về Home hoặc YouTube, không cần rời màn hình dashboard để đổi URL thủ công
 
 ## Truy cập tab máy chủ bằng Chrome DevTools
 1. Đảm bảo máy chủ của bạn hiển thị cổng DevTools (CDP) (ví dụ: 9222).
