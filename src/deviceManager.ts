@@ -100,6 +100,10 @@ export type DeviceSession = {
   prevThumb?: Buffer;
   /** Lan cuoi mot khung THOA dieu kien video (nhip + dien tich) — de giu che do video mot luc. */
   halfLastQualifyMs?: number;
+  /** Moc bat dau chuoi khung LIEN TIEP thoa dieu kien video (chua bat che do) — can keo dai HALF_SUSTAIN_MS. */
+  halfStreakStartMs?: number;
+  /** Gui NGAY ban net cua khung video cuoi (goi khi nguoi dung cham luc dang o che do video). */
+  sharpenNow?: () => void;
 
   // (23/09/2026 v3) Id cua script launcher da dang ky qua
   // Page.addScriptToEvaluateOnNewDocument — can de GO BO va DANG KY LAI khi
@@ -162,13 +166,20 @@ const PASSTHROUGH_MIN_FPS = Math.max(0, parseFloat(process.env.PASSTHROUGH_MIN_F
 const PASSTHROUGH_RATE_WINDOW = 6; // số khung gần nhất dùng để tính nhịp
 // (24/09/2026) Video dung bao lau (khong co khung moi) thi gui lai khung cuoi o do phan giai day du.
 const SHARP_REFRESH_MS = Math.max(100, parseInt(process.env.SHARP_REFRESH_MS ?? '700', 10) || 700);
-const HALF_ON_FPS = Math.max(1, parseFloat(process.env.HALF_ON_FPS ?? '5') || 5);
-const HALF_OFF_FPS = Math.max(0.5, parseFloat(process.env.HALF_OFF_FPS ?? '3') || 3);
+// (24/09/2026) 5/3 -> 2,5/1,5: tieu chi video THAT la dien tich thay doi (ben duoi); nhip chi de loai trang tinh.
+// Do that: sau khi thiet bi khoi dong lai, server bat dau o nhip than trong 200-275 ms (< 4 fps) -> khong bao
+// gio dat 5 fps -> khong vao che do video -> thiet bi xu ly cham -> nhip khong tang (vong luan quan).
+const HALF_ON_FPS = Math.max(0.5, parseFloat(process.env.HALF_ON_FPS ?? '2.5') || 2.5);
+const HALF_OFF_FPS = Math.max(0.5, parseFloat(process.env.HALF_OFF_FPS ?? '1.5') || 1.5);
 // Ti le dien tich man hinh thay doi giua hai khung: > HALF_ON_AREA moi coi la video; dang o che do video thi
 // giu toi khi <= HALF_KEEP_AREA.
 const HALF_ON_AREA = 0.35;
 const HALF_KEEP_AREA = 0.2;
 const HALF_HOLD_MS = Math.max(0, parseInt(process.env.HALF_HOLD_MS ?? '3000', 10) || 3000);
+// Thay doi lon phai keo dai lien tuc bao lau moi coi la video (loai hieu ung chuyen tab).
+const HALF_SUSTAIN_MS = Math.max(0, parseInt(process.env.HALF_SUSTAIN_MS ?? '1000', 10) || 1000);
+// Sau moi lan cham man hinh, bao lau KHONG dung nua do phan giai.
+const HALF_AFTER_TOUCH_MS = Math.max(0, parseInt(process.env.HALF_AFTER_TOUCH_MS ?? '2000', 10) || 2000);
 
 // (17/09/2026) Ngưỡng áp lực ngược: số byte còn kẹt trong bộ đệm gửi của
 // WebSocket mà trên mức đó thì BỎ khung mới thay vì dồn thêm. Một full-frame
@@ -1310,10 +1321,21 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
         const pct = changed / thumb.length;
         const qualifies = pct > (dev.halfOn ? HALF_KEEP_AREA : HALF_ON_AREA);
         if (qualifies) dev.halfLastQualifyMs = nowMs;
+        // (24/09/2026) Chuyen tab = MOT dot thay doi lon ngan (hieu ung vai khung), khong phai video. Truoc day no du
+        // dieu kien -> ca man hinh nua do phan giai, giu 3 s, lam net sau 0,7 s -> mo 1-2 s moi lan chuyen tab (nguoi
+        // dung bao). Nay phai thoa LIEN TUC it nhat HALF_SUSTAIN_MS moi bat.
+        if (!qualifies) dev.halfStreakStartMs = undefined;
+        else if (dev.halfStreakStartMs === undefined) dev.halfStreakStartMs = nowMs;
+        const sustained = dev.halfStreakStartMs !== undefined && nowMs - dev.halfStreakStartMs >= HALF_SUSTAIN_MS;
         // GIU che do video HALF_HOLD_MS sau khung thoa cuoi: video nguoi noi co canh gan nhu tinh (dien tich doi
         // nho) -> truoc day tat/bat lien tuc, MOI lan tat server phai gui lai ca khung net 125-144 KB -> giat.
-        halfWanted = qualifies ||
+        halfWanted = (dev.halfOn ? qualifies : sustained) ||
           (dev.halfOn && dev.halfLastQualifyMs !== undefined && nowMs - dev.halfLastQualifyMs < HALF_HOLD_MS);
+        // Dang THAO TAC (vua cham man hinh) -> luon gui NET: nguoi dung dang nhin giao dien de bam tiep.
+        if (dev.lastInputMs !== undefined && nowMs - dev.lastInputMs < HALF_AFTER_TOUCH_MS) {
+          halfWanted = false;
+          dev.halfStreakStartMs = undefined;
+        }
       } else {
         dev.prevThumb = undefined;
       }
@@ -1445,6 +1467,18 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     }
   };
 
+  // (24/09/2026) Xem markInteraction: gui lai khung video cuoi o do phan giai day du ngay lap tuc.
+  newDevice.sharpenNow = () => {
+    const dev = newDevice;
+    if (!dev.lastVideoB64 || dev.pendingB64) return;
+    if (dev.sharpTimer) { clearTimeout(dev.sharpTimer); dev.sharpTimer = undefined; }
+    dev.forceSharp = true;
+    dev.pendingB64 = dev.lastVideoB64;
+    dev.lastVideoB64 = undefined;
+    dev.prevFrameHash = -1;
+    if (!dev.throttleTimer) dev.throttleTimer = setTimeout(flushPending, 0);
+  };
+
   // (18/09/2026) DONG BO URL HAI CHIEU.
   //
   // Truoc day URL chi di MOT CHIEU (HA -> thiet bi). Khi nguoi dung tu cham
@@ -1551,7 +1585,10 @@ const linkEstimates = new Map<string, LinkEstimate>();
 /** (17/09/2026) Danh dau thiet bi vua nhan su kien cham — xem lastInputMs. */
 export function markInteraction(deviceId: string): void {
   const d = devices.get(deviceId);
-  if (d) d.lastInputMs = Date.now();
+  if (!d) return;
+  d.lastInputMs = Date.now();
+  // (24/09/2026) Cham luc man hinh dang o nua do phan giai: lam net NGAY, khong doi khung moi / hen gio 0,7 s.
+  if (d.halfOn && d.sharpenNow) d.sharpenNow();
 }
 
 export function runAdaptiveTick(): void {
