@@ -835,11 +835,11 @@ function buildLauncherScript(homeUrl: string | undefined): string {
     return svg;
   }
 
-  // (24/09/2026) Nut dang TAB HINH THANG dinh mep tren, can giua (truoc: o vuong 34x34 goc
-  // tren-phai). Hinh ve bang SVG path — canh day rong 96px nam SAT mep tren, thu hep xuong
-  // 64px, hai goc duoi bo tron — nen mong (16px) ma van de nhin. Phan tu bao ngoai cao 32px
-  // va trong suot: vung cham rong hon hinh ve de ngon tay van bam trung.
-  var TAB_W = 96, TAB_H = 16;
+  // (24/09/2026) Nut dang GIOT NUOC treo tu mep tren, can giua (truoc: o vuong 34x34 goc
+  // tren-phai). Hinh ve bang SVG path toan duong cong: hai ben bat dau TIEP TUYEN voi mep
+  // tren roi cong mem vao trong, day tron — khong con goc nao. Mong (18px) ma van de nhin.
+  // Phan tu bao ngoai cao 32px va trong suot: vung cham rong hon hinh ve.
+  var TAB_W = 96, TAB_H = 18;
   var btn = document.createElement('div');
   btn.id = '__rwv_launcher_btn';
   btn.style.cssText = [
@@ -852,13 +852,14 @@ function buildLauncherScript(homeUrl: string | undefined): string {
   ].join(';');
   var tab = svgEl('svg', { viewBox: '0 0 ' + TAB_W + ' ' + TAB_H, width: String(TAB_W), height: String(TAB_H) });
   tab.style.cssText = 'display:block;overflow:visible;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.35))';
-  // Hinh thang: (0,0) -> (96,0) -> xuong goc phai duoi (bo R=6) -> goc trai duoi (bo) -> ve (0,0).
+  // Giot nuoc: mep tren (0,0)-(96,0); hai ben uon tu tiep tuyen ngang -> doc xuong -> day tron
+  // (dinh thap nhat (48,18)). Cac doan Bezier noi tiep co tiep tuyen lien tuc nen khong gay goc.
   tab.appendChild(svgEl('path', {
-    d: 'M0 0H96L81.5 12.4Q78.4 16 73.6 16H22.4Q17.6 16 14.5 12.4Z',
+    d: 'M0 0H96C84 0 79 3 73 9C67 15 60 18 48 18C36 18 29 15 23 9C17 3 12 0 0 0Z',
     fill: 'rgba(20,20,20,0.6)'
   }));
   var chevron = svgEl('path', {
-    d: 'M42 5.5l6 5 6-5', fill: 'none', stroke: 'currentColor', 'stroke-width': '2',
+    d: 'M42 6l6 5 6-5', fill: 'none', stroke: 'currentColor', 'stroke-width': '2',
     'stroke-linecap': 'round', 'stroke-linejoin': 'round'
   });
   tab.appendChild(chevron);
@@ -867,7 +868,7 @@ function buildLauncherScript(homeUrl: string | undefined): string {
   var panel = document.createElement('div');
   panel.id = '__rwv_launcher_panel';
   panel.style.cssText = [
-    'position:fixed', 'top:20px', 'left:50%', 'transform:translateX(-50%)', 'display:none',
+    'position:fixed', 'top:22px', 'left:50%', 'transform:translateX(-50%)', 'display:none',
     'background:rgba(30,30,30,0.92)', 'border-radius:10px', 'overflow:hidden',
     'z-index:' + Z, 'min-width:150px', 'box-shadow:0 2px 10px rgba(0,0,0,0.4)'
   ].join(';');

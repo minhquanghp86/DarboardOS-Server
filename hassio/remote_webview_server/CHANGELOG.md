@@ -1,3 +1,10 @@
+## V2.9.22
+### Nút launcher hình giọt nước
+
+Theo góp ý người dùng ("bo góc tròn hơn nữa, kiểu hình giọt nước"): thay hình thang bằng **giọt nước treo từ
+mép trên** — hai bên bắt đầu tiếp tuyến với mép màn hình rồi cong mềm vào trong, đáy tròn; toàn bộ là các
+đoạn Bézier nối tiếp có tiếp tuyến liên tục nên không còn góc nào. Cao 18 px, rộng 96 px, vẫn căn giữa.
+
 ## V2.9.21
 ### Nút launcher thành tab hình thang ở giữa mép trên; thêm mục Camera và URL
 
