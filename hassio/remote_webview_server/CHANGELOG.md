@@ -1,3 +1,13 @@
+## V2.9.21
+### Nút launcher thành tab hình thang ở giữa mép trên; thêm mục Camera và URL
+
+- Nút cũ: ô vuông 34×34 ở góc trên-phải. Nay là **tab hình thang** (đáy 96 px dính mép trên, thu hẹp
+  xuống, bo góc dưới, cao 16 px) **căn giữa** màn hình — mỏng hơn, rộng hơn. Vẽ bằng SVG path (DOM API,
+  không innerHTML — trang có Trusted Types). Vùng chạm trong suốt cao 32 px để vẫn dễ bấm.
+- Dropdown mở ra căn giữa ngay dưới tab.
+- Hai mục mới **Camera** và **URL** (icon máy ảnh, quả địa cầu), ghi "sắp có" — chỗ cho hai chức năng sau:
+  hiển thị camera lên màn hình và nhập URL để truy cập. Hiện bấm vào chỉ đóng dropdown.
+
 ## V2.9.20
 ### Bộ điều tiết biết BĂNG THÔNG — P4 phát YouTube từ 2,5 fps lên trung bình 6,2 fps
 
