@@ -1,3 +1,20 @@
+## V2.9.23
+### Khung video NỬA ĐỘ PHÂN GIẢI cho thiết bị có PPA (ESP32-P4) — YouTube 6–7 → 12,3 fps
+
+Đo thật trên P4 (camera Frigate đang chạy, video nhiều chuyển động): mạng thô dư (tải TCP 2 MB/s), nhưng mỗi khung
+YouTube 120–160 KB (Chrome) tốn ~50 ms xử lý trên thiết bị và phải chia nhiều gói.
+
+- **`?half=1`** (thiết bị tự báo — P4 với `half_scale_video: true`): khi đang phát VIDEO, server thu khung Chrome về
+  512×300 (sharp shrink-on-load) → ~20 KB, gửi kèm cờ mới **`FLAG_HALF_SCALE` (bit 2)**; x/y/w/h vẫn theo màn hình
+  thật, thiết bị phóng ×2 bằng PPA. Thiết bị không báo `half=1` (S3, firmware cũ) không bao giờ nhận cờ này.
+- **Nhận diện video**: nhịp khung đến (bật ≥ 5 fps, tắt < 3 fps) **và** phần lớn màn hình đổi (so ảnh thu nhỏ xám
+  64×38: bật > 35%, giữ > 20%) — một tab dashboard có ảnh động nhỏ KHÔNG bị gửi mờ (người dùng phát hiện ngay ở bản
+  thử đầu). Giữ chế độ video 3 s sau khung thỏa cuối (tránh bật/tắt liên tục, mỗi lần tắt phải gửi lại khung nét
+  125–144 KB).
+- **Làm nét lại**: video dừng 700 ms không có khung mới → gửi lại khung cuối ở độ phân giải đầy đủ.
+- **Sửa lỗi**: cờ firmware (`halfScale`, `audioEnabled`) không nằm trong `deviceConfigsEqual()` nên khi thiết bị nối
+  lại với firmware mới, phiên cũ giữ giá trị của lần kết nối đầu — nay luôn cập nhật (cùng loại lỗi `homeUrl`).
+
 ## V2.9.22
 ### Nút launcher hình giọt nước
 

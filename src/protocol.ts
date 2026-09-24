@@ -69,6 +69,9 @@ export enum TouchKind {
 
 export const FLAG_LAST_OF_FRAME = 1 << 0;
 export const FLAG_IS_FULL_FRAME = 1 << 1;
+// (24/09/2026) Du lieu JPEG cua moi tile la NUA do phan giai (ceil(w/2) x ceil(h/2)); x/y/w/h van theo man
+// hinh that, thiet bi phong x2 (P4: PPA). Chi gui cho thiet bi bao ?half=1.
+export const FLAG_HALF_SCALE = 1 << 2;
 
 export interface Rect {
   x: number;
@@ -221,7 +224,7 @@ export function buildFramePacket(rects: Rect[], enc: Encoding, frameId: number, 
   return Buffer.concat(parts);
 }
 
-export function buildFramePackets(rects: Rect[], enc: Encoding, frameId: number, isFullFrame: boolean, maxBytes: number): Buffer[] {
+export function buildFramePackets(rects: Rect[], enc: Encoding, frameId: number, isFullFrame: boolean, maxBytes: number, extraFlags = 0): Buffer[] {
   const chunks: Rect[][] = [];
   let cur: Rect[] = [];
   let curBytes = FRAME_HEADER_BYTES;
@@ -242,6 +245,7 @@ export function buildFramePackets(rects: Rect[], enc: Encoding, frameId: number,
   for (let i = 0; i < chunks.length; i++) {
     let flags = (i === chunks.length - 1) ? FLAG_LAST_OF_FRAME : 0;
     if (isFullFrame) flags |= FLAG_IS_FULL_FRAME;
+    flags |= extraFlags;
     out.push(buildFramePacket(chunks[i], enc, frameId, flags));
   }
   return out;

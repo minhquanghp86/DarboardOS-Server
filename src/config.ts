@@ -32,6 +32,10 @@ export type DeviceConfig = {
   // homeUrl, KHONG dua vao deviceConfigsEqual() vi day la co dinh theo
   // firmware, khong phai thu can kich "Reconfiguring" khi doi.
   audioEnabled: boolean;
+  // (24/09/2026) Thiet bi bao "toi phong duoc khung nua do phan giai" qua ?half=1 (P4: JPEG + PPA phan cung).
+  // Chi khi do server moi gui khung video 1/2 do phan giai (FLAG_HALF_SCALE). Nhu audioEnabled, KHONG dua
+  // vao deviceConfigsEqual() — co dinh theo firmware.
+  halfScale: boolean;
 };
 
 const DEFAULTS = {
@@ -131,6 +135,7 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
   // append_q_str_encoded_() ben phia firmware.
   const homeUrl = params.get("home") || undefined;
   const audioEnabled = params.get("audio") === "1";
+  const halfScale = params.get("half") === "1";
 
   const dimensions = getRotatedDimensions(width, height, rotation);
 
@@ -148,6 +153,7 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
     rotation,
     homeUrl,
     audioEnabled,
+    halfScale,
   };
 }
 
