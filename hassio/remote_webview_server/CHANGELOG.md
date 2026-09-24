@@ -1,3 +1,15 @@
+## V2.9.24
+### Chuyển tab luôn nét; chế độ video bật được ngay sau khởi động
+
+- **Chuyển tab bị mờ 1–2 s** (người dùng báo): hiệu ứng chuyển tab là một đợt thay đổi lớn ngắn → trước đây đủ điều
+  kiện "video" → cả màn hình nửa độ phân giải, giữ 3 s. Nay: (1) trong **2 s sau mỗi lần chạm** không bao giờ dùng nửa
+  độ phân giải; chạm lúc đang ở chế độ video thì **làm nét ngay** (gửi lại khung cuối ở độ phân giải đầy đủ);
+  (2) thay đổi lớn phải **kéo dài liên tục ≥ 1 s** mới coi là video. Thử 6 lần chuyển tab: 0 lần bật nửa độ phân giải.
+- Ngưỡng nhịp chế độ video 5/3 → **2,5/1,5 fps**: sau khi thiết bị khởi động lại, server bắt đầu ở nhịp thận trọng
+  (< 4 fps) nên không bao giờ đạt 5 fps → không vào chế độ video → thiết bị xử lý chậm → nhịp không tăng (vòng luẩn
+  quẩn). Tiêu chí video thật là diện tích thay đổi kéo dài.
+- Đo (P4, camera Frigate 5 fps, video nhiều chuyển động): YouTube **13,0 fps**.
+
 ## V2.9.23
 ### Khung video NỬA ĐỘ PHÂN GIẢI cho thiết bị có PPA (ESP32-P4) — YouTube 6–7 → 12,3 fps
 
