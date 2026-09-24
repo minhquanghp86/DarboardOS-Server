@@ -88,6 +88,19 @@ export type DeviceSession = {
   passthroughFrames: number;
   passthroughOn: boolean;
 
+  // (24/09/2026) Khung VIDEO nua do phan giai cho thiet bi bao ?half=1 — xem flushPending.
+  halfOn: boolean;
+  halfFrames: number;
+  /** Anh Chrome cua khung video gan nhat — dung de gui lai ban NET khi video dung. */
+  lastVideoB64?: string;
+  sharpTimer?: NodeJS.Timeout;
+  /** Khung dang xu ly la ban "lam net lai" (khong tinh vao nhip, khong di nhanh video). */
+  forceSharp: boolean;
+  /** Anh thu nho xam 64x38 cua khung truoc — do ti le dien tich thay doi (nhan dien video). */
+  prevThumb?: Buffer;
+  /** Lan cuoi mot khung THOA dieu kien video (nhip + dien tich) — de giu che do video mot luc. */
+  halfLastQualifyMs?: number;
+
   // (23/09/2026 v3) Id cua script launcher da dang ky qua
   // Page.addScriptToEvaluateOnNewDocument — can de GO BO va DANG KY LAI khi
   // homeUrl doi (xem nhanh "equal config" trong ensureDeviceAsync). homeUrl
@@ -147,6 +160,15 @@ const SCREENCAST_JPEG_QUALITY = Math.min(100, Math.max(1,
 // thật bằng 0. (Phát hiện khi debug sống trên addon 17/09/2026.)
 const PASSTHROUGH_MIN_FPS = Math.max(0, parseFloat(process.env.PASSTHROUGH_MIN_FPS ?? '8') || 0);
 const PASSTHROUGH_RATE_WINDOW = 6; // số khung gần nhất dùng để tính nhịp
+// (24/09/2026) Video dung bao lau (khong co khung moi) thi gui lai khung cuoi o do phan giai day du.
+const SHARP_REFRESH_MS = Math.max(100, parseInt(process.env.SHARP_REFRESH_MS ?? '700', 10) || 700);
+const HALF_ON_FPS = Math.max(1, parseFloat(process.env.HALF_ON_FPS ?? '5') || 5);
+const HALF_OFF_FPS = Math.max(0.5, parseFloat(process.env.HALF_OFF_FPS ?? '3') || 3);
+// Ti le dien tich man hinh thay doi giua hai khung: > HALF_ON_AREA moi coi la video; dang o che do video thi
+// giu toi khi <= HALF_KEEP_AREA.
+const HALF_ON_AREA = 0.35;
+const HALF_KEEP_AREA = 0.2;
+const HALF_HOLD_MS = Math.max(0, parseInt(process.env.HALF_HOLD_MS ?? '3000', 10) || 3000);
 
 // (17/09/2026) Ngưỡng áp lực ngược: số byte còn kẹt trong bộ đệm gửi của
 // WebSocket mà trên mức đó thì BỎ khung mới thay vì dồn thêm. Một full-frame
@@ -1016,6 +1038,16 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
       device.lastActive = Date.now();
       requestFullFrameFor(device);
 
+      // (24/09/2026) halfScale / audioEnabled cung KHONG nam trong deviceConfigsEqual() (co dinh theo
+      // firmware) -> nhanh nay tu giu gia tri cua LAN KET NOI DAU. Do that: server khoi dong lai truoc khi P4
+      // OTA xong, phien duoc tao boi firmware CU (khong co half=1); firmware moi noi lai roi vao day va
+      // halfScale ket o false vinh vien. Cung loai loi voi homeUrl ben duoi. Hai co nay khong can dung lai
+      // gi (khong script/target nao phu thuoc) nen chi can gan lai.
+      if (device.cfg.halfScale !== cfg.halfScale || device.cfg.audioEnabled !== cfg.audioEnabled) {
+        console.log(`[device] ${id}: cap nhat co firmware half=${cfg.halfScale} audio=${cfg.audioEnabled}`);
+        device.cfg = { ...device.cfg, halfScale: cfg.halfScale, audioEnabled: cfg.audioEnabled };
+      }
+
       // (23/09/2026 v3) homeUrl KHONG nam trong deviceConfigsEqual() (co y —
       // xem config.ts) nen nhanh nay khong tu cap nhat no. Ket qua that do tren
       // may that: nut "Home" trong dropdown launcher bi ket vinh vien voi gia
@@ -1153,6 +1185,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     lastInputMs: undefined,
     consecutiveFrameErrors: 0, // Cải tiến: tracking lỗi liên tiếp
     recentFrameMs: [], passthroughFrames: 0, passthroughOn: false,
+    halfOn: false, halfFrames: 0, forceSharp: false,
     launcherScriptId,
   };
   devices.set(id, newDevice);
@@ -1239,13 +1272,99 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
       // đường thường dựng lại nền so sánh cho đúng, nếu không sẽ sinh khung
       // rách khi quay về chế độ vi sai.
       const nowMs = Date.now();
-      dev.recentFrameMs.push(nowMs);
+      const sharpRefresh = dev.forceSharp;
+      dev.forceSharp = false;
+      if (!sharpRefresh) dev.recentFrameMs.push(nowMs);
       if (dev.recentFrameMs.length > PASSTHROUGH_RATE_WINDOW) dev.recentFrameMs.shift();
       let fps = 0;
       if (dev.recentFrameMs.length >= PASSTHROUGH_RATE_WINDOW) {
         const span = nowMs - dev.recentFrameMs[0];
         if (span > 0) fps = (dev.recentFrameMs.length - 1) * 1000 / span;
       }
+
+      // ══════════════════════════════════════════════════════════════════
+      // (24/09/2026) KHUNG VIDEO NUA DO PHAN GIAI (thiet bi bao ?half=1 — P4)
+      // ──────────────────────────────────────────────────────────────────
+      // Do that tren P4 phat YouTube: 6-7 fps. Mang tho du (tai TCP 2 MB/s), nhung
+      // moi khung 50-86 KB ton ~50 ms xu ly tren thiet bi (giai ma + chep 1,2 MB)
+      // va phai chia 2-3 goi WS (vuot cap 32 KB -> ca passthrough ben duoi cung
+      // khong bao gio kich hoat). O 512x300: ~1/4 byte (vua 1 goi), giai ma 1/4 so
+      // diem anh; thiet bi phong x2 bang PPA phan cung. sharp thu nho JPEG theo he
+      // so 2 bang shrink-on-load (libjpeg giai ma thang o 1/2) nen re.
+      //
+      // Chi ap khi nhip den cao (video). Video dung ~SHARP_REFRESH_MS khong co khung
+      // moi -> gui lai khung cuoi o do phan giai DAY DU (duong thuong) cho net lai.
+      // Hysteresis: bat khi nhip >= HALF_ON_FPS, chi tat khi < HALF_OFF_FPS. Do that lan dau voi mot nguong 8 fps:
+      // nhip den lai do chinh server dieu tiet (~8 fps) nen bat/tat lien tuc quanh nguong.
+      let halfWanted = dev.halfOn ? fps >= HALF_OFF_FPS : fps >= HALF_ON_FPS;
+      // (24/09/2026) NHIP CAO CHUA DU: mot tab dashboard co anh dong NHO cung lam Chrome phat khung lien tuc ->
+      // ca man hinh bi gui nua do phan giai, giao dien mo han (nguoi dung bao ngay). Phai co PHAN LON man hinh
+      // doi moi la video: so anh thu nho xam 64x38 (sharp giai ma thang o kich thuoc nho — re) voi khung truoc.
+      if (halfWanted && dev.cfg.halfScale && !sharpRefresh) {
+        const thumb = await sharp(imgBuf).resize(64, 38, { fit: 'fill' }).greyscale().raw().toBuffer();
+        let changed = 0;
+        if (dev.prevThumb && dev.prevThumb.length === thumb.length) {
+          for (let i = 0; i < thumb.length; i++) if (Math.abs(thumb[i] - dev.prevThumb[i]) > 10) changed++;
+        }
+        dev.prevThumb = thumb;
+        const pct = changed / thumb.length;
+        const qualifies = pct > (dev.halfOn ? HALF_KEEP_AREA : HALF_ON_AREA);
+        if (qualifies) dev.halfLastQualifyMs = nowMs;
+        // GIU che do video HALF_HOLD_MS sau khung thoa cuoi: video nguoi noi co canh gan nhu tinh (dien tich doi
+        // nho) -> truoc day tat/bat lien tuc, MOI lan tat server phai gui lai ca khung net 125-144 KB -> giat.
+        halfWanted = qualifies ||
+          (dev.halfOn && dev.halfLastQualifyMs !== undefined && nowMs - dev.halfLastQualifyMs < HALF_HOLD_MS);
+      } else {
+        dev.prevThumb = undefined;
+      }
+      if (!sharpRefresh && dev.cfg.halfScale && halfWanted && !dev.cfg.rotation) {
+        const capBytes = dev.cfg.maxBytesPerMessage - FRAME_HEADER_BYTES - TILE_HEADER_BYTES;
+        const fullW = dev.cfg.width, fullH = dev.cfg.height;
+        const halfW = Math.ceil(fullW / 2), halfH = Math.ceil(fullH / 2);
+        let halfJpeg: Buffer | undefined;
+        for (const factor of [1, 0.75, 0.55]) {
+          const q = Math.max(20, Math.round(processor.tuning.jpegQuality * factor));
+          const b = await sharp(imgBuf).resize(halfW, halfH).jpeg({ quality: q, chromaSubsampling: '4:2:0' }).toBuffer();
+          if (b.length <= capBytes) { halfJpeg = b; break; }
+        }
+        if (halfJpeg) {
+          const out = {
+            rects: [{ x: 0, y: 0, w: fullW, h: fullH, data: halfJpeg }],
+            isFullFrame: true,
+            encoding: Encoding.JPEG,
+            halfScale: true,
+          };
+          requestFullFrameFor(dev);  // khung duong thuong ke tiep dung lai nen so sanh
+          dev.halfFrames++;
+          if (!dev.halfOn) {
+            dev.halfOn = true;
+            console.log(`[half] ${id}: bat (nhip ${fps.toFixed(1)} fps, ${imgBuf.length} -> ${halfJpeg.length} B/khung)`);
+          }
+          metrics.onFrameEncoded(id, out, processor.stats, 0);
+          dev.frameId = (dev.frameId + 1) >>> 0;
+          broadcaster.sendFrameChunked(id, out, dev.frameId, dev.cfg.maxBytesPerMessage);
+          dev.consecutiveFrameErrors = 0;
+          dev.lastProcessedMs = Date.now();
+          // Hen lam net: moi khung video moi dat lai dong ho.
+          dev.lastVideoB64 = b64;
+          if (dev.sharpTimer) clearTimeout(dev.sharpTimer);
+          dev.sharpTimer = setTimeout(() => {
+            dev.sharpTimer = undefined;
+            if (devices.get(id) !== dev || dev.pendingB64 || !dev.lastVideoB64) return;
+            dev.forceSharp = true;
+            dev.pendingB64 = dev.lastVideoB64;
+            dev.lastVideoB64 = undefined;
+            dev.prevFrameHash = -1;
+            if (!dev.throttleTimer) dev.throttleTimer = setTimeout(flushPending, 0);
+          }, SHARP_REFRESH_MS);
+          return;
+        }
+      }
+      if (dev.halfOn) {
+        dev.halfOn = false;
+        console.log(`[half] ${id}: tat (nhip ${fps.toFixed(1)} fps${sharpRefresh ? ', lam net' : ''})`);
+      }
+      // ══════════════════════════════════════════════════════════════════
 
       if (fps >= PASSTHROUGH_MIN_FPS && !dev.cfg.rotation) {
         const capBytes = dev.cfg.maxBytesPerMessage - FRAME_HEADER_BYTES - TILE_HEADER_BYTES;
@@ -1524,6 +1643,7 @@ async function deleteDeviceAsync(device: DeviceSession) {
   // full tai (quan sat that: log bao da gian nhip len 400ms, nhung /metrics van
   // bao minFrameInterval=100 va adaptiveChanges=0).
   adaptiveStates.delete(device.deviceId);
+  if (device.sharpTimer) { clearTimeout(device.sharpTimer); device.sharpTimer = undefined; }
   // linkEstimates co y GIU LAI: bang thong la cua duong truyen WiFi, khong cua phien.
   // updateLinkEstimate tu dat lai moc khi thay bo dem socket moi quay ve 0.
   if (device.throttleTimer) clearTimeout(device.throttleTimer);

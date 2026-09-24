@@ -6,7 +6,7 @@
 // Derived from strange-v/RemoteWebViewServer. THIS FILE HAS BEEN MODIFIED.
 
 import { WebSocket } from "ws";
-import { buildFrameStatsPacket, buildFramePackets, buildCurrentURLPacket, buildAudioFramePacket } from "./protocol.js";
+import { buildFrameStatsPacket, buildFramePackets, buildCurrentURLPacket, buildAudioFramePacket, FLAG_HALF_SCALE } from "./protocol.js";
 import type { FrameOut } from "./frameProcessor.js";
 import { metrics } from "./metrics.js";
 
@@ -105,7 +105,8 @@ export class DeviceBroadcaster {
     const peers = this._clients.get(id);
     if (!peers || peers.size === 0 || data.rects.length === 0) return;
 
-    const packets = buildFramePackets(data.rects, data.encoding, frameId, data.isFullFrame, maxBytes);
+    const packets = buildFramePackets(data.rects, data.encoding, frameId, data.isFullFrame, maxBytes,
+      data.halfScale ? FLAG_HALF_SCALE : 0);
 
     const st = this._ensureState(id);
     st.queue.push({ frameId, packets });

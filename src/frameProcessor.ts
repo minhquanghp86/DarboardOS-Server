@@ -21,6 +21,8 @@ export type FrameOut = {
   rects: Rect[];
   isFullFrame: boolean;
   encoding: Encoding;
+  /** (24/09/2026) JPEG nua do phan giai — broadcaster dat FLAG_HALF_SCALE. */
+  halfScale?: boolean;
 };
 
 export type FrameProcessorCfg = {
