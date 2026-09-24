@@ -1,3 +1,17 @@
+## V2.9.25
+### Nhận diện video bằng thẻ `<video>` đang phát (chế độ nửa độ phân giải bật lại được với YouTube)
+
+- **Lỗi**: tiêu chí "diện tích thay đổi > 35% giữa hai khung" (thêm ở 2.9.23 để dashboard có ảnh động nhỏ không bị mờ)
+  **không bao giờ đạt** với video thật trên trang xem YouTube 1024×600: khung video chỉ chiếm ~39% màn hình, giữa hai
+  khung liên tiếp chỉ 0–22% điểm ảnh đổi rõ (cảnh chuyển động chậm), cộng dồn 1 s cũng chỉ 3–39%. Kết quả: video
+  gửi ở độ phân giải đầy đủ (~60 KB/khung) → P4 chỉ ~9 fps.
+- **Sửa**: server hỏi thẳng Chrome (CDP, chạy nền, mỗi 500 ms, chỉ khi nhịp khung cao và thiết bị bật `half=1`): có
+  thẻ `<video>` **đang phát** chiếm ≥ 20% màn hình thì là video. Ảnh động/GIF trên dashboard không phải `<video>`
+  nên vẫn nét. Tiêu chí diện tích giữ lại cho video trong iframe. Quy tắc "2 s sau chạm luôn nét" và "kéo dài ≥ 1 s"
+  giữ nguyên.
+- Đo (P4, camera Frigate 5 fps, video test pAnTNJaVhcs, **đã bỏ qua quảng cáo**): YouTube **25,6 fps** (cùng firmware
+  P4 zero-copy + cổng nhường PPA). Lưu ý: số 13,0 fps ở 2.9.24 có thể đã đo lẫn quảng cáo.
+
 ## V2.9.24
 ### Chuyển tab luôn nét; chế độ video bật được ngay sau khởi động
 

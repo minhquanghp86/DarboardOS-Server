@@ -104,6 +104,10 @@ export type DeviceSession = {
   halfStreakStartMs?: number;
   /** Gui NGAY ban net cua khung video cuoi (goi khi nguoi dung cham luc dang o che do video). */
   sharpenNow?: () => void;
+  /** Ti le man hinh cua the <video> DANG PHAT lon nhat (hoi Chrome qua CDP, cache) — nhan dien video chac chan. */
+  videoElArea?: number;
+  videoProbeMs?: number;
+  videoProbeBusy?: boolean;
 
   // (23/09/2026 v3) Id cua script launcher da dang ky qua
   // Page.addScriptToEvaluateOnNewDocument — can de GO BO va DANG KY LAI khi
@@ -175,6 +179,23 @@ const HALF_OFF_FPS = Math.max(0.5, parseFloat(process.env.HALF_OFF_FPS ?? '1.5')
 // giu toi khi <= HALF_KEEP_AREA.
 const HALF_ON_AREA = 0.35;
 const HALF_KEEP_AREA = 0.2;
+// (24/09/2026 toi) Dien tich thay doi KHONG du tin cay: trang xem YouTube 1024x600, khung video chi ~39% man hinh,
+// giua 2 khung lien tiep chi 0-22% diem anh doi ro (canh san khau cham), cong don 1 s cung chi 3-39% -> video test
+// khong bao gio vao che do nua. Hoi thang Chrome: co the <video> DANG PHAT chiem >= HALF_VIDEO_EL_AREA man hinh
+// thi la video. Anh dong/GIF tren dashboard khong phai <video> nen van net. Dien tich giu lai cho video trong iframe.
+const HALF_VIDEO_EL_AREA = 0.2;
+const VIDEO_PROBE_MS = 500;
+const VIDEO_PROBE_JS = `(() => {
+  const W = innerWidth, H = innerHeight; let best = 0;
+  for (const v of document.querySelectorAll('video')) {
+    if (v.paused || v.ended || v.readyState < 3) continue;
+    const r = v.getBoundingClientRect();
+    const w = Math.max(0, Math.min(r.right, W) - Math.max(r.left, 0));
+    const h = Math.max(0, Math.min(r.bottom, H) - Math.max(r.top, 0));
+    best = Math.max(best, (w * h) / (W * H));
+  }
+  return best;
+})()`;
 const HALF_HOLD_MS = Math.max(0, parseInt(process.env.HALF_HOLD_MS ?? '3000', 10) || 3000);
 // Thay doi lon phai keo dai lien tuc bao lau moi coi la video (loai hieu ung chuyen tab).
 const HALF_SUSTAIN_MS = Math.max(0, parseInt(process.env.HALF_SUSTAIN_MS ?? '1000', 10) || 1000);
@@ -1319,7 +1340,17 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
         }
         dev.prevThumb = thumb;
         const pct = changed / thumb.length;
-        const qualifies = pct > (dev.halfOn ? HALF_KEEP_AREA : HALF_ON_AREA);
+        // Hoi Chrome o nen (khong cho) — dung ket qua gan nhat; qua cu (> 3 nhip hoi) thi coi nhu khong co.
+        if (!dev.videoProbeBusy && (dev.videoProbeMs === undefined || nowMs - dev.videoProbeMs >= VIDEO_PROBE_MS)) {
+          dev.videoProbeBusy = true;
+          dev.cdp.send('Runtime.evaluate', { expression: VIDEO_PROBE_JS, returnByValue: true })
+            .then((r) => { const v = (r as { result?: { value?: unknown } }).result?.value; dev.videoElArea = typeof v === 'number' ? v : 0; })
+            .catch(() => { dev.videoElArea = 0; })
+            .finally(() => { dev.videoProbeMs = Date.now(); dev.videoProbeBusy = false; });
+        }
+        const videoEl = dev.videoProbeMs !== undefined && nowMs - dev.videoProbeMs < VIDEO_PROBE_MS * 3 &&
+          (dev.videoElArea ?? 0) >= HALF_VIDEO_EL_AREA;
+        const qualifies = videoEl || pct > (dev.halfOn ? HALF_KEEP_AREA : HALF_ON_AREA);
         if (qualifies) dev.halfLastQualifyMs = nowMs;
         // (24/09/2026) Chuyen tab = MOT dot thay doi lon ngan (hieu ung vai khung), khong phai video. Truoc day no du
         // dieu kien -> ca man hinh nua do phan giai, giu 3 s, lam net sau 0,7 s -> mo 1-2 s moi lan chuyen tab (nguoi
@@ -1360,7 +1391,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
           dev.halfFrames++;
           if (!dev.halfOn) {
             dev.halfOn = true;
-            console.log(`[half] ${id}: bat (nhip ${fps.toFixed(1)} fps, ${imgBuf.length} -> ${halfJpeg.length} B/khung)`);
+            console.log(`[half] ${id}: bat (nhip ${fps.toFixed(1)} fps, <video> ${((dev.videoElArea ?? 0) * 100).toFixed(0)}% man hinh, ${imgBuf.length} -> ${halfJpeg.length} B/khung)`);
           }
           metrics.onFrameEncoded(id, out, processor.stats, 0);
           dev.frameId = (dev.frameId + 1) >>> 0;
