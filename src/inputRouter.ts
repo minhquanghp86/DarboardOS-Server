@@ -78,8 +78,10 @@ export class InputRouter {
       await nudgeRepaintAsync(dev.cdp);
       requestFullFrameFor(dev);
     }
-
-    dev.url = pkt.url;
+    // (25/09/2026) KHONG gan dev.url = pkt.url o day nua. Page.frameNavigated thuong den SAU khi await
+    // Page.navigate tra ve -> handleNavigation (deviceManager) thay dev.url "da bang" URL moi nen bo qua, KHONG gui
+    // CurrentURL -> cam bien "URL hien tai" tren thiet bi ket o URL cu (do that: van la anh SVG luc khoi dong sau khi
+    // da mo dashboard roi vnexpress). handleNavigation tu cap nhat dev.url (ca URL sau chuyen huong).
   }
 
   private async _dispatchTouchAsync(dev: DeviceSession, kind: TouchKind, x: number, y: number): Promise<void> {

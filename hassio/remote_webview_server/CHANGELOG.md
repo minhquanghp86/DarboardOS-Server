@@ -1,3 +1,18 @@
+## V2.9.26
+### Nút mở rộng: Camera và URL hoạt động; sửa "URL hiện tại" bị kẹt
+
+- **Camera**: mở trang xem camera của P4 (`cam.html?src=p4_panel` của chính server, go2rtc MSE của Frigate cổng
+  1984 — người xem thêm dùng chung nguồn đang chạy, không mở thêm kết nối tới P4). Đổi bằng biến môi trường
+  `LAUNCHER_CAMERA_URL`. Đo trên P4: video 960×528 chạy sau ~1,5 s, chế độ video nửa độ phân giải tự bật.
+- **URL**: ô nhập địa chỉ ở mép trên + bàn phím ảo tự bật; ⏎ (bàn phím ảo) hoặc nút "Mở" → thiết bị báo `?urlset=1`
+  thì server gửi gói mới `SetDisplayURL` (loại 8) → thiết bị đặt **"URL hiển thị"** (HA thấy giá trị mới), set_action
+  của nó mở trang; thiết bị cũ → server tự mở trang. Tự thêm `https://` (IP LAN/localhost → `http://`), chữ không
+  giống địa chỉ → tìm Google, chặn `javascript:`/`file:`. Nút "Mở"/"✕" xử lý ở `pointerdown` vì bàn phím ảo nuốt
+  click 400 ms sau khi tự ẩn (đo thật: ✕ không đóng được ô).
+- **Sửa "URL hiện tại" trên thiết bị kẹt ở URL cũ**: khi thiết bị yêu cầu mở trang, `inputRouter` gán URL mới trước
+  khi `Page.frameNavigated` đến → server tưởng URL không đổi, không gửi CurrentURL. Nay chỉ bộ theo dõi điều hướng
+  cập nhật.
+
 ## V2.9.25
 ### Nhận diện video bằng thẻ `<video>` đang phát (chế độ nửa độ phân giải bật lại được với YouTube)
 

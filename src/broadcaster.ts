@@ -6,7 +6,7 @@
 // Derived from strange-v/RemoteWebViewServer. THIS FILE HAS BEEN MODIFIED.
 
 import { WebSocket } from "ws";
-import { buildFrameStatsPacket, buildFramePackets, buildCurrentURLPacket, buildAudioFramePacket, FLAG_HALF_SCALE } from "./protocol.js";
+import { buildFrameStatsPacket, buildFramePackets, buildCurrentURLPacket, buildSetDisplayURLPacket, buildAudioFramePacket, FLAG_HALF_SCALE } from "./protocol.js";
 import type { FrameOut } from "./frameProcessor.js";
 import { metrics } from "./metrics.js";
 
@@ -155,6 +155,16 @@ export class DeviceBroadcaster {
     const st = this._ensureState(id);
     st.queue.push({ frameId: -1, packets: [buildCurrentURLPacket(url)] });
     this._drainAsync(id).catch(() => {});
+  }
+
+  /** (25/09/2026) Nguoi dung nhap URL o nut mo rong -> thiet bi dat "URL hien thi" (xem MsgType.SetDisplayURL). */
+  public sendSetDisplayURL(id: string, url: string): boolean {
+    const peers = this._clients.get(id);
+    if (!peers || peers.size === 0) return false;
+    const st = this._ensureState(id);
+    st.queue.push({ frameId: -1, packets: [buildSetDisplayURLPacket(url)] });
+    this._drainAsync(id).catch(() => {});
+    return true;
   }
 
   // (23/09/2026) Am thanh gui THANG, KHONG qua hang doi/_drainAsync nhu

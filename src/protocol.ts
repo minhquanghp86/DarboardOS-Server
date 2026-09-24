@@ -48,6 +48,9 @@ export enum MsgType {
   // (23/09/2026) Am thanh cua trang dang hien thi, PCM s16le mono 16kHz,
   // dung ho lai am thanh "nhu dien thoai" — xem AUDIO-FEATURE-PLAN muc 7.
   AudioFrame  = 7,
+  // (25/09/2026) Server -> thiet bi: nguoi dung vua nhap URL o o "URL" cua nut mo rong. Cung dang goi voi
+  // CurrentURL. Thiet bi phat trigger on_url_entered (dat "URL hien thi"). Chi gui khi thiet bi bao ?urlset=1.
+  SetDisplayURL = 8,
 }
 
 export enum Encoding {
@@ -107,14 +110,19 @@ const clampU16 = (v: number) => (v < 0 ? 0 : v > 0xffff ? 0xffff : v|0);
 /** Header goi CurrentURL: [type][version][url_len u32le] = 6 byte, roi den URL utf8. */
 export const CURRENTURL_HEADER_BYTES = 6;
 
-export function buildCurrentURLPacket(url: string): Buffer {
+export function buildCurrentURLPacket(url: string, type: MsgType = MsgType.CurrentURL): Buffer {
   const urlBuf = Buffer.from(url, 'utf8');
   const buf = Buffer.alloc(CURRENTURL_HEADER_BYTES + urlBuf.length);
-  buf.writeUInt8(MsgType.CurrentURL, 0);
+  buf.writeUInt8(type, 0);
   buf.writeUInt8(PROTOCOL_VERSION, 1);
   buf.writeUInt32LE(urlBuf.length, 2);
   urlBuf.copy(buf, CURRENTURL_HEADER_BYTES);
   return buf;
+}
+
+/** Goi SetDisplayURL: cung dang voi CurrentURL, chi khac byte loai. */
+export function buildSetDisplayURLPacket(url: string): Buffer {
+  return buildCurrentURLPacket(url, MsgType.SetDisplayURL);
 }
 
 export const AUDIOFRAME_HEADER_BYTES = 2;
