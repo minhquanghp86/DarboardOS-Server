@@ -822,6 +822,36 @@ function buildAudioMuteScript(): string {
 // duoc theo cach nao khac, vi day von la cai dat chi song tren ESP32 ("Home
 // URL"). Neu thieu (thiet bi cu chua OTA ban co ?home=), nut Home tu an,
 // chi con YouTube.
+// (25/09/2026) Muc "Camera" cua nut mo rong: trang cam.html cua chinh server (go2rtc MSE, khoi dong ~67 ms — xem
+// public/cam.html) phat luong camera cua P4. Luong `p4_panel` nam trong go2rtc cua Frigate (cong 1984 — mac dinh
+// cua cam.html): nguoi xem them dung CHUNG nguon dang chay, KHONG mo them ket noi toi P4 (:8080 chi 1 client).
+// 127.0.0.1: Chromium chay cung container voi server. Doi bang bien moi truong LAUNCHER_CAMERA_URL.
+const LAUNCHER_CAMERA_URL = process.env.LAUNCHER_CAMERA_URL ||
+  `http://127.0.0.1:${process.env.HEALTH_PORT || '18080'}/cam.html?src=p4_panel`;
+// Ten binding CDP ma o "URL" goi ve server (Runtime.addBinding) — xem handleUserEnteredUrl.
+const URL_BINDING = '__rwvSetDisplayUrl';
+
+/**
+ * (25/09/2026) Nguoi dung go URL o nut mo rong + Enter. Trang web bat ky cung goi duoc binding nay, nen chi nhan
+ * http(s) va do dai hop ly (viec toi da no lam duoc = dieu huong, dieu ma location.href vốn da lam duoc).
+ * Thiet bi co ?urlset=1 -> gui SetDisplayURL: thiet bi dat "URL hien thi" (HA thay), set_action mo trang qua
+ * OpenURL nhu moi lan khac. Thiet bi cu -> server tu mo trang.
+ */
+function handleUserEnteredUrl(id: string, session: CDPSession, payload: unknown): void {
+  if (typeof payload !== 'string' || payload.length === 0 || payload.length > 1024) return;
+  let url: URL;
+  try { url = new URL(payload); } catch { return; }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+  const dev = devices.get(id);
+  if (dev?.cfg.urlSet && broadcaster.sendSetDisplayURL(id, url.href)) {
+    console.log(`[launcher] ${id}: nguoi dung nhap URL ${url.href} -> gui thiet bi dat "URL hien thi"`);
+    return;
+  }
+  console.log(`[launcher] ${id}: nguoi dung nhap URL ${url.href} -> server tu mo (thiet bi chua ho tro urlset)`);
+  session.send('Page.navigate', { url: url.href }).catch((e: unknown) =>
+    console.warn(`[launcher] ${id}: mo URL that bai:`, e));
+}
+
 function buildLauncherScript(homeUrl: string | undefined): string {
   const homeUrlJson = JSON.stringify(homeUrl || '');
   return `(function(){
@@ -829,13 +859,15 @@ function buildLauncherScript(homeUrl: string | undefined): string {
   window.__launcherInitialized = true;
 
   var HOME_URL = ${homeUrlJson};
+  var CAMERA_URL = ${JSON.stringify(LAUNCHER_CAMERA_URL)};
+  var URL_BINDING = ${JSON.stringify(URL_BINDING)};
   var APPS = [];
   if (HOME_URL) APPS.push({ label: 'Home', kind: 'home', url: HOME_URL });
   APPS.push({ label: 'YouTube', kind: 'youtube', url: 'https://m.youtube.com' });
-  // (24/09/2026) Cho san cho hai chuc nang sau: hien camera len man hinh, nhap URL de truy cap.
-  // Chua co hanh dong (soon: true) — bam vao chi dong dropdown.
-  APPS.push({ label: 'Camera', kind: 'camera', soon: true });
-  APPS.push({ label: 'URL', kind: 'url', soon: true });
+  // (25/09/2026) Camera: mo trang xem camera cua P4. URL: o nhap dia chi + ban phim ao, Enter -> thiet bi dat
+  // "URL hien thi" (qua server) roi mo trang.
+  APPS.push({ label: 'Camera', kind: 'camera', url: CAMERA_URL });
+  APPS.push({ label: 'URL', kind: 'url', action: 'url' });
 
   var Z = 2147483647;
   var SVG_NS = 'http://www.w3.org/2000/svg';
@@ -948,10 +980,90 @@ function buildLauncherScript(homeUrl: string | undefined): string {
     item.addEventListener('click', function(e){
       e.stopPropagation();
       panel.style.display = 'none';
+      if (app.action === 'url') { openUrlBox(); return; }
       if (app.url) location.href = app.url;
     });
     panel.appendChild(item);
   });
+
+  // (25/09/2026) O NHAP URL. Dat sat mep tren (ban phim ao cao 196px o day man hinh; panel 480x272 chi con
+  // ~76px phia tren). input type=url -> ban phim ao (KIOSK_KEYBOARD_SCRIPT) tu bat khi focus; phim Enter cua no
+  // phat keydown 'Enter'. Chi dung DOM API (khong innerHTML — Trusted Types).
+  var urlBox = null, urlInput = null;
+  function normalizeUrl(raw){
+    var t = (raw || '').trim();
+    if (!t) return '';
+    if (/^https?:\\/\\//i.test(t)) return t;
+    if (/^[a-z][a-z0-9+.-]*:/i.test(t) && !/^[^\\/]+:\\d+(\\/|$)/.test(t)) return '';  // javascript:, file:... -> bo
+    if (/\\s/.test(t) || (t.indexOf('.') < 0 && !/^localhost(:\\d+)?(\\/|$)/i.test(t)))
+      return 'https://www.google.com/search?q=' + encodeURIComponent(t);
+    // IP LAN / localhost -> http, con lai -> https
+    if (/^(localhost|\\d{1,3}(\\.\\d{1,3}){3})(:\\d+)?(\\/|$)/i.test(t)) return 'http://' + t;
+    return 'https://' + t;
+  }
+  function closeUrlBox(){ if (urlBox) urlBox.style.display = 'none'; }
+  function submitUrl(){
+    var url = normalizeUrl(urlInput.value);
+    if (!url) { urlInput.style.outline = '2px solid #e55'; return; }
+    closeUrlBox();
+    // Binding cua server: server gui cho thiet bi (dat "URL hien thi") hoac tu mo trang neu thiet bi cu.
+    if (typeof window[URL_BINDING] === 'function') { try { window[URL_BINDING](url); return; } catch (e) {} }
+    location.href = url;
+  }
+  function makeBtn(text, bg){
+    var b = document.createElement('div');
+    b.textContent = text;
+    // flex can giua: line-height bi CSS cua trang (vd HA) de len -> chu lech len mep tren nut.
+    b.style.cssText = 'flex:none;display:flex;align-items:center;justify-content:center;box-sizing:border-box;' +
+      'min-width:44px;padding:0 14px;height:36px;line-height:1;border-radius:8px;cursor:pointer;' +
+      'font:15px sans-serif;color:#fff;background:' + bg + ';user-select:none;-webkit-user-select:none';
+    return b;
+  }
+  function openUrlBox(){
+    if (!urlBox) {
+      urlBox = document.createElement('div');
+      urlBox.id = '__rwv_url_box';
+      urlBox.style.cssText = [
+        'position:fixed', 'top:8px', 'left:50%', 'transform:translateX(-50%)',
+        'width:min(640px, calc(100vw - 16px))', 'box-sizing:border-box', 'display:none',
+        'align-items:center', 'gap:8px', 'padding:6px', 'border-radius:10px',
+        'background:rgba(30,30,30,0.95)', 'box-shadow:0 2px 10px rgba(0,0,0,0.4)', 'z-index:' + Z
+      ].join(';');
+      urlInput = document.createElement('input');
+      urlInput.type = 'url';
+      urlInput.id = '__rwv_url_input';
+      urlInput.placeholder = 'Nh\u1eadp \u0111\u1ecba ch\u1ec9 web r\u1ed3i b\u1ea5m Enter';
+      urlInput.autocomplete = 'off';
+      urlInput.spellcheck = false;
+      urlInput.style.cssText = 'flex:1;min-width:0;height:36px;box-sizing:border-box;padding:0 10px;border:none;' +
+        'border-radius:8px;outline:none;font:16px sans-serif;color:#111;background:#fff';
+      urlInput.addEventListener('keydown', function(e){
+        if (e.key === 'Enter') { e.preventDefault(); submitUrl(); }
+        else if (e.key === 'Escape') closeUrlBox();
+      });
+      urlInput.addEventListener('input', function(){ urlInput.style.outline = 'none'; });
+      // pointerdown, KHONG phai click: ban phim ao dang hien thi -> pointerdown ngoai o nhap lam no an va bat
+      // "la chan" 400 ms nuot click ngay sau (do that: bam X khong dong duoc o). pointerdown van toi nut.
+      function onPress(el, fn){
+        el.addEventListener('pointerdown', function(e){ e.preventDefault(); e.stopPropagation(); fn(); });
+        el.addEventListener('click', function(e){ e.stopPropagation(); });
+      }
+      var go = makeBtn('M\u1edf', '#2a7de1');
+      onPress(go, submitUrl);
+      var cancel = makeBtn('\u2715', 'rgba(255,255,255,0.15)');
+      onPress(cancel, closeUrlBox);
+      urlBox.appendChild(urlInput);
+      urlBox.appendChild(go);
+      urlBox.appendChild(cancel);
+      urlBox.addEventListener('click', function(e){ e.stopPropagation(); });
+      document.body.appendChild(urlBox);
+    }
+    urlInput.value = '';
+    urlInput.style.outline = 'none';
+    urlBox.style.display = 'flex';
+    // focus -> focusin -> ban phim ao hien
+    setTimeout(function(){ urlInput.focus(); }, 30);
+  }
 
   btn.addEventListener('click', function(e){
     e.stopPropagation();
@@ -1075,9 +1187,10 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
       // OTA xong, phien duoc tao boi firmware CU (khong co half=1); firmware moi noi lai roi vao day va
       // halfScale ket o false vinh vien. Cung loai loi voi homeUrl ben duoi. Hai co nay khong can dung lai
       // gi (khong script/target nao phu thuoc) nen chi can gan lai.
-      if (device.cfg.halfScale !== cfg.halfScale || device.cfg.audioEnabled !== cfg.audioEnabled) {
-        console.log(`[device] ${id}: cap nhat co firmware half=${cfg.halfScale} audio=${cfg.audioEnabled}`);
-        device.cfg = { ...device.cfg, halfScale: cfg.halfScale, audioEnabled: cfg.audioEnabled };
+      if (device.cfg.halfScale !== cfg.halfScale || device.cfg.audioEnabled !== cfg.audioEnabled ||
+          device.cfg.urlSet !== cfg.urlSet) {
+        console.log(`[device] ${id}: cap nhat co firmware half=${cfg.halfScale} audio=${cfg.audioEnabled} urlset=${cfg.urlSet}`);
+        device.cfg = { ...device.cfg, halfScale: cfg.halfScale, audioEnabled: cfg.audioEnabled, urlSet: cfg.urlSet };
       }
 
       // (23/09/2026 v3) homeUrl KHONG nam trong deviceConfigsEqual() (co y —
@@ -1155,6 +1268,19 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     'Page.addScriptToEvaluateOnNewDocument', { source: buildLauncherScript(cfg.homeUrl) }
   );
   console.log(`[device] ✓ Launcher registered${cfg.homeUrl ? '' : ' (chua co homeUrl — chi hien YouTube)'}`);
+
+  // (25/09/2026) O "URL" cua launcher goi window.__rwvSetDisplayUrl(url). Binding ton tai qua moi lan dieu huong.
+  // Runtime.enable: can de nhan su kien Runtime.bindingCalled.
+  try {
+    await session.send('Runtime.enable');
+    await session.send('Runtime.addBinding', { name: URL_BINDING });
+    session.on('Runtime.bindingCalled', (evt: any) => {
+      if (evt?.name !== URL_BINDING) return;
+      handleUserEnteredUrl(id, session, evt.payload);
+    });
+  } catch (e) {
+    console.warn(`[device] ⚠️ Khong dang ky duoc binding o URL cho ${id}:`, e);
+  }
 
   const vpOk = await setupStableViewport(session, cfg.width, cfg.height);
   if (!vpOk) console.warn(`[device] ⚠️ Viewport mismatch ${cfg.width}x${cfg.height}`);

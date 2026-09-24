@@ -36,6 +36,10 @@ export type DeviceConfig = {
   // Chi khi do server moi gui khung video 1/2 do phan giai (FLAG_HALF_SCALE). Nhu audioEnabled, KHONG dua
   // vao deviceConfigsEqual() — co dinh theo firmware.
   halfScale: boolean;
+  // (25/09/2026) Thiet bi co trigger on_url_entered (bao ?urlset=1): URL nguoi dung nhap o nut mo rong duoc GUI
+  // cho thiet bi (SetDisplayURL) de no tu dat "URL hien thi" roi mo trang. Khong co -> server tu mo trang.
+  // Co dinh theo firmware, KHONG dua vao deviceConfigsEqual() (giong halfScale).
+  urlSet: boolean;
 };
 
 const DEFAULTS = {
@@ -136,6 +140,7 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
   const homeUrl = params.get("home") || undefined;
   const audioEnabled = params.get("audio") === "1";
   const halfScale = params.get("half") === "1";
+  const urlSet = params.get("urlset") === "1";
 
   const dimensions = getRotatedDimensions(width, height, rotation);
 
@@ -154,6 +159,7 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
     homeUrl,
     audioEnabled,
     halfScale,
+    urlSet,
   };
 }
 
