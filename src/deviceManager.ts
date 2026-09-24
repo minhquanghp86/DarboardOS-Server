@@ -756,8 +756,9 @@ function buildAudioMuteScript(): string {
 })();`;
 }
 
-// (23/09/2026) Launcher: nut mui ten goc tren-phai, xo xuong dropdown chon
-// "ung dung" (hien tai: Home ve dashboard, YouTube). Tiem CUNG CO CHE voi
+// (23/09/2026) Launcher: nut xo xuong dropdown chon "ung dung" (Home ve dashboard,
+// YouTube; Camera va URL cho san — 24/09/2026 doi nut thanh tab hinh thang dinh mep
+// tren, can giua, xem ben duoi). Tiem CUNG CO CHE voi
 // ban phim (Page.addScriptToEvaluateOnNewDocument -> ton tai tren MOI trang,
 // ke ca sau khi Go Home/doi URL). Rieng cua no, khong phai cua dashboard —
 // noi tren cung du dang xem trang nao.
@@ -777,6 +778,10 @@ function buildLauncherScript(homeUrl: string | undefined): string {
   var APPS = [];
   if (HOME_URL) APPS.push({ label: 'Home', kind: 'home', url: HOME_URL });
   APPS.push({ label: 'YouTube', kind: 'youtube', url: 'https://m.youtube.com' });
+  // (24/09/2026) Cho san cho hai chuc nang sau: hien camera len man hinh, nhap URL de truy cap.
+  // Chua co hanh dong (soon: true) — bam vao chi dong dropdown.
+  APPS.push({ label: 'Camera', kind: 'camera', soon: true });
+  APPS.push({ label: 'URL', kind: 'url', soon: true });
 
   var Z = 2147483647;
   var SVG_NS = 'http://www.w3.org/2000/svg';
@@ -804,6 +809,22 @@ function buildLauncherScript(homeUrl: string | undefined): string {
         fill: 'none', stroke: 'currentColor', 'stroke-width': '2',
         'stroke-linecap': 'round', 'stroke-linejoin': 'round'
       }));
+    } else if (kind === 'camera') {
+      svg.appendChild(svgEl('path', {
+        d: 'M3 8a2 2 0 012-2h2.5l1.5-2h6l1.5 2H19a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z',
+        fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linejoin': 'round'
+      }));
+      svg.appendChild(svgEl('circle', {
+        cx: '12', cy: '13', r: '3.5', fill: 'none', stroke: 'currentColor', 'stroke-width': '2'
+      }));
+    } else if (kind === 'url') {
+      svg.appendChild(svgEl('circle', {
+        cx: '12', cy: '12', r: '9', fill: 'none', stroke: 'currentColor', 'stroke-width': '2'
+      }));
+      svg.appendChild(svgEl('path', {
+        d: 'M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z',
+        fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linejoin': 'round'
+      }));
     } else {
       svg.appendChild(svgEl('rect', {
         x: '2', y: '5', width: '20', height: '14', rx: '4', ry: '4',
@@ -814,27 +835,39 @@ function buildLauncherScript(homeUrl: string | undefined): string {
     return svg;
   }
 
+  // (24/09/2026) Nut dang TAB HINH THANG dinh mep tren, can giua (truoc: o vuong 34x34 goc
+  // tren-phai). Hinh ve bang SVG path — canh day rong 96px nam SAT mep tren, thu hep xuong
+  // 64px, hai goc duoi bo tron — nen mong (16px) ma van de nhin. Phan tu bao ngoai cao 32px
+  // va trong suot: vung cham rong hon hinh ve de ngon tay van bam trung.
+  var TAB_W = 96, TAB_H = 16;
   var btn = document.createElement('div');
   btn.id = '__rwv_launcher_btn';
-  var chevron = svgEl('svg', { viewBox: '0 0 24 24', width: '16', height: '16' });
-  chevron.style.cssText = 'display:block';
-  chevron.appendChild(svgEl('path', {
-    d: 'M6 9l6 6 6-6', fill: 'none', stroke: 'currentColor', 'stroke-width': '2',
-    'stroke-linecap': 'round', 'stroke-linejoin': 'round'
-  }));
-  btn.appendChild(chevron);
   btn.style.cssText = [
-    'position:fixed', 'top:6px', 'right:6px', 'width:34px', 'height:34px',
-    'display:flex', 'align-items:center', 'justify-content:center',
-    'background:rgba(20,20,20,0.55)', 'color:#fff', 'border-radius:8px',
+    'position:fixed', 'top:0', 'left:50%', 'transform:translateX(-50%)',
+    'width:' + (TAB_W + 24) + 'px', 'height:32px',
+    'display:flex', 'align-items:flex-start', 'justify-content:center',
+    'background:transparent', 'color:#fff',
     'z-index:' + Z, 'user-select:none',
     '-webkit-user-select:none', 'touch-action:manipulation'
   ].join(';');
+  var tab = svgEl('svg', { viewBox: '0 0 ' + TAB_W + ' ' + TAB_H, width: String(TAB_W), height: String(TAB_H) });
+  tab.style.cssText = 'display:block;overflow:visible;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.35))';
+  // Hinh thang: (0,0) -> (96,0) -> xuong goc phai duoi (bo R=6) -> goc trai duoi (bo) -> ve (0,0).
+  tab.appendChild(svgEl('path', {
+    d: 'M0 0H96L81.5 12.4Q78.4 16 73.6 16H22.4Q17.6 16 14.5 12.4Z',
+    fill: 'rgba(20,20,20,0.6)'
+  }));
+  var chevron = svgEl('path', {
+    d: 'M42 5.5l6 5 6-5', fill: 'none', stroke: 'currentColor', 'stroke-width': '2',
+    'stroke-linecap': 'round', 'stroke-linejoin': 'round'
+  });
+  tab.appendChild(chevron);
+  btn.appendChild(tab);
 
   var panel = document.createElement('div');
   panel.id = '__rwv_launcher_panel';
   panel.style.cssText = [
-    'position:fixed', 'top:44px', 'right:6px', 'display:none',
+    'position:fixed', 'top:20px', 'left:50%', 'transform:translateX(-50%)', 'display:none',
     'background:rgba(30,30,30,0.92)', 'border-radius:10px', 'overflow:hidden',
     'z-index:' + Z, 'min-width:150px', 'box-shadow:0 2px 10px rgba(0,0,0,0.4)'
   ].join(';');
@@ -850,10 +883,17 @@ function buildLauncherScript(homeUrl: string | undefined): string {
     var label = document.createElement('span');
     label.textContent = app.label;
     item.appendChild(label);
+    if (app.soon) {
+      item.style.opacity = '0.55';
+      var hint = document.createElement('span');
+      hint.textContent = 's\u1eafp c\u00f3';
+      hint.style.cssText = 'margin-left:auto;padding-left:12px;font-size:11px;color:#bbb';
+      item.appendChild(hint);
+    }
     item.addEventListener('click', function(e){
       e.stopPropagation();
       panel.style.display = 'none';
-      location.href = app.url;
+      if (app.url) location.href = app.url;
     });
     panel.appendChild(item);
   });
