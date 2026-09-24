@@ -4,7 +4,7 @@
 // Licensed under the Apache License, Version 2.0 (see LICENSE).
 
 import { describe, expect, it } from "vitest";
-import { DEFAULT_ADAPTIVE_CFG, decideAdaptive, initialAdaptiveState, adaptiveBudgetMs } from "./adaptive.js";
+import { DEFAULT_ADAPTIVE_CFG, decideAdaptive, initialAdaptiveState, adaptiveBudgetMs, updateLinkEstimate, bandwidthFloorMs, LINK_CONGESTED_BYTES, LINK_PROBE_UP } from "./adaptive.js";
 import type { AdaptiveState, AdaptiveSample } from "./adaptive.js";
 
 const cfg = { ...DEFAULT_ADAPTIVE_CFG };
@@ -255,4 +255,107 @@ describe("GĐ3 - bộ điều khiển thích nghi", () => {
     expect(st.quality).toBeLessThanOrEqual(60);
     expect(st.quality).toBe(60);
   });
+});
+
+// (24/09/2026) Bo dieu tiet biet BANG THONG. Kich ban lay tu log that cua P4 phat YouTube:
+// giai ma chi 30-40ms, khung ~52KB, nhung socket ton dong 270-600KB lap lai vi WiFi la
+// nut that — bo dieu tiet cu rut nhip + tang quality cho toi khi nghen roi gian x2 len 400ms.
+describe("GĐ3 - ước lượng đường truyền", () => {
+  const C = LINK_CONGESTED_BYTES;
+
+  it("đo băng thông CHỈ khi socket nghẽn suốt cửa sổ", () => {
+    let l = updateLinkEstimate(undefined, 0, 0, 0, t0);
+    // khong nghen: day 100KB/s, khong ton dong -> chua biet bang thong
+    l = updateLinkEstimate(l, 500_000, 0, 10, t0 + 5_000);
+    expect(l.capacityBytesPerSec).toBeUndefined();
+    expect(l.recentBytesPerSec).toBe(100_000);
+    expect(l.recentFrameBytes).toBe(50_000);
+    // nghen ca dau lan cuoi: day 2MB nhung chi 1MB roi server trong 5s -> 200KB/s
+    l = { ...l, lastBacklog: 2 * C };
+    const sentBefore = l.lastSent;
+    l = updateLinkEstimate(l, sentBefore + 1_000_000, 2 * C, 30, t0 + 10_000);
+    expect(l.capacityBytesPerSec).toBe(200_000);
+  });
+
+  it("ngoài lúc nghẽn, xả nhanh hơn ước lượng -> NÂNG ước lượng", () => {
+    const l0 = { lastAt: t0, lastSent: 0, lastBacklog: 0, lastFrames: 0, capacityBytesPerSec: 100_000 };
+    const l = updateLinkEstimate(l0, 1_500_000, 0, 10, t0 + 5_000);
+    expect(l.capacityBytesPerSec).toBe(300_000);
+  });
+
+  it("không nghẽn -> ước lượng TỰ NÂNG dần (một lần đo lúc WiFi kém không khoá fps vĩnh viễn)", () => {
+    // Kich ban that: do 230KB/s luc WiFi kem; san nhip giu tai o ~215KB/s < 230 nen
+    // neu khong tu nang thi duong truyen khong bao gio co dip chung minh no chiu duoc 564KB/s.
+    let l = { lastAt: t0, lastSent: 0, lastBacklog: 0, lastFrames: 0, capacityBytesPerSec: 230_000 };
+    let now = t0;
+    for (let i = 0; i < 20; i++) {
+      now += 5_000;
+      l = updateLinkEstimate(l, l.lastSent + 1_075_000, 0, l.lastFrames + 12, now);   // 215KB/s
+    }
+    expect(l.capacityBytesPerSec).toBeGreaterThan(230_000 * 2.5);
+    // nghen lai thi do lai ngay con so that
+    const congested = { ...l, lastBacklog: 2 * LINK_CONGESTED_BYTES };
+    const l2 = updateLinkEstimate(congested, congested.lastSent + 1_150_000, 2 * LINK_CONGESTED_BYTES, congested.lastFrames + 12, now + 5_000);
+    expect(l2.capacityBytesPerSec).toBeLessThan(l.capacityBytesPerSec! * 0.75);
+    expect(LINK_PROBE_UP).toBeGreaterThan(1);
+  });
+
+  it("socket mới (bộ đếm về 0) -> đặt lại mốc nhưng GIỮ băng thông đã biết", () => {
+    const l0 = { lastAt: t0, lastSent: 9_000_000, lastBacklog: 0, lastFrames: 500, capacityBytesPerSec: 250_000 };
+    const l = updateLinkEstimate(l0, 1_000, 0, 1, t0 + 5_000);
+    expect(l.lastSent).toBe(1_000);
+    expect(l.capacityBytesPerSec).toBe(250_000);
+    expect(l.recentBytesPerSec).toBeUndefined();
+  });
+
+  it("sàn nhịp theo băng thông = khung / (75% băng thông)", () => {
+    const s = { decodeMs: 30, bytesPerSec: 0, frameErrors: 0, capacityBytesPerSec: 300_000, recentFrameBytes: 52_000 };
+    expect(bandwidthFloorMs(s, cfg)).toBe(Math.ceil(52_000_000 / (0.75 * 300_000)));   // 232ms
+    expect(bandwidthFloorMs({ decodeMs: 30, bytesPerSec: 0, frameErrors: 0 }, cfg)).toBe(0);
+  });
+
+  it("tồn đọng + biết băng thông -> nhảy THẲNG tới sàn băng thông, không nhân đôi mù", () => {
+    const st = { ...initialAdaptiveState(55, 33, t0), minFrameIntervalMs: 182 };
+    const r = decideAdaptive({ decodeMs: 35, bytesPerSec: 0, frameErrors: 0, backlogBytes: 270_000,
+      capacityBytesPerSec: 300_000, recentFrameBytes: 52_000 }, st, cfg, t0 + 60_000);
+    expect(r.state.minFrameIntervalMs).toBe(232);        // cu: 364
+    expect(r.state.probeFloorMs).toBe(182);
+  });
+
+  it("hồi phục rút NỬA khoảng cách về sàn, và dừng đúng ở sàn băng thông", () => {
+    let st: AdaptiveState = { ...initialAdaptiveState(55, 33, t0), minFrameIntervalMs: 400 };
+    const s = { decodeMs: 30, bytesPerSec: 0, frameErrors: 0, backlogBytes: 0,
+      capacityBytesPerSec: 300_000, recentFrameBytes: 52_000, recentBytesPerSec: 100_000 };
+    const seen: number[] = [];
+    let now = t0;
+    for (let i = 0; i < 6; i++) {
+      const r = feedGoodLocal(st, s, now);
+      st = r.state; now = r.now;
+      seen.push(st.minFrameIntervalMs);
+    }
+    // san 232: 400 -84 (nua khoang cach 168) = 316; 316 -50 (nua khoang cach chi 42 < 1 buoc) = 266; -> 232
+    expect(seen.slice(0, 3)).toEqual([316, 266, 232]);
+    expect(Math.min(...seen)).toBe(232);                   // khong bao gio duoi san bang thong
+  });
+
+  it("đang dùng ≥75% băng thông -> KHÔNG tăng quality (khung to hơn sẽ gây nghẽn)", () => {
+    const st = { ...initialAdaptiveState(55, 232, t0), quality: 40 };
+    const s = { decodeMs: 30, bytesPerSec: 0, frameErrors: 0, backlogBytes: 0,
+      capacityBytesPerSec: 300_000, recentFrameBytes: 52_000, recentBytesPerSec: 230_000 };
+    const r = feedGoodLocal(st, s, t0);
+    expect(r.state.quality).toBe(40);
+    // con du dia (40% bang thong) thi van tang nhu cu
+    const r2 = feedGoodLocal(st, { ...s, recentBytesPerSec: 120_000 }, t0);
+    expect(r2.state.quality).toBe(50);
+  });
+
+  function feedGoodLocal(st: AdaptiveState, sample: AdaptiveSample, startAt: number) {
+    let now = startAt;
+    let out = st;
+    for (let i = 0; i < cfg.goodStreakNeeded; i++) {
+      now += cfg.cooldownMs + 5_000;
+      out = decideAdaptive(sample, out, cfg, now).state;
+    }
+    return { state: out, now };
+  }
 });

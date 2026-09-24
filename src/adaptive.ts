@@ -28,6 +28,7 @@ export type AdaptiveCfg = {
   minDeviceHeapFree: number;  // heap nội bộ tối thiểu của thiết bị (dưới ngưỡng -> hạ tải)
   maxBacklogBytes: number;    // tồn đọng bộ đệm gửi WS tối đa (trên ngưỡng -> hạ tải)
   probeRetryAfter: number;    // số lần bị chặn trước khi nới ngưỡng tránh nghẽn một bước
+  linkUtilization: number;    // tỉ lệ băng thông đo được được phép dùng (phần còn lại = đệm an toàn)
 };
 
 export const DEFAULT_ADAPTIVE_CFG: AdaptiveCfg = {
@@ -77,6 +78,9 @@ export const DEFAULT_ADAPTIVE_CFG: AdaptiveCfg = {
   minDeviceHeapFree: 25_000,
   maxBacklogBytes: 98_304,
   probeRetryAfter: 6,
+  // (24/09/2026) Chi dung 75% bang thong do duoc. Phan con lai hap thu dao dong WiFi
+  // va cac khung full-frame lon hon trung binh.
+  linkUtilization: 0.75,
 };
 
 export type AdaptiveState = {
@@ -109,7 +113,102 @@ export type AdaptiveSample = {
   // (17/09/2026) Byte còn kẹt trong bộ đệm gửi WebSocket. Tín hiệu quá tải DUY
   // NHẤT không phụ thuộc vào việc thiết bị báo được số liệu về hay không.
   backlogBytes?: number | null;
+  // (24/09/2026) Uoc luong duong truyen (xem updateLinkEstimate). Thieu = khong biet,
+  // bo dieu tiet chay y nhu truoc.
+  /** Băng thông THẬT của đường truyền, đo lúc socket đang nghẽn (byte/s). */
+  capacityBytesPerSec?: number | null;
+  /** Tải đang đẩy đi trong cửa sổ gần nhất (byte/s) — thay cho trung bình từ lúc kết nối. */
+  recentBytesPerSec?: number | null;
+  /** Kích thước trung bình một khung trong cửa sổ gần nhất (byte, gồm cả phần tiếng đi kèm). */
+  recentFrameBytes?: number | null;
 };
+
+// ══════════════════════════════════════════════════════════════════════════
+// (24/09/2026) UOC LUONG DUONG TRUYEN
+//
+// Do that tren P4 (WiFi qua chip phu C6): giai ma chi 30-40ms/khung, nhung khi phat
+// YouTube thi socket ton dong 270-600 KB lap di lap lai. Nut that la BANG THONG,
+// khong phai CPU. Bo dieu tiet cu chi nhin thoi gian giai ma khi hoi phuc, nen no:
+// rut nhip + TANG quality (khung to hon) -> vuot bang thong -> ton dong -> gian x2
+// len 400ms -> hoi phuc -50ms/20s mat vai phut -> lap lai. Log that:
+//     rut nhip ve 182ms -> tang quality 50, 55 -> ton dong 270KB -> gian 364ms
+//
+// Cach do: trong luc socket NGHEN (con ton dong o ca dau va cuoi cua so), toc do
+// byte roi khoi server CHINH LA bang thong duong truyen. Ngoai luc nghen thi toc do
+// do chi la tai minh dang day, nen chi dung de NANG uoc luong khi no vuot qua.
+// ══════════════════════════════════════════════════════════════════════════
+
+/** Tồn đọng tối thiểu (cả đầu lẫn cuối cửa sổ) để coi là đang nghẽn. */
+export const LINK_CONGESTED_BYTES = 32_768;
+/** Hệ số tự nâng ước lượng băng thông mỗi tick không nghẽn (dò dần như TCP). */
+export const LINK_PROBE_UP = 1.05;
+
+export type LinkEstimate = {
+  lastAt: number;
+  lastSent: number;
+  lastBacklog: number;
+  lastFrames: number;
+  capacityBytesPerSec?: number;
+  recentBytesPerSec?: number;
+  recentFrameBytes?: number;
+};
+
+export function updateLinkEstimate(
+  prev: LinkEstimate | undefined,
+  sent: number,
+  backlog: number,
+  frames: number,
+  now: number
+): LinkEstimate {
+  // Lan dau, hoac socket moi (bo dem quay ve 0): chi dat moc, giu lai bang thong da biet.
+  if (!prev || sent < prev.lastSent || frames < prev.lastFrames) {
+    return { lastAt: now, lastSent: sent, lastBacklog: backlog, lastFrames: frames,
+             capacityBytesPerSec: prev?.capacityBytesPerSec };
+  }
+  const dt = (now - prev.lastAt) / 1000;
+  if (dt <= 0) return prev;
+
+  const offered = (sent - prev.lastSent) / dt;
+  const drained = Math.max(0, ((sent - backlog) - (prev.lastSent - prev.lastBacklog)) / dt);
+  let cap = prev.capacityBytesPerSec;
+  if (prev.lastBacklog > LINK_CONGESTED_BYTES && backlog > LINK_CONGESTED_BYTES) {
+    cap = cap != null ? Math.round(0.5 * cap + 0.5 * drained) : Math.round(drained);
+  } else if (cap != null && drained > cap) {
+    cap = Math.round(drained);   // duong truyen vua chung minh chiu duoc nhieu hon
+  } else if (cap != null && backlog < LINK_CONGESTED_BYTES) {
+    // Khong nghen: cho uoc luong TU NANG 5% moi lan (~gap doi sau 70s). Khong co buoc nay
+    // thi mot lan do trung luc WiFi kem se khoa fps vinh vien: san nhip giu tai DUOI muc
+    // do, nen duong truyen khong bao gio co dip chung minh no chiu duoc nhieu hon.
+    // Do that 24/09: cung P4, luc 230 KB/s (dang kem), vai phut sau 564 KB/s khong nghen.
+    // Neu duong truyen that su yeu, lan nghen ke tiep se do lai dung con so.
+    cap = Math.round(cap * LINK_PROBE_UP);
+  }
+
+  const dFrames = frames - prev.lastFrames;
+  let frameBytes = prev.recentFrameBytes;
+  if (dFrames > 0) {
+    const fb = (sent - prev.lastSent) / dFrames;
+    frameBytes = frameBytes != null ? Math.round(0.5 * frameBytes + 0.5 * fb) : Math.round(fb);
+  }
+
+  return {
+    lastAt: now, lastSent: sent, lastBacklog: backlog, lastFrames: frames,
+    capacityBytesPerSec: cap,
+    recentBytesPerSec: Math.round(offered),
+    recentFrameBytes: frameBytes,
+  };
+}
+
+/**
+ * Nhịp tối thiểu mà đường truyền chịu được: một khung cỡ hiện tại phải đi hết trong
+ * phần băng thông được phép dùng. 0 = chưa đủ số liệu.
+ */
+export function bandwidthFloorMs(sample: AdaptiveSample, cfg: AdaptiveCfg): number {
+  const cap = sample.capacityBytesPerSec;
+  const fb = sample.recentFrameBytes;
+  if (!cap || !fb || cap <= 0 || fb <= 0) return 0;
+  return Math.min(cfg.maxIntervalMs, Math.ceil((fb * 1000) / (cfg.linkUtilization * cap)));
+}
 
 export function initialAdaptiveState(quality: number, minFrameIntervalMs: number, now: number): AdaptiveState {
   return {
@@ -192,7 +291,12 @@ export function decideAdaptive(
     }
     if (out.minFrameIntervalMs < cfg.maxIntervalMs) {
       rememberFailure(out, out.minFrameIntervalMs);
-      out.minFrameIntervalMs = backoffInterval(out.minFrameIntervalMs, cfg);
+      // (24/09/2026) Biet bang thong thi nhay THANG toi nhip duong truyen chiu duoc,
+      // thay vi nhan doi mu (182 -> 364 -> 400 trong khi chi can ~250).
+      const bwFloor = bandwidthFloorMs(sample, cfg);
+      out.minFrameIntervalMs = bwFloor > out.minFrameIntervalMs
+        ? Math.min(cfg.maxIntervalMs, Math.max(bwFloor, out.minFrameIntervalMs + cfg.intervalStepMs))
+        : backoffInterval(out.minFrameIntervalMs, cfg);
       out.lastReason = `ton dong ${sample.backlogBytes}B > ${cfg.maxBacklogBytes}B → giãn nhịp còn ${out.minFrameIntervalMs}ms`;
     } else if (out.quality > cfg.minQuality) {
       out.quality = Math.max(cfg.minQuality, out.quality - cfg.qualityStepDown);
@@ -234,8 +338,13 @@ export function decideAdaptive(
   }
 
   // Dư địa -> nâng lại dần, cần nhiều mẫu tốt liên tiếp và mạng không căng
+  // (24/09/2026) Tai GAN DAY thay cho trung binh tu luc ket noi (sau 3 tieng con so do
+  // khong con noi len gi), va khong duoc vuot phan bang thong cho phep.
+  const rate = sample.recentBytesPerSec ?? sample.bytesPerSec;
+  const cap = sample.capacityBytesPerSec;
   const comfortable = sample.decodeMs < budget * 0.5
-    && sample.bytesPerSec < cfg.maxBytesPerSec
+    && rate < cfg.maxBytesPerSec
+    && (cap == null || cap <= 0 || rate < cfg.linkUtilization * cap)
     && (sample.backlogBytes ?? 0) <= cfg.maxBacklogBytes / 2;
 
   // (17/09/2026) THU TU HOI PHUC: NHIP TRUOC, QUALITY SAU (LIFO — go cai vua
@@ -249,10 +358,12 @@ export function decideAdaptive(
   // ket o 2.5fps vinh vien. Hoi phuc theo thu tu nguoc voi luc ha tai (LIFO):
   // rut nhip ve truoc, het moi nang quality.
   const baseIntervalMs = out.baseIntervalMs ?? out.minFrameIntervalMs;
-  // San hoi phuc = max(tran thiet bi yeu cau, nguong tranh nghen + mot buoc).
-  const recoverFloor = out.probeFloorMs != null
-    ? Math.max(baseIntervalMs, out.probeFloorMs + cfg.intervalStepMs)
-    : baseIntervalMs;
+  // San hoi phuc = max(tran thiet bi yeu cau, nguong tranh nghen + mot buoc,
+  //                   nhip toi thieu ma bang thong chiu duoc).
+  const recoverFloor = Math.max(
+    out.probeFloorMs != null ? Math.max(baseIntervalMs, out.probeFloorMs + cfg.intervalStepMs) : baseIntervalMs,
+    bandwidthFloorMs(sample, cfg),
+  );
 
   // Bi ngUong chan ma van rat thoai mai qua nhieu vong -> noi thu mot buoc.
   // Khong co co che noi nay thi mot lan qua tai nhat thoi se khoa fps vinh vien.
@@ -270,7 +381,12 @@ export function decideAdaptive(
   if (comfortable && out.minFrameIntervalMs > recoverFloor) {
     out.goodStreak = state.goodStreak + 1;
     if (out.goodStreak >= cfg.goodStreakNeeded) {
-      out.minFrameIntervalMs = Math.max(recoverFloor, out.minFrameIntervalMs - cfg.intervalStepMs);
+      // (24/09/2026) Rut NUA khoang cach ve san (it nhat mot buoc) thay vi -50ms moi
+      // lan: 400 -> san 182 truoc mat 5 buoc (~1,5 phut), nay 400 -> 291 -> 236 -> 209...
+      // Van an toan vi san da tinh den bang thong va nguong tranh nghen.
+      const gap = out.minFrameIntervalMs - recoverFloor;
+      out.minFrameIntervalMs = Math.max(recoverFloor,
+        out.minFrameIntervalMs - Math.max(cfg.intervalStepMs, Math.ceil(gap / 2)));
       out.goodStreak = 0;
       out.lastChangeAt = now;
       out.changes = state.changes + 1;

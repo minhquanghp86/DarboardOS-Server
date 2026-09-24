@@ -57,6 +57,10 @@ export type DeviceMetrics = {
   appliedMinFrameIntervalMs: number | null;
   lastAdaptiveReason: string | null;
   adaptiveChanges: number;
+  // (24/09/2026) Uoc luong duong truyen cua bo dieu tiet (byte/s, byte). null = chua do duoc.
+  linkCapacityBytesPerSec: number | null;
+  recentBytesPerSec: number | null;
+  recentFrameBytes: number | null;
   lastUrl: string | null;
   lastFrameAt: number;
   lastError: string | null;
@@ -101,6 +105,9 @@ function dev(id: string): DeviceMetrics {
       appliedQuality: null,
       appliedMinFrameIntervalMs: null,
       lastAdaptiveReason: null,
+      linkCapacityBytesPerSec: null,
+      recentBytesPerSec: null,
+      recentFrameBytes: null,
       adaptiveChanges: 0,
       lastUrl: null,
       lastFrameAt: 0,
@@ -167,6 +174,12 @@ export const metrics = {
     d.appliedMinFrameIntervalMs = minFrameIntervalMs;
     d.lastAdaptiveReason = reason;
     d.adaptiveChanges++;
+  },
+  onLinkEstimate(id: string, capacity: number | null, recentBps: number | null, frameBytes: number | null): void {
+    const d = dev(id);
+    d.linkCapacityBytesPerSec = capacity;
+    d.recentBytesPerSec = recentBps;
+    d.recentFrameBytes = frameBytes;
   },
   onNavigate(id: string, url: string): void {
     const d = dev(id);
