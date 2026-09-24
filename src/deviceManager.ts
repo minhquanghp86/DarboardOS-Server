@@ -13,7 +13,7 @@ import { FrameProcessor } from "./frameProcessor.js";
 import { DeviceBroadcaster } from "./broadcaster.js";
 import { hash32 } from "./util.js";
 import { metrics } from "./metrics.js";
-import { AdaptiveState, DEFAULT_ADAPTIVE_CFG, decideAdaptive, initialAdaptiveState } from "./adaptive.js";
+import { AdaptiveState, DEFAULT_ADAPTIVE_CFG, LinkEstimate, decideAdaptive, initialAdaptiveState, updateLinkEstimate } from "./adaptive.js";
 import { SelfTestRunner } from "./selfTest.js";
 import { Encoding, FRAME_HEADER_BYTES, TILE_HEADER_BYTES } from "./protocol.js";
 
@@ -1385,6 +1385,8 @@ export function refreshDisplaysTick(): void {
 // Chạy định kỳ; đọc số đo thật (decode mới nhất do thiết bị báo, bytes/s) rồi chỉnh
 // quality/nhịp. Tắt bằng biến môi trường CCR_ADAPTIVE=0.
 const adaptiveStates = new Map<string, AdaptiveState>();
+// (24/09/2026) Uoc luong duong truyen theo thiet bi, cap nhat moi tick (5s). Xem adaptive.ts.
+const linkEstimates = new Map<string, LinkEstimate>();
 
 /** (17/09/2026) Danh dau thiet bi vua nhan su kien cham — xem lastInputMs. */
 export function markInteraction(deviceId: string): void {
@@ -1409,6 +1411,14 @@ export function runAdaptiveTick(): void {
     }
     const cfgA = { ...DEFAULT_ADAPTIVE_CFG, maxQuality: device.cfg.jpegQuality };
     const bytesPerSec = m.uptimeSec > 0 ? m.bytesSent / m.uptimeSec : 0;
+    const counters = broadcaster.linkCounters(m.id);
+    let link = linkEstimates.get(m.id);
+    if (counters) {
+      link = updateLinkEstimate(link, counters.sent, counters.backlog, m.framesSent, now);
+      linkEstimates.set(m.id, link);
+      metrics.onLinkEstimate(m.id, link.capacityBytesPerSec ?? null, link.recentBytesPerSec ?? null,
+        link.recentFrameBytes ?? null);
+    }
     const res = decideAdaptive(
       {
         // ══════════════════════════════════════════════════════════════════
@@ -1437,6 +1447,9 @@ export function runAdaptiveTick(): void {
         frameErrors: m.frameErrors,
         heapFree: m.deviceHeapFree ?? null,
         backlogBytes: broadcaster.backlogBytes(m.id),
+        capacityBytesPerSec: link?.capacityBytesPerSec ?? null,
+        recentBytesPerSec: link?.recentBytesPerSec ?? null,
+        recentFrameBytes: link?.recentFrameBytes ?? null,
       },
       st,
       cfgA,
@@ -1470,6 +1483,8 @@ async function deleteDeviceAsync(device: DeviceSession) {
   // full tai (quan sat that: log bao da gian nhip len 400ms, nhung /metrics van
   // bao minFrameInterval=100 va adaptiveChanges=0).
   adaptiveStates.delete(device.deviceId);
+  // linkEstimates co y GIU LAI: bang thong la cua duong truyen WiFi, khong cua phien.
+  // updateLinkEstimate tu dat lai moc khi thay bo dem socket moi quay ve 0.
   if (device.throttleTimer) clearTimeout(device.throttleTimer);
   try { await device.cdp.send("Page.stopScreencast").catch(() => { }); } catch { }
   try { await root?.send("Target.closeTarget", { targetId: device.id }); } catch { }

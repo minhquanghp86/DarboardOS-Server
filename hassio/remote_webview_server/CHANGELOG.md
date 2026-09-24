@@ -1,3 +1,31 @@
+## V2.9.20
+### Bộ điều tiết biết BĂNG THÔNG — P4 phát YouTube từ 2,5 fps lên trung bình 6,2 fps
+
+Đo thật trên P4 (WiFi qua chip phụ C6): giải mã chỉ 30–40 ms/khung, nhưng socket tồn đọng 270–600 KB lặp
+đi lặp lại. Nút thắt là **băng thông**, không phải CPU. Bộ điều tiết cũ chỉ nhìn thời gian giải mã khi hồi
+phục, nên nó rút nhịp + **tăng quality** (khung to hơn) → vượt băng thông → tồn đọng → giãn ×2 lên 400 ms
+→ hồi phục −50 ms mỗi ~20 s mất vài phút → lặp lại. Log thật:
+`rút nhịp về 182ms → tăng quality 50, 55 → tồn đọng 270KB → giãn 364ms`.
+
+**1. Ước lượng đường truyền** (`src/adaptive.ts` `updateLinkEstimate`, `src/broadcaster.ts` `linkCounters`)
+Đếm byte đã giao cho từng socket; `đã giao − bufferedAmount` = byte thực sự rời server. Khi socket nghẽn
+suốt cửa sổ 5 s, tốc độ đó **chính là băng thông**. Ngoài lúc nghẽn, ước lượng tự nâng 5%/tick (dò như
+TCP) — đo thật cùng P4: 230 KB/s lúc WiFi kém, vài phút sau 564 KB/s không nghẽn; không tự nâng thì một lần
+đo lúc kém sẽ khoá fps vĩnh viễn.
+
+**2. Sàn nhịp theo băng thông** = khung gần đây / (75% băng thông). Hồi phục không rút dưới sàn; tồn đọng
+thì nhảy **thẳng** tới sàn thay vì nhân đôi mù; không tăng quality khi đã dùng ≥75% băng thông.
+
+**3. Hồi phục rút NỬA khoảng cách về sàn** (ít nhất 50 ms) thay vì −50 ms mỗi lần.
+
+**4. `bytesPerSec` theo cửa sổ gần nhất** thay cho trung bình từ lúc kết nối (sau 3 giờ con số đó không
+còn nói lên gì). `/metrics` thêm `linkCapacityBytesPerSec`, `recentBytesPerSec`, `recentFrameBytes`.
+
+Đo 5 phút YouTube trên P4: trung bình **6,2 fps** (trước 2,5), 8,4 fps liên tục khi WiFi tốt; lúc nghẽn
+lùi 400 ms rồi hồi về 282 ms trong ~1,5 phút theo băng thông đo được; đứng hình lâu nhất 5 s.
+*Test mới* (8): đo băng thông chỉ khi nghẽn, tự nâng, giữ qua socket mới, sàn nhịp, nhảy thẳng tới sàn,
+hồi phục nửa khoảng cách, không tăng quality khi sát băng thông.
+
 ## V2.9.19
 ### Đo lại toàn bộ tham số server: 73% thời gian mã hoá của server là vô ích
 

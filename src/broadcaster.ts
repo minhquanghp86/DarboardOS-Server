@@ -16,6 +16,14 @@ type BroadcasterState = { queue: OutFrame[]; sending: boolean };
 export class DeviceBroadcaster {
   private _clients = new Map<string, Set<WebSocket>>();
   private _state = new Map<string, BroadcasterState>();
+  // (24/09/2026) Tong byte DA GIAO cho tung socket. Tru di bufferedAmount ra so byte
+  // da THUC SU roi khoi server — dung de uoc luong bang thong that cua duong truyen.
+  private _sentBytes = new WeakMap<WebSocket, number>();
+
+  private _send(ws: WebSocket, buf: Buffer): void {
+    ws.send(buf, { binary: true });
+    this._sentBytes.set(ws, (this._sentBytes.get(ws) ?? 0) + buf.length);
+  }
 
   addClient(id: string, ws: WebSocket): void {
     const old = this._clients.get(id);
@@ -79,6 +87,20 @@ export class DeviceBroadcaster {
     return max;
   }
 
+  // (24/09/2026) Bo dem cho uoc luong bang thong: tong byte da giao va byte con ket, cua
+  // socket da giao nhieu nhat (thuc te moi thiet bi mot client). null = chua co client.
+  linkCounters(id: string): { sent: number; backlog: number } | null {
+    const peers = this._clients.get(id);
+    if (!peers) return null;
+    let best: { sent: number; backlog: number } | null = null;
+    for (const ws of peers) {
+      if (ws.readyState !== WebSocket.OPEN) continue;
+      const sent = this._sentBytes.get(ws) ?? 0;
+      if (!best || sent > best.sent) best = { sent, backlog: ws.bufferedAmount };
+    }
+    return best;
+  }
+
   public sendFrameChunked(id: string, data: FrameOut, frameId: number, maxBytes = 12_000): void {
     const peers = this._clients.get(id);
     if (!peers || peers.size === 0 || data.rects.length === 0) return;
@@ -115,7 +137,7 @@ export class DeviceBroadcaster {
     const packet = buildFrameStatsPacket();
     for (const ws of peers) {
       if (ws.readyState !== WebSocket.OPEN) continue;
-      try { ws.send(packet, { binary: true }); } catch { }
+      try { this._send(ws, packet); } catch { }
     }
   }
 
@@ -147,7 +169,7 @@ export class DeviceBroadcaster {
     const pkt = buildAudioFramePacket(pcm);
     for (const ws of peers) {
       if (ws.readyState !== WebSocket.OPEN) continue;
-      try { ws.send(pkt, { binary: true }); } catch { }
+      try { this._send(ws, pkt); } catch { }
     }
   }
 
@@ -179,7 +201,7 @@ export class DeviceBroadcaster {
               continue;
             }
             try {
-              ws.send(pkt, { binary: true });
+              this._send(ws, pkt);
               sentOnce = true;
             } catch {
               try { ws.close(); } catch {}
