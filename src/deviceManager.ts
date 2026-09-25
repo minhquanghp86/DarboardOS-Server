@@ -1192,9 +1192,11 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
       // halfScale ket o false vinh vien. Cung loai loi voi homeUrl ben duoi. Hai co nay khong can dung lai
       // gi (khong script/target nao phu thuoc) nen chi can gan lai.
       if (device.cfg.halfScale !== cfg.halfScale || device.cfg.audioEnabled !== cfg.audioEnabled ||
-          device.cfg.urlSet !== cfg.urlSet) {
-        console.log(`[device] ${id}: cap nhat co firmware half=${cfg.halfScale} audio=${cfg.audioEnabled} urlset=${cfg.urlSet}`);
-        device.cfg = { ...device.cfg, halfScale: cfg.halfScale, audioEnabled: cfg.audioEnabled, urlSet: cfg.urlSet };
+          device.cfg.urlSet !== cfg.urlSet || device.cfg.fbBands !== cfg.fbBands) {
+        console.log(`[device] ${id}: cap nhat co firmware half=${cfg.halfScale} audio=${cfg.audioEnabled} urlset=${cfg.urlSet} fb=${cfg.fbBands}`);
+        device.cfg = { ...device.cfg, halfScale: cfg.halfScale, audioEnabled: cfg.audioEnabled, urlSet: cfg.urlSet,
+                       fbBands: cfg.fbBands };
+        device.processor.setBandSplit(cfg.fbBands);
       }
 
       // (23/09/2026 v3) homeUrl KHONG nam trong deviceConfigsEqual() (co y —
@@ -1334,6 +1336,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     jpegQuality: cfg.jpegQuality,
     fullFrameEvery: cfg.fullFrameEvery,
     maxBytesPerMessage: cfg.maxBytesPerMessage,
+    bandSplit: cfg.fbBands,
   });
 
   metrics.setConfig(id, cfg);

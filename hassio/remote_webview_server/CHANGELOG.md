@@ -1,3 +1,10 @@
+## V2.9.29
+### Khung đầy đủ chia dải ngang cho thiết bị giải mã thẳng vào framebuffer (`?fb=1`, P4)
+
+- Thiết bị báo `fb=1` → khung đầy đủ chia thành dải rộng bằng màn hình, cao bội 16 (1024×600: 24 + 4×144) thay cho
+  4 phần tư. P4 giải mã từng dải thẳng vào framebuffer màn hình — bỏ bước chép DMA2D 1,2 MB/khung (giảm tải PSRAM,
+  thứ làm vòng lặp chính P4 chậm tới 154 ms khi ~20 fps).
+
 ## V2.9.28
 ### Tinh chỉnh lúc chạy qua `/data/rwv-tuning.json` (không cần khởi động lại)
 
