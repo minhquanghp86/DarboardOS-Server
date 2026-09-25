@@ -1,3 +1,9 @@
+## V2.9.35
+### Chẩn đoán âm thanh (tiếng tách khi xem YouTube)
+
+- Log `[audio-diag]` mỗi 30 s: số khung âm thanh đã gửi (lẽ ra ~750), số lần/số byte phải CẮT vì bộ đệm đầy, số nhịp
+  40 ms bị trễ và trễ lớn nhất, mức bộ đệm lớn nhất.
+
 ## V2.9.34
 ### Popup ứng dụng: nền đục hoàn toàn
 
