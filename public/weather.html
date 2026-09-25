@@ -265,7 +265,7 @@
   }
 
   // ── Vi tri ─────────────────────────────────────────────────────────────
-  var loc = null;
+  var loc = null, placeHint = '';
   function loadSaved() {
     try { var v = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); if (v && isFinite(v.lat) && isFinite(v.lon)) return v; } catch (e) {}
     return null;
@@ -294,7 +294,8 @@
   // ── Tai + ve ───────────────────────────────────────────────────────────
   function load() {
     if (!loc) return;
-    $('placeName').textContent = loc.name + (loc.auto ? ' (theo mạng — chạm để chọn)' : '');
+    $('placeName').textContent = loc.name;
+    placeHint = loc.auto ? ' · Vị trí đoán theo mạng, chạm tên để chọn' : '';
     var base = 'latitude=' + loc.lat + '&longitude=' + loc.lon + '&timezone=auto';
     var fc = 'https://api.open-meteo.com/v1/forecast?' + base +
       '&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,wind_direction_10m,uv_index' +
@@ -324,7 +325,7 @@
     $('nowFeels').textContent = 'Cảm giác như ' + Math.round(c.apparent_temperature) + '° · Cao ' +
       Math.round(d.temperature_2m_max[0]) + '° / Thấp ' + Math.round(d.temperature_2m_min[0]) + '°';
     var now = new Date();
-    $('updated').textContent = 'Cập nhật ' + pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + ' · Open-Meteo';
+    $('updated').textContent = 'Cập nhật ' + pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + ' · Open-Meteo' + placeHint;
 
     var s = stat('Độ ẩm', c.relative_humidity_2m + '%') +
       stat('Gió ' + dirName(c.wind_direction_10m), Math.round(c.wind_speed_10m), 'km/h') +
