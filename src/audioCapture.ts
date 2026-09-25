@@ -92,11 +92,17 @@ function drainTick(): void {
     }
     Object.assign(diag, { trims: 0, trimmedBytes: 0, framesSent: 0, maxTickGapMs: 0, lateTicks: 0, maxBufBytes: 0, lastLogMs: now });
   }
-  if (jitterBuf.length < FRAME_BYTES || subscribers.size === 0) return;
-  const frame = jitterBuf.subarray(0, FRAME_BYTES);
-  jitterBuf = jitterBuf.subarray(FRAME_BYTES);
-  for (const id of subscribers) broadcaster.sendAudioFrame(id, frame);
-  diag.framesSent++;
+  if (subscribers.size === 0) return;
+  // (25/09/2026) GUI MOI KHUNG DA DU, khong chi mot khung/nhip. Do that (log [audio-diag]): setInterval(40) chay trung
+  // binh ~41 ms -> 732 khung/30 s thay vi 750 -> gui 31,2 KB/s trong khi nguon 32 KB/s -> bo dem day va bi CAT ~190
+  // lan/30 s (24 KB) — MOI LAN CAT LA MOT TIENG "TACH" (nguoi dung nghe tach tach lien tuc khi xem YouTube; nguon
+  // Chrome/PulseAudio da do la sach). Gui het phan da du thi tre nhip khong con don thanh thieu hut.
+  while (jitterBuf.length >= FRAME_BYTES) {
+    const frame = jitterBuf.subarray(0, FRAME_BYTES);
+    jitterBuf = jitterBuf.subarray(FRAME_BYTES);
+    for (const id of subscribers) broadcaster.sendAudioFrame(id, frame);
+    diag.framesSent++;
+  }
 }
 
 function startCapture(): void {
