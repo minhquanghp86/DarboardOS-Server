@@ -19,8 +19,8 @@ Dự án gồm hai phần, dùng cùng nhau:
 - **Dashboard Home Assistant trên tường**, đầy đủ như trên điện thoại (card, biểu đồ, camera…), không cần máy tính bảng.
 - **Xem video có tiếng**: YouTube đủ độ phân giải trên ESP32-P4 (~28 hình/giây đo thực tế), âm thanh phát ra loa của
   màn hình.
-- **Menu ứng dụng** mở từ nút ở giữa mép trên (hiện đồng hồ): chỉnh độ sáng/âm lượng, bật/tắt nhanh, thời tiết, lịch
-  âm dương, camera, radio, hẹn giờ, cảnh Home Assistant…
+- **Giao diện kiểu điện thoại**: vuốt từ mép trên xuống mở thanh trạng thái (độ sáng/âm lượng, bật/tắt nhanh, thời
+  tiết, lịch âm); vuốt lên từ mép dưới về màn hình chính với các ứng dụng (camera, radio, hẹn giờ, cảnh HA…).
 - **Camera trên màn hình** (ESP32-P4 có camera): gửi hình 1080p vào Frigate để nhận diện người / ghi hình.
 - **Loa thông báo**: màn hình có loa là một `media_player` trong HA — dùng cho TTS, thông báo.
 
@@ -86,12 +86,12 @@ Màn hình ESP32-S3/P4 khác (có PSRAM, màn hình ESPHome hỗ trợ) thườn
 6. **Đăng nhập Home Assistant lần đầu** ngay trên màn hình: chạm vào ô tên đăng nhập → bàn phím ảo hiện ra (có tiếng
    Việt, gõ Telex) → đăng nhập bằng tài khoản ở bước 3, tích *Ghi nhớ*. Đăng nhập được lưu trong thư mục hồ sơ của
    addon (`/data/pw-data`), không mất khi cập nhật.
-7. **Chạm nút ở giữa mép trên** (hiện giờ HH:MM) để mở menu ứng dụng. Vào **Menu panel** trên thanh bên HA để sắp xếp
-   menu theo ý bạn.
+7. **Vuốt từ mép trên xuống** để mở thanh trạng thái, **vuốt lên từ mép dưới** để vào màn hình chính (các ứng dụng).
+   Vào **Menu panel** trên thanh bên HA để sắp xếp ứng dụng theo ý bạn.
 
 ## Sử dụng hằng ngày
 
-### Nút menu
+### Đồng hồ và cử chỉ
 
 Giọt nước ở giữa mép trên mọi trang hiện **giờ của chính màn hình** (lấy từ đồng hồ thời gian thực trên bo mạch và
 đồng bộ Internet) — chỉ để xem, chạm vào đó là chạm vào trang bên dưới. **Vuốt từ mép trên xuống** (ở bất kỳ vị trí nào)
@@ -107,7 +107,7 @@ Giọt nước ở giữa mép trên mọi trang hiện **giờ của chính mà
 
 | Nhóm | Ứng dụng | Làm gì |
 |---|---|---|
-| Nhà | Trang chủ | Về trang chủ đặt trên màn hình (thực thể *Home URL*) |
+| Nhà | Home Assistant | Dashboard HA (trang đặt trong thực thể *Home URL*) — đứng đầu dock |
 | | Camera P4 | Xem trực tiếp camera của màn hình P4 (go2rtc) |
 | | Camera nhà | Lưới ảnh tất cả camera trong go2rtc, cập nhật lần lượt vài giây/lần; chạm để xem trực tiếp |
 | | Cảnh | Nút chạy **cảnh (scene)** và **kịch bản (script)** của Home Assistant |

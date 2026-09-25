@@ -1,7 +1,7 @@
 // (25/09/2026) SHELL — giao dien he thong kieu dien thoai, tiem vao MOI tab cua panel (xem docs/KE-HOACH-GIAO-DIEN-HE-DIEU-HANH.md).
-//   - Nut dong ho giua mep tren (nhu cu).
-//   - Thanh keo xuong: SERVER nhan dien cu chi keo tu mep tren (src/gestures.ts) roi goi __rwvShell.gesture(...);
-//     cham nut dong ho cung mo. Dong: cham nen mo / vuot len tren thanh.
+//   - Dong ho giua mep tren: CHI hien thi (26/09: cham xuyen qua xuong tab HA).
+//   - Thanh keo xuong: SERVER nhan dien cu chi keo tu mep tren (src/gestures.ts) roi goi __rwvShell.gesture(...).
+//     Dong: cham nen mo / vuot len tren thanh.
 //   - Man hinh chinh cua OS (/os/home): tien ich + luoi ung dung + dock (Home Assistant dau tien).
 // Du lieu: window.__RWV_CFG (server chen khi tiem) + trang thai thiet bi server day qua __rwvShell.state().
 // Shadow DOM DONG: CSS cua trang khong anh huong. Chi DOM API (Trusted Types).
