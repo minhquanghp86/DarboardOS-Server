@@ -13,14 +13,14 @@ export interface LauncherApp {
 export interface LauncherAppInfo extends LauncherApp { hidden: boolean; builtin: boolean; icon: string; baseKind: string; defaults?: { label: string; color: string; group: AppGroup; }; }
 /** Bieu tuong MDI gan nhat voi bieu tuong ve tay co san — de trang cau hinh xem truoc. */
 export const BUILTIN_PREVIEW: Record<string, string> = {
-  home: 'home', camera: 'camera', cams: 'view-grid-outline', scenes: 'star-outline', energy: 'lightning-bolt',
+  home: 'home-assistant', ha: 'home-assistant', camera: 'camera', cams: 'view-grid-outline', scenes: 'star-outline', energy: 'lightning-bolt',
   youtube: 'youtube', tiktok: 'music-note', music: 'play-circle-outline', radio: 'radio', news: 'newspaper-variant-outline',
   media: 'music', weather: 'weather-partly-cloudy', calendar: 'calendar-month-outline', timer: 'timer-outline', browser: 'web',
 };
 
 export const GROUP_TITLES: Record<AppGroup, string> = { nha: 'Nhà', giai_tri: 'Giải trí', tien_ich: 'Tiện ích' };
 /** Ten bieu tuong ve tay co san trong launcher. */
-export const KNOWN_ICONS = ['home', 'camera', 'cams', 'scenes', 'energy', 'youtube', 'tiktok', 'music', 'radio', 'news',
+export const KNOWN_ICONS = ['ha', 'home', 'camera', 'cams', 'scenes', 'energy', 'youtube', 'tiktok', 'music', 'radio', 'news',
   'media', 'weather', 'calendar', 'timer', 'browser'];
 
 const PORT = process.env.HEALTH_PORT || '18080';
@@ -29,6 +29,10 @@ const LOCAL = `http://127.0.0.1:${PORT}`;
 export const LAUNCHER_CAMERA_URL = process.env.LAUNCHER_CAMERA_URL || `${LOCAL}/cam.html?src=p4_panel`;
 export const LAUNCHER_WEATHER_URL = process.env.LAUNCHER_WEATHER_URL || `${LOCAL}/weather.html`;
 export const LAUNCHER_TIMER_URL = `${LOCAL}/timer.html`;
+/** (25/09/2026) Home cua OS: man hinh chinh (Shell ve luoi ung dung). Vuot len tu mep duoi / nut Ung dung -> day. */
+export const LAUNCHER_OS_HOME_URL = `${LOCAL}/os/home`;
+export const LAUNCHER_CAMS_URL = `${LOCAL}/cams.html`;
+export const LAUNCHER_SCENES_URL = `${LOCAL}/scenes.html`;
 
 export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   let haOrigin = '';
@@ -37,10 +41,11 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   const add = (group: AppGroup, label: string, kind: string, color: string, url?: string, action?: 'url', id?: string) =>
     apps.push({ id: id || kind, group, label, kind, color, url, action });
 
-  if (homeUrl) add('nha', 'Trang chủ', 'home', '#2f7cf6', homeUrl);
+  // Home Assistant la MOT ung dung (uu tien: dau dock). id giu 'home' de cau hinh cu (Menu panel) van ap dung.
+  if (homeUrl) add('nha', 'Home Assistant', 'ha', '#1a8fd6', homeUrl, undefined, 'home');
   add('nha', 'Camera P4', 'camera', '#16a34a', LAUNCHER_CAMERA_URL);
-  add('nha', 'Camera nhà', 'cams', '#15803d', `${LOCAL}/cams.html`);
-  add('nha', 'Cảnh', 'scenes', '#9333ea', `${LOCAL}/scenes.html`);
+  add('nha', 'Camera nhà', 'cams', '#15803d', LAUNCHER_CAMS_URL);
+  add('nha', 'Cảnh', 'scenes', '#9333ea', LAUNCHER_SCENES_URL);
   if (haOrigin) add('nha', 'Năng lượng', 'energy', '#ca8a04', `${haOrigin}/energy`);
 
   add('giai_tri', 'YouTube', 'youtube', '#ff0033', 'https://m.youtube.com');

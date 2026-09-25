@@ -1,3 +1,22 @@
+## V2.9.45
+### Giao diện kiểu hệ điều hành — giai đoạn OS-1
+
+- **Kéo từ mép trên xuống** (ở bất kỳ vị trí nào trên mép, trên mọi trang) mở **thanh trạng thái**:
+  - giờ, ngày dương/âm lịch, thời tiết, hẹn giờ
+  - ô Luôn sáng / Tắt tiếng / Khử vọng
+  - thanh trượt độ sáng / âm lượng
+  - biểu tượng **Ứng dụng · Home Assistant · Camera · Cảnh**
+
+  Trên P4 thanh chạy theo ngón tay. Chạm nền mờ hoặc vuốt lên thì đóng. Nút đồng hồ ở giữa vẫn như cũ (chạm để mở).
+- **Vuốt lên từ mép dưới** → **Home của OS**: màn hình chính với đồng hồ lớn, thời tiết, lưới ứng dụng chia trang
+  (vuốt ngang), dock (Home Assistant đứng đầu).
+- Cử chỉ được nhận diện **ở server**, trước khi chạm tới trình duyệt, nên chạy được trên mọi trang. Chạm nhanh ở mép
+  vẫn là chạm của trang.
+- "Trang chủ" thành ứng dụng **Home Assistant** (logo HA). Nút / thực thể Go Home của ESPHome vẫn về `home_url`.
+- Giao diện hệ thống tách thành mã riêng (`src/shell/`, đóng gói esbuild, Shadow DOM), thay popup cũ (~500 dòng JS
+  trong chuỗi). CSS của trang web không còn làm vỡ giao diện (ví dụ font đồng hồ).
+- Mức chuyển động theo màn hình: P4 đầy đủ, S3 480×480 giảm, S3 480×272 tối thiểu.
+
 ## V2.9.44
 ### Tài liệu addon, cấu hình gọn hơn
 
