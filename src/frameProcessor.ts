@@ -10,6 +10,7 @@ import sharp from "sharp";
 import { Encoding, FRAME_HEADER_BYTES, TILE_HEADER_BYTES } from "./protocol.js";
 import { hash32 } from "./util.js";
 import type { FrameProcessorStats } from "./metrics.js";
+import { tuning } from "./tuning.js";
 
 sharp.concurrency(Math.max(1, os.cpus().length - 1));
 
@@ -149,7 +150,9 @@ export class FrameProcessor {
 
     const totalArea = rgba.width * rgba.height;
     const changedPct = totalArea > 0 ? (changedArea / totalArea) : 0;
-    const doFull = forceFull || (changedPct > this._cfg.fullframeAreaThreshold);
+    // (25/09/2026) Co the ghi de luc chay (tuning.ts) de thu nghiem ma khong can OTA thiet bi.
+    const areaThr = tuning().fullFrameAreaThreshold ?? this._cfg.fullframeAreaThreshold;
+    const doFull = forceFull || (changedPct > areaThr);
 
     let out: FrameOut;
     if (doFull) {
