@@ -18,9 +18,9 @@ button { font: inherit; color: inherit; border: none; background: none; padding:
 button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .tnum { font-variant-numeric: tabular-nums; }
 
-/* ── Nut dong ho (giot nuoc o giua mep tren) ─────────────────────────── */
+/* ── Dong ho (giot nuoc o giua mep tren) — chi hien thi, cham xuyen qua ─ */
 .pill { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 128px; height: 32px;
-  display: flex; justify-content: center; pointer-events: auto; }
+  display: flex; justify-content: center; pointer-events: none; }  /* cham xuyen qua xuong trang (tab HA) */
 .pill svg.drop { display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35)); }
 .pill .t { position: absolute; top: 1px; left: 0; right: 0; text-align: center; font: 600 14px/19px "Be Vietnam Pro", Roboto,
   "Noto Sans", "DejaVu Sans", sans-serif; letter-spacing: 0.5px; font-variant-numeric: tabular-nums; color: #fff; pointer-events: none; }

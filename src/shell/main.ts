@@ -64,14 +64,15 @@ interface DevState {
   }
 
   // ── Nut dong ho ──────────────────────────────────────────────────────
-  const pill = el('button', 'pill');
-  pill.setAttribute('aria-label', 'Mở thanh trạng thái');
+  // (26/09/2026) CHI HIEN THI gio, KHONG nhan cham: nut nam de len dai tab cua HA -> bam tab hay bi bat nham thanh mo
+  // thanh trang thai (nguoi dung bao). Thanh trang thai chi mo bang cu chi vuot tu mep tren (server, src/gestures.ts).
+  const pill = el('div', 'pill');
+  pill.setAttribute('aria-hidden', 'true');
   const drop = svgEl('svg', { class: 'drop', viewBox: '0 0 104 22', width: '104', height: '22' });
   drop.appendChild(svgEl('path', { d: 'M0 0H104C91 0 86 4 79 11C72 18 64 22 52 22C40 22 32 18 25 11C18 4 13 0 0 0Z', fill: 'rgba(20,20,20,0.6)' }));
   const pillT = el('span', 't');
   const pillChev = mdi('chevdown', 'chev');
   pill.append(drop, pillT, pillChev);
-  pill.addEventListener('click', (e) => { e.stopPropagation(); if (shadeVisible > 0) closeShade(true); else openShade(true); });
 
   // ── Thanh keo xuong ──────────────────────────────────────────────────
   const scrim = el('div', 'scrim');

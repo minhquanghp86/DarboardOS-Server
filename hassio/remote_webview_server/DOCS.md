@@ -93,8 +93,9 @@ Màn hình ESP32-S3/P4 khác (có PSRAM, màn hình ESPHome hỗ trợ) thườn
 
 ### Nút menu
 
-Nút hình giọt nước ở giữa mép trên mọi trang, hiện **giờ của chính màn hình** (lấy từ đồng hồ thời gian thực trên bo
-mạch và đồng bộ Internet). Chạm để mở menu; chạm ra ngoài menu để đóng.
+Giọt nước ở giữa mép trên mọi trang hiện **giờ của chính màn hình** (lấy từ đồng hồ thời gian thực trên bo mạch và
+đồng bộ Internet) — chỉ để xem, chạm vào đó là chạm vào trang bên dưới. **Vuốt từ mép trên xuống** (ở bất kỳ vị trí nào)
+để mở thanh trạng thái; chạm vùng tối bên dưới hoặc vuốt lên để đóng. **Vuốt lên từ mép dưới** để về màn hình chính.
 
 ### Menu ứng dụng
 
