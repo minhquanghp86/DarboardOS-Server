@@ -6,13 +6,16 @@
 // Derived from strange-v/RemoteWebViewServer. THIS FILE HAS BEEN MODIFIED.
 
 import type { DeviceSession } from "./deviceManager.js";
-import { requestFullFrameFor } from "./deviceManager.js";
+import { goOsHome, requestFullFrameFor } from "./deviceManager.js";
+import { EdgeGestures } from "./gestures.js";
 import { TouchKind, parseFrameStats, parseOpenURLPacket, parseTouchPacket } from "./protocol.js";
 import { nudgeRepaintAsync } from "./browser.js";
 import { metrics } from "./metrics.js";
 import { mapPointForRotation } from "./util.js";
 export class InputRouter {
   private _lastMoveAt = 0;
+  // (25/09/2026) Cu chi mep man hinh theo tung thiet bi (Shell: keo xuong mo thanh trang thai, vuot len ve Home OS).
+  private readonly _gestures = new Map<string, EdgeGestures>();
   private readonly _moveThrottleMs: number;
 
   constructor(moveThrottleMs = 12) {
@@ -29,7 +32,20 @@ export class InputRouter {
       this._lastMoveAt = now;
     }
 
-    await this._dispatchTouchAsync(dev, pkt.kind, pkt.x, pkt.y);
+    let g = this._gestures.get(dev.deviceId);
+    if (!g) { g = new EdgeGestures(); this._gestures.set(dev.deviceId, g); }
+    const p = mapPointForRotation(pkt.x, pkt.y, dev.cfg.width, dev.cfg.height, dev.cfg.rotation);
+    for (const a of g.feed({ kind: pkt.kind, x: pkt.x, y: pkt.y }, p.x, p.y, dev.cfg.height)) {
+      if (a.type === 'pass') {
+        for (const ev of a.events) await this._dispatchTouchAsync(dev, ev.kind, ev.x, ev.y);
+      } else if (a.type === 'shade') {
+        dev.cdp.send('Runtime.evaluate', {
+          expression: `window.__rwvShell && window.__rwvShell.gesture(${JSON.stringify(a.phase)}, ${Math.round(a.y)})`,
+        }).catch(() => { });
+      } else if (a.type === 'home') {
+        goOsHome(dev);
+      }
+    }
   }
 
   public async handleFrameStatsPacketAsync(dev: DeviceSession, buf: Buffer): Promise<void> {
