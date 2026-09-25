@@ -100,8 +100,8 @@
   PRESETS.forEach(function (p) {
     var b = document.createElement('div');
     b.className = 'preset'; b.tabIndex = 0; b.setAttribute('role', 'button');
-    b.innerHTML = '<b>' + p[0] + (p[0] === 60 ? ' giờ' : '′') + '</b><span></span>';
-    if (p[0] === 60) b.firstChild.textContent = '1 giờ';
+    b.innerHTML = '<b></b><span></span>';
+    b.firstChild.textContent = p[0] === 60 ? '1 giờ' : p[0] + ' phút';
     b.lastChild.textContent = p[1];
     act(b, function () { sel = p[0] * 60; start(sel, p[1]); });
     $('presets').appendChild(b);
