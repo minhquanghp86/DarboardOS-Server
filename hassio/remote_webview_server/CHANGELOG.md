@@ -1,3 +1,13 @@
+## V2.9.39
+### Thời tiết: dùng vị trí nhà trong Home Assistant
+
+- Thứ tự vị trí: nơi bạn tự chọn → **vị trí nhà trong HA** (Cài đặt → Hệ thống → Chung) → đoán theo IP → Hà Nội.
+  Từ HA chỉ lấy toạ độ và tên nhà; dữ liệu thời tiết vẫn từ Open-Meteo.
+- Addon cần quyền `homeassistant_api` (thêm trong bản này): server đọc `/api/config` bằng SUPERVISOR_TOKEN của chính
+  addon, không cần mật khẩu hay token của người dùng. Endpoint `/weather-location` chỉ ở cổng 18080 (LAN).
+- Bảng chọn nơi chốn có nút "Vị trí nhà (Home Assistant)" để bỏ lựa chọn tay. Lời nhắc "vị trí đoán theo mạng"
+  chuyển xuống dòng cập nhật, không còn cắt tên nơi chốn.
+
 ## V2.9.38
 ### Thời tiết: đoán vị trí ổn định hơn, ô chỉ số không bị cắt chữ
 

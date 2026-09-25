@@ -19,6 +19,7 @@ import { bootstrapAsync } from './browser.js';
 import { subscribeDeviceAudio, unsubscribeDeviceAudio } from './audioCapture.js';
 import { MsgType } from './protocol.js';
 import { metrics } from './metrics.js';
+import { getHaLocation } from './haLocation.js';
 import type WebSocket from 'ws';
 
 const WS_PORT   = env.get("WS_PORT").default("8081").asIntPositive();
@@ -151,6 +152,15 @@ http.createServer((req, res) => {
   if (pathname.startsWith('/metrics')) {
     res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
     res.end(JSON.stringify(metrics.snapshot(), null, 2));
+    return;
+  }
+
+  // (25/09/2026) Vi tri nha trong Home Assistant cho weather.html (cung nguon goc 127.0.0.1:HEALTH_PORT).
+  if (pathname === '/weather-location') {
+    getHaLocation().then((loc) => {
+      res.writeHead(loc ? 200 : 404, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+      res.end(JSON.stringify(loc ?? { error: 'khong co vi tri HA' }));
+    }).catch(() => { res.writeHead(500); res.end('{}'); });
     return;
   }
 
