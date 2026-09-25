@@ -865,13 +865,17 @@ function buildLauncherScript(homeUrl: string | undefined): string {
   var HOME_URL = ${homeUrlJson};
   var CAMERA_URL = ${JSON.stringify(LAUNCHER_CAMERA_URL)};
   var URL_BINDING = ${JSON.stringify(URL_BINDING)};
+  // (25/09/2026) POPUP UNG DUNG (thay dropdown): luoi icon mau + ten, kieu man hinh ung dung dien thoai.
+  // Them ung dung: mot dong APPS.push({ label, kind, color, url | action }).
+  var HA_ORIGIN = '';
+  try { if (HOME_URL) HA_ORIGIN = new URL(HOME_URL).origin; } catch (e) {}
   var APPS = [];
-  if (HOME_URL) APPS.push({ label: 'Home', kind: 'home', url: HOME_URL });
-  APPS.push({ label: 'YouTube', kind: 'youtube', url: 'https://m.youtube.com' });
-  // (25/09/2026) Camera: mo trang xem camera cua P4. URL: o nhap dia chi + ban phim ao, Enter -> thiet bi dat
-  // "URL hien thi" (qua server) roi mo trang.
-  APPS.push({ label: 'Camera', kind: 'camera', url: CAMERA_URL });
-  APPS.push({ label: 'URL', kind: 'url', action: 'url' });
+  if (HOME_URL) APPS.push({ label: 'Trang chủ', kind: 'home', color: '#2f7cf6', url: HOME_URL });
+  APPS.push({ label: 'YouTube', kind: 'youtube', color: '#ff0033', url: 'https://m.youtube.com' });
+  APPS.push({ label: 'TikTok', kind: 'tiktok', color: '#161616', url: 'https://www.tiktok.com' });
+  APPS.push({ label: 'Camera', kind: 'camera', color: '#16a34a', url: CAMERA_URL });
+  APPS.push({ label: 'Trình duyệt', kind: 'browser', color: '#0891b2', action: 'url' });
+  if (HA_ORIGIN) APPS.push({ label: 'Media', kind: 'media', color: '#7c3aed', url: HA_ORIGIN + '/media-browser/browser' });
 
   var Z = 2147483647;
   var SVG_NS = 'http://www.w3.org/2000/svg';
@@ -885,44 +889,45 @@ function buildLauncherScript(homeUrl: string | undefined): string {
     for (var k in attrs) el.setAttribute(k, attrs[k]);
     return el;
   }
-  function makeIcon(kind){
-    var svg = svgEl('svg', { viewBox: '0 0 24 24', width: '18', height: '18' });
-    svg.style.cssText = 'flex:none;display:block';
-    if (kind === 'home') {
-      svg.appendChild(svgEl('path', {
-        d: 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z',
-        fill: 'none', stroke: 'currentColor', 'stroke-width': '2',
-        'stroke-linecap': 'round', 'stroke-linejoin': 'round'
-      }));
-      svg.appendChild(svgEl('path', {
-        d: 'M9 22V12h6v10',
-        fill: 'none', stroke: 'currentColor', 'stroke-width': '2',
-        'stroke-linecap': 'round', 'stroke-linejoin': 'round'
-      }));
-    } else if (kind === 'camera') {
-      svg.appendChild(svgEl('path', {
-        d: 'M3 8a2 2 0 012-2h2.5l1.5-2h6l1.5 2H19a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z',
-        fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linejoin': 'round'
-      }));
-      svg.appendChild(svgEl('circle', {
-        cx: '12', cy: '13', r: '3.5', fill: 'none', stroke: 'currentColor', 'stroke-width': '2'
-      }));
-    } else if (kind === 'url') {
-      svg.appendChild(svgEl('circle', {
-        cx: '12', cy: '12', r: '9', fill: 'none', stroke: 'currentColor', 'stroke-width': '2'
-      }));
-      svg.appendChild(svgEl('path', {
-        d: 'M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z',
-        fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linejoin': 'round'
-      }));
-    } else {
-      svg.appendChild(svgEl('rect', {
-        x: '2', y: '5', width: '20', height: '14', rx: '4', ry: '4',
-        fill: 'none', stroke: 'currentColor', 'stroke-width': '2'
-      }));
-      svg.appendChild(svgEl('path', { d: 'M10 9l5 3-5 3z', fill: 'currentColor', stroke: 'none' }));
+  function makeAppIcon(app){
+    var box = document.createElement('div');
+    box.style.cssText = 'width:var(--rwv-ic);height:var(--rwv-ic);border-radius:24%;background:' + app.color +
+      ';display:flex;align-items:center;justify-content:center;flex:none;' +
+      'box-shadow:0 2px 6px rgba(0,0,0,0.35),inset 0 0 0 1px rgba(255,255,255,0.16)';
+    var svg = svgEl('svg', { viewBox: '0 0 24 24', width: '60%', height: '60%' });
+    svg.style.cssText = 'display:block;overflow:visible';
+    function line(tag, attrs){
+      var a = { fill: 'none', stroke: '#fff', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
+      for (var k in attrs) a[k] = attrs[k];
+      svg.appendChild(svgEl(tag, a));
     }
-    return svg;
+    var k = app.kind;
+    if (k === 'home') {
+      line('path', { d: 'M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z' });
+    } else if (k === 'youtube') {
+      line('path', { d: 'M9 7v10l8.5-5z', fill: '#fff', stroke: 'none' });
+    } else if (k === 'tiktok') {
+      // Not nhac voi bong xanh/hong lech — nhan ra ngay tren nen toi.
+      var shades = [['#25f4ee', '-0.9 -0.9'], ['#fe2c55', '0.9 0.9'], ['#fff', '0 0']];
+      shades.forEach(function(sh){
+        line('path', { d: 'M14 3v11.5a3.5 3.5 0 11-3.5-3.5', stroke: sh[0], transform: 'translate(' + sh[1] + ')' });
+        line('path', { d: 'M14 3c0.6 2.6 2.4 4.2 5 4.4', stroke: sh[0], transform: 'translate(' + sh[1] + ')' });
+      });
+    } else if (k === 'camera') {
+      line('path', { d: 'M3 8a2 2 0 012-2h2.5l1.5-2h6l1.5 2H19a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z' });
+      line('circle', { cx: '12', cy: '13', r: '3.5' });
+    } else if (k === 'browser') {
+      line('circle', { cx: '12', cy: '12', r: '9' });
+      line('path', { d: 'M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z' });
+    } else if (k === 'media') {
+      line('path', { d: 'M9 18V5.5l11-2V16' });
+      line('circle', { cx: '6', cy: '18', r: '3' });
+      line('circle', { cx: '17', cy: '16', r: '3' });
+    } else {
+      line('rect', { x: '4', y: '4', width: '16', height: '16', rx: '3' });
+    }
+    box.appendChild(svg);
+    return box;
   }
 
   // (24/09/2026) Nut dang GIOT NUOC treo tu mep tren, can giua (truoc: o vuong 34x34 goc
@@ -955,40 +960,55 @@ function buildLauncherScript(homeUrl: string | undefined): string {
   tab.appendChild(chevron);
   btn.appendChild(tab);
 
-  var panel = document.createElement('div');
-  panel.id = '__rwv_launcher_panel';
-  panel.style.cssText = [
-    'position:fixed', 'top:22px', 'left:50%', 'transform:translateX(-50%)', 'display:none',
-    'background:rgba(30,30,30,0.92)', 'border-radius:10px', 'overflow:hidden',
-    'z-index:' + Z, 'min-width:150px', 'box-shadow:0 2px 10px rgba(0,0,0,0.4)'
-  ].join(';');
-
+  // (25/09/2026) POPUP: chiem 2/3 man hinh, cach deu 4 canh (le 1/6), tren lop phu mo. Cham ra ngoai popup -> an;
+  // chon ung dung -> an roi mo. Kich thuoc theo vmin de vua ca P4 1024x600 lan panel 480x272. KHONG hieu ung dong:
+  // moi khung hinh dong deu phai truyen qua mang toi man hinh.
+  var overlay = document.createElement('div');
+  overlay.id = '__rwv_launcher_overlay';
+  overlay.style.cssText = ['position:fixed', 'inset:0', 'display:none', 'background:rgba(0,0,0,0.45)',
+    'z-index:' + Z, 'touch-action:manipulation', '-webkit-user-select:none', 'user-select:none'].join(';');
+  var popup = document.createElement('div');
+  popup.id = '__rwv_launcher_popup';
+  popup.style.cssText = ['position:absolute', 'left:16.667vw', 'top:16.667vh', 'width:66.667vw', 'height:66.667vh',
+    'box-sizing:border-box', 'display:flex', 'flex-direction:column', 'gap:clamp(4px,2vmin,14px)',
+    'padding:clamp(8px,3.5vmin,26px)', 'background:rgba(24,26,32,0.97)', 'border-radius:clamp(10px,3vmin,20px)',
+    'box-shadow:0 8px 30px rgba(0,0,0,0.5)', 'color:#fff', 'font-family:sans-serif', 'overflow:hidden'].join(';');
+  popup.style.setProperty('--rwv-ic', 'clamp(28px, 12vmin, 80px)');
+  var title = document.createElement('div');
+  title.textContent = 'Ứng dụng';
+  title.style.cssText = 'flex:none;font-size:clamp(11px,3vmin,18px);font-weight:600;opacity:0.8';
+  var grid = document.createElement('div');
+  grid.style.cssText = ['display:grid', 'grid-template-columns:repeat(auto-fill,minmax(calc(var(--rwv-ic) + 20px),1fr))',
+    'gap:clamp(6px,3vmin,20px)', 'align-content:start', 'flex:1', 'min-height:0', 'overflow-y:auto'].join(';');
+  function hidePopup(){ overlay.style.display = 'none'; }
+  function showPopup(){ overlay.style.display = 'block'; }
   APPS.forEach(function(app){
-    var item = document.createElement('div');
-    item.style.cssText = [
-      'display:flex', 'align-items:center', 'gap:10px',
-      'padding:12px 16px', 'color:#fff', 'font-size:15px',
-      'font-family:sans-serif', 'cursor:pointer', 'white-space:nowrap'
-    ].join(';');
-    item.appendChild(makeIcon(app.kind));
-    var label = document.createElement('span');
+    var tile = document.createElement('div');
+    tile.setAttribute('data-app', app.kind);
+    tile.style.cssText = ['display:flex', 'flex-direction:column', 'align-items:center', 'gap:clamp(3px,1.2vmin,8px)',
+      'padding:clamp(2px,1vmin,8px) 2px', 'border-radius:12px', 'cursor:pointer', 'min-width:0'].join(';');
+    tile.appendChild(makeAppIcon(app));
+    var label = document.createElement('div');
     label.textContent = app.label;
-    item.appendChild(label);
-    if (app.soon) {
-      item.style.opacity = '0.55';
-      var hint = document.createElement('span');
-      hint.textContent = 's\u1eafp c\u00f3';
-      hint.style.cssText = 'margin-left:auto;padding-left:12px;font-size:11px;color:#bbb';
-      item.appendChild(hint);
-    }
-    item.addEventListener('click', function(e){
+    // Toi da 2 dong (man 480x272: "Trinh duyet" khong vua mot dong o co chu 10 px) thay vi cat bang "...".
+    label.style.cssText = ['font-size:clamp(10px,2.7vmin,16px)', 'line-height:1.2', 'text-align:center', 'max-width:100%',
+      'display:-webkit-box', '-webkit-line-clamp:2', '-webkit-box-orient:vertical', 'overflow:hidden',
+      'overflow-wrap:anywhere'].join(';');
+    tile.appendChild(label);
+    tile.addEventListener('click', function(e){
       e.stopPropagation();
-      panel.style.display = 'none';
+      hidePopup();
       if (app.action === 'url') { openUrlBox(); return; }
       if (app.url) location.href = app.url;
     });
-    panel.appendChild(item);
+    grid.appendChild(tile);
   });
+  popup.appendChild(title);
+  popup.appendChild(grid);
+  overlay.appendChild(popup);
+  popup.addEventListener('click', function(e){ e.stopPropagation(); });
+  overlay.addEventListener('click', function(e){ e.stopPropagation(); hidePopup(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') hidePopup(); }, true);
 
   // (25/09/2026) O NHAP URL. Dat sat mep tren (ban phim ao cao 196px o day man hinh; panel 480x272 chi con
   // ~76px phia tren). input type=url -> ban phim ao (KIOSK_KEYBOARD_SCRIPT) tu bat khi focus; phim Enter cua no
@@ -1071,16 +1091,13 @@ function buildLauncherScript(homeUrl: string | undefined): string {
 
   btn.addEventListener('click', function(e){
     e.stopPropagation();
-    panel.style.display = (panel.style.display === 'block') ? 'none' : 'block';
+    if (overlay.style.display === 'block') hidePopup(); else showPopup();
   });
-  // Cham ra ngoai dropdown -> tu dong an (khop hanh vi da mo ta: chon xong
-  // tu an, nhung cung nen an neu nguoi dung doi y khong chon gi).
-  document.addEventListener('click', function(){ panel.style.display = 'none'; }, true);
 
   function mount(){
     if (!document.body) { requestAnimationFrame(mount); return; }
     document.body.appendChild(btn);
-    document.body.appendChild(panel);
+    document.body.appendChild(overlay);
   }
   mount();
 })();`;
@@ -1240,7 +1257,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
               expression:
                 `(function(){` +
                 `var b=document.getElementById('__rwv_launcher_btn'); if(b) b.remove();` +
-                `var p=document.getElementById('__rwv_launcher_panel'); if(p) p.remove();` +
+                `var p=document.getElementById('__rwv_launcher_overlay'); if(p) p.remove();` +
                 `window.__launcherInitialized=false;` +
                 `})();` + buildLauncherScript(cfg.homeUrl),
             });
