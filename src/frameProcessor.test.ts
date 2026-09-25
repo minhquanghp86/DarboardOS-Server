@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from "vitest";
 import sharp from "sharp";
-import { FrameProcessor, type FrameProcessorCfg, type RGBA } from "./frameProcessor.js";
+import { FrameProcessor, splitBands, type FrameProcessorCfg, type RGBA } from "./frameProcessor.js";
 import { FRAME_HEADER_BYTES, TILE_HEADER_BYTES } from "./protocol.js";
 
 // (14/09/2026) Test cho bản vá "không gửi khối đỏ":
@@ -198,5 +198,19 @@ describe("GD2 - full-frame gửi 1 ảnh khi vừa giới hạn", () => {
       expect(r.data.length).toBeLessThanOrEqual(CAP_TILE);
       expect(await isUniformRed(r.data)).toBe(false);
     }
+  });
+});
+
+describe("chia dải ngang cho giải mã thẳng vào framebuffer (25/09/2026)", () => {
+  it("1024x600, 4 phần: dải lẻ 24 dòng trên cùng rồi 4 dải 144 (bội 16), phủ kín, không chồng", () => {
+    const b = splitBands(1024, 600, 4);
+    expect(b.map((r) => r.h)).toEqual([24, 144, 144, 144, 144]);
+    expect(b.every((r) => r.x === 0 && r.w === 1024)).toBe(true);
+    let y = 0; for (const r of b) { expect(r.y).toBe(y); y += r.h; }
+    expect(y).toBe(600);
+    expect(b.slice(1).every((r) => r.h % 16 === 0)).toBe(true);
+  });
+  it("chiều cao chia hết: không có dải lẻ", () => {
+    expect(splitBands(480, 480, 3).map((r) => r.h)).toEqual([160, 160, 160]);
   });
 });

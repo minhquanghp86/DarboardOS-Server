@@ -33,6 +33,9 @@ export type FrameProcessorCfg = {
   jpegQuality: number;
   fullFrameEvery: number;
   maxBytesPerMessage: number;
+  /** (25/09/2026) Thiet bi bao ?fb=1 (P4): khung day du chia DAI NGANG du rong, cao boi 16 -> giai ma thang vao
+   *  framebuffer (xem _splitWholeFrame). */
+  bandSplit?: boolean;
 };
 
 export class FrameProcessor {
@@ -239,7 +242,13 @@ export class FrameProcessor {
     return { rects: out, isFullFrame: false, encoding };
   }
 
+  public setBandSplit(v: boolean): void { this._cfg.bandSplit = v; }
+
   private _splitWholeFrame(w: number, h: number, n: number): { x: number; y: number; w: number; h: number }[] {
+    // (25/09/2026) Dai ngang du rong, cao BOI 16: bo giai ma JPEG phan cung cua P4 ghi dung so dong, lien tuc trong
+    // framebuffer -> khong can bo dem tam + chep DMA2D 1,2 MB/khung. Phan le (600 = 24 + 4 x 144) dat TREN CUNG thanh
+    // mot dai rieng (thiet bi ve dai do theo duong thuong). Thu tu rect giu tu tren xuong.
+    if (this._cfg.bandSplit) return splitBands(w, h, Math.max(1, n));
     if (n <= 1) return [{ x: 0, y: 0, w, h }];
 
     if (n === 2) {
@@ -494,4 +503,15 @@ export class FrameProcessor {
     for (let o = 0; o < raw.length; o += 4) view.setUint32(o, RGBA_RED, true);
     return this._encode(raw, w, h, enc);
   }
+}
+
+/** (25/09/2026) Chia khung thanh dai ngang rong w, cao boi 16 (tru dai le tren cung). Xem _splitWholeFrame. */
+export function splitBands(w: number, h: number, n: number): { x: number; y: number; w: number; h: number }[] {
+  const bandH = Math.max(16, Math.floor(h / n / 16) * 16);
+  const out: { x: number; y: number; w: number; h: number }[] = [];
+  const rem = h % bandH;
+  let y = 0;
+  if (rem > 0) { out.push({ x: 0, y: 0, w, h: rem }); y = rem; }
+  for (; y < h; y += bandH) out.push({ x: 0, y, w, h: Math.min(bandH, h - y) });
+  return out;
 }

@@ -40,6 +40,8 @@ export type DeviceConfig = {
   // cho thiet bi (SetDisplayURL) de no tu dat "URL hien thi" roi mo trang. Khong co -> server tu mo trang.
   // Co dinh theo firmware, KHONG dua vao deviceConfigsEqual() (giong halfScale).
   urlSet: boolean;
+  // (25/09/2026) ?fb=1: thiet bi giai ma thang vao framebuffer -> khung day du chia dai ngang (frameProcessor).
+  fbBands: boolean;
 };
 
 const DEFAULTS = {
@@ -141,6 +143,7 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
   const audioEnabled = params.get("audio") === "1";
   const halfScale = params.get("half") === "1";
   const urlSet = params.get("urlset") === "1";
+  const fbBands = params.get("fb") === "1";
 
   const dimensions = getRotatedDimensions(width, height, rotation);
 
@@ -160,6 +163,7 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
     audioEnabled,
     halfScale,
     urlSet,
+    fbBands,
   };
 }
 
