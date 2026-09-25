@@ -1,3 +1,18 @@
+## V2.9.43
+### Trang "Menu panel" trên thanh bên Home Assistant: cấu hình menu bằng giao diện
+
+- Addon có trang riêng trên thanh bên HA (ingress, cần đăng nhập HA). Trang liệt kê **mọi ứng dụng** theo nhóm, mỗi
+  ứng dụng có:
+  - công tắc Hiện/Ẩn (thay `launcher_hide`)
+  - nút ↑↓ đổi thứ tự
+  - nút Sửa: tên, nhóm, **biểu tượng MDI** (cùng bộ HA dùng, tìm kiếm ~7.000 biểu tượng, có gợi ý sẵn), **màu**
+    (bảng 18 màu + bộ chọn màu)
+- Thêm hoặc xoá ứng dụng của riêng bạn. Bấm Lưu thì menu trên mọi panel cập nhật ngay.
+- Cấu hình lưu tại `/data/launcher.json`, còn nguyên qua các lần cập nhật. Server tải hình SVG của biểu tượng MDI một
+  lần (lưu đệm `/data/mdi-cache.json`) rồi chèn vào menu, nên panel không phải tải gì thêm.
+- Chỉ lưu được qua trang trong HA; máy khác trong LAN gọi thẳng cổng 18080 thì bị từ chối.
+  `launcher_apps` / `launcher_hide` cũ vẫn được áp dụng.
+
 ## V2.9.42
 ### Hoàn thiện menu và các ứng dụng
 

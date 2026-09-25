@@ -21,6 +21,8 @@ import { MsgType } from './protocol.js';
 import { metrics } from './metrics.js';
 import { getHaLocation } from './haLocation.js';
 import { handleAppApi } from './haApps.js';
+import { handleLauncherApi } from './launcherApi.js';
+import { ensureMdiIcons } from './launcherConfig.js';
 import { startWeatherMini } from './weatherMini.js';
 import type WebSocket from 'ws';
 
@@ -137,7 +139,8 @@ wss.on("connection", async (ws, req) => {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // (25/09/2026) Them weather.html (ung dung "Thoi tiet" cua launcher) — cung nguyen tac: chi LAN, khong qua HA.
 // (25/09/2026) + cac ung dung launcher: camera nha, canh, lich am duong, radio, hen gio; lunar.js dung chung.
-const STATIC_PAGES = ['cam.html', 'weather.html', 'cams.html', 'scenes.html', 'calendar.html', 'radio.html', 'timer.html', 'lunar.js'];
+const STATIC_PAGES = ['cam.html', 'weather.html', 'cams.html', 'scenes.html', 'calendar.html', 'radio.html', 'timer.html', 'lunar.js',
+  'launcher-config.html'];
 const staticCache = new Map<string, Buffer>();
 for (const name of STATIC_PAGES) {
   const p = path.join(__dirname, '..', 'public', name);
@@ -159,6 +162,7 @@ http.createServer((req, res) => {
   }
 
   if (handleAppApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
+  if (handleLauncherApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
 
   // (25/09/2026) Vi tri nha trong Home Assistant cho weather.html (cung nguon goc 127.0.0.1:HEALTH_PORT).
   if (pathname === '/weather-location') {
@@ -185,6 +189,7 @@ http.createServer((req, res) => {
 
 setInterval(() => cleanupIdleAsync(), 60_000);
 startWeatherMini();
+ensureMdiIcons().catch(() => { });  // bieu tuong MDI cua cau hinh cu (neu bo dem bi mat)
 // (14/09/2026) GD2: 30s/lan xin so lieu decode tu cac thiet bi -> /metrics
 // (17/09/2026) 30s -> 10s. Sau khi ha tick dieu tiet ve 5s, chinh chu ky XIN
 // SO LIEU nay tro thanh thu chan toc do phan ung: vong dieu khien chay 5s/lan

@@ -1,0 +1,393 @@
+<!doctype html>
+<!--
+  (25/09/2026) Trang "Menu panel" (ingress Home Assistant — thanh ben HA). Cau hinh menu ung dung cua cac panel:
+  an/hien, thu tu, doi ten/bieu tuong (MDI, giong HA)/mau/nhom, them ung dung. Luu -> server nap lai launcher ngay.
+  Duong dan API TUONG DOI ("launcher/config") vi ingress them tien to vao URL.
+-->
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Menu panel</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap">
+<style>
+  :root {
+    --bg: #f3f5f8; --surface: #ffffff; --surface-2: #f1f3f6; --line: #e3e7ed; --text: #1b2230; --muted: #667085;
+    --primary: #0b76d1; --primary-text: #ffffff; --danger: #c8322a; --ok: #1a8f4c; --shadow: 0 1px 3px rgba(16, 24, 40, 0.08);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #111418; --surface: #1b2027; --surface-2: #232a33; --line: #2c343f; --text: #e8ecf2; --muted: #98a2b3;
+      --primary: #3b93f0; --danger: #f0605a; --ok: #3ccf7d; --shadow: none; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #111418; --surface: #1b2027; --surface-2: #232a33; --line: #2c343f; --text: #e8ecf2; --muted: #98a2b3;
+    --primary: #3b93f0; --danger: #f0605a; --ok: #3ccf7d; --shadow: none; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 Roboto, "Noto Sans", system-ui, sans-serif; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 20px 16px 96px; display: flex; flex-direction: column; gap: 16px; }
+  header h1 { margin: 0; font-size: 22px; font-weight: 500; }
+  header p { margin: 4px 0 0; color: var(--muted); max-width: 70ch; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+  .card-head { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .card-head h2 { margin: 0; font-size: 16px; font-weight: 500; flex: 1; }
+  .card-head .count { color: var(--muted); font-size: 13px; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 8px 12px 8px 8px; border-bottom: 1px solid var(--line); }
+  .row:last-child { border-bottom: none; }
+  .row.off .tile, .row.off .meta { opacity: 0.45; }
+  .move { display: flex; flex-direction: column; }
+  .icon-btn { width: 32px; height: 28px; border: none; background: none; color: var(--muted); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .icon-btn:hover { background: var(--surface-2); color: var(--text); }
+  .icon-btn:disabled { opacity: 0.25; cursor: default; background: none; }
+  .icon-btn svg { width: 20px; height: 20px; }
+  .tile { flex: none; width: 40px; height: 40px; border-radius: 24%; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.15); color: #fff; font-weight: 700; }
+  .tile img { width: 62%; height: 62%; filter: invert(1); }
+  .meta { flex: 1; min-width: 0; }
+  .meta .name { font-weight: 500; }
+  .meta .sub { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .switch { position: relative; flex: none; width: 40px; height: 22px; }
+  .switch input { opacity: 0; width: 100%; height: 100%; margin: 0; position: absolute; cursor: pointer; z-index: 1; }
+  .switch span { position: absolute; inset: 0; border-radius: 999px; background: var(--line); transition: background 0.15s; }
+  .switch span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform 0.15s; box-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+  .switch input:checked + span { background: var(--primary); }
+  .switch input:checked + span::after { transform: translateX(18px); }
+  .switch input:focus-visible + span { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .btn { border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 8px; padding: 7px 14px; font: inherit; font-weight: 500; cursor: pointer; }
+  .btn:hover { background: var(--surface-2); }
+  .btn.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-text); }
+  .btn.primary:disabled { opacity: 0.45; cursor: default; }
+  .btn.danger { color: var(--danger); }
+  .btn:focus-visible, .icon-btn:focus-visible, .sw:focus-visible, .pick:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .add { display: flex; align-items: center; gap: 8px; padding: 10px 16px; color: var(--primary); cursor: pointer; font-weight: 500; border: none; background: none; font: inherit; width: 100%; text-align: left; }
+  .add:hover { background: var(--surface-2); }
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--line); padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); }
+  .bar .in { max-width: 880px; margin: 0 auto; display: flex; align-items: center; gap: 12px; }
+  .bar .status { flex: 1; color: var(--muted); }
+  .bar .status.ok { color: var(--ok); }
+  .bar .status.err { color: var(--danger); }
+
+  /* Hop sua */
+  dialog { border: none; border-radius: 14px; padding: 0; width: min(640px, calc(100vw - 24px)); max-height: calc(100vh - 32px); background: var(--surface); color: var(--text); box-shadow: 0 20px 50px rgba(0,0,0,0.35); }
+  dialog::backdrop { background: rgba(10, 14, 20, 0.55); }
+  .dlg { display: flex; flex-direction: column; max-height: calc(100vh - 32px); }
+  .dlg-head { display: flex; align-items: center; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+  .dlg-head h3 { margin: 0; font-size: 18px; font-weight: 500; flex: 1; }
+  .dlg-body { padding: 16px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+  .dlg-foot { display: flex; gap: 8px; justify-content: flex-end; padding: 12px 18px; border-top: 1px solid var(--line); }
+  .dlg-foot .left { margin-right: auto; }
+  label.f { display: flex; flex-direction: column; gap: 6px; font-weight: 500; }
+  label.f small { color: var(--muted); font-weight: 400; }
+  input[type=text], input[type=url], input[type=search] { font: inherit; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); }
+  input:focus { outline: 2px solid var(--primary); outline-offset: -1px; border-color: transparent; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button { border: none; background: none; color: var(--text); padding: 7px 14px; font: inherit; cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button.on { background: var(--primary); color: var(--primary-text); }
+  .sect { font-weight: 500; display: flex; align-items: baseline; gap: 8px; }
+  .sect small { color: var(--muted); font-weight: 400; }
+  .icons { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px; max-height: 208px; overflow-y: auto; padding: 2px; }
+  .pick { height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .pick img { width: 24px; height: 24px; }
+  :root:not([data-theme="light"]) .pick img { filter: none; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pick img { filter: invert(1); } }
+  :root[data-theme="dark"] .pick img { filter: invert(1); }
+  .pick.on { border: 2px solid var(--primary); }
+  .pick.def { font-size: 11px; color: var(--muted); text-align: center; line-height: 1.1; padding: 2px; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .sw { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.12); }
+  .sw.on { border-color: var(--text); }
+  .custom-color { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+  .custom-color input { width: 38px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: none; cursor: pointer; }
+  .preview { display: flex; align-items: center; gap: 14px; padding: 12px; border-radius: 10px; background: #181a20; color: #fff; }
+  .preview .tile { width: 56px; height: 56px; }
+  .preview .cap { font-size: 15px; }
+  .hint { color: var(--muted); font-size: 12px; }
+  .err { color: var(--danger); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Menu ứng dụng trên màn hình</h1>
+    <p>Bật/tắt, sắp xếp, đổi biểu tượng và màu, thêm ứng dụng cho menu mở ra từ nút ở giữa mép trên các panel. Bấm <b>Lưu</b> là màn hình cập nhật ngay.</p>
+  </header>
+  <div id="groups"><div class="card" style="padding:16px">Đang tải…</div></div>
+</div>
+<div class="bar"><div class="in">
+  <div class="status" id="status"></div>
+  <button class="btn" id="revert" disabled>Hoàn tác</button>
+  <button class="btn primary" id="save" disabled>Lưu</button>
+</div></div>
+
+<dialog id="dlg">
+  <form class="dlg" method="dialog" id="form">
+    <div class="dlg-head"><h3 id="dlgTitle">Sửa ứng dụng</h3></div>
+    <div class="dlg-body">
+      <div class="preview"><div class="tile" id="pvTile"></div><div class="cap" id="pvCap"></div></div>
+      <label class="f">Tên <input type="text" id="fLabel" maxlength="30" required></label>
+      <label class="f" id="urlField">Địa chỉ web <input type="url" id="fUrl" placeholder="https://… hoặc http://192.168.x.x:8123/…" required>
+        <small>Trang dashboard HA, trang web bất kỳ… mở trên chính màn hình.</small></label>
+      <div class="f" style="display:flex;flex-direction:column;gap:6px"><span class="sect">Nhóm</span><div class="seg" id="fGroup"></div></div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <span class="sect">Biểu tượng <small>Bộ Material Design Icons (mdi) — giống Home Assistant</small></span>
+        <input type="search" id="fIconQ" placeholder="Tìm biểu tượng (tiếng Anh): lamp, fan, tv, door, car…" autocomplete="off">
+        <div class="icons" id="icons"></div>
+        <div class="hint" id="iconHint"></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <span class="sect">Màu</span>
+        <div class="swatches" id="swatches"></div>
+      </div>
+      <div class="err" id="fErr"></div>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn danger left" id="fReset">Khôi phục mặc định</button>
+      <button type="button" class="btn" id="fCancel">Huỷ</button>
+      <button type="submit" class="btn primary" id="fOk">Xong</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var CDN = '', GROUPS = [], PREVIEW = {}, items = [], saved = '', meta = null;
+  var PALETTE = ['#2f7cf6', '#0ea5e9', '#0891b2', '#14b8a6', '#16a34a', '#65a30d', '#ca8a04', '#f59e0b', '#ea580c',
+    '#ef4444', '#e11d48', '#db2777', '#c026d3', '#9333ea', '#7c3aed', '#4f46e5', '#475569', '#161616'];
+  var SUGGEST = ['home', 'lightbulb', 'ceiling-light', 'fan', 'air-conditioner', 'television', 'speaker', 'washing-machine',
+    'robot-vacuum', 'door', 'garage', 'gate', 'lock', 'cctv', 'camera', 'thermometer', 'water', 'solar-power', 'lightning-bolt',
+    'car', 'motorbike', 'bed', 'sofa', 'silverware-fork-knife', 'fridge', 'stove', 'flower', 'dog', 'baby-face', 'school',
+    'calendar', 'clock-outline', 'music', 'radio', 'youtube', 'newspaper', 'weather-partly-cloudy', 'chart-line', 'cog', 'web'];
+
+  function svgUrl(name) { return CDN + 'svg/' + name + '.svg'; }
+  function iconName(it) {
+    if (it.icon) return it.icon.slice(4);
+    return PREVIEW[it.baseKind] || null;
+  }
+  function tile(it, el) {
+    el.style.background = it.color;
+    el.textContent = '';
+    var n = iconName(it);
+    if (n) { var im = new Image(); im.alt = ''; im.src = svgUrl(n); el.appendChild(im); }
+    else el.textContent = (it.label || '?').charAt(0).toUpperCase();
+  }
+  function groupTitle(g) { var x = GROUPS.filter(function (p) { return p[0] === g; })[0]; return x ? x[1] : g; }
+
+  // ── Mo hinh <-> cau hinh ─────────────────────────────────────────────
+  function toConfig() {
+    var cfg = { hidden: [], order: {}, custom: [], overrides: {} };
+    GROUPS.forEach(function (g) { cfg.order[g[0]] = items.filter(function (i) { return i.group === g[0]; }).map(function (i) { return i.id; }); });
+    items.forEach(function (i) {
+      if (i.hidden) cfg.hidden.push(i.id);
+      if (!i.builtin) { cfg.custom.push({ id: i.id, label: i.label, url: i.url, group: i.group, icon: i.icon || '', color: i.color }); return; }
+      var o = {}, d = i.defaults || {};
+      if (i.label !== d.label) o.label = i.label;
+      if (i.color !== d.color) o.color = i.color;
+      if (i.group !== d.group) o.group = i.group;
+      if (i.icon) o.icon = i.icon;
+      if (Object.keys(o).length) cfg.overrides[i.id] = o;
+    });
+    return cfg;
+  }
+  function dirty() { return JSON.stringify(toConfig()) !== saved; }
+  function setStatus(t, cls) { var s = $('status'); s.textContent = t; s.className = 'status' + (cls ? ' ' + cls : ''); }
+  function refreshBar() {
+    var d = dirty();
+    $('save').disabled = !d; $('revert').disabled = !d;
+    if (d) setStatus('Có thay đổi chưa lưu');
+  }
+
+  // ── Danh sach ───────────────────────────────────────────────────────
+  var ICON_UP = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M7.4 15.4 12 10.8l4.6 4.6L18 14l-6-6-6 6z"/></svg>';
+  var ICON_DOWN = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z"/></svg>';
+  function render() {
+    var root = $('groups'); root.textContent = '';
+    GROUPS.forEach(function (g) {
+      var list = items.filter(function (i) { return i.group === g[0]; });
+      var card = document.createElement('section'); card.className = 'card';
+      var head = document.createElement('div'); head.className = 'card-head';
+      head.innerHTML = '<h2></h2><span class="count"></span>';
+      head.firstChild.textContent = g[1];
+      head.lastChild.textContent = list.filter(function (i) { return !i.hidden; }).length + '/' + list.length + ' đang hiện';
+      card.appendChild(head);
+      list.forEach(function (it, k) {
+        var row = document.createElement('div'); row.className = 'row' + (it.hidden ? ' off' : '');
+        var mv = document.createElement('div'); mv.className = 'move';
+        var up = document.createElement('button'); up.className = 'icon-btn'; up.innerHTML = ICON_UP; up.title = 'Lên'; up.setAttribute('aria-label', 'Chuyển ' + it.label + ' lên'); up.disabled = k === 0;
+        var dn = document.createElement('button'); dn.className = 'icon-btn'; dn.innerHTML = ICON_DOWN; dn.title = 'Xuống'; dn.setAttribute('aria-label', 'Chuyển ' + it.label + ' xuống'); dn.disabled = k === list.length - 1;
+        up.onclick = function () { swap(it, list[k - 1]); };
+        dn.onclick = function () { swap(it, list[k + 1]); };
+        mv.appendChild(up); mv.appendChild(dn);
+        var t = document.createElement('div'); t.className = 'tile'; tile(it, t);
+        var m = document.createElement('div'); m.className = 'meta';
+        m.innerHTML = '<div class="name"></div><div class="sub"></div>';
+        m.firstChild.textContent = it.label;
+        m.lastChild.textContent = it.builtin ? (it.action === 'url' ? 'Có sẵn · ô nhập địa chỉ' : 'Có sẵn') : it.url;
+        var sw = document.createElement('label'); sw.className = 'switch'; sw.title = it.hidden ? 'Đang ẩn' : 'Đang hiện';
+        sw.innerHTML = '<input type="checkbox"><span></span>';
+        sw.firstChild.checked = !it.hidden;
+        sw.firstChild.setAttribute('aria-label', 'Hiện ' + it.label);
+        sw.firstChild.onchange = function () { it.hidden = !this.checked; render(); refreshBar(); };
+        var ed = document.createElement('button'); ed.className = 'btn'; ed.textContent = 'Sửa'; ed.onclick = function () { openEditor(it); };
+        row.appendChild(mv); row.appendChild(t); row.appendChild(m); row.appendChild(sw); row.appendChild(ed);
+        if (!it.builtin) {
+          var del = document.createElement('button'); del.className = 'btn danger'; del.textContent = 'Xoá';
+          del.onclick = function () { items.splice(items.indexOf(it), 1); render(); refreshBar(); };
+          row.appendChild(del);
+        }
+        card.appendChild(row);
+      });
+      var add = document.createElement('button'); add.className = 'add';
+      add.innerHTML = '<span style="font-size:18px;line-height:1">＋</span><span></span>';
+      add.lastChild.textContent = 'Thêm ứng dụng vào nhóm ' + g[1];
+      add.onclick = function () { openEditor(null, g[0]); };
+      card.appendChild(add);
+      root.appendChild(card);
+    });
+  }
+  function swap(a, b) {
+    var ia = items.indexOf(a), ib = items.indexOf(b);
+    items[ia] = b; items[ib] = a;
+    render(); refreshBar();
+  }
+
+  // ── Hop sua ─────────────────────────────────────────────────────────
+  var editing = null, draft = null;
+  function openEditor(it, group) {
+    editing = it;
+    draft = it ? JSON.parse(JSON.stringify(it)) :
+      { id: 'c_' + Date.now().toString(36), builtin: false, label: '', url: '', group: group || 'tien_ich', icon: 'mdi:star', color: PALETTE[0], hidden: false, baseKind: 'generic' };
+    $('dlgTitle').textContent = it ? 'Sửa “' + it.label + '”' : 'Thêm ứng dụng';
+    $('fLabel').value = draft.label;
+    $('fUrl').value = draft.url || '';
+    $('urlField').hidden = !!draft.builtin;
+    $('fUrl').required = !draft.builtin;
+    $('fReset').hidden = !draft.builtin;
+    $('fErr').textContent = '';
+    $('fIconQ').value = '';
+    renderGroupSeg(); renderSwatches(); renderIcons(''); renderPreview();
+    $('dlg').showModal();
+    setTimeout(function () { $('fLabel').focus(); }, 30);
+    loadMeta();
+  }
+  function renderPreview() { tile(draft, $('pvTile')); $('pvCap').textContent = draft.label || 'Tên ứng dụng'; }
+  function renderGroupSeg() {
+    var s = $('fGroup'); s.textContent = '';
+    GROUPS.forEach(function (g) {
+      var b = document.createElement('button'); b.type = 'button'; b.textContent = g[1];
+      if (draft.group === g[0]) b.className = 'on';
+      b.onclick = function () { draft.group = g[0]; renderGroupSeg(); };
+      s.appendChild(b);
+    });
+  }
+  function renderSwatches() {
+    var s = $('swatches'); s.textContent = '';
+    PALETTE.forEach(function (c) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'sw' + (draft.color.toLowerCase() === c ? ' on' : '');
+      b.style.background = c; b.title = c; b.setAttribute('aria-label', 'Màu ' + c);
+      b.onclick = function () { draft.color = c; renderSwatches(); renderPreview(); };
+      s.appendChild(b);
+    });
+    var cc = document.createElement('label'); cc.className = 'custom-color';
+    cc.innerHTML = '<input type="color" aria-label="Chọn màu khác"> Màu khác';
+    cc.firstChild.value = /^#[0-9a-f]{6}$/i.test(draft.color) ? draft.color : '#2f7cf6';
+    cc.firstChild.oninput = function () { draft.color = this.value; renderPreview(); Array.prototype.forEach.call(s.querySelectorAll('.sw'), function (x) { x.classList.remove('on'); }); };
+    s.appendChild(cc);
+  }
+  function iconPick(name, isDefault) {
+    var b = document.createElement('button'); b.type = 'button';
+    var cur = isDefault ? !draft.icon : draft.icon === 'mdi:' + name;
+    b.className = 'pick' + (cur ? ' on' : '') + (isDefault ? ' def' : '');
+    b.title = isDefault ? 'Biểu tượng mặc định' : 'mdi:' + name;
+    if (isDefault) b.textContent = 'Mặc định';
+    else { var im = new Image(); im.alt = name; im.loading = 'lazy'; im.src = svgUrl(name); b.appendChild(im); }
+    b.onclick = function () { draft.icon = isDefault ? '' : 'mdi:' + name; renderIcons($('fIconQ').value); renderPreview(); };
+    return b;
+  }
+  function renderIcons(q) {
+    var box = $('icons'); box.textContent = '';
+    if (draft.builtin) box.appendChild(iconPick(null, true));
+    var names;
+    q = (q || '').trim().toLowerCase().replace(/\s+/g, '-');
+    if (!q || !meta) names = SUGGEST.slice();
+    else {
+      names = [];
+      for (var i = 0; i < meta.length && names.length < 120; i++) {
+        var m = meta[i];
+        if (m.name.indexOf(q) >= 0 || (m.aliases || []).some(function (a) { return a.indexOf(q) >= 0; }) ||
+          (m.tags || []).some(function (t) { return t.toLowerCase().indexOf(q) >= 0; })) names.push(m.name);
+      }
+    }
+    if (draft.icon && names.indexOf(draft.icon.slice(4)) < 0) names.unshift(draft.icon.slice(4));
+    names.forEach(function (n) { box.appendChild(iconPick(n, false)); });
+    $('iconHint').textContent = !meta ? 'Đang tải danh sách biểu tượng…' : q ? (names.length ? '' : 'Không thấy biểu tượng nào, thử từ khác.') :
+      'Gợi ý thường dùng — gõ để tìm trong ' + meta.length + ' biểu tượng.';
+  }
+  function loadMeta() {
+    if (meta) return;
+    fetch(CDN + 'meta.json').then(function (r) { return r.json(); }).then(function (j) {
+      meta = j.filter(function (m) { return !m.deprecated; });
+      renderIcons($('fIconQ').value);
+    }).catch(function () { $('iconHint').textContent = 'Không tải được danh sách biểu tượng (cần Internet). Vẫn chọn được các gợi ý.'; });
+  }
+  var qTimer = null;
+  $('fIconQ').addEventListener('input', function () { clearTimeout(qTimer); var v = this.value; qTimer = setTimeout(function () { renderIcons(v); }, 150); });
+  $('fLabel').addEventListener('input', function () { draft.label = this.value; renderPreview(); });
+  $('fUrl').addEventListener('input', function () { draft.url = this.value; });
+  $('fCancel').onclick = function () { $('dlg').close(); };
+  $('fReset').onclick = function () {
+    var d = editing.defaults || {};
+    draft.label = d.label; draft.color = d.color; draft.group = d.group; draft.icon = '';
+    $('fLabel').value = draft.label; renderGroupSeg(); renderSwatches(); renderIcons(''); renderPreview();
+  };
+  $('form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    draft.label = $('fLabel').value.trim();
+    if (!draft.label) { $('fErr').textContent = 'Cần có tên.'; return; }
+    if (!draft.builtin) {
+      draft.url = $('fUrl').value.trim();
+      if (!/^https?:\/\//i.test(draft.url)) { $('fErr').textContent = 'Địa chỉ phải bắt đầu bằng http:// hoặc https://'; return; }
+    }
+    if (editing) {
+      var groupChanged = editing.group !== draft.group;
+      Object.assign(editing, draft);
+      if (groupChanged) { items.splice(items.indexOf(editing), 1); items.push(editing); }
+    } else items.push(draft);
+    $('dlg').close(); render(); refreshBar();
+  });
+
+  // ── Tai / luu ───────────────────────────────────────────────────────
+  function apply(j) {
+    CDN = 'https://cdn.jsdelivr.net/npm/@mdi/svg@' + j.mdiVersion + '/';
+    GROUPS = j.groups; PREVIEW = j.builtinPreview;
+    items = j.apps.map(function (a) { return a; });
+    saved = JSON.stringify(toConfig());
+    render(); refreshBar();
+  }
+  function load() {
+    fetch('launcher/config', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) { apply(j); setStatus(''); })
+      .catch(function () { $('groups').innerHTML = '<div class="card" style="padding:16px">Không tải được cấu hình từ server.</div>'; });
+  }
+  $('revert').onclick = load;
+  $('save').onclick = function () {
+    $('save').disabled = true; setStatus('Đang lưu…');
+    fetch('launcher/config', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(toConfig()) })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (x) {
+        if (!x.ok) { setStatus(x.j.error || 'Lưu thất bại', 'err'); refreshBar(); return; }
+        apply(x.j);
+        setStatus('Đã lưu — ' + x.j.reloaded + ' màn hình đã cập nhật', 'ok');
+      })
+      .catch(function () { setStatus('Lưu thất bại: mất kết nối server', 'err'); refreshBar(); });
+  };
+  window.addEventListener('beforeunload', function (e) { if (dirty()) { e.preventDefault(); e.returnValue = ''; } });
+  load();
+})();
+</script>
+</body>
+</html>
