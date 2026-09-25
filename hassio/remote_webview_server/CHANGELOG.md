@@ -1,3 +1,12 @@
+## V2.9.40
+### Thời tiết: chọn tỉnh, thành phố bằng danh sách thả xuống
+
+- Chạm tên nơi chốn (có mũi tên ▾) để mở danh sách **34 tỉnh, thành phố** (đơn vị hành chính từ 1/7/2025). Ô chứa
+  thành phố trực thuộc trung ương đứng đầu, tiếp theo là các tỉnh theo thứ tự ABC, mỗi ô ghi thêm nơi đặt trụ sở
+  (toạ độ thời tiết lấy ở đó). Nơi đang xem được tô sáng.
+- Dòng đầu "Nhà (Home Assistant)": quay về vị trí nhà. Lựa chọn được ghi nhớ.
+- Bỏ ô gõ tìm kiếm (không cần bàn phím ảo).
+
 ## V2.9.39
 ### Thời tiết: dùng vị trí nhà trong Home Assistant
 
