@@ -211,10 +211,10 @@ export class FrameProcessor {
     }
 
     const rectsForFull = this._splitWholeFrame(rgba.width, rgba.height, this._cfg.fullframeTileCount);
-    const rects: Rect[] = [];
-    for (const r of rectsForFull) {
-      rects.push(...await this._encodeRectFitting(rgba, r.x, r.y, r.w, r.h, encoding, cap));
-    }
+    // (25/09/2026) Nen SONG SONG (sharp/libvips chay tren threadpool nhieu nhan) — truoc day tuan tu: 4 phan tu
+    // 1024x600 ~20 ms/khung. Promise.all giu nguyen thu tu ket qua -> thu tu rect gui di khong doi.
+    const parts = await Promise.all(rectsForFull.map((r) => this._encodeRectFitting(rgba, r.x, r.y, r.w, r.h, encoding, cap)));
+    const rects: Rect[] = parts.flat();
 
     for (const t of tilesInfo) this._prev![t.idx] = t.h32;
 
@@ -229,10 +229,8 @@ export class FrameProcessor {
     const mergedRects = this._mergeChangedTiles(tiles, rgba.width, rgba.height);
 
     const cap = this._cfg.maxBytesPerMessage - FRAME_HEADER_BYTES - TILE_HEADER_BYTES;
-    const out: Rect[] = [];
-    for (const r of mergedRects) {
-      out.push(...await this._encodeRectFitting(rgba, r.x, r.y, r.w, r.h, encoding, cap));
-    }
+    const parts = await Promise.all(mergedRects.map((r) => this._encodeRectFitting(rgba, r.x, r.y, r.w, r.h, encoding, cap)));
+    const out: Rect[] = parts.flat();
     for (const t of tiles) if (t.changed) this._prev![t.idx] = t.h32;
 
     return { rects: out, isFullFrame: false, encoding };
