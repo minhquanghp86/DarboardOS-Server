@@ -1,133 +1,158 @@
-# Quan trọng
-- Repo này là bản phối lại, kết hợp thêm một số chức năng. Xin cám ơn tới strange-v vì công sức anh ấy bỏ ra cho dự án này. Đường link dẫn tới repo của anh ấy nếu bạn thấy hứng thú: https://github.com/strange-v/RemoteWebViewServer
-- Đồng thời cũng cám ơn đến ý tưởng và công sức của SleepinDevil. Người đưa ra ý tưởng tích hợp thêm bàn phím rất tuyệt. Link tham khảo nếu bạn muốn ghé thăm: https://github.com/SleepinDevil/RemoteWebViewServer
-  
-# Remote WebView Server
+# HA Darboard Server — Remote WebView Server
 
-Trình duyệt Headless browser hiển thị các trang web mục tiêu (ví dụ: bảng điều khiển Home Assistant) và truyền phát chúng dưới dạng các ô hình ảnh qua WebSocket đến các trang web nhẹ [clients](https://github.com/minhquanghp86/HA-Darboard-Client) (ESP32 displays). Máy chủ hỗ trợ nhiều máy khách cùng lúc, mỗi máy khách có độ phân giải màn hình, hướng và cài đặt riêng cho từng thiết bị.
-![Remote WebView](/images/tiled_preview.png)
+Biến màn hình cảm ứng **ESP32-P4 / ESP32-S3** thành **bảng điều khiển gắn tường** cho Home Assistant: một trình duyệt
+Chrome ẩn chạy trên máy chủ dựng trang web (dashboard HA, YouTube, camera…), gửi phần thay đổi dưới dạng ô ảnh JPEG qua
+WebSocket tới màn hình, nhận lại thao tác chạm — kèm âm thanh, menu ứng dụng và điều khiển từ Home Assistant.
 
+Dự án gồm hai repo dùng cùng nhau:
+
+| Repo | Vai trò |
+|---|---|
+| **HA-Darboard-Server** (repo này) | Máy chủ — addon Home Assistant (hoặc container Docker) |
+| [HA-Darboard-Client](https://github.com/minhquanghp86/HA-Darboard-Client) | Firmware màn hình — component ESPHome `remote_webview` và cấu hình mẫu đã chạy thật |
+
+📖 **Hướng dẫn sử dụng đầy đủ**: [`hassio/remote_webview_server/DOCS.md`](hassio/remote_webview_server/DOCS.md) — cũng
+hiện ở tab *Tài liệu* của addon trong Home Assistant.
+
+<p align="center">
+  <img src="images/menu.png" width="49%" alt="Menu ứng dụng trên màn hình ESP32-P4">
+  <img src="images/weather.png" width="49%" alt="Ứng dụng Thời tiết">
+  <img src="images/calendar.png" width="49%" alt="Lịch âm dương">
+  <img src="images/menu-panel.png" width="49%" alt="Trang Menu panel trong Home Assistant">
+</p>
 
 ## Tính năng
 
-- hiển thị các trang trong môi trường Chromium không giao diện và các luồng diff được tạo thành các ô trên WebSocket.
-- hợp nhất ô với tính năng phát hiện thay đổi để giảm số lượng gói tin và tải CPU
-- dự phòng toàn khung hình theo nhịp/ngưỡng hoặc theo yêu cầu
-- kích thước ô, chất lượng JPEG, kích thước tin nhắn WS và khoảng thời gian khung hình tối thiểu có thể cấu hình
-- cài đặt cho từng máy khách: mỗi kết nối có thể cung cấp chiều rộng, chiều cao, Kích thước ô, Chất lượng JPEG, MaxBytesPerMessage, v.v. riêng.
-- Cấu hình lại nóng: kết nối lại với các tham số mới sẽ cấu hình lại phiên thiết bị và kích hoạt làm mới toàn khung hình.
-- Cổng khung thông minh hơn: điều tiết + nội dung băm bị loại bỏ (bỏ qua các khung giống hệt nhau)
-- Không có người xem = không có công việc: các khung được ACK để tiếp tục phát trực tuyến Chromium, nhưng các ô không được mã hóa/xếp hàng khi không có người nghe.
- - Kết nối sự kiện chạm (xuống/di chuyển/lên) — hỗ trợ cuộn (chưa có cử chỉ)
-- Điều hướng do máy khách điều khiển: máy khách có thể kiểm soát trang nào sẽ mở.
-- Trang tự kiểm tra tích hợp để trực quan hóa và đo thời gian hiển thị
-- Điểm cuối kiểm tra tình trạng hoạt động để điều phối container
-- Tùy chọn truy cập DevTools qua proxy TCP
-- Thêm hỗ trợ hướng xoay màn hình
-- Thêm cảm biến báo cáo chế độ phát video đang hoạt động(phục vụ việc dừng tắt màn hình trên client)
-- Dropdown launcher tiêm sẵn trên mọi trang (nút góc trên-phải): điều hướng nhanh về Home hoặc YouTube, không cần rời màn hình dashboard để đổi URL thủ công
+**Hiển thị**
+- Chrome ẩn (có giải mã H.264) dựng trang; chỉ gửi các ô **thay đổi** (so khớp băm từng ô), khung đầy đủ theo ngưỡng
+  diện tích/nhịp; bỏ qua khung trùng; không có người xem thì không mã hoá.
+- **Tự điều tiết** tốc độ khung và chất lượng JPEG theo thời gian giải mã thật của từng màn hình và độ nghẽn mạng (AIMD).
+- Màn hình **ESP32-P4**: khung đầy đủ chia dải ngang để giải mã thẳng vào framebuffer (`?fb=1`) — YouTube đủ độ phân
+  giải 1024×600 ~28–29 hình/giây đo thực tế.
+- Mỗi màn hình một cấu hình riêng (độ phân giải, xoay, cỡ ô, chất lượng…), gửi lúc kết nối; kết nối lại với tham số mới
+  là cấu hình lại ngay.
 
-## Truy cập tab máy chủ bằng Chrome DevTools
-1. Đảm bảo máy chủ của bạn hiển thị cổng DevTools (CDP) (ví dụ: 9222).
-- Nếu bạn sử dụng container Docker thuần túy, hãy đảm bảo bạn đã cấu hình và khởi động `debug-proxy`
-- Nếu sử dụng tiện ích bổ sung Ha OS, hãy bật `expose_debug_proxy`
-1. Trong Chrome, hãy truy cập chrome://inspect/#devices → Configure… → thêm máy chủ của bạn: hostname_or_ip:9222.
-1. Bạn sẽ thấy trang mà máy chủ đã mở (trang bạn muốn đăng nhập, ví dụ: Home Assistant). Nhấp vào inspect để mở toàn bộ cửa sổ DevTools cho tab đó.
+**Tương tác**
+- Cảm ứng (chạm, kéo, cuộn) truyền về trình duyệt; bàn phím ảo tự hiện khi chạm ô nhập (có **tiếng Việt Telex**).
+- Đồng bộ URL hai chiều: màn hình biết trang đang hiện thực tế (kể cả tab SPA của HA), và điều hướng được từ HA.
 
-## Thêm tương tác với màn hình bằng bàn phím
-- Hỗ trợ bàn phím bao gồm cả Tiếng Việt (Cám ơn ý tưởng của SleepinDevil)
-## Thẻ hình ảnh & quản lý phiên bản
+**Âm thanh**
+- Âm thanh trang web (YouTube, radio…) được bắt qua PulseAudio và gửi PCM tới màn hình có khai báo loa.
 
-- mới nhất — bản phát hành ổn định mới nhất
-- beta — bản tiền phát hành mới nhất (đang phát hành)
-- phiên bản ngữ nghĩa: X.Y.Z, cùng với các thẻ tiện lợi X.Y, X trên các bản phát hành ổn định
+**Menu ứng dụng** (nút ở giữa mép trên mọi trang, hiện giờ của màn hình)
+- Giờ, ngày dương/âm lịch, thời tiết thu gọn; thanh trượt độ sáng/âm lượng; nút Luôn sáng / Tắt tiếng / Khử vọng mic.
+- Ứng dụng theo nhóm: Trang chủ, Camera P4, Camera nhà (lưới camera go2rtc), Cảnh (scene/script HA), Năng lượng,
+  YouTube, TikTok, Nhạc, Radio VOV, Tin tức, Media, Thời tiết (Open-Meteo, 34 tỉnh/thành), Lịch âm dương, Hẹn giờ
+  (báo thức toàn màn hình, vẫn reo khi đã chuyển trang), Trình duyệt.
+- Trang **Menu panel** trên thanh bên Home Assistant (ingress): ẩn/hiện, sắp xếp, biểu tượng MDI, màu, thêm ứng dụng.
 
-Bạn có thể ghim một bản phát hành ổn định (`1.4.0`) hoặc theo dõi các kênh (`mới nhất`, `beta`) tùy thuộc vào chiến lược triển khai của bạn.
+**Vận hành**
+- `/metrics` (JSON số liệu từng màn hình), tinh chỉnh nóng qua `/data/rwv-tuning.json`, self-test đo thời gian dựng
+  hình, proxy Chrome DevTools tuỳ chọn.
 
-## Ví dụ về Docker Compose
+## Cài đặt
 
-```yaml
-services:
-  rwvserver:
-    image: strangev/remote-webview-server:latest  # use :beta for pre-release
-    container_name: remote-webview-server
-    restart: unless-stopped
-    environment:
-      TILE_SIZE: 32
-      FULL_FRAME_TILE_COUNT: 4
-      FULL_FRAME_AREA_THRESHOLD: 0.5
-      FULL_FRAME_EVERY: 50
-      EVERY_NTH_FRAME: 1
-      MIN_FRAME_INTERVAL_MS: 80
-      JPEG_QUALITY: 85
-      MAX_BYTES_PER_MESSAGE: 14336
-      WS_PORT: 8081
-      DEBUG_PORT: 9221 # internal debug port
-      HEALTH_PORT: 18080
-      PREFERS_REDUCED_MOTION: false
-      USER_DATA_DIR: /pw-data
-      BROWSER_LOCALE: "en-US"
-    ports:
-      - "8081:8081"                   # WebSocket stream
-      - "9222:9222"                   # external DevTools via socat
-    expose:
-      - "18080"                       # health endpoint (internal)
-      - "9221"                        # internal DevTools port
-    volumes:
-      - /opt/volumes/esp32-rdp/pw-data:/pw-data
-    shm_size: 1gb
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:18080 || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-      start_period: 10s
+### Home Assistant (khuyến nghị)
 
-  debug-proxy:
-    image: alpine/socat
-    container_name: remote-webview-server-debug
-    restart: unless-stopped
-    network_mode: "service:rwvserver"
-    depends_on:
-      rwvserver:
-        condition: service_healthy
-    command:
-      - "-d"
-      - "-d"
-      - "TCP-LISTEN:9222,fork,reuseaddr,keepalive" # external DevTools port
-      - "TCP:127.0.0.1:9221"
+1. Cài đặt → Addon → Cửa hàng → ⋮ → Kho lưu trữ → thêm `https://github.com/minhquanghp86/HA-Darboard-Server`.
+2. Cài **Remote WebView Server**, khởi động.
+3. Nạp firmware cho màn hình từ [HA-Darboard-Client](https://github.com/minhquanghp86/HA-Darboard-Client) với
+   `server: <ip-HA>:8081`.
+
+Chi tiết từng bước, cách dùng và xử lý sự cố: [DOCS.md](hassio/remote_webview_server/DOCS.md).
+
+**Yêu cầu**: máy chủ **x86-64 (amd64)** — Google Chrome cho Linux (cần cho H.264) không có bản ARM. Đo thực tế 3 màn
+hình trên Intel i5-8500T: ~1,1 GB RAM, ~3 nhân CPU khi một màn hình phát video.
+
+### Docker (ngoài Home Assistant)
+
+Xem [`docker-compose.rwv.yml`](docker-compose.rwv.yml) — image `ghcr.io/minhquanghp86/ha-darboard-server:chrome-h264`,
+chạy `network_mode: host`. Ngoài HA không có ingress: đặt `LAUNCHER_CONFIG_OPEN=1` nếu muốn lưu cấu hình menu từ
+`http://<máy>:18080/launcher-config.html` (mọi máy trong LAN đều sửa được — chỉ dùng trong mạng tin cậy).
+
+## Cổng
+
+| Cổng | Dùng cho |
+|---|---|
+| `8081` (`WS_PORT`) | WebSocket với màn hình: ảnh, âm thanh, cảm ứng, trạng thái |
+| `18080` (`HEALTH_PORT`) | `/metrics`, trang ứng dụng (`weather`, `calendar`, `cams`, `scenes`, `radio`, `timer`, `cam`), Menu panel (ingress) — **chỉ LAN** |
+| `9221` (`DEBUG_PORT`) | Chrome DevTools nội bộ (127.0.0.1) |
+| `9222` (`DEBUG_PROXY_PORT`) | DevTools ra LAN — chỉ khi bật `expose_debug_proxy` |
+
+## Biến môi trường
+
+Addon tự đặt các biến này từ phần *Cấu hình*; khi chạy Docker thì tự khai báo.
+
+| Biến | Mặc định | Ý nghĩa |
+|---|---|---|
+| `WS_PORT`, `HEALTH_PORT`, `DEBUG_PORT` | 8081, 18080, 9221 | Xem bảng cổng |
+| `USER_DATA_DIR` | `/data/pw-data` (addon) | Hồ sơ trình duyệt — giữ đăng nhập qua cập nhật |
+| `BROWSER_LOCALE` | `en-US` | Ngôn ngữ trình duyệt |
+| `PREFERS_REDUCED_MOTION` | `false` | Yêu cầu trang tắt hiệu ứng động |
+| `TILE_SIZE`, `FULL_FRAME_TILE_COUNT`, `FULL_FRAME_AREA_THRESHOLD`, `FULL_FRAME_EVERY`, `EVERY_NTH_FRAME`, `MIN_FRAME_INTERVAL_MS`, `JPEG_QUALITY`, `MAX_BYTES_PER_MESSAGE` | xem addon | **Dự phòng** khi màn hình không tự gửi (firmware `remote_webview` luôn gửi) |
+| `EXPOSE_DEBUG_PROXY`, `DEBUG_PROXY_PORT` | `false`, 9222 | Proxy DevTools ra LAN |
+| `GO2RTC_URL` | `http://127.0.0.1:1984` | go2rtc cho ứng dụng Camera nhà |
+| `LAUNCHER_CAMERA_URL`, `LAUNCHER_WEATHER_URL` | trang nội bộ | Đổi đích của ứng dụng Camera P4 / Thời tiết |
+| `LAUNCHER_CONFIG_OPEN` | — | `1` = cho lưu cấu hình menu không qua ingress (Docker) |
+| `CCR_ADAPTIVE`, `CCR_REFRESH_MS`, `HALF_SCALE_VIDEO`, … | xem mã | Tinh chỉnh bộ điều tiết (nâng cao) |
+
+## Giao thức WebSocket (tóm tắt)
+
+Gói nhị phân, byte đầu là loại (khớp `src/protocol.ts` và `components/remote_webview/protocol.h` bên firmware):
+
+| Loại | Hướng | Nội dung |
+|---|---|---|
+| 1 `Frame` | server → màn hình | Các ô JPEG của một khung |
+| 2 `Touch` | màn hình → server | Chạm / kéo / nhấc |
+| 3 `FrameStats` | hai chiều | Xin / báo thời gian giải mã, bộ nhớ |
+| 4 `OpenURL` | màn hình → server | Mở trang |
+| 5 `Keepalive` | màn hình → server | Giữ kết nối |
+| 6 `CurrentURL` | server → màn hình | Trang đang hiện thực tế |
+| 7 `AudioFrame` | server → màn hình | PCM 16 kHz mono của trang |
+| 8 `SetDisplayURL` | server → màn hình | Người dùng nhập URL ở menu → thực thể *URL hiển thị* |
+| 9 `DeviceControl` | server → màn hình | Thanh trượt / nút trong menu (độ sáng, âm lượng, luôn sáng, tắt tiếng, khử vọng) |
+| 10 `DeviceState` | màn hình → server | Độ sáng, âm lượng, trạng thái nút, **giờ của màn hình** |
+
+Tham số kết nối (`?id=&w=&h=&ts=&q=…&home=&audio=1&fb=1&urlset=1&ctl=1`) khai báo khả năng của màn hình.
+
+## Phát triển
+
+```bash
+npm ci
+npm run build        # TypeScript -> dist/
+npm run test:run     # kiểm thử (giao thức, bộ điều tiết, menu, cú pháp script launcher…)
 ```
 
-## Trang tĩnh nội bộ: `public/`
+- `src/` — máy chủ (Node/TypeScript): `deviceManager.ts` (phiên thiết bị, launcher, bàn phím), `frameProcessor.ts`
+  (chia ô, JPEG), `adaptive.ts` (điều tiết), `broadcaster.ts`, `audioCapture.ts`, `launcher*.ts`, `haApps.ts`,
+  `weatherMini.ts`.
+- `public/` — trang ứng dụng và Menu panel, phục vụ ở `HEALTH_PORT`.
+- `hassio/remote_webview_server/` — addon: `config.yaml`, `run.sh`, `DOCS.md`, `CHANGELOG.md`, `translations/`.
+- Phát hành: push `main` → GitHub Actions dựng `ghcr.io/minhquanghp86/ha-darboard-server:chrome-h264` → tăng
+  `version` trong `config.yaml` → Home Assistant thấy bản cập nhật.
 
-Server phục vụ thêm vài trang HTML tĩnh trực tiếp ở `HEALTH_PORT` (mặc định
-`18080`), ví dụ `http://<server>:18080/cam.html`.
+## Bảo mật
 
-**Vì sao không đặt trong `/config/www/` của Home Assistant:** HA phục vụ
-`/local/` (tức `www/`) **không cần đăng nhập**, theo thiết kế — phục vụ cho
-ảnh, custom card... Nếu HA của bạn được lộ ra internet (qua Cloudflare
-Tunnel, reverse proxy, port-forward...), mọi file trong `www/` cũng lộ theo,
-không mật khẩu, không cảnh báo. Đã xác minh thật trên một HASS có Cloudflare
-Tunnel: `https://<domain>/local/cam.html` trả về `200` từ ngoài internet.
+- `HEALTH_PORT` (18080) chỉ dùng trong LAN; không đưa ra Internet. Menu panel đi qua ingress của HA (có đăng nhập);
+  lưu cấu hình chỉ nhận từ Supervisor.
+- **Không** đặt trang tự tạo trong `/config/www/` của HA nếu HA mở ra Internet: `/local/` phục vụ không cần đăng nhập
+  (đã kiểm chứng: `https://<domain>/local/cam.html` trả `200` từ Internet qua Cloudflare Tunnel). Vì vậy các trang của
+  dự án được phục vụ ở `HEALTH_PORT`.
+- Addon dùng token Supervisor (quyền `homeassistant_api`) để đọc vị trí nhà và chạy scene/script — không cần thông tin
+  đăng nhập của người dùng.
+- Proxy DevTools (`expose_debug_proxy`) cho phép điều khiển trình duyệt, kể cả phiên HA — chỉ bật khi cần.
 
-`HEALTH_PORT` của server này thường **không** nằm trong danh sách máy chủ
-được reverse-proxy/tunnel ra ngoài (nó chỉ để giám sát nội bộ), nên phục vụ
-trang ở đây giữ nó ở đúng phạm vi LAN — cùng mức phơi bày mà các dịch vụ khác
-trong hệ thống (go2rtc, ESPHome native API) vốn đã chấp nhận. Trước khi tin
-tưởng điều này, hãy tự kiểm tra: `curl -I https://<domain-cong-khai>/` xem
-cổng `HEALTH_PORT` có bị proxy ra ngoài dưới path nào không, và kiểm tra
-router có luật NAT port-forward thủ công nào trỏ thẳng vào `HEALTH_PORT`
-không — đó là điều một request `curl` từ máy chủ không thể tự xác minh.
+## Ghi công và giấy phép
 
-## Giấy phép
-
-Dự án dùng **hai giấy phép**, vì nó phát triển tiếp từ [strange-v/RemoteWebViewServer](https://github.com/strange-v/RemoteWebViewServer):
+- Phát triển tiếp từ [strange-v/RemoteWebViewServer](https://github.com/strange-v/RemoteWebViewServer) — cảm ơn
+  strange-v. Ý tưởng bàn phím ảo từ [SleepinDevil](https://github.com/SleepinDevil/RemoteWebViewServer).
+- Dữ liệu thời tiết [Open-Meteo](https://open-meteo.com), radio Đài Tiếng nói Việt Nam, âm lịch theo thuật toán
+  Hồ Ngọc Đức, biểu tượng [Material Design Icons](https://pictogrammers.com/library/mdi/).
 
 | Phần | Giấy phép | File |
 |---|---|---|
-| Mã gốc của `strange_v` | MIT © 2025 strange_v | `LICENSE-MIT` |
-| Sửa đổi và bổ sung trong repo này | Apache License 2.0 © 2026 minhquanghp86 | `LICENSE` |
+| Mã gốc của strange_v | MIT © 2025 strange_v | `LICENSE-MIT` |
+| Sửa đổi và bổ sung | Apache License 2.0 © 2026 minhquanghp86 | `LICENSE` |
 
-Đo trên `src/`: 1353 dòng giữ nguyên từ upstream, 1297 dòng viết mới — trong đó `adaptive.ts` (điều khiển tắc nghẽn AIMD), `metrics.ts` và ba file kiểm thử là hoàn toàn mới. Mọi file đã bị sửa đều mang thông báo ở đầu file theo yêu cầu của Apache-2.0 §4(b). Xem `NOTICE` để biết chi tiết ghi công.
-
-Khi dùng lại mã nguồn này, bạn cần giữ cả hai thông báo bản quyền.
+Mọi file đã sửa từ upstream đều có thông báo ở đầu file theo Apache-2.0 §4(b); xem `NOTICE`. Khi dùng lại mã nguồn, giữ
+cả hai thông báo bản quyền.
