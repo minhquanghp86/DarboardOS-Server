@@ -1,3 +1,11 @@
+## V2.9.30
+### Điều tiết riêng cho thiết bị giải mã thẳng vào framebuffer (P4): YouTube đủ độ phân giải 24 fps
+
+- Thiết bị `?fb=1`: ngân sách xử lý 1,3 × nhịp (nhận/giải mã song song), tồn đọng cho phép 192 KB, giãn nhịp ×1,5.
+  Mặc định cũ (0,5 / 96 KB / ×2) đặt cho khung ~20 KB → giữ P4 ở ~7 fps khi gửi đủ độ phân giải.
+- Đo (P4, camera Frigate 5 fps, YouTube trong trang, YAML `full_frame_area_threshold: 0.8`): **24,3 fps đủ độ phân
+  giải**, 34 KB/khung, không mất kết nối. (Mốc: 7,2 fps.)
+
 ## V2.9.29
 ### Khung đầy đủ chia dải ngang cho thiết bị giải mã thẳng vào framebuffer (`?fb=1`, P4)
 

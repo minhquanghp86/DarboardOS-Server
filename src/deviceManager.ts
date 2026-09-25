@@ -1777,8 +1777,14 @@ export function runAdaptiveTick(): void {
       st.minFrameIntervalMs = device.tunedMinFrameIntervalMs ?? st.minFrameIntervalMs;
       adaptiveStates.set(m.id, st);
     }
+    // (25/09/2026) Thiet bi giai ma thang vao framebuffer (?fb=1, P4): nhan va giai ma chay SONG SONG, khung day du
+    // ~60 KB, P4 xu ly ~20-25 ms/khung. Mac dinh cu (ngan sach = 0,5 x nhip, ton dong 96 KB, gian x2) dat cho khung
+    // ~20 KB va thiet bi giai ma tuan tu -> giu P4 o ~7 fps. Do that (docs muc 24): 1,3 / 192 KB / x1,5 + nguong
+    // khung day du 0,8 (YAML) -> YouTube DU do phan giai 24 fps. File tinh chinh van ghi de duoc.
+    const fbProfile = device.cfg.fbBands
+      ? { decodeBudgetRatio: 1.3, maxBacklogBytes: 196_608, intervalBackoffFactor: 1.5 } : {};
     const cfgA = {
-      ...DEFAULT_ADAPTIVE_CFG, maxQuality: device.cfg.jpegQuality,
+      ...DEFAULT_ADAPTIVE_CFG, maxQuality: device.cfg.jpegQuality, ...fbProfile,
       ...(tun.maxBacklogBytes !== undefined ? { maxBacklogBytes: tun.maxBacklogBytes } : {}),
       ...(tun.decodeBudgetRatio !== undefined ? { decodeBudgetRatio: tun.decodeBudgetRatio } : {}),
       ...(tun.intervalBackoffFactor !== undefined ? { intervalBackoffFactor: tun.intervalBackoffFactor } : {}),
