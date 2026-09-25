@@ -1,3 +1,17 @@
+## V2.9.37
+### Menu ứng dụng: đồng hồ, thanh trượt độ sáng/âm lượng, ứng dụng Thời tiết
+
+- Nút giọt nước ở giữa mép trên hiện **đồng hồ HH:MM theo giờ của chính thiết bị** (RTC RX8130 + SNTP trên P4). Thiết
+  bị gửi gói `DeviceState` (loại 10) khi kết nối, khi đổi độ sáng/âm lượng và mỗi 30 s. Trang tự đếm giây từ độ lệch
+  đồng hồ và múi giờ của thiết bị, chỉ vẽ lại khi đổi phút. Thiết bị cũ (không báo giờ) vẫn hiện mũi tên như trước.
+- Đầu popup ứng dụng có **hai thanh trượt kiểu trung tâm điều khiển điện thoại**: độ sáng màn hình và âm lượng video
+  web. Kéo → gói `DeviceControl` (loại 9) gửi thẳng, không xếp sau khung hình. Chỉ hiện khi firmware báo `?ctl=1`.
+  Tiêu đề popup hiện thứ/ngày theo giờ thiết bị.
+- Ứng dụng mới **Thời tiết** (`/weather.html`):
+  - Dữ liệu từ web: Open-Meteo, gồm dự báo và chất lượng không khí, không cần khoá API, không lấy từ Home Assistant.
+  - Nội dung: hiện tại (nhiệt độ, cảm giác, độ ẩm, gió, UV, AQI/PM2.5, mặt trời), 24 giờ tới, 7 ngày.
+  - Vị trí: lần đầu đoán theo IP; chạm tên nơi chốn để tìm và đổi (tìm được địa danh tiếng Việt).
+
 ## V2.9.36
 ### Sửa tiếng "tách tách" khi phát âm thanh trang (YouTube)
 

@@ -1,0 +1,423 @@
+<!doctype html>
+<!--
+  (25/09/2026) Ung dung "Thoi tiet" cua menu ung dung (launcher). Phuc vu tai HEALTH_PORT (/weather.html) nhu cam.html.
+  Du lieu lay tu WEB (Open-Meteo: du bao + chat luong khong khi, khong can khoa API), KHONG lay tu Home Assistant.
+  Vi tri: ?lat=&lon=&name= > da luu (localStorage) > doan theo IP (ipwho.is) > Ha Noi. Cham ten noi chon de doi.
+  Man hinh dich: P4 1024x600 (ngang), van dung duoc tren panel 480x272. KHONG hieu ung dong: moi khung hinh deu phai
+  truyen qua WiFi toi man hinh. Cap nhat 15 phut/lan.
+-->
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Thời tiết</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    --bg: #0e1522;
+    --surface: #172131;
+    --surface-2: #1d293c;
+    --line: rgba(238, 243, 251, 0.08);
+    --text: #eef3fb;
+    --muted: #93a3b8;
+    --sun: #fbbf24;
+    --rain: #60a5fa;
+    --cool: #7dd3fc;
+    --pad: clamp(8px, 2.6vmin, 22px);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+    font-variant-numeric: tabular-nums;
+    -webkit-user-select: none; user-select: none;
+    overflow: hidden;
+  }
+  /* Chua cho nut menu (giot nuoc 22px) cua launcher o giua mep tren */
+  main {
+    height: 100%;
+    padding: calc(var(--pad) + 14px) var(--pad) var(--pad);
+    display: grid;
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.25fr);
+    gap: var(--pad);
+  }
+  .card { background: var(--surface); border-radius: clamp(10px, 2.4vmin, 18px); padding: var(--pad); min-height: 0; }
+
+  /* ── Cot trai: hien tai ─────────────────────────────── */
+  .now { display: flex; flex-direction: column; gap: clamp(6px, 1.8vmin, 14px); }
+  .place {
+    display: flex; align-items: center; gap: 8px; cursor: pointer;
+    font-size: clamp(13px, 3.4vmin, 22px); font-weight: 600; min-width: 0;
+  }
+  .place span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .place svg { flex: none; width: 1em; height: 1em; opacity: 0.7; }
+  .updated { font-size: clamp(10px, 2.3vmin, 14px); color: var(--muted); }
+  .hero { display: flex; align-items: center; gap: clamp(8px, 2.4vmin, 18px); }
+  .hero .icon { width: clamp(56px, 19vmin, 120px); height: clamp(56px, 19vmin, 120px); flex: none; }
+  .temp { font-size: clamp(40px, 15vmin, 96px); font-weight: 600; line-height: 1; letter-spacing: -0.02em; }
+  .temp sup { font-size: 0.4em; font-weight: 500; vertical-align: 0.9em; margin-left: 2px; color: var(--muted); }
+  .cond { font-size: clamp(13px, 3.4vmin, 22px); font-weight: 500; }
+  .feels { font-size: clamp(11px, 2.6vmin, 16px); color: var(--muted); }
+  .stats {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(4px, 1.4vmin, 10px); margin-top: auto;
+  }
+  .stat { background: var(--surface-2); border-radius: clamp(8px, 1.8vmin, 12px); padding: clamp(5px, 1.5vmin, 11px); min-width: 0; }
+  .stat .k { font-size: clamp(9px, 2.1vmin, 13px); color: var(--muted); letter-spacing: 0.02em; }
+  .stat .v { font-size: clamp(12px, 3.1vmin, 20px); font-weight: 600; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stat .v small { font-size: 0.65em; font-weight: 500; color: var(--muted); margin-left: 3px; }
+
+  /* ── Cot phai: theo gio + 7 ngay ───────────────────── */
+  .right { display: flex; flex-direction: column; gap: var(--pad); min-height: 0; }
+  h2 { margin: 0 0 clamp(4px, 1.4vmin, 10px); font-size: clamp(10px, 2.4vmin, 14px); font-weight: 600; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+  .hours { flex: none; }
+  .hour-strip { display: flex; gap: clamp(2px, 0.8vmin, 6px); overflow-x: auto; scrollbar-width: none; touch-action: pan-x; }
+  .hour-strip::-webkit-scrollbar { display: none; }
+  .hour { flex: none; width: clamp(40px, 10.5vmin, 66px); display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0; border-radius: 10px; }
+  .hour.first { background: var(--surface-2); }
+  .hour .t { font-size: clamp(10px, 2.3vmin, 14px); color: var(--muted); }
+  .hour .icon { width: clamp(22px, 6vmin, 36px); height: clamp(22px, 6vmin, 36px); }
+  .hour .d { font-size: clamp(12px, 2.9vmin, 18px); font-weight: 600; }
+  .hour .p { font-size: clamp(9px, 2vmin, 12px); color: var(--rain); min-height: 1.2em; }
+  .days { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .day-list { flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-height: 0; }
+  .day {
+    display: grid; align-items: center; gap: clamp(4px, 1.6vmin, 12px);
+    grid-template-columns: clamp(58px, 15vmin, 96px) clamp(20px, 5.4vmin, 32px) clamp(28px, 6vmin, 40px) clamp(26px, 5.6vmin, 36px) minmax(30px, 1fr) clamp(26px, 5.6vmin, 36px);
+    font-size: clamp(11px, 2.8vmin, 17px);
+    padding: clamp(1px, 0.5vmin, 4px) 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .day:last-child { border-bottom: none; }
+  .day .n { font-weight: 600; white-space: nowrap; }
+  .day .icon { width: 100%; height: auto; aspect-ratio: 1; }
+  .day .p { color: var(--rain); font-size: 0.82em; text-align: right; }
+  .day .lo { color: var(--muted); text-align: right; }
+  .day .hi { font-weight: 600; }
+  .bar { position: relative; height: clamp(4px, 1vmin, 6px); border-radius: 99px; background: var(--surface-2); }
+  .bar i { position: absolute; top: 0; bottom: 0; border-radius: 99px; background: linear-gradient(90deg, var(--cool), var(--sun)); }
+
+  /* ── Doi noi chon ───────────────────────────────────── */
+  #picker {
+    position: fixed; inset: 0; background: rgba(6, 10, 18, 0.72); display: none;
+    align-items: flex-start; justify-content: center; padding-top: calc(var(--pad) + 18px);
+  }
+  #picker.open { display: flex; }
+  .sheet { width: min(620px, calc(100vw - 2 * var(--pad))); background: var(--surface); border-radius: 16px; padding: var(--pad); display: flex; flex-direction: column; gap: 10px; }
+  .row { display: flex; gap: 8px; }
+  #q {
+    flex: 1; min-width: 0; height: clamp(34px, 8vmin, 46px); border: 1px solid var(--line); border-radius: 10px;
+    background: var(--bg); color: var(--text); padding: 0 12px; font: inherit; font-size: clamp(13px, 3vmin, 18px); outline: none;
+  }
+  #q:focus { border-color: var(--rain); }
+  .btn { flex: none; display: flex; align-items: center; justify-content: center; padding: 0 14px; border-radius: 10px; background: var(--surface-2); cursor: pointer; font-weight: 600; font-size: clamp(12px, 2.8vmin, 16px); }
+  .btn.primary { background: #2563eb; }
+  .btn:focus-visible, .place:focus-visible, .res:focus-visible { outline: 2px solid var(--rain); outline-offset: 2px; }
+  .results { display: flex; flex-direction: column; gap: 4px; max-height: 40vh; overflow-y: auto; }
+  .res { padding: 9px 12px; border-radius: 10px; background: var(--surface-2); cursor: pointer; font-size: clamp(12px, 2.8vmin, 16px); }
+  .res small { color: var(--muted); margin-left: 6px; }
+  .hint { color: var(--muted); font-size: clamp(11px, 2.4vmin, 14px); }
+
+  #err { position: fixed; left: 50%; bottom: var(--pad); transform: translateX(-50%); background: #7f1d1d; color: #fee2e2; padding: 8px 14px; border-radius: 10px; font-size: clamp(11px, 2.6vmin, 15px); display: none; }
+
+  @media (max-aspect-ratio: 1/1) {
+    main { grid-template-columns: 1fr; overflow-y: auto; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <section class="card now" aria-label="Thời tiết hiện tại">
+    <div class="place" id="place" role="button" tabindex="0" aria-label="Đổi nơi chốn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.1-7-11.5a7 7 0 0114 0C19 14.9 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+      <span id="placeName">Đang xác định vị trí…</span>
+    </div>
+    <div class="updated" id="updated"></div>
+    <div class="hero">
+      <div class="icon" id="nowIcon"></div>
+      <div>
+        <div class="temp" id="nowTemp">--<sup>°C</sup></div>
+        <div class="cond" id="nowCond"></div>
+        <div class="feels" id="nowFeels"></div>
+      </div>
+    </div>
+    <div class="stats" id="stats"></div>
+  </section>
+  <div class="right">
+    <section class="card hours" aria-label="24 giờ tới">
+      <h2>24 giờ tới</h2>
+      <div class="hour-strip" id="hours"></div>
+    </section>
+    <section class="card days" aria-label="7 ngày tới">
+      <h2>7 ngày tới</h2>
+      <div class="day-list" id="days"></div>
+    </section>
+  </div>
+</main>
+
+<div id="picker" role="dialog" aria-label="Chọn nơi chốn">
+  <div class="sheet">
+    <div class="row">
+      <input id="q" type="text" placeholder="Nhập tên tỉnh, thành phố… (vd: Hải Phòng)" autocomplete="off" spellcheck="false">
+      <div class="btn primary" id="search" role="button" tabindex="0">Tìm</div>
+      <div class="btn" id="close" role="button" tabindex="0" aria-label="Đóng">✕</div>
+    </div>
+    <div class="results" id="results"></div>
+    <div class="row">
+      <div class="btn" id="useIp" role="button" tabindex="0">Dùng vị trí theo mạng</div>
+    </div>
+  </div>
+</div>
+<div id="err" role="status"></div>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var LS_KEY = 'rwv_weather_loc';
+  var FALLBACK = { name: 'Hà Nội', lat: 21.0285, lon: 105.8542 };
+  var REFRESH_MS = 15 * 60 * 1000;
+
+  // ── Ma thoi tiet WMO -> chu tieng Viet + loai icon ──────────────────────
+  var WMO = {
+    0: ['Trời quang', 'clear'], 1: ['Ít mây', 'partly'], 2: ['Mây rải rác', 'partly'], 3: ['Nhiều mây', 'cloud'],
+    45: ['Sương mù', 'fog'], 48: ['Sương mù đóng băng', 'fog'],
+    51: ['Mưa phùn nhẹ', 'drizzle'], 53: ['Mưa phùn', 'drizzle'], 55: ['Mưa phùn dày', 'drizzle'],
+    56: ['Mưa phùn băng giá', 'drizzle'], 57: ['Mưa phùn băng giá', 'drizzle'],
+    61: ['Mưa nhỏ', 'rain'], 63: ['Mưa vừa', 'rain'], 65: ['Mưa to', 'heavy'],
+    66: ['Mưa băng giá', 'rain'], 67: ['Mưa băng giá to', 'heavy'],
+    71: ['Tuyết nhẹ', 'snow'], 73: ['Tuyết', 'snow'], 75: ['Tuyết dày', 'snow'], 77: ['Hạt tuyết', 'snow'],
+    80: ['Mưa rào nhẹ', 'shower'], 81: ['Mưa rào', 'shower'], 82: ['Mưa rào rất to', 'heavy'],
+    85: ['Mưa tuyết', 'snow'], 86: ['Mưa tuyết to', 'snow'],
+    95: ['Dông', 'storm'], 96: ['Dông, mưa đá', 'storm'], 99: ['Dông, mưa đá lớn', 'storm']
+  };
+  function wmo(code) { return WMO[code] || ['—', 'cloud']; }
+
+  // ── Icon SVG (ve tay, don gian, doc ro tren man hinh nho) ─────────────
+  var SUN = '<circle cx="24" cy="24" r="8" fill="#fbbf24"/>' +
+    '<g stroke="#fbbf24" stroke-width="3" stroke-linecap="round">' +
+    '<path d="M24 6v4M24 38v4M6 24h4M38 24h4M11.3 11.3l2.8 2.8M33.9 33.9l2.8 2.8M11.3 36.7l2.8-2.8M33.9 14.1l2.8-2.8"/></g>';
+  var MOON = '<path d="M31 9a14 14 0 1 0 8 25A12 12 0 0 1 31 9z" fill="#e2e8f0"/>';
+  function cloud(x, y, s, fill) {
+    return '<path transform="translate(' + x + ' ' + y + ') scale(' + s + ')" fill="' + fill + '" ' +
+      'd="M12 34a9 9 0 0 1 .8-18A12 12 0 0 1 36 18a8 8 0 0 1-1 16z"/>';
+  }
+  function drops(color, heavy) {
+    var d = heavy ? 'M15 38l-3 6M23 38l-3 6M31 38l-3 6M19 41l-2 4M27 41l-2 4' : 'M17 38l-2.5 5M25 38l-2.5 5M33 38l-2.5 5';
+    return '<path d="' + d + '" stroke="' + color + '" stroke-width="2.6" stroke-linecap="round"/>';
+  }
+  function iconSvg(kind, isDay) {
+    var g = '';
+    var small = cloud(4, 2, 0.95, '#cbd5e1');
+    switch (kind) {
+      case 'clear': g = isDay ? SUN : MOON; break;
+      case 'partly':
+        g = (isDay ? '<g transform="translate(-6 -6) scale(.85)">' + SUN + '</g>' : '<g transform="translate(-4 -6) scale(.8)">' + MOON + '</g>') +
+          cloud(6, 8, 0.85, '#e2e8f0'); break;
+      case 'cloud': g = cloud(0, 0, 0.8, '#94a3b8') + cloud(6, 6, 0.9, '#e2e8f0'); break;
+      case 'fog': g = cloud(4, -2, 0.9, '#cbd5e1') + '<path d="M8 36h32M12 42h24" stroke="#94a3b8" stroke-width="3" stroke-linecap="round"/>'; break;
+      case 'drizzle': g = small + drops('#7dd3fc', false); break;
+      case 'shower':
+        g = (isDay ? '<g transform="translate(-8 -8) scale(.7)">' + SUN + '</g>' : '') + small + drops('#60a5fa', false); break;
+      case 'rain': g = small + drops('#60a5fa', false); break;
+      case 'heavy': g = cloud(4, 2, 0.95, '#94a3b8') + drops('#3b82f6', true); break;
+      case 'snow': g = small + '<g fill="#f8fafc"><circle cx="16" cy="41" r="2"/><circle cx="24" cy="44" r="2"/><circle cx="32" cy="41" r="2"/></g>'; break;
+      case 'storm': g = cloud(4, 0, 0.95, '#64748b') + '<path d="M25 30l-6 9h6l-3 8 9-11h-6l3-6z" fill="#fbbf24"/>'; break;
+      default: g = cloud(4, 4, 0.9, '#e2e8f0');
+    }
+    return '<svg viewBox="0 0 48 48" width="100%" height="100%" aria-hidden="true">' + g + '</svg>';
+  }
+
+  // ── Tien ich ───────────────────────────────────────────────────────────
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function hhmm(iso) { return iso.slice(11, 16); }  // Open-Meteo tra gio DIA PHUONG (timezone=auto)
+  var WD = ['CN', 'Th 2', 'Th 3', 'Th 4', 'Th 5', 'Th 6', 'Th 7'];
+  function wdName(iso, i) {
+    if (i === 0) return 'Hôm nay';
+    var p = iso.split('-');
+    return WD[new Date(Date.UTC(+p[0], +p[1] - 1, +p[2])).getUTCDay()] + ' ' + p[2] + '/' + p[1];
+  }
+  var DIRS = ['Bắc', 'Đông Bắc', 'Đông', 'Đông Nam', 'Nam', 'Tây Nam', 'Tây', 'Tây Bắc'];
+  function dirName(deg) { return DIRS[Math.round(((deg % 360) + 360) % 360 / 45) % 8]; }
+  function uvLabel(u) { return u < 3 ? 'Thấp' : u < 6 ? 'Trung bình' : u < 8 ? 'Cao' : u < 11 ? 'Rất cao' : 'Nguy hiểm'; }
+  function aqiLabel(a) {
+    return a <= 50 ? ['Tốt', '#4ade80'] : a <= 100 ? ['Trung bình', '#facc15'] : a <= 150 ? ['Kém', '#fb923c'] :
+      a <= 200 ? ['Xấu', '#f87171'] : a <= 300 ? ['Rất xấu', '#c084fc'] : ['Nguy hại', '#be123c'];
+  }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function showErr(msg) {
+    var e = $('err'); e.textContent = msg; e.style.display = msg ? 'block' : 'none';
+  }
+  function getJSON(url, ms) {
+    var ctl = new AbortController();
+    var t = setTimeout(function () { ctl.abort(); }, ms || 12000);
+    return fetch(url, { signal: ctl.signal, cache: 'no-store' }).then(function (r) {
+      clearTimeout(t);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    });
+  }
+
+  // ── Vi tri ─────────────────────────────────────────────────────────────
+  var loc = null;
+  function loadSaved() {
+    try { var v = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); if (v && isFinite(v.lat) && isFinite(v.lon)) return v; } catch (e) {}
+    return null;
+  }
+  function save(l) { try { localStorage.setItem(LS_KEY, JSON.stringify(l)); } catch (e) {} }
+  function fromQuery() {
+    var q = new URLSearchParams(location.search);
+    var lat = parseFloat(q.get('lat')), lon = parseFloat(q.get('lon'));
+    return isFinite(lat) && isFinite(lon) ? { name: q.get('name') || 'Vị trí', lat: lat, lon: lon } : null;
+  }
+  function byIp() {
+    return getJSON('https://ipwho.is/?fields=success,city,region,latitude,longitude', 8000).then(function (j) {
+      if (!j.success || !isFinite(j.latitude)) throw new Error('ip');
+      return { name: j.city || j.region || 'Vị trí hiện tại', lat: j.latitude, lon: j.longitude, auto: true };
+    });
+  }
+
+  // ── Tai + ve ───────────────────────────────────────────────────────────
+  function load() {
+    if (!loc) return;
+    $('placeName').textContent = loc.name;
+    var base = 'latitude=' + loc.lat + '&longitude=' + loc.lon + '&timezone=auto';
+    var fc = 'https://api.open-meteo.com/v1/forecast?' + base +
+      '&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,wind_direction_10m,uv_index' +
+      '&hourly=temperature_2m,precipitation_probability,weather_code,is_day' +
+      '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset,uv_index_max' +
+      '&forecast_days=7&wind_speed_unit=kmh';
+    var aq = 'https://air-quality-api.open-meteo.com/v1/air-quality?' + base + '&current=us_aqi,pm2_5';
+    Promise.all([getJSON(fc), getJSON(aq).catch(function () { return null; })]).then(function (r) {
+      render(r[0], r[1]);
+      showErr('');
+    }).catch(function () {
+      showErr('Không tải được dữ liệu thời tiết. Sẽ thử lại sau ít phút.');
+      setTimeout(load, 60000);
+    });
+  }
+
+  function stat(k, v, extra) {
+    return '<div class="stat"><div class="k">' + k + '</div><div class="v">' + v + (extra ? '<small>' + extra + '</small>' : '') + '</div></div>';
+  }
+
+  function render(f, a) {
+    var c = f.current, h = f.hourly, d = f.daily;
+    var w = wmo(c.weather_code);
+    $('nowIcon').innerHTML = iconSvg(w[1], c.is_day === 1);
+    $('nowTemp').innerHTML = Math.round(c.temperature_2m) + '<sup>°C</sup>';
+    $('nowCond').textContent = w[0];
+    $('nowFeels').textContent = 'Cảm giác như ' + Math.round(c.apparent_temperature) + '° · Cao ' +
+      Math.round(d.temperature_2m_max[0]) + '° / Thấp ' + Math.round(d.temperature_2m_min[0]) + '°';
+    var now = new Date();
+    $('updated').textContent = 'Cập nhật ' + pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + ' · Open-Meteo';
+
+    var s = stat('Độ ẩm', c.relative_humidity_2m + '%') +
+      stat('Gió', Math.round(c.wind_speed_10m), 'km/h ' + dirName(c.wind_direction_10m)) +
+      stat('Chỉ số UV', Math.round(c.uv_index != null ? c.uv_index : d.uv_index_max[0]), uvLabel(c.uv_index != null ? c.uv_index : d.uv_index_max[0]));
+    if (a && a.current && a.current.us_aqi != null) {
+      var al = aqiLabel(a.current.us_aqi);
+      s += '<div class="stat"><div class="k">Không khí (AQI)</div><div class="v" style="color:' + al[1] + '">' +
+        a.current.us_aqi + '<small>' + al[0] + '</small></div></div>';
+      s += stat('Bụi mịn PM2.5', Math.round(a.current.pm2_5), 'µg/m³');
+    } else {
+      s += stat('Khả năng mưa', (d.precipitation_probability_max[0] || 0) + '%');
+      s += stat('Lượng mưa', (c.precipitation || 0).toFixed(1), 'mm');
+    }
+    s += stat('Mặt trời', hhmm(d.sunrise[0]), '↓ ' + hhmm(d.sunset[0]));
+    $('stats').innerHTML = s;
+
+    // 24 gio toi, bat dau tu gio hien tai (theo gio dia phuong cua noi chon)
+    var curHour = c.time.slice(0, 13);
+    var start = Math.max(0, h.time.findIndex(function (t) { return t.slice(0, 13) === curHour; }));
+    var hs = '';
+    for (var i = start; i < Math.min(h.time.length, start + 24); i++) {
+      var hw = wmo(h.weather_code[i]);
+      var p = h.precipitation_probability[i];
+      hs += '<div class="hour' + (i === start ? ' first' : '') + '"><div class="t">' + (i === start ? 'Bây giờ' : hhmm(h.time[i])) + '</div>' +
+        '<div class="icon">' + iconSvg(hw[1], h.is_day[i] === 1) + '</div>' +
+        '<div class="d">' + Math.round(h.temperature_2m[i]) + '°</div>' +
+        '<div class="p">' + (p >= 20 ? p + '%' : '') + '</div></div>';
+    }
+    $('hours').innerHTML = hs;
+    $('hours').scrollLeft = 0;
+
+    // 7 ngay: thanh min-max tren CUNG mot thang nhiet ca tuan
+    var lo = Math.min.apply(null, d.temperature_2m_min), hi = Math.max.apply(null, d.temperature_2m_max);
+    var span = Math.max(1, hi - lo);
+    var ds = '';
+    for (var j = 0; j < d.time.length; j++) {
+      var dw = wmo(d.weather_code[j]);
+      var mn = d.temperature_2m_min[j], mx = d.temperature_2m_max[j];
+      var pp = d.precipitation_probability_max[j];
+      ds += '<div class="day"><div class="n">' + wdName(d.time[j], j) + '</div>' +
+        '<div class="icon">' + iconSvg(dw[1], true) + '</div>' +
+        '<div class="p">' + (pp >= 20 ? pp + '%' : '') + '</div>' +
+        '<div class="lo">' + Math.round(mn) + '°</div>' +
+        '<div class="bar"><i style="left:' + ((mn - lo) / span * 100).toFixed(1) + '%;right:' + ((hi - mx) / span * 100).toFixed(1) + '%"></i></div>' +
+        '<div class="hi">' + Math.round(mx) + '°</div></div>';
+    }
+    $('days').innerHTML = ds;
+  }
+
+  // ── Doi noi chon ───────────────────────────────────────────────────────
+  function openPicker() {
+    $('picker').classList.add('open');
+    $('results').innerHTML = '<div class="hint">Gõ tên nơi chốn rồi bấm Tìm (hoặc Enter).</div>';
+    $('q').value = '';
+    setTimeout(function () { $('q').focus(); }, 30);  // ban phim ao cua panel tu hien khi o nhap duoc focus
+  }
+  function closePicker() { $('picker').classList.remove('open'); $('q').blur(); }
+  function choose(l) { loc = l; save(l); closePicker(); load(); }
+  function search() {
+    var q = $('q').value.trim();
+    if (!q) return;
+    $('results').innerHTML = '<div class="hint">Đang tìm…</div>';
+    getJSON('https://geocoding-api.open-meteo.com/v1/search?count=6&language=vi&format=json&name=' + encodeURIComponent(q))
+      .then(function (j) {
+        var r = j.results || [];
+        if (!r.length) { $('results').innerHTML = '<div class="hint">Không tìm thấy “' + esc(q) + '”.</div>'; return; }
+        $('results').innerHTML = r.map(function (x, i) {
+          var sub = [x.admin1, x.country].filter(Boolean).join(', ');
+          return '<div class="res" role="button" tabindex="0" data-i="' + i + '">' + esc(x.name) + '<small>' + esc(sub) + '</small></div>';
+        }).join('');
+        Array.prototype.forEach.call($('results').children, function (el) {
+          el.addEventListener('click', function () {
+            var x = r[+el.getAttribute('data-i')];
+            choose({ name: x.name, lat: x.latitude, lon: x.longitude });
+          });
+        });
+      })
+      .catch(function () { $('results').innerHTML = '<div class="hint">Lỗi mạng khi tìm, thử lại.</div>'; });
+  }
+  function onActivate(el, fn) {
+    el.addEventListener('click', fn);
+    el.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); } });
+  }
+  onActivate($('place'), openPicker);
+  onActivate($('search'), search);
+  onActivate($('close'), closePicker);
+  onActivate($('useIp'), function () {
+    $('results').innerHTML = '<div class="hint">Đang xác định vị trí theo mạng…</div>';
+    byIp().then(choose).catch(function () { $('results').innerHTML = '<div class="hint">Không xác định được vị trí theo mạng.</div>'; });
+  });
+  $('q').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); search(); } else if (e.key === 'Escape') closePicker();
+  });
+  $('picker').addEventListener('click', function (e) { if (e.target === $('picker')) closePicker(); });
+
+  // ── Khoi dong ──────────────────────────────────────────────────────────
+  loc = fromQuery() || loadSaved();
+  if (loc) load();
+  else byIp().then(function (l) { loc = l; save(l); load(); })
+    .catch(function () { loc = FALLBACK; load(); });
+  setInterval(load, REFRESH_MS);
+})();
+</script>
+</body>
+</html>

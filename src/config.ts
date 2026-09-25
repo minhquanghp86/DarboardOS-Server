@@ -42,6 +42,9 @@ export type DeviceConfig = {
   urlSet: boolean;
   // (25/09/2026) ?fb=1: thiet bi giai ma thang vao framebuffer -> khung day du chia dai ngang (frameProcessor).
   fbBands: boolean;
+  // (25/09/2026) ?ctl=1: thiet bi nhan DeviceControl (thanh truot do sang/am luong) va gui DeviceState. Co dinh
+  // theo firmware, KHONG dua vao deviceConfigsEqual().
+  devControl: boolean;
 };
 
 const DEFAULTS = {
@@ -144,6 +147,7 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
   const halfScale = params.get("half") === "1";
   const urlSet = params.get("urlset") === "1";
   const fbBands = params.get("fb") === "1";
+  const devControl = params.get("ctl") === "1";
 
   const dimensions = getRotatedDimensions(width, height, rotation);
 
@@ -164,6 +168,7 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
     halfScale,
     urlSet,
     fbBands,
+    devControl,
   };
 }
 
