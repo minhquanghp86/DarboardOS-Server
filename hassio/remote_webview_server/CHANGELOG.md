@@ -1,3 +1,9 @@
+## V2.9.46
+### Đồng hồ ở giữa mép trên chỉ để xem giờ
+
+- Không bấm vào đồng hồ để mở thanh trạng thái nữa: nó nằm đè dải tab của Home Assistant nên bấm tab hay bị bắt nhầm.
+  Chạm vào vùng đó giờ đi thẳng xuống trang. Thanh trạng thái chỉ mở bằng **vuốt từ mép trên xuống**.
+
 ## V2.9.45
 ### Giao diện kiểu hệ điều hành — giai đoạn OS-1
 
@@ -7,7 +13,7 @@
   - thanh trượt độ sáng / âm lượng
   - biểu tượng **Ứng dụng · Home Assistant · Camera · Cảnh**
 
-  Trên P4 thanh chạy theo ngón tay. Chạm nền mờ hoặc vuốt lên thì đóng. Nút đồng hồ ở giữa vẫn như cũ (chạm để mở).
+  Trên P4 thanh chạy theo ngón tay. Chạm nền mờ hoặc vuốt lên thì đóng. Nút đồng hồ ở giữa vẫn như cũ.
 - **Vuốt lên từ mép dưới** → **Home của OS**: màn hình chính với đồng hồ lớn, thời tiết, lưới ứng dụng chia trang
   (vuốt ngang), dock (Home Assistant đứng đầu).
 - Cử chỉ được nhận diện **ở server**, trước khi chạm tới trình duyệt, nên chạy được trên mọi trang. Chạm nhanh ở mép
