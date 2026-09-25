@@ -944,6 +944,47 @@ function pushDeviceStateToPage(dev: DeviceSession): void {
   }).catch(() => { });
 }
 
+/**
+ * Dang ky lai script launcher (ap dung tu lan dieu huong ke tiep) VA thay ngay tren trang dang mo. Dung khi homeUrl
+ * doi hoac khi nguoi dung luu cau hinh menu (trang "Menu panel").
+ */
+async function reloadLauncher(device: DeviceSession): Promise<boolean> {
+  try {
+    if (device.launcherScriptId) {
+      await device.cdp.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: device.launcherScriptId });
+    }
+    const src = buildLauncherScript(device.cfg.homeUrl);
+    const { identifier } = await device.cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: src });
+    device.launcherScriptId = identifier;
+    // Don nut/popup CU tren trang DANG MO roi chay lai (script moi chi tu ap dung tu lan navigate ke tiep).
+    await device.cdp.send('Runtime.evaluate', {
+      expression:
+        `(function(){` +
+        `var b=document.getElementById('__rwv_launcher_btn'); if(b) b.remove();` +
+        `var p=document.getElementById('__rwv_launcher_overlay'); if(p) p.remove();` +
+        `window.__launcherInitialized=false;` +
+        `})();` + src,
+    });
+    return true;
+  } catch (e) {
+    console.warn(`[device] ⚠️ Khong nap lai duoc launcher cho ${device.deviceId}:`, e);
+    return false;
+  }
+}
+
+/** (25/09/2026) Sau khi luu cau hinh menu: nap lai launcher tren moi man hinh. */
+export async function reloadAllLaunchers(): Promise<number> {
+  let n = 0;
+  for (const dev of devices.values()) if (await reloadLauncher(dev)) n++;
+  return n;
+}
+
+/** homeUrl cua mot thiet bi dang ket noi (de trang cau hinh hien du ung dung HA). */
+export function anyHomeUrl(): string | undefined {
+  for (const dev of devices.values()) if (dev.cfg.homeUrl) return dev.cfg.homeUrl;
+  return undefined;
+}
+
 export function buildLauncherScript(homeUrl: string | undefined): string {
   const homeUrlJson = JSON.stringify(homeUrl || '');
   const apps = buildLauncherApps(homeUrl);
@@ -1037,6 +1078,8 @@ export function buildLauncherScript(homeUrl: string | undefined): string {
     } else if (k === 'timer') {
       line('circle', { cx: '12', cy: '13.5', r: '7.5' });
       line('path', { d: 'M12 9.5v4l2.5 2M9.5 2.5h5M19 6l1.5-1.5' });
+    } else if (k === 'mdi' && app.path) {
+      svg.appendChild(svgEl('path', { d: app.path, fill: '#fff' }));
     } else if (k === 'generic') {
       var tx = svgEl('text', { x: '12', y: '16.5', 'text-anchor': 'middle', fill: '#fff',
         'font-size': '13', 'font-weight': '700', 'font-family': 'Be Vietnam Pro,Roboto,Noto Sans,DejaVu Sans,sans-serif' });
@@ -1605,32 +1648,9 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
       if (cfg.homeUrl !== device.cfg.homeUrl) {
         const oldHomeUrl = device.cfg.homeUrl;
         device.cfg = cfg;
-        (async () => {
-          try {
-            if (device!.launcherScriptId) {
-              await device!.cdp.send('Page.removeScriptToEvaluateOnNewDocument', {
-                identifier: device!.launcherScriptId,
-              });
-            }
-            const { identifier } = await device!.cdp.send(
-              'Page.addScriptToEvaluateOnNewDocument', { source: buildLauncherScript(cfg.homeUrl) }
-            );
-            device!.launcherScriptId = identifier;
-            // Don nut/dropdown CU tren trang DANG MO (script moi chi ap dung
-            // tu lan navigate ke tiep neu khong lam buoc nay) roi chay lai.
-            await device!.cdp.send('Runtime.evaluate', {
-              expression:
-                `(function(){` +
-                `var b=document.getElementById('__rwv_launcher_btn'); if(b) b.remove();` +
-                `var p=document.getElementById('__rwv_launcher_overlay'); if(p) p.remove();` +
-                `window.__launcherInitialized=false;` +
-                `})();` + buildLauncherScript(cfg.homeUrl),
-            });
-            console.log(`[device] ✓ Launcher cap nhat homeUrl cho ${id}: "${oldHomeUrl || '(rong)'}" -> "${cfg.homeUrl}"`);
-          } catch (e) {
-            console.warn(`[device] ⚠️ Khong cap nhat duoc launcher homeUrl cho ${id}:`, e);
-          }
-        })();
+        reloadLauncher(device).then(ok => {
+          if (ok) console.log(`[device] ✓ Launcher cap nhat homeUrl cho ${id}: "${oldHomeUrl || '(rong)'}" -> "${cfg.homeUrl}"`);
+        });
       }
 
       return device;

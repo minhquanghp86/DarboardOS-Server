@@ -3,7 +3,21 @@
 // LAUNCHER_APPS_JSON / LAUNCHER_HIDE_JSON.
 
 export type AppGroup = 'nha' | 'giai_tri' | 'tien_ich';
-export interface LauncherApp { label: string; kind: string; color: string; group: AppGroup; url?: string; action?: 'url'; }
+import { getLauncherConfig, getMdiPath } from './launcherConfig.js';
+
+export interface LauncherApp {
+  id: string; label: string; kind: string; color: string; group: AppGroup; url?: string; action?: 'url';
+  /** kind === 'mdi': duong ve SVG 24x24 cua bieu tuong MDI */
+  path?: string;
+}
+/** Cho trang cau hinh: them trang thai an + thong tin mac dinh. */
+export interface LauncherAppInfo extends LauncherApp { hidden: boolean; builtin: boolean; icon: string; baseKind: string; defaults?: { label: string; color: string; group: AppGroup; }; }
+/** Bieu tuong MDI gan nhat voi bieu tuong ve tay co san — de trang cau hinh xem truoc. */
+export const BUILTIN_PREVIEW: Record<string, string> = {
+  home: 'home', camera: 'camera', cams: 'view-grid-outline', scenes: 'star-outline', energy: 'lightning-bolt',
+  youtube: 'youtube', tiktok: 'music-note', music: 'play-circle-outline', radio: 'radio', news: 'newspaper-variant-outline',
+  media: 'music', weather: 'weather-partly-cloudy', calendar: 'calendar-month-outline', timer: 'timer-outline', browser: 'web',
+};
 
 export const GROUP_TITLES: Record<AppGroup, string> = { nha: 'Nhà', giai_tri: 'Giải trí', tien_ich: 'Tiện ích' };
 /** Ten bieu tuong co san — launcher_apps.icon chon mot trong so nay (khac -> chu cai dau cua ten). */
@@ -22,12 +36,13 @@ function parseJsonArray(name: string): unknown[] {
   try { const v = JSON.parse(process.env[name] || '[]'); return Array.isArray(v) ? v : []; } catch { return []; }
 }
 
-export function buildLauncherApps(homeUrl: string | undefined): LauncherApp[] {
+/** Tat ca ung dung (co san + tu them), da ap cau hinh, KE CA ung dung dang an (co hidden). Thu tu = thu tu hien. */
+export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   let haOrigin = '';
   try { if (homeUrl) haOrigin = new URL(homeUrl).origin; } catch { }
   const apps: LauncherApp[] = [];
-  const add = (group: AppGroup, label: string, kind: string, color: string, url?: string, action?: 'url') =>
-    apps.push({ group, label, kind, color, url, action });
+  const add = (group: AppGroup, label: string, kind: string, color: string, url?: string, action?: 'url', id?: string) =>
+    apps.push({ id: id || kind, group, label, kind, color, url, action });
 
   if (homeUrl) add('nha', 'Trang chủ', 'home', '#2f7cf6', homeUrl);
   add('nha', 'Camera P4', 'camera', '#16a34a', LAUNCHER_CAMERA_URL);
@@ -47,7 +62,8 @@ export function buildLauncherApps(homeUrl: string | undefined): LauncherApp[] {
   add('tien_ich', 'Hẹn giờ', 'timer', '#f97316', LAUNCHER_TIMER_URL);
   add('tien_ich', 'Trình duyệt', 'browser', '#0891b2', undefined, 'url');
 
-  // Ung dung nguoi dung tu them
+  // Ung dung nguoi dung tu them — cach cu, trong cau hinh addon (van giu de tuong thich)
+  let n = 0;
   for (const raw of parseJsonArray('LAUNCHER_APPS_JSON')) {
     const a = raw as Record<string, unknown>;
     const label = typeof a.label === 'string' ? a.label.trim().slice(0, 30) : '';
@@ -56,10 +72,46 @@ export function buildLauncherApps(homeUrl: string | undefined): LauncherApp[] {
     const group: AppGroup = a.group === 'nha' || a.group === 'giai_tri' || a.group === 'tien_ich' ? a.group : 'tien_ich';
     const kind = typeof a.icon === 'string' && KNOWN_ICONS.includes(a.icon) ? a.icon : 'generic';
     const color = typeof a.color === 'string' && /^#[0-9a-f]{3,8}$/i.test(a.color) ? a.color : GROUP_COLORS[group];
-    add(group, label, kind, color, url);
+    add(group, label, kind, color, url, undefined, `opt_${n++}`);
   }
-  // An ung dung co san theo ten (khong phan biet hoa thuong)
-  const hide = new Set(parseJsonArray('LAUNCHER_HIDE_JSON').filter((x): x is string => typeof x === 'string')
+  const builtinIds = new Set(apps.map(a => a.id));
+  const conf = getLauncherConfig();
+  // Ung dung them bang trang "Menu panel"
+  for (const a of conf.custom) add(a.group, a.label, 'generic', a.color, a.url, undefined, a.id);
+  const iconOf = new Map<string, string>(conf.custom.filter(a => a.icon).map(a => [a.id, a.icon]));
+
+  // Doi ten / bieu tuong / mau / nhom
+  const out: LauncherAppInfo[] = apps.map(a => {
+    const o = conf.overrides[a.id] || {};
+    const defaults = { label: a.label, color: a.color, group: a.group };
+    const icon = o.icon || iconOf.get(a.id) || '';
+    const info: LauncherAppInfo = {
+      ...a, label: o.label || a.label, color: o.color || a.color, group: o.group || a.group,
+      hidden: false, builtin: builtinIds.has(a.id), icon, baseKind: a.kind, defaults: builtinIds.has(a.id) ? defaults : undefined,
+    };
+    const p = getMdiPath(icon);
+    if (p) { info.kind = 'mdi'; info.path = p; }
+    return info;
+  });
+
+  // An: theo id (trang cau hinh) hoac theo ten (launcher_hide cu)
+  const hideIds = new Set(conf.hidden);
+  const hideNames = new Set(parseJsonArray('LAUNCHER_HIDE_JSON').filter((x): x is string => typeof x === 'string')
     .map(s => s.trim().toLocaleLowerCase('vi')));
-  return apps.filter(a => !hide.has(a.label.toLocaleLowerCase('vi')));
+  for (const a of out) a.hidden = hideIds.has(a.id) || hideNames.has(a.label.toLocaleLowerCase('vi'));
+
+  // Thu tu trong tung nhom: theo cau hinh, ung dung chua co trong danh sach giu thu tu goc o cuoi
+  const orderIdx = (a: LauncherAppInfo) => {
+    const list = conf.order[a.group] || [];
+    const i = list.indexOf(a.id);
+    return i < 0 ? 1000 + out.indexOf(a) : i;
+  };
+  const groups: AppGroup[] = ['nha', 'giai_tri', 'tien_ich'];
+  return groups.flatMap(g => out.filter(a => a.group === g).sort((x, y) => orderIdx(x) - orderIdx(y)));
+}
+
+/** Ung dung HIEN tren menu (bo an), gon cho launcher. */
+export function buildLauncherApps(homeUrl: string | undefined): LauncherApp[] {
+  return listAllApps(homeUrl).filter(a => !a.hidden)
+    .map(({ id, label, kind, color, group, url, action, path }) => ({ id, label, kind, color, group, url, action, path }));
 }
