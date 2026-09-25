@@ -16,7 +16,7 @@ import { metrics } from "./metrics.js";
 import { AdaptiveState, DEFAULT_ADAPTIVE_CFG, LinkEstimate, decideAdaptive, initialAdaptiveState, updateLinkEstimate } from "./adaptive.js";
 import { SelfTestRunner } from "./selfTest.js";
 import { tuning } from "./tuning.js";
-import { Encoding, FRAME_HEADER_BYTES, TILE_HEADER_BYTES } from "./protocol.js";
+import { ControlField, DeviceStateInfo, Encoding, FRAME_HEADER_BYTES, TILE_HEADER_BYTES, parseDeviceStatePacket } from "./protocol.js";
 
 // ── Type-safe interface cho CDP root (thay thế cast `any`) ────────────────────
 interface CDPRoot {
@@ -117,6 +117,8 @@ export type DeviceSession = {
   // khong lam "Reconfiguring"/pha Target — nhung cung vi vay phai tu tay
   // cap nhat script, server khong tu lam lai viec nay.
   launcherScriptId?: string;
+  /** (25/09/2026) Trang thai thiet bi bao len (DeviceState): do sang, am luong, gio — cho menu va dong ho. */
+  devState?: DeviceStateInfo & { receivedAt: number };
 };
 
 // (23/09/2026) SUA LOI: "man ngu tu bat lai nhung khong hien gi, phai vuot
@@ -832,6 +834,9 @@ function buildAudioMuteScript(): string {
 // 127.0.0.1: Chromium chay cung container voi server. Doi bang bien moi truong LAUNCHER_CAMERA_URL.
 const LAUNCHER_CAMERA_URL = process.env.LAUNCHER_CAMERA_URL ||
   `http://127.0.0.1:${process.env.HEALTH_PORT || '18080'}/cam.html?src=p4_panel`;
+// (25/09/2026) Ung dung "Thoi tiet": trang weather.html cua chinh server (du lieu Open-Meteo tren web, khong lay tu HA).
+const LAUNCHER_WEATHER_URL = process.env.LAUNCHER_WEATHER_URL ||
+  `http://127.0.0.1:${process.env.HEALTH_PORT || '18080'}/weather.html`;
 // Ten binding CDP ma o "URL" goi ve server (Runtime.addBinding) — xem handleUserEnteredUrl.
 const URL_BINDING = '__rwvSetDisplayUrl';
 
@@ -856,6 +861,48 @@ function handleUserEnteredUrl(id: string, session: CDPSession, payload: unknown)
     console.warn(`[launcher] ${id}: mo URL that bai:`, e));
 }
 
+// (25/09/2026) Thanh truot trong menu goi window.__rwvControl(JSON). Chi nhan dung hai truong, gia tri 0..100 (trang
+// web bat ky cung goi duoc binding nay: viec toi da no lam duoc la doi do sang/am luong cua chinh man hinh nay).
+const CONTROL_BINDING = '__rwvControl';
+
+function handleMenuControl(id: string, payload: unknown): void {
+  if (typeof payload !== 'string' || payload.length > 200) return;
+  let msg: any;
+  try { msg = JSON.parse(payload); } catch { return; }
+  const dev = devices.get(id);
+  if (!dev) return;
+  if (msg?.hello) { pushDeviceStateToPage(dev); return; }
+  const v = Number(msg?.v);
+  if (!Number.isFinite(v) || v < 0 || v > 100) return;
+  const field = msg?.f === 'b' ? ControlField.Brightness : msg?.f === 'v' ? ControlField.Volume : null;
+  if (field == null || !dev.cfg.devControl) return;
+  broadcaster.sendDeviceControl(id, field, v);
+}
+
+/** Thiet bi bao DeviceState -> luu lai, dua vao trang dang mo. */
+export function onDeviceStatePacket(dev: DeviceSession, buf: Buffer): void {
+  const st = parseDeviceStatePacket(buf);
+  if (!st) return;
+  dev.devState = { ...st, receivedAt: Date.now() };
+  pushDeviceStateToPage(dev);
+}
+
+/**
+ * Dua trang thai thiet bi vao launcher cua trang dang mo. Gio: gui DO LECH so voi dong ho server (skewMs) + mui gio
+ * cua thiet bi -> trang tu tinh gio THIET BI moi giay ma khong can thiet bi gui lien tuc.
+ */
+function pushDeviceStateToPage(dev: DeviceSession): void {
+  const s = dev.devState;
+  if (!s) return;
+  const payload = {
+    b: s.brightness, v: s.volume, on: s.backlightOn, ctl: !!dev.cfg.devControl,
+    tv: s.timeValid, skewMs: s.timeValid ? s.epoch * 1000 - s.receivedAt : 0, tz: s.tzOffsetMin,
+  };
+  dev.cdp.send('Runtime.evaluate', {
+    expression: `window.__rwvDeviceState && window.__rwvDeviceState(${JSON.stringify(payload)})`,
+  }).catch(() => { });
+}
+
 function buildLauncherScript(homeUrl: string | undefined): string {
   const homeUrlJson = JSON.stringify(homeUrl || '');
   return `(function(){
@@ -865,6 +912,8 @@ function buildLauncherScript(homeUrl: string | undefined): string {
   var HOME_URL = ${homeUrlJson};
   var CAMERA_URL = ${JSON.stringify(LAUNCHER_CAMERA_URL)};
   var URL_BINDING = ${JSON.stringify(URL_BINDING)};
+  var CONTROL_BINDING = ${JSON.stringify(CONTROL_BINDING)};
+  var WEATHER_URL = ${JSON.stringify(LAUNCHER_WEATHER_URL)};
   // (25/09/2026) POPUP UNG DUNG (thay dropdown): luoi icon mau + ten, kieu man hinh ung dung dien thoai.
   // Them ung dung: mot dong APPS.push({ label, kind, color, url | action }).
   var HA_ORIGIN = '';
@@ -874,6 +923,7 @@ function buildLauncherScript(homeUrl: string | undefined): string {
   APPS.push({ label: 'YouTube', kind: 'youtube', color: '#ff0033', url: 'https://m.youtube.com' });
   APPS.push({ label: 'TikTok', kind: 'tiktok', color: '#161616', url: 'https://www.tiktok.com' });
   APPS.push({ label: 'Camera', kind: 'camera', color: '#16a34a', url: CAMERA_URL });
+  APPS.push({ label: 'Thời tiết', kind: 'weather', color: '#0ea5e9', url: WEATHER_URL });
   APPS.push({ label: 'Trình duyệt', kind: 'browser', color: '#0891b2', action: 'url' });
   if (HA_ORIGIN) APPS.push({ label: 'Media', kind: 'media', color: '#7c3aed', url: HA_ORIGIN + '/media-browser/browser' });
 
@@ -919,6 +969,11 @@ function buildLauncherScript(homeUrl: string | undefined): string {
     } else if (k === 'browser') {
       line('circle', { cx: '12', cy: '12', r: '9' });
       line('path', { d: 'M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z' });
+    } else if (k === 'weather') {
+      // Mat troi nho sau dam may
+      line('circle', { cx: '8', cy: '8', r: '3' });
+      line('path', { d: 'M8 2.5v1M2.5 8h1M4.1 4.1l.7.7M11.9 4.1l-.7.7' });
+      line('path', { d: 'M7 19a4 4 0 010-8 5 5 0 019.6 1.5A3.25 3.25 0 0117 19z', fill: app.color });
     } else if (k === 'media') {
       line('path', { d: 'M9 18V5.5l11-2V16' });
       line('circle', { cx: '6', cy: '18', r: '3' });
@@ -934,7 +989,8 @@ function buildLauncherScript(homeUrl: string | undefined): string {
   // tren-phai). Hinh ve bang SVG path toan duong cong: hai ben bat dau TIEP TUYEN voi mep
   // tren roi cong mem vao trong, day tron — khong con goc nao. Mong (18px) ma van de nhin.
   // Phan tu bao ngoai cao 32px va trong suot: vung cham rong hon hinh ve.
-  var TAB_W = 96, TAB_H = 18;
+  // (25/09/2026) 96x18 -> 104x22: du cho dong ho HH:MM (gio THIET BI, xem __rwvDeviceState) thay mui ten.
+  var TAB_W = 104, TAB_H = 22;
   var btn = document.createElement('div');
   btn.id = '__rwv_launcher_btn';
   btn.style.cssText = [
@@ -950,15 +1006,20 @@ function buildLauncherScript(homeUrl: string | undefined): string {
   // Giot nuoc: mep tren (0,0)-(96,0); hai ben uon tu tiep tuyen ngang -> doc xuong -> day tron
   // (dinh thap nhat (48,18)). Cac doan Bezier noi tiep co tiep tuyen lien tuc nen khong gay goc.
   tab.appendChild(svgEl('path', {
-    d: 'M0 0H96C84 0 79 3 73 9C67 15 60 18 48 18C36 18 29 15 23 9C17 3 12 0 0 0Z',
+    d: 'M0 0H104C91 0 86 4 79 11C72 18 64 22 52 22C40 22 32 18 25 11C18 4 13 0 0 0Z',
     fill: 'rgba(20,20,20,0.6)'
   }));
   var chevron = svgEl('path', {
-    d: 'M42 6l6 5 6-5', fill: 'none', stroke: 'currentColor', 'stroke-width': '2',
+    d: 'M46 8l6 5 6-5', fill: 'none', stroke: 'currentColor', 'stroke-width': '2',
     'stroke-linecap': 'round', 'stroke-linejoin': 'round'
   });
   tab.appendChild(chevron);
   btn.appendChild(tab);
+  var clockEl = document.createElement('div');
+  clockEl.style.cssText = ['position:absolute', 'top:1px', 'left:0', 'right:0', 'text-align:center', 'display:none',
+    'font:600 14px/19px system-ui,-apple-system,Segoe UI,Roboto,sans-serif', 'letter-spacing:0.5px',
+    'font-variant-numeric:tabular-nums', 'color:#fff', 'pointer-events:none'].join(';');
+  btn.appendChild(clockEl);
 
   // (25/09/2026) POPUP: chiem 2/3 man hinh, cach deu 4 canh (le 1/6), tren lop phu mo. Cham ra ngoai popup -> an;
   // chon ung dung -> an roi mo. Kich thuoc theo vmin de vua ca P4 1024x600 lan panel 480x272. KHONG hieu ung dong:
@@ -975,9 +1036,101 @@ function buildLauncherScript(homeUrl: string | undefined): string {
     'padding:clamp(8px,3.5vmin,26px)', 'background:#181a20', 'border-radius:clamp(10px,3vmin,20px)',
     'box-shadow:0 8px 30px rgba(0,0,0,0.5)', 'color:#fff', 'font-family:sans-serif', 'overflow:hidden'].join(';');
   popup.style.setProperty('--rwv-ic', 'clamp(28px, 12vmin, 80px)');
+  // (25/09/2026) HANG DIEU KHIEN kieu thanh trang thai dien thoai: do sang + am luong. An cho toi khi thiet bi bao
+  // trang thai (firmware co ?ctl=1) — panel cu khong co thi menu y nhu truoc.
+  var ctlRow = document.createElement('div');
+  ctlRow.style.cssText = 'flex:none;display:none;gap:clamp(6px,2.5vmin,16px)';
+  var titleRow = document.createElement('div');
+  titleRow.style.cssText = 'flex:none;display:flex;align-items:baseline;justify-content:space-between;gap:8px';
   var title = document.createElement('div');
   title.textContent = 'Ứng dụng';
-  title.style.cssText = 'flex:none;font-size:clamp(11px,3vmin,18px);font-weight:600;opacity:0.8';
+  title.style.cssText = 'font-size:clamp(11px,3vmin,18px);font-weight:600;opacity:0.8';
+  var dateEl = document.createElement('div');
+  dateEl.style.cssText = 'font-size:clamp(10px,2.6vmin,16px);opacity:0.6;font-variant-numeric:tabular-nums';
+  titleRow.appendChild(title);
+  titleRow.appendChild(dateEl);
+
+  var devState = null;
+  function sendControl(obj){
+    if (typeof window[CONTROL_BINDING] === 'function') { try { window[CONTROL_BINDING](JSON.stringify(obj)); } catch (e) {} }
+  }
+  function makeSlider(field, color, drawIcon){
+    var track = document.createElement('div');
+    track.style.cssText = ['position:relative', 'flex:1', 'min-width:0', 'height:clamp(30px,9vmin,54px)',
+      'border-radius:clamp(9px,2.6vmin,16px)', 'background:rgba(255,255,255,0.12)', 'overflow:hidden',
+      'touch-action:none', 'cursor:pointer'].join(';');
+    var fill = document.createElement('div');
+    fill.style.cssText = 'position:absolute;left:0;top:0;bottom:0;width:0;background:' + color;
+    var ic = svgEl('svg', { viewBox: '0 0 24 24', width: '24', height: '24' });
+    ic.style.cssText = 'position:absolute;left:clamp(8px,2.4vmin,16px);top:50%;transform:translateY(-50%);' +
+      'width:clamp(14px,4.4vmin,26px);height:clamp(14px,4.4vmin,26px);pointer-events:none';
+    drawIcon(function(tag, attrs){
+      var a = { fill: 'none', stroke: '#fff', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
+      for (var k in attrs) a[k] = attrs[k];
+      ic.appendChild(svgEl(tag, a));
+    });
+    var pct = document.createElement('div');
+    pct.style.cssText = 'position:absolute;right:clamp(8px,2.4vmin,16px);top:50%;transform:translateY(-50%);' +
+      'font:600 clamp(10px,2.8vmin,17px) system-ui,sans-serif;font-variant-numeric:tabular-nums;pointer-events:none';
+    track.appendChild(fill); track.appendChild(ic); track.appendChild(pct);
+    var s = { el: track, value: 0, dragging: false, releasedAt: 0, lastSent: 0, timer: null };
+    function show(v){ s.value = v; fill.style.width = v + '%'; pct.textContent = v + '%'; }
+    function fromX(x){
+      var r = track.getBoundingClientRect();
+      return Math.max(0, Math.min(100, Math.round((x - r.left) / r.width * 100)));
+    }
+    function send(final){
+      var now = Date.now();
+      clearTimeout(s.timer);
+      if (final || now - s.lastSent >= 150) { s.lastSent = now; sendControl({ f: field, v: s.value }); }
+      else s.timer = setTimeout(function(){ send(true); }, 150 - (now - s.lastSent));
+    }
+    track.addEventListener('pointerdown', function(e){
+      e.preventDefault(); e.stopPropagation();
+      s.dragging = true;
+      try { track.setPointerCapture(e.pointerId); } catch (err) {}
+      show(fromX(e.clientX)); send(false);
+    });
+    track.addEventListener('pointermove', function(e){ if (s.dragging) { show(fromX(e.clientX)); send(false); } });
+    function end(e){ if (!s.dragging) return; s.dragging = false; s.releasedAt = Date.now(); send(true); }
+    track.addEventListener('pointerup', end);
+    track.addEventListener('pointercancel', end);
+    track.addEventListener('click', function(e){ e.stopPropagation(); });
+    // Trang thai thiet bi bao ve: bo qua luc dang keo va 1,5 s sau khi tha (goi bao ve co the con gia tri cu).
+    s.set = function(v){ if (v == null || s.dragging || Date.now() - s.releasedAt < 1500) return; show(v); };
+    return s;
+  }
+  var briSlider = makeSlider('b', '#f59e0b', function(line){
+    line('circle', { cx: '12', cy: '12', r: '4' });
+    line('path', { d: 'M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4' });
+  });
+  var volSlider = makeSlider('v', '#3b82f6', function(line){
+    line('path', { d: 'M4 9h4l5-4v14l-5-4H4z', fill: '#fff' });
+    line('path', { d: 'M16.5 8.5a5 5 0 010 7M19 6a8.5 8.5 0 010 12' });
+  });
+  ctlRow.appendChild(briSlider.el);
+  ctlRow.appendChild(volSlider.el);
+
+  // Dong ho (nut menu) + ngay (tieu de popup) theo GIO THIET BI: server gui do lech + mui gio, trang tu dem.
+  var WD = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'];
+  function pad2(n){ return (n < 10 ? '0' : '') + n; }
+  function updateClock(){
+    if (!devState || !devState.tv) { clockEl.style.display = 'none'; chevron.style.display = ''; dateEl.textContent = ''; return; }
+    var t = new Date(Date.now() + devState.skewMs + devState.tz * 60000);
+    var hm = pad2(t.getUTCHours()) + ':' + pad2(t.getUTCMinutes());
+    if (clockEl.textContent !== hm) clockEl.textContent = hm;  // chi doi DOM khi doi phut (moi lan ve = 1 khung)
+    var dt = WD[t.getUTCDay()] + ', ' + pad2(t.getUTCDate()) + '/' + pad2(t.getUTCMonth() + 1);
+    if (dateEl.textContent !== dt) dateEl.textContent = dt;
+    if (clockEl.style.display !== 'block') { clockEl.style.display = 'block'; chevron.style.display = 'none'; }
+  }
+  window.__rwvDeviceState = function(st){
+    devState = st;
+    ctlRow.style.display = st.ctl ? 'flex' : 'none';
+    briSlider.set(st.b);
+    volSlider.set(st.v);
+    updateClock();
+  };
+  setInterval(updateClock, 1000);
   var grid = document.createElement('div');
   grid.style.cssText = ['display:grid', 'grid-template-columns:repeat(auto-fill,minmax(calc(var(--rwv-ic) + 20px),1fr))',
     'gap:clamp(6px,3vmin,20px)', 'align-content:start', 'flex:1', 'min-height:0', 'overflow-y:auto'].join(';');
@@ -1004,7 +1157,8 @@ function buildLauncherScript(homeUrl: string | undefined): string {
     });
     grid.appendChild(tile);
   });
-  popup.appendChild(title);
+  popup.appendChild(ctlRow);
+  popup.appendChild(titleRow);
   popup.appendChild(grid);
   overlay.appendChild(popup);
   popup.addEventListener('click', function(e){ e.stopPropagation(); });
@@ -1099,6 +1253,8 @@ function buildLauncherScript(homeUrl: string | undefined): string {
     if (!document.body) { requestAnimationFrame(mount); return; }
     document.body.appendChild(btn);
     document.body.appendChild(overlay);
+    // Xin server dua trang thai thiet bi (thanh truot, dong ho) ngay khi launcher san sang.
+    sendControl({ hello: 1 });
   }
   mount();
 })();`;
@@ -1223,10 +1379,11 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
       // halfScale ket o false vinh vien. Cung loai loi voi homeUrl ben duoi. Hai co nay khong can dung lai
       // gi (khong script/target nao phu thuoc) nen chi can gan lai.
       if (device.cfg.halfScale !== cfg.halfScale || device.cfg.audioEnabled !== cfg.audioEnabled ||
-          device.cfg.urlSet !== cfg.urlSet || device.cfg.fbBands !== cfg.fbBands) {
+          device.cfg.urlSet !== cfg.urlSet || device.cfg.fbBands !== cfg.fbBands ||
+          device.cfg.devControl !== cfg.devControl) {
         console.log(`[device] ${id}: cap nhat co firmware half=${cfg.halfScale} audio=${cfg.audioEnabled} urlset=${cfg.urlSet} fb=${cfg.fbBands}`);
         device.cfg = { ...device.cfg, halfScale: cfg.halfScale, audioEnabled: cfg.audioEnabled, urlSet: cfg.urlSet,
-                       fbBands: cfg.fbBands };
+                       fbBands: cfg.fbBands, devControl: cfg.devControl };
         device.processor.setBandSplit(cfg.fbBands);
       }
 
@@ -1311,9 +1468,15 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
   try {
     await session.send('Runtime.enable');
     await session.send('Runtime.addBinding', { name: URL_BINDING });
+    await session.send('Runtime.addBinding', { name: CONTROL_BINDING });
     session.on('Runtime.bindingCalled', (evt: any) => {
-      if (evt?.name !== URL_BINDING) return;
-      handleUserEnteredUrl(id, session, evt.payload);
+      if (evt?.name === URL_BINDING) handleUserEnteredUrl(id, session, evt.payload);
+      else if (evt?.name === CONTROL_BINDING) handleMenuControl(id, evt.payload);
+    });
+    // (25/09/2026) Moi trang moi: dua lai trang thai thiet bi vao launcher (thanh truot, dong ho tren nut menu).
+    session.on('Page.domContentEventFired', () => {
+      const d = devices.get(id);
+      if (d) pushDeviceStateToPage(d);
     });
   } catch (e) {
     console.warn(`[device] ⚠️ Khong dang ky duoc binding o URL cho ${id}:`, e);

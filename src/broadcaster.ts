@@ -6,7 +6,7 @@
 // Derived from strange-v/RemoteWebViewServer. THIS FILE HAS BEEN MODIFIED.
 
 import { WebSocket } from "ws";
-import { buildFrameStatsPacket, buildFramePackets, buildCurrentURLPacket, buildSetDisplayURLPacket, buildAudioFramePacket, FLAG_HALF_SCALE } from "./protocol.js";
+import { buildFrameStatsPacket, buildFramePackets, buildCurrentURLPacket, buildSetDisplayURLPacket, buildAudioFramePacket, buildDeviceControlPacket, ControlField, FLAG_HALF_SCALE } from "./protocol.js";
 import type { FrameOut } from "./frameProcessor.js";
 import { metrics } from "./metrics.js";
 
@@ -182,6 +182,19 @@ export class DeviceBroadcaster {
       if (ws.readyState !== WebSocket.OPEN) continue;
       try { this._send(ws, pkt); } catch { }
     }
+  }
+
+  /** (25/09/2026) Thanh truot trong menu -> thiet bi. Gui THANG (4 byte), khong xep sau hang doi khung hinh. */
+  public sendDeviceControl(id: string, field: ControlField, value: number): boolean {
+    const peers = this._clients.get(id);
+    if (!peers || peers.size === 0) return false;
+    const pkt = buildDeviceControlPacket(field, value);
+    let sent = false;
+    for (const ws of peers) {
+      if (ws.readyState !== WebSocket.OPEN) continue;
+      try { this._send(ws, pkt); sent = true; } catch { }
+    }
+    return sent;
   }
 
   private _ensureState(id: string): BroadcasterState {

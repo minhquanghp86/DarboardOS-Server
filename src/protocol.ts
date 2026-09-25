@@ -51,6 +51,29 @@ export enum MsgType {
   // (25/09/2026) Server -> thiet bi: nguoi dung vua nhap URL o o "URL" cua nut mo rong. Cung dang goi voi
   // CurrentURL. Thiet bi phat trigger on_url_entered (dat "URL hien thi"). Chi gui khi thiet bi bao ?urlset=1.
   SetDisplayURL = 8,
+  // (25/09/2026) Server -> thiet bi: thanh truot do sang / am luong trong menu ung dung.
+  DeviceControl = 9,
+  // (25/09/2026) Thiet bi -> server: do sang, am luong hien tai + GIO cua thiet bi (dong ho tren nut menu).
+  DeviceState = 10,
+}
+
+/** Truong cua goi DeviceControl (khop proto::ControlField ben firmware). */
+export enum ControlField {
+  Brightness = 1,
+  Volume = 2,
+}
+
+export interface DeviceStateInfo {
+  /** 0..100, null = thiet bi chua biet */
+  brightness: number | null;
+  volume: number | null;
+  backlightOn: boolean;
+  /** Gio thiet bi hop le (RTC/SNTP da co) */
+  timeValid: boolean;
+  /** UTC, giay */
+  epoch: number;
+  /** Do lech mui gio cua thiet bi, phut (suy tu gio dia phuong thiet bi bao) */
+  tzOffsetMin: number;
 }
 
 export enum Encoding {
@@ -298,4 +321,39 @@ export function* iterateTiles(buf: Buffer, startOffset = FRAME_HEADER_BYTES, exp
     yield { x, y, w, h, data, nextOffset: off };
     if (expectedCount && seen >= expectedCount) break;
   }
+}
+
+/** Goi DeviceControl: [type][ver][field][value 0..100] = 4 byte. */
+export function buildDeviceControlPacket(field: ControlField, value: number): Buffer {
+  const b = Buffer.alloc(4);
+  b.writeUInt8(MsgType.DeviceControl, 0);
+  b.writeUInt8(1, 1);
+  b.writeUInt8(field, 2);
+  b.writeUInt8(Math.max(0, Math.min(100, Math.round(value))), 3);
+  return b;
+}
+
+/**
+ * Goi DeviceState: [type][ver][brightness][volume][flags][epoch u32le][local_sod u32le] = 13 byte.
+ * flags bit0 = den nen bat, bit1 = gio hop le. local_sod = giay tu nua dem theo gio dia phuong cua thiet bi.
+ */
+export function parseDeviceStatePacket(buf: Buffer): DeviceStateInfo | null {
+  if (buf.length < 13 || buf.readUInt8(0) !== MsgType.DeviceState) return null;
+  const bri = buf.readUInt8(2), vol = buf.readUInt8(3), flags = buf.readUInt8(4);
+  const epoch = buf.readUInt32LE(5), sod = buf.readUInt32LE(9);
+  const timeValid = (flags & 2) !== 0 && epoch > 1_700_000_000;
+  let off = 0;
+  if (timeValid) {
+    off = sod - (epoch % 86400);
+    if (off > 14 * 3600) off -= 86400;       // mui gio nam trong [-12h, +14h]
+    else if (off < -12 * 3600) off += 86400;
+  }
+  return {
+    brightness: bri <= 100 ? bri : null,
+    volume: vol <= 100 ? vol : null,
+    backlightOn: (flags & 1) !== 0,
+    timeValid,
+    epoch,
+    tzOffsetMin: Math.round(off / 60),
+  };
 }

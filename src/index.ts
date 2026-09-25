@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url';
 import { WebSocketServer } from "ws"
 import env from "env-var";
 import { makeConfigFromParams, setConfigFor, logDeviceConfig } from "./config.js";
-import { broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick, refreshDisplaysTick, markInteraction } from './deviceManager.js';
+import { broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick, refreshDisplaysTick, markInteraction, onDeviceStatePacket } from './deviceManager.js';
 import type { DeviceSession } from './deviceManager.js';
 import { InputRouter } from "./inputRouter.js";
 import { bootstrapAsync } from './browser.js';
@@ -44,6 +44,9 @@ function routeMessage(dev: DeviceSession, buf: Buffer): void {
     case MsgType.FrameStats:
       inputRouter.handleFrameStatsPacketAsync(dev, buf)
         .catch(() => console.warn('[ws] framestats error'));
+      break;
+    case MsgType.DeviceState:
+      onDeviceStatePacket(dev, buf);
       break;
     case MsgType.OpenURL:
       metrics.onNavigate(dev.deviceId, '(open_url)');
@@ -129,12 +132,16 @@ wss.on("connection", async (ws, req) => {
 // sách ingress của Cloudflare Tunnel — chỉ tiếp cận được từ mạng LAN, đúng
 // mức phơi bày mà go2rtc/ESPHome API vốn đã chấp nhận.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CAM_HTML_PATH = path.join(__dirname, '..', 'public', 'cam.html');
-let camHtmlCache: Buffer | null = null;
-try {
-  camHtmlCache = fs.readFileSync(CAM_HTML_PATH);
-} catch (e) {
-  console.warn(`[static] khong doc duoc ${CAM_HTML_PATH}: ${(e as Error).message}`);
+// (25/09/2026) Them weather.html (ung dung "Thoi tiet" cua launcher) — cung nguyen tac: chi LAN, khong qua HA.
+const STATIC_PAGES = ['cam.html', 'weather.html'];
+const staticCache = new Map<string, Buffer>();
+for (const name of STATIC_PAGES) {
+  const p = path.join(__dirname, '..', 'public', name);
+  try {
+    staticCache.set('/' + name, fs.readFileSync(p));
+  } catch (e) {
+    console.warn(`[static] khong doc duoc ${p}: ${(e as Error).message}`);
+  }
 }
 
 http.createServer((req, res) => {
@@ -147,12 +154,13 @@ http.createServer((req, res) => {
     return;
   }
 
-  if (pathname === '/cam.html') {
-    if (!camHtmlCache) { res.writeHead(500); res.end('cam.html khong tai duoc'); return; }
+  if (STATIC_PAGES.includes(pathname.slice(1))) {
+    const page = staticCache.get(pathname);
+    if (!page) { res.writeHead(500); res.end(`${pathname.slice(1)} khong tai duoc`); return; }
     // no-store: file co the duoc cap nhat qua rebuild addon, khong muon
     // Chromium cache lau nhu HA tung lam voi /local/ (31 ngay).
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
-    res.end(camHtmlCache);
+    res.end(page);
     return;
   }
 
