@@ -104,26 +104,33 @@
   .bar { position: relative; height: clamp(4px, 1vmin, 6px); border-radius: 99px; background: var(--surface-2); }
   .bar i { position: absolute; top: 0; bottom: 0; border-radius: 99px; background: linear-gradient(90deg, var(--cool), var(--sun)); }
 
-  /* ── Doi noi chon ───────────────────────────────────── */
-  #picker {
-    position: fixed; inset: 0; background: rgba(6, 10, 18, 0.72); display: none;
-    align-items: flex-start; justify-content: center; padding-top: calc(var(--pad) + 18px);
+  /* ── Chon tinh/thanh (danh sach tha xuong) ───────────── */
+  #picker { position: fixed; inset: 0; background: rgba(6, 10, 18, 0.6); display: none; }
+  #picker.open { display: block; }
+  .drop {
+    position: absolute; left: var(--pad); top: calc(var(--pad) + 14px + clamp(34px, 8vmin, 52px));
+    width: min(760px, calc(100vw - 2 * var(--pad))); max-height: calc(100vh - 2 * var(--pad) - 70px);
+    background: var(--surface-2); border-radius: 16px; padding: clamp(8px, 2vmin, 14px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55); display: flex; flex-direction: column; gap: 8px;
   }
-  #picker.open { display: flex; }
-  .sheet { width: min(620px, calc(100vw - 2 * var(--pad))); background: var(--surface); border-radius: 16px; padding: var(--pad); display: flex; flex-direction: column; gap: 10px; }
-  .row { display: flex; gap: 8px; }
-  #q {
-    flex: 1; min-width: 0; height: clamp(34px, 8vmin, 46px); border: 1px solid var(--line); border-radius: 10px;
-    background: var(--bg); color: var(--text); padding: 0 12px; font: inherit; font-size: clamp(13px, 3vmin, 18px); outline: none;
+  .drop .home {
+    display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 10px; cursor: pointer;
+    background: #2563eb; font-weight: 600; font-size: clamp(12px, 2.8vmin, 16px);
   }
-  #q:focus { border-color: var(--rain); }
-  .btn { flex: none; display: flex; align-items: center; justify-content: center; padding: 0 14px; border-radius: 10px; background: var(--surface-2); cursor: pointer; font-weight: 600; font-size: clamp(12px, 2.8vmin, 16px); }
-  .btn.primary { background: #2563eb; }
-  .btn:focus-visible, .place:focus-visible, .res:focus-visible { outline: 2px solid var(--rain); outline-offset: 2px; }
-  .results { display: flex; flex-direction: column; gap: 4px; max-height: 40vh; overflow-y: auto; }
-  .res { padding: 9px 12px; border-radius: 10px; background: var(--surface-2); cursor: pointer; font-size: clamp(12px, 2.8vmin, 16px); }
-  .res small { color: var(--muted); margin-left: 6px; }
-  .hint { color: var(--muted); font-size: clamp(11px, 2.4vmin, 14px); }
+  .drop .home small { font-weight: 500; opacity: 0.8; margin-left: auto; }
+  .drop .label { font-size: clamp(10px, 2.2vmin, 13px); color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; margin-top: 2px; }
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(clamp(96px, 22vmin, 150px), 1fr));
+    gap: 6px; overflow-y: auto; min-height: 0; touch-action: pan-y;
+  }
+  .city {
+    padding: 9px 10px; border-radius: 10px; background: var(--surface); cursor: pointer;
+    font-size: clamp(12px, 2.7vmin, 16px); font-weight: 500; line-height: 1.2;
+  }
+  .city small { display: block; color: var(--muted); font-size: 0.78em; font-weight: 400; margin-top: 2px; }
+  .city.on { background: #1e3a8a; outline: 1px solid var(--rain); }
+  .city:focus-visible, .home:focus-visible, .place:focus-visible { outline: 2px solid var(--rain); outline-offset: 2px; }
+  .place .chev { width: 0.8em; height: 0.8em; opacity: 0.6; flex: none; }
 
   #err { position: fixed; left: 50%; bottom: var(--pad); transform: translateX(-50%); background: #7f1d1d; color: #fee2e2; padding: 8px 14px; border-radius: 10px; font-size: clamp(11px, 2.6vmin, 15px); display: none; }
 
@@ -138,6 +145,7 @@
     <div class="place" id="place" role="button" tabindex="0" aria-label="Đổi nơi chốn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.1-7-11.5a7 7 0 0114 0C19 14.9 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
       <span id="placeName">Đang xác định vị trí…</span>
+      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
     </div>
     <div class="updated" id="updated"></div>
     <div class="hero">
@@ -162,17 +170,11 @@
   </div>
 </main>
 
-<div id="picker" role="dialog" aria-label="Chọn nơi chốn">
-  <div class="sheet">
-    <div class="row">
-      <input id="q" type="text" placeholder="Nhập tên tỉnh, thành phố… (vd: Hải Phòng)" autocomplete="off" spellcheck="false">
-      <div class="btn primary" id="search" role="button" tabindex="0">Tìm</div>
-      <div class="btn" id="close" role="button" tabindex="0" aria-label="Đóng">✕</div>
-    </div>
-    <div class="results" id="results"></div>
-    <div class="row">
-      <div class="btn" id="useIp" role="button" tabindex="0">Vị trí nhà (Home Assistant)</div>
-    </div>
+<div id="picker" role="dialog" aria-label="Chọn tỉnh, thành phố">
+  <div class="drop" id="drop">
+    <div class="home" id="homeLoc" role="button" tabindex="0">⌂ Nhà (Home Assistant)<small id="homeName"></small></div>
+    <div class="label">Tỉnh, thành phố</div>
+    <div class="grid" id="cities"></div>
   </div>
 </div>
 <div id="err" role="status"></div>
@@ -276,7 +278,8 @@
   function haLoc() {
     return getJSON('/weather-location', 6000).then(function (j) {
       if (!isFinite(j.lat) || !isFinite(j.lon)) throw new Error('ha');
-      return { name: j.name || 'Nhà', lat: j.lat, lon: j.lon, ha: true };
+      homeCache = { name: j.name || 'Nhà', lat: j.lat, lon: j.lon, ha: true };
+      return homeCache;
     });
   }
   function autoLoc() {
@@ -387,52 +390,62 @@
     $('days').innerHTML = ds;
   }
 
-  // ── Doi noi chon ───────────────────────────────────────────────────────
+  // ── Chon tinh/thanh ────────────────────────────────────────────────
+  // 34 don vi hanh chinh cap tinh (tu 1/7/2025). Toa do = trung tam hanh chinh (ghi o dong nho) — tinh sau sap nhap
+  // rong, thoi tiet lay tai noi dat tru so.
+  var CITIES = [
+    ['Hà Nội', '', 21.0285, 105.8542], ['TP Hồ Chí Minh', '', 10.7769, 106.7009], ['Hải Phòng', '', 20.8449, 106.6881],
+    ['Đà Nẵng', '', 16.0544, 108.2022], ['Huế', '', 16.4637, 107.5909], ['Cần Thơ', '', 10.0452, 105.7469],
+    ['An Giang', 'Rạch Giá', 10.0125, 105.0809], ['Bắc Ninh', 'Bắc Giang', 21.2731, 106.1946],
+    ['Cà Mau', 'Cà Mau', 9.1769, 105.1524], ['Cao Bằng', 'Cao Bằng', 22.6657, 106.2570],
+    ['Đắk Lắk', 'Buôn Ma Thuột', 12.6667, 108.0500], ['Điện Biên', 'Điện Biên Phủ', 21.3860, 103.0230],
+    ['Đồng Nai', 'Biên Hòa', 10.9574, 106.8427], ['Đồng Tháp', 'Mỹ Tho', 10.3600, 106.3600],
+    ['Gia Lai', 'Quy Nhơn', 13.7765, 109.2237], ['Hà Tĩnh', 'Hà Tĩnh', 18.3428, 105.9057],
+    ['Hưng Yên', 'Hưng Yên', 20.6464, 106.0511], ['Khánh Hòa', 'Nha Trang', 12.2388, 109.1967],
+    ['Lai Châu', 'Lai Châu', 22.3964, 103.4582], ['Lâm Đồng', 'Đà Lạt', 11.9404, 108.4583],
+    ['Lạng Sơn', 'Lạng Sơn', 21.8537, 106.7610], ['Lào Cai', 'Yên Bái', 21.7229, 104.9113],
+    ['Nghệ An', 'Vinh', 18.6796, 105.6813], ['Ninh Bình', 'Ninh Bình', 20.2506, 105.9745],
+    ['Phú Thọ', 'Việt Trì', 21.3227, 105.4020], ['Quảng Ngãi', 'Quảng Ngãi', 15.1214, 108.8044],
+    ['Quảng Ninh', 'Hạ Long', 20.9517, 107.0800], ['Quảng Trị', 'Đồng Hới', 17.4689, 106.6222],
+    ['Sơn La', 'Sơn La', 21.3256, 103.9188], ['Tây Ninh', 'Tân An', 10.5360, 106.4136],
+    ['Thái Nguyên', 'Thái Nguyên', 21.5942, 105.8480], ['Thanh Hóa', 'Thanh Hóa', 19.8067, 105.7852],
+    ['Tuyên Quang', 'Tuyên Quang', 21.8233, 105.2180], ['Vĩnh Long', 'Vĩnh Long', 10.2537, 105.9722]
+  ];
+  var homeCache = null;
+  function renderCities() {
+    $('cities').innerHTML = CITIES.map(function (x, k) {
+      var on = loc && !loc.ha && Math.abs(loc.lat - x[2]) < 1e-3 && Math.abs(loc.lon - x[3]) < 1e-3;
+      return '<div class="city' + (on ? ' on' : '') + '" role="button" tabindex="0" data-k="' + k + '">' + esc(x[0]) +
+        (x[1] && x[1] !== x[0] ? '<small>' + esc(x[1]) + '</small>' : '') + '</div>';
+    }).join('');
+    Array.prototype.forEach.call($('cities').children, function (el) {
+      onActivate(el, function () {
+        var x = CITIES[+el.getAttribute('data-k')];
+        choose({ name: x[0], lat: x[2], lon: x[3] });
+      });
+    });
+  }
   function openPicker() {
+    renderCities();
+    $('homeName').textContent = homeCache ? homeCache.name : '';
     $('picker').classList.add('open');
-    $('results').innerHTML = '<div class="hint">Gõ tên nơi chốn rồi bấm Tìm (hoặc Enter).</div>';
-    $('q').value = '';
-    setTimeout(function () { $('q').focus(); }, 30);  // ban phim ao cua panel tu hien khi o nhap duoc focus
+    var cur = $('cities').querySelector('.on');
+    if (cur) cur.scrollIntoView({ block: 'nearest' });
   }
-  function closePicker() { $('picker').classList.remove('open'); $('q').blur(); }
+  function closePicker() { $('picker').classList.remove('open'); }
   function choose(l) { loc = l; save(l); closePicker(); load(); }
-  function search() {
-    var q = $('q').value.trim();
-    if (!q) return;
-    $('results').innerHTML = '<div class="hint">Đang tìm…</div>';
-    getJSON('https://geocoding-api.open-meteo.com/v1/search?count=6&language=vi&format=json&name=' + encodeURIComponent(q))
-      .then(function (j) {
-        var r = j.results || [];
-        if (!r.length) { $('results').innerHTML = '<div class="hint">Không tìm thấy “' + esc(q) + '”.</div>'; return; }
-        $('results').innerHTML = r.map(function (x, i) {
-          var sub = [x.admin1, x.country].filter(Boolean).join(', ');
-          return '<div class="res" role="button" tabindex="0" data-i="' + i + '">' + esc(x.name) + '<small>' + esc(sub) + '</small></div>';
-        }).join('');
-        Array.prototype.forEach.call($('results').children, function (el) {
-          el.addEventListener('click', function () {
-            var x = r[+el.getAttribute('data-i')];
-            choose({ name: x.name, lat: x.latitude, lon: x.longitude });
-          });
-        });
-      })
-      .catch(function () { $('results').innerHTML = '<div class="hint">Lỗi mạng khi tìm, thử lại.</div>'; });
-  }
   function onActivate(el, fn) {
-    el.addEventListener('click', fn);
+    el.addEventListener('click', function (e) { e.stopPropagation(); fn(); });
     el.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); } });
   }
-  onActivate($('place'), openPicker);
-  onActivate($('search'), search);
-  onActivate($('close'), closePicker);
-  onActivate($('useIp'), function () {
-    $('results').innerHTML = '<div class="hint">Đang lấy vị trí nhà…</div>';
+  onActivate($('place'), function () { if ($('picker').classList.contains('open')) closePicker(); else openPicker(); });
+  onActivate($('homeLoc'), function () {
     clearSaved();
-    autoLoc().then(function (l) { loc = l; closePicker(); load(); });
-  });
-  $('q').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') { e.preventDefault(); search(); } else if (e.key === 'Escape') closePicker();
+    closePicker();
+    autoLoc().then(function (l) { loc = l; load(); });
   });
   $('picker').addEventListener('click', function (e) { if (e.target === $('picker')) closePicker(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePicker(); });
 
   // ── Khoi dong ──────────────────────────────────────────────────────────
   loc = fromQuery() || loadSaved();
