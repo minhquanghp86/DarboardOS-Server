@@ -60,6 +60,9 @@ const MAX_JITTER_BYTES = FRAME_BYTES * 5;
 let jitterBuf: Buffer = Buffer.alloc(0);
 let jitterTimer: NodeJS.Timeout | null = null;
 
+// (25/09/2026) Chan doan "tieng tach tach" khi xem YouTube: dem moi cho co the lam DUT song am phia server.
+const diag = { trims: 0, trimmedBytes: 0, framesSent: 0, maxTickGapMs: 0, lateTicks: 0, maxBufBytes: 0, lastTickMs: 0, lastLogMs: 0 };
+
 function accumulateFromSource(chunk: Buffer): void {
   if (subscribers.size === 0) return; // khong ai can nghe -> bo qua (khong ton CPU/RAM dem)
   jitterBuf = jitterBuf.length ? Buffer.concat([jitterBuf, chunk]) : chunk;
@@ -67,15 +70,33 @@ function accumulateFromSource(chunk: Buffer): void {
     // nguon dang giao nhanh hon toc do phat that su cua thiet bi (vd sau
     // mot khoang gian doan mang) — cat bot phan CU nhat, giu do tre thap
     // thay vi de bo dem phinh to va am thanh ngay cang tre so voi hinh.
+    diag.trims++;
+    diag.trimmedBytes += jitterBuf.length - MAX_JITTER_BYTES;
     jitterBuf = jitterBuf.subarray(jitterBuf.length - MAX_JITTER_BYTES);
   }
+  if (jitterBuf.length > diag.maxBufBytes) diag.maxBufBytes = jitterBuf.length;
 }
 
 function drainTick(): void {
+  const now = Date.now();
+  if (diag.lastTickMs) {
+    const gap = now - diag.lastTickMs;
+    if (gap > diag.maxTickGapMs) diag.maxTickGapMs = gap;
+    if (gap > FRAME_MS * 1.5) diag.lateTicks++;
+  }
+  diag.lastTickMs = now;
+  if (subscribers.size > 0 && now - diag.lastLogMs >= 30_000) {
+    if (diag.lastLogMs) {
+      console.log(`[audio-diag] 30s: gui ${diag.framesSent} khung (le ra ~750), CAT ${diag.trims} lan/${diag.trimmedBytes} B, ` +
+        `nhip tre ${diag.lateTicks} lan (max ${diag.maxTickGapMs} ms), dem max ${diag.maxBufBytes} B`);
+    }
+    Object.assign(diag, { trims: 0, trimmedBytes: 0, framesSent: 0, maxTickGapMs: 0, lateTicks: 0, maxBufBytes: 0, lastLogMs: now });
+  }
   if (jitterBuf.length < FRAME_BYTES || subscribers.size === 0) return;
   const frame = jitterBuf.subarray(0, FRAME_BYTES);
   jitterBuf = jitterBuf.subarray(FRAME_BYTES);
   for (const id of subscribers) broadcaster.sendAudioFrame(id, frame);
+  diag.framesSent++;
 }
 
 function startCapture(): void {
