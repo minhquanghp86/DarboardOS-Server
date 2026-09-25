@@ -1,3 +1,10 @@
+## V2.9.38
+### Thời tiết: đoán vị trí ổn định hơn, ô chỉ số không bị cắt chữ
+
+- Đoán vị trí theo IP thử lần lượt ipwho.is → geojs.io → Hà Nội (đo thật: ipwho.is trả 429 khi gọi nhiều). Vị trí
+  đoán hiện "(theo mạng — chạm để chọn)", vì ở Việt Nam đoán theo IP có thể lệch tỉnh. Vị trí đã chọn được ghi nhớ.
+- Hướng gió lên nhãn ("Gió Đông Nam"), giờ mọc/lặn gọn một dòng: hết bị cắt "…" ở màn 1024×600.
+
 ## V2.9.37
 ### Menu ứng dụng: đồng hồ, thanh trượt độ sáng/âm lượng, ứng dụng Thời tiết
 

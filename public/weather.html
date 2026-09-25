@@ -70,6 +70,7 @@
   .stat { background: var(--surface-2); border-radius: clamp(8px, 1.8vmin, 12px); padding: clamp(5px, 1.5vmin, 11px); min-width: 0; }
   .stat .k { font-size: clamp(9px, 2.1vmin, 13px); color: var(--muted); letter-spacing: 0.02em; }
   .stat .v { font-size: clamp(12px, 3.1vmin, 20px); font-weight: 600; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stat .v.sun { font-size: clamp(11px, 2.6vmin, 16px); }
   .stat .v small { font-size: 0.65em; font-weight: 500; color: var(--muted); margin-left: 3px; }
 
   /* ── Cot phai: theo gio + 7 ngay ───────────────────── */
@@ -275,17 +276,25 @@
     var lat = parseFloat(q.get('lat')), lon = parseFloat(q.get('lon'));
     return isFinite(lat) && isFinite(lon) ? { name: q.get('name') || 'Vị trí', lat: lat, lon: lon } : null;
   }
+  // Doan vi tri theo IP: thu lan luot (dich vu mien phi hay gioi han luot goi — do that: ipwho.is tra 429).
+  // O Viet Nam doan theo IP co the lech tinh -> luon cho cham ten noi chon de chon lai (duoc ghi nho).
   function byIp() {
     return getJSON('https://ipwho.is/?fields=success,city,region,latitude,longitude', 8000).then(function (j) {
-      if (!j.success || !isFinite(j.latitude)) throw new Error('ip');
+      if (!j.success || !isFinite(j.latitude)) throw new Error('ipwho');
       return { name: j.city || j.region || 'Vị trí hiện tại', lat: j.latitude, lon: j.longitude, auto: true };
+    }).catch(function () {
+      return getJSON('https://get.geojs.io/v1/ip/geo.json', 8000).then(function (j) {
+        var lat = parseFloat(j.latitude), lon = parseFloat(j.longitude);
+        if (!isFinite(lat) || !isFinite(lon)) throw new Error('geojs');
+        return { name: j.city || j.region || 'Vị trí hiện tại', lat: lat, lon: lon, auto: true };
+      });
     });
   }
 
   // ── Tai + ve ───────────────────────────────────────────────────────────
   function load() {
     if (!loc) return;
-    $('placeName').textContent = loc.name;
+    $('placeName').textContent = loc.name + (loc.auto ? ' (theo mạng — chạm để chọn)' : '');
     var base = 'latitude=' + loc.lat + '&longitude=' + loc.lon + '&timezone=auto';
     var fc = 'https://api.open-meteo.com/v1/forecast?' + base +
       '&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,wind_direction_10m,uv_index' +
@@ -318,7 +327,7 @@
     $('updated').textContent = 'Cập nhật ' + pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + ' · Open-Meteo';
 
     var s = stat('Độ ẩm', c.relative_humidity_2m + '%') +
-      stat('Gió', Math.round(c.wind_speed_10m), 'km/h ' + dirName(c.wind_direction_10m)) +
+      stat('Gió ' + dirName(c.wind_direction_10m), Math.round(c.wind_speed_10m), 'km/h') +
       stat('Chỉ số UV', Math.round(c.uv_index != null ? c.uv_index : d.uv_index_max[0]), uvLabel(c.uv_index != null ? c.uv_index : d.uv_index_max[0]));
     if (a && a.current && a.current.us_aqi != null) {
       var al = aqiLabel(a.current.us_aqi);
@@ -329,7 +338,7 @@
       s += stat('Khả năng mưa', (d.precipitation_probability_max[0] || 0) + '%');
       s += stat('Lượng mưa', (c.precipitation || 0).toFixed(1), 'mm');
     }
-    s += stat('Mặt trời', hhmm(d.sunrise[0]), '↓ ' + hhmm(d.sunset[0]));
+    s += '<div class="stat"><div class="k">Mọc · Lặn</div><div class="v sun">' + hhmm(d.sunrise[0]) + ' · ' + hhmm(d.sunset[0]) + '</div></div>';
     $('stats').innerHTML = s;
 
     // 24 gio toi, bat dau tu gio hien tai (theo gio dia phuong cua noi chon)
