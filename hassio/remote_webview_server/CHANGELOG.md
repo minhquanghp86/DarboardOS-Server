@@ -1,3 +1,11 @@
+## V2.9.33
+### Nút mở rộng thành POPUP ỨNG DỤNG
+
+- Thay dropdown bằng popup chiếm 2/3 màn hình, cách đều 4 cạnh, trên lớp phủ mờ: lưới ứng dụng (icon màu + tên) —
+  Trang chủ, YouTube, TikTok, Camera, Trình duyệt (ô nhập URL + bàn phím ảo), Media (trình duyệt media của HA).
+  Chạm ra ngoài popup → ẩn; chọn ứng dụng → ẩn rồi mở. Kích thước theo `vmin`: vừa 1024×600, 480×480, 480×272
+  (tên dài xuống 2 dòng). Không hiệu ứng động (mỗi khung động phải truyền qua mạng).
+
 ## V2.9.32
 ### Sau khi thiết bị nối lại, điều tiết không còn kẹt ở nhịp thấp
 
