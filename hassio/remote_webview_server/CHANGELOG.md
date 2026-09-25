@@ -1,3 +1,11 @@
+## V2.9.28
+### Tinh chỉnh lúc chạy qua `/data/rwv-tuning.json` (không cần khởi động lại)
+
+- Mỗi lần `docker restart` để thử một tham số, Supervisor tạo lại container → bản vá nóng mất giữa lượt đo. Nay server
+  đọc lại file `/data/rwv-tuning.json` khi file đổi (≤ 2 s): `adaptive`, `fixedIntervalMs`, `maxBacklogBytes`,
+  `decodeBudgetRatio`, `intervalBackoffFactor`, `wsHighWaterBytes`, `fullFrameAreaThreshold`. Xoá file = mặc định.
+  Xem `src/tuning.ts`.
+
 ## V2.9.27
 ### Độ phân giải đầy đủ (người dùng chọn độ nét cao) + tăng fps
 

@@ -15,6 +15,7 @@ import { hash32 } from "./util.js";
 import { metrics } from "./metrics.js";
 import { AdaptiveState, DEFAULT_ADAPTIVE_CFG, LinkEstimate, decideAdaptive, initialAdaptiveState, updateLinkEstimate } from "./adaptive.js";
 import { SelfTestRunner } from "./selfTest.js";
+import { tuning } from "./tuning.js";
 import { Encoding, FRAME_HEADER_BYTES, TILE_HEADER_BYTES } from "./protocol.js";
 
 // ── Type-safe interface cho CDP root (thay thế cast `any`) ────────────────────
@@ -1387,12 +1388,13 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
       //
       // Bỏ nguyên khung (không bỏ một phần) để không bao giờ sinh khung rách.
       const backlog = broadcaster.backlogBytes(id);
-      if (backlog > WS_HIGH_WATER_BYTES) {
+      const highWater = tuning().wsHighWaterBytes ?? WS_HIGH_WATER_BYTES;
+      if (backlog > highWater) {
         metrics.onFrameSkipped(id);
         dev.lastProcessedMs = Date.now();
         if (Date.now() - (dev.lastBacklogLogMs ?? 0) > 5000) {
           dev.lastBacklogLogMs = Date.now();
-          console.warn(`[device] ${id}: bo khung, ton dong socket ${backlog}B > ${WS_HIGH_WATER_BYTES}B`);
+          console.warn(`[device] ${id}: bo khung, ton dong socket ${backlog}B > ${highWater}B`);
         }
         return;
       }
@@ -1753,7 +1755,12 @@ export function markInteraction(deviceId: string): void {
 }
 
 export function runAdaptiveTick(): void {
-  if (process.env.CCR_ADAPTIVE === '0') return;
+  const tun = tuning();
+  if (process.env.CCR_ADAPTIVE === '0' || tun.adaptive === false) {
+    // Thu nghiem: tat dieu tiet, tuy chon ep nhip co dinh cho moi thiet bi (xem tuning.ts).
+    if (tun.fixedIntervalMs) for (const d of devices.values()) d.tunedMinFrameIntervalMs = tun.fixedIntervalMs;
+    return;
+  }
   const now = Date.now();
   const snap = metrics.snapshot();
   for (const m of snap.devices) {
@@ -1767,7 +1774,12 @@ export function runAdaptiveTick(): void {
       st.minFrameIntervalMs = device.tunedMinFrameIntervalMs ?? st.minFrameIntervalMs;
       adaptiveStates.set(m.id, st);
     }
-    const cfgA = { ...DEFAULT_ADAPTIVE_CFG, maxQuality: device.cfg.jpegQuality };
+    const cfgA = {
+      ...DEFAULT_ADAPTIVE_CFG, maxQuality: device.cfg.jpegQuality,
+      ...(tun.maxBacklogBytes !== undefined ? { maxBacklogBytes: tun.maxBacklogBytes } : {}),
+      ...(tun.decodeBudgetRatio !== undefined ? { decodeBudgetRatio: tun.decodeBudgetRatio } : {}),
+      ...(tun.intervalBackoffFactor !== undefined ? { intervalBackoffFactor: tun.intervalBackoffFactor } : {}),
+    };
     const bytesPerSec = m.uptimeSec > 0 ? m.bytesSent / m.uptimeSec : 0;
     const counters = broadcaster.linkCounters(m.id);
     let link = linkEstimates.get(m.id);
