@@ -1,3 +1,10 @@
+## V2.9.31
+### P4: hồi nhịp nhanh sau nghẽn thoáng qua
+
+- Chạy thử 10 phút: WiFi chập chờn ở ~1 MB/s làm tồn đọng vượt ngưỡng vài phút một lần; bước giãn tối thiểu 50 ms
+  (33 → 83 ms) và hồi chậm (45–60 s) kéo trung bình xuống ~17 fps. Hồ sơ `?fb=1`: bước 17 ms, hồi sau 1 mẫu tốt,
+  chờ 5 s.
+
 ## V2.9.30
 ### Điều tiết riêng cho thiết bị giải mã thẳng vào framebuffer (P4): YouTube đủ độ phân giải 24 fps
 
