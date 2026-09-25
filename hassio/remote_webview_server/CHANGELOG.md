@@ -1,3 +1,10 @@
+## V2.9.36
+### Sửa tiếng "tách tách" khi phát âm thanh trang (YouTube)
+
+- Đo: nguồn Chrome/PulseAudio sạch (tone 1 kHz, 0 chỗ đứt); P4 không bỏ byte nào. Lỗi ở server: bộ hẹn giờ 40 ms
+  chạy ~41 ms, mỗi nhịp chỉ gửi MỘT khung → gửi 31,2 KB/s cho nguồn 32 KB/s → bộ đệm đầy, bị cắt ~190 lần/30 s, mỗi
+  lần cắt là một tiếng tách. Nay mỗi nhịp gửi mọi khung đã đủ.
+
 ## V2.9.35
 ### Chẩn đoán âm thanh (tiếng tách khi xem YouTube)
 
