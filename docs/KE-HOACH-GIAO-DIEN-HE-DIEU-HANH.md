@@ -2,6 +2,18 @@
 
 Ngày lập: 25/09/2026. Mốc quay về: **Bản Ổn định 25/09 đêm** (tag `ban-on-dinh-2026-09-25-dem`, server 2.9.44).
 
+## 0. Quyết định và trạng thái
+
+- Người dùng quyết định (25/09/2026):
+  - panel **khởi động vào Home Assistant**;
+  - **Gần đây là một nút**; **vuốt lên từ mép dưới = về Home của OS**;
+  - các mục khác theo đề xuất (ứng dụng = tab; biểu tượng mục 6, chỉ hiện khi tính năng đã có).
+- **OS-1 xong — server 2.9.45**:
+  - Shell `src/shell/` (esbuild, Shadow DOM), cử chỉ mép ở server (`src/gestures.ts`), thanh trạng thái kéo xuống,
+    Home của OS `/os/home` (đồng hồ, thời tiết, lưới chia trang, dock), "Trang chủ" → ứng dụng Home Assistant.
+  - Đo trên P4: YouTube 28,8 fps (không đổi).
+  - Việc cần điều tra sau: một lần WiFi nghẽn làm WS đứt và **60 s** mới nối lại (watchdog), lẽ ra < 1 s.
+
 ## 1. Ý tưởng của người dùng (tóm lại để thống nhất)
 
 - Panel không còn là "trình duyệt mở dashboard HA + popup menu", mà là **một hệ điều hành nhỏ** kiểu điện thoại / máy
