@@ -1,3 +1,12 @@
+## V2.9.27
+### Độ phân giải đầy đủ (người dùng chọn độ nét cao) + tăng fps
+
+- **Không gửi khung video ½ nữa** (mặc định). Bật lại: biến môi trường `HALF_SCALE_VIDEO=1`. Đã đo: ½ toàn màn 25–28 fps
+  nhưng cả màn hình mờ khi phát video; "chỉ vùng video ½" nhấp nháy ở mép vùng — bỏ.
+- **Nhịp tính từ lúc BẮT ĐẦU khung trước** (trước: từ lúc XONG) → chu kỳ = max(nhịp, thời gian xử lý) thay vì nhịp +
+  thời gian xử lý (~35–40 ms ở độ phân giải đầy đủ).
+- **Nén các phần của khung song song** (`Promise.all`, sharp chạy trên nhiều nhân) thay vì lần lượt.
+
 ## V2.9.26
 ### Nút mở rộng: Camera và URL hoạt động; sửa "URL hiện tại" bị kẹt
 

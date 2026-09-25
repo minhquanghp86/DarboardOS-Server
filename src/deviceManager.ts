@@ -196,6 +196,9 @@ const VIDEO_PROBE_JS = `(() => {
   }
   return best;
 })()`;
+// (25/09/2026) Nguoi dung chon DU DO PHAN GIAI (do net cao) -> mac dinh KHONG gui khung video 1/2 nua, ke ca khi
+// thiet bi bao ?half=1 (firmware P4 van bat half_scale_video vi ly do khac — xem YAML). Bat lai: HALF_SCALE_VIDEO=1.
+const HALF_SCALE_VIDEO = process.env.HALF_SCALE_VIDEO === '1';
 const HALF_HOLD_MS = Math.max(0, parseInt(process.env.HALF_HOLD_MS ?? '3000', 10) || 3000);
 // Thay doi lon phai keo dai lien tuc bao lau moi coi la video (loai hieu ung chuyen tab).
 const HALF_SUSTAIN_MS = Math.max(0, parseInt(process.env.HALF_SUSTAIN_MS ?? '1000', 10) || 1000);
@@ -1367,8 +1370,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     // da lon hon nhip -> delay = 0 -> chay ngay. Nhip thuc te co lai con bang
     // thoi gian encode thay vi effInterval.
     // Do that: adaptive dat mfi=400 (le ra 2.5fps) nhung server van gui 3.93fps.
-    // `finally` van ghi de lai bang thoi diem KET THUC, nen nhip van duoc tinh
-    // tu luc xong khung truoc — dung nhu thiet ke.
+    // (25/09/2026) `finally` KHONG con ghi de moc nay — nhip tinh tu luc BAT DAU khung truoc (xem finally).
     dev.lastProcessedMs = Date.now();
 
     try {
@@ -1458,7 +1460,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
       // (24/09/2026) NHIP CAO CHUA DU: mot tab dashboard co anh dong NHO cung lam Chrome phat khung lien tuc ->
       // ca man hinh bi gui nua do phan giai, giao dien mo han (nguoi dung bao ngay). Phai co PHAN LON man hinh
       // doi moi la video: so anh thu nho xam 64x38 (sharp giai ma thang o kich thuoc nho — re) voi khung truoc.
-      if (halfWanted && dev.cfg.halfScale && !sharpRefresh) {
+      if (halfWanted && HALF_SCALE_VIDEO && dev.cfg.halfScale && !sharpRefresh) {
         const thumb = await sharp(imgBuf).resize(64, 38, { fit: 'fill' }).greyscale().raw().toBuffer();
         let changed = 0;
         if (dev.prevThumb && dev.prevThumb.length === thumb.length) {
@@ -1496,7 +1498,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
       } else {
         dev.prevThumb = undefined;
       }
-      if (!sharpRefresh && dev.cfg.halfScale && halfWanted && !dev.cfg.rotation) {
+      if (!sharpRefresh && HALF_SCALE_VIDEO && dev.cfg.halfScale && halfWanted && !dev.cfg.rotation) {
         const capBytes = dev.cfg.maxBytesPerMessage - FRAME_HEADER_BYTES - TILE_HEADER_BYTES;
         const fullW = dev.cfg.width, fullH = dev.cfg.height;
         const halfW = Math.ceil(fullW / 2), halfH = Math.ceil(fullH / 2);
@@ -1619,7 +1621,9 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
         });
       }
     } finally {
-      dev.lastProcessedMs = Date.now();
+      // (25/09/2026) KHONG ghi de lastProcessedMs o day nua: truoc day nhip tinh tu luc XONG khung truoc, tuc chu ky
+      // thuc = nhip + thoi gian xu ly (do do phan giai day du: 66 ms + ~35-40 ms giai nen/nen -> ~10 fps thay vi 15).
+      // Moc da danh o DAU ham (xem tren) -> chu ky = max(nhip, thoi gian xu ly). Van MOT khung mot luc (flushInFlight).
       dev.flushInFlight = false;
     }
   };
