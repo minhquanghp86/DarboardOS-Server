@@ -1,0 +1,88 @@
+<!doctype html>
+<!--
+  (25/09/2026) Ung dung "Camera nha" cua launcher: LUOI ANH CHUP cac camera trong go2rtc (khong phai video truc tiep —
+  N luong video cung luc se ton CPU server + bang thong WiFi toi panel). Moi ~1,2 s lam moi MOT camera (lan luot), dung
+  luong *_sub neu co. Cham mot o -> xem truc tiep (cam.html, go2rtc MSE, luong chinh).
+  Danh sach: /cams/list cua server (go2rtc /api/streams). Anh: go2rtc /api/frame.jpeg (cung may, cong 1984).
+-->
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Camera nhà</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@500;600&display=swap">
+<style>
+  :root { --bg: #0b1119; --surface: #151e2b; --text: #eef3fb; --muted: #93a3b8; --live: #22c55e; --pad: clamp(6px, 2vmin, 16px); color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden;
+    font-family: "Be Vietnam Pro", system-ui, sans-serif; -webkit-user-select: none; user-select: none; }
+  main { height: 100%; padding: calc(var(--pad) + 22px) var(--pad) var(--pad); display: grid; gap: var(--pad); }
+  .tile { position: relative; border-radius: clamp(8px, 2vmin, 14px); overflow: hidden; background: var(--surface); cursor: pointer; min-height: 0; }
+  .tile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .tile .name {
+    position: absolute; left: 0; right: 0; bottom: 0; padding: clamp(4px, 1.2vmin, 8px) clamp(6px, 1.8vmin, 12px);
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.7)); font-weight: 600; font-size: clamp(11px, 2.8vmin, 17px);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .dot { width: 0.55em; height: 0.55em; border-radius: 50%; background: var(--muted); flex: none; }
+  .tile.fresh .dot { background: var(--live); }
+  .tile .play {
+    position: absolute; right: clamp(6px, 1.8vmin, 12px); bottom: clamp(5px, 1.4vmin, 9px);
+    font-size: clamp(10px, 2.3vmin, 14px); color: var(--muted); font-weight: 500;
+  }
+  .msg { display: flex; align-items: center; justify-content: center; text-align: center; color: var(--muted); font-size: clamp(13px, 3vmin, 18px); padding: 20px; }
+</style>
+</head>
+<body>
+<main id="grid"><div class="msg">Đang tải danh sách camera…</div></main>
+<script>
+(function () {
+  'use strict';
+  var grid = document.getElementById('grid');
+  var GO2RTC = location.protocol + '//' + location.hostname + ':1984';
+  var NAMES = { p4_panel: 'Panel P4' };
+  function pretty(n) { return NAMES[n] || (n.charAt(0).toUpperCase() + n.slice(1)).replace(/_/g, ' '); }
+  function layout(n) {
+    var cols = n <= 1 ? 1 : n <= 4 ? 2 : n <= 9 ? 3 : 4;
+    var rows = Math.ceil(n / cols);
+    grid.style.gridTemplateColumns = 'repeat(' + cols + ', minmax(0, 1fr))';
+    grid.style.gridTemplateRows = 'repeat(' + rows + ', minmax(0, 1fr))';
+  }
+  fetch('/cams/list', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (cams) {
+    if (!Array.isArray(cams) || !cams.length) { grid.innerHTML = '<div class="msg">Không tìm thấy camera nào trong go2rtc.</div>'; return; }
+    grid.innerHTML = '';
+    layout(cams.length);
+    var tiles = cams.map(function (c) {
+      var t = document.createElement('div');
+      t.className = 'tile';
+      t.innerHTML = '<img alt=""><div class="name"><span class="dot"></span><span></span></div><div class="play">Chạm để xem trực tiếp ›</div>';
+      t.querySelector('.name span:last-child').textContent = pretty(c.name);
+      t.addEventListener('click', function () { location.href = '/cam.html?src=' + encodeURIComponent(c.live); });
+      grid.appendChild(t);
+      return { c: c, el: t, img: t.querySelector('img'), busy: false };
+    });
+    // Lam moi LAN LUOT: moi nhip mot camera -> tai mang deu, khong don dap. Anh moi tai xong moi thay (khong chop trang).
+    var i = 0;
+    function next() {
+      var t = tiles[i]; i = (i + 1) % tiles.length;
+      if (t.busy) return;
+      t.busy = true;
+      var im = new Image();
+      var done = function (ok) {
+        t.busy = false;
+        if (ok) { t.img.src = im.src; t.el.classList.add('fresh'); }
+        else t.el.classList.remove('fresh');
+      };
+      im.onload = function () { done(true); };
+      im.onerror = function () { done(false); };
+      im.src = GO2RTC + '/api/frame.jpeg?src=' + encodeURIComponent(t.c.snap) + '&t=' + Date.now();
+    }
+    tiles.forEach(function (_, k) { setTimeout(next, k * 250); });
+    setInterval(next, 1200);
+  }).catch(function () {
+    grid.innerHTML = '<div class="msg">Không tải được danh sách camera (go2rtc).</div>';
+  });
+})();
+</script>
+</body>
+</html>

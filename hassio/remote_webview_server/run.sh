@@ -52,6 +52,24 @@ export HEALTH_PORT="$(get_opt health_port "18080")"
 export PREFERS_REDUCED_MOTION="$(get_opt prefers_reduced_motion "false")"
 export USER_DATA_DIR="$(get_opt user_data_dir "/data/pw-data")"
 
+# (25/09/2026) Menu ung dung: danh sach (mang JSON) -> bien moi truong JSON cho server (src/launcherApps.ts).
+get_opt_json() {
+  local key="$1"
+  if [ -f "$OPTIONS_FILE" ]; then
+    node -e '
+      const fs = require("fs");
+      try {
+        const o = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+        process.stdout.write(JSON.stringify(o[process.argv[1]] ?? []));
+      } catch { process.stdout.write("[]"); }
+    ' "$key" "$OPTIONS_FILE"
+  else
+    printf '[]'
+  fi
+}
+export LAUNCHER_APPS_JSON="$(get_opt_json launcher_apps)"
+export LAUNCHER_HIDE_JSON="$(get_opt_json launcher_hide)"
+
 echo "[remote-webview] user_data_dir=${USER_DATA_DIR}"
 
 # Dam bao thu muc profile ton tai truoc khi Chrome/Playwright dung toi —

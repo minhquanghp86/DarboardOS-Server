@@ -1,0 +1,116 @@
+<!doctype html>
+<!--
+  (25/09/2026) Ung dung "Hen gio" cua launcher. Hen gio duoc giu o SERVER (window.__rwvControl({timer})) nen VAN REO
+  khi nguoi dung da chuyen sang trang khac: het gio server bat den nen P4 roi trang dang mo hien bao thuc toan man
+  hinh + chuong (xem __rwvAlarm trong launcher). Thoi gian con lai lay tu trang thai launcher (su kien 'rwv-state').
+-->
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hẹn giờ</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<style>
+  :root { --bg: #16110b; --surface: #221a12; --surface-2: #30251a; --text: #fdf6ee; --muted: #b9a693; --accent: #f97316; --pad: clamp(8px, 2.6vmin, 22px); color-scheme: dark; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden; font-family: "Be Vietnam Pro", system-ui, sans-serif; font-variant-numeric: tabular-nums; -webkit-user-select: none; user-select: none; }
+  main { height: 100%; padding: calc(var(--pad) + 14px) var(--pad) var(--pad); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: var(--pad); }
+  .card { background: var(--surface); border-radius: clamp(10px, 2.4vmin, 18px); padding: var(--pad); min-height: 0; display: flex; flex-direction: column; gap: clamp(6px, 2vmin, 14px); }
+  .dial { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(4px, 1.5vmin, 10px); }
+  .time { font-size: clamp(44px, 17vmin, 110px); font-weight: 700; line-height: 1; letter-spacing: -0.01em; }
+  .time.run { color: var(--accent); }
+  .sub { color: var(--muted); font-size: clamp(11px, 2.7vmin, 16px); }
+  .row { display: flex; gap: clamp(6px, 1.6vmin, 12px); justify-content: center; }
+  .btn { display: flex; align-items: center; justify-content: center; min-width: clamp(44px, 11vmin, 70px); height: clamp(40px, 10vmin, 62px); padding: 0 clamp(10px, 3vmin, 22px); border-radius: 999px; background: var(--surface-2); cursor: pointer; font-weight: 600; font-size: clamp(13px, 3.2vmin, 20px); }
+  .btn.primary { background: var(--accent); }
+  .btn.danger { background: #b91c1c; }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  h2 { margin: 0; font-size: clamp(10px, 2.4vmin, 14px); color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; }
+  .presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(6px, 1.6vmin, 12px); flex: 1; }
+  .preset { display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: clamp(10px, 2.2vmin, 14px); background: var(--surface-2); cursor: pointer; }
+  .preset b { font-size: clamp(18px, 5.5vmin, 34px); font-weight: 700; }
+  .preset span { font-size: clamp(10px, 2.3vmin, 14px); color: var(--muted); }
+  .preset:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<main>
+  <section class="card">
+    <div class="dial">
+      <div class="time" id="time">05:00</div>
+      <div class="sub" id="sub">Chỉnh thời gian rồi bấm Bắt đầu</div>
+    </div>
+    <div class="row" id="adjust">
+      <div class="btn" data-d="-60" role="button" tabindex="0">−1 phút</div>
+      <div class="btn" data-d="60" role="button" tabindex="0">+1 phút</div>
+      <div class="btn" data-d="300" role="button" tabindex="0">+5 phút</div>
+    </div>
+    <div class="row">
+      <div class="btn primary" id="start" role="button" tabindex="0">Bắt đầu</div>
+      <div class="btn danger" id="cancel" role="button" tabindex="0" hidden>Huỷ hẹn giờ</div>
+    </div>
+  </section>
+  <section class="card">
+    <h2>Hẹn nhanh</h2>
+    <div class="presets" id="presets"></div>
+  </section>
+</main>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var PRESETS = [[1, 'Pha trà'], [3, 'Luộc trứng'], [5, 'Nghỉ ngắn'], [10, 'Mì, cháo'], [15, 'Ngủ trưa ngắn'], [20, 'Nấu cơm'],
+    [30, 'Học bài'], [45, 'Giặt đồ'], [60, 'Một giờ']];
+  var sel = 5 * 60, active = null;
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function fmt(s) { var h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return (h ? h + ':' + pad2(m) : pad2(m)) + ':' + pad2(x); }
+  function send(obj) {
+    if (typeof window.__rwvControl === 'function') { try { window.__rwvControl(JSON.stringify(obj)); return true; } catch (e) {} }
+    $('sub').textContent = 'Chưa kết nối được máy chủ — mở từ menu của màn hình';
+    return false;
+  }
+  function start(sec, label) { if (send({ timer: { sec: sec, label: label || '' } })) { $('sub').textContent = 'Đang bắt đầu…'; } }
+  function render() {
+    var t = $('time');
+    if (active && active.endsAt > Date.now()) {
+      t.textContent = fmt(Math.ceil((active.endsAt - Date.now()) / 1000));
+      t.classList.add('run');
+      $('sub').textContent = (active.label ? active.label + ' · ' : '') + 'Vẫn reo dù bạn chuyển sang trang khác';
+      $('start').hidden = true; $('cancel').hidden = false; $('adjust').style.visibility = 'hidden';
+    } else {
+      t.textContent = fmt(sel); t.classList.remove('run');
+      if (active) $('sub').textContent = 'Chỉnh thời gian rồi bấm Bắt đầu';
+      active = null;
+      $('start').hidden = false; $('cancel').hidden = true; $('adjust').style.visibility = '';
+    }
+  }
+  function onState(st) { active = st && st.tm ? st.tm : null; render(); }
+  window.addEventListener('rwv-state', function (e) { onState(e.detail); });
+  if (window.__rwvLastState) onState(window.__rwvLastState);
+  function act(el, fn) {
+    el.addEventListener('click', fn);
+    el.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); } });
+  }
+  Array.prototype.forEach.call($('adjust').children, function (b) {
+    act(b, function () { sel = Math.max(60, Math.min(12 * 3600, sel + +b.getAttribute('data-d'))); render(); });
+  });
+  act($('start'), function () { start(sel, ''); });
+  act($('cancel'), function () { send({ timer: { cancel: 1 } }); });
+  PRESETS.forEach(function (p) {
+    var b = document.createElement('div');
+    b.className = 'preset'; b.tabIndex = 0; b.setAttribute('role', 'button');
+    b.innerHTML = '<b>' + p[0] + (p[0] === 60 ? ' giờ' : '′') + '</b><span></span>';
+    if (p[0] === 60) b.firstChild.textContent = '1 giờ';
+    b.lastChild.textContent = p[1];
+    act(b, function () { sel = p[0] * 60; start(sel, p[1]); });
+    $('presets').appendChild(b);
+  });
+  // Xin trang thai moi nhat (launcher tu gui khi san sang; goi them cho chac)
+  setTimeout(function () { send({ hello: 1 }); }, 300);
+  setInterval(render, 1000);
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,152 @@
+<!doctype html>
+<!--
+  (25/09/2026) Ung dung "Lich" cua launcher: lich thang am duong. Am lich tinh tai cho (public/lunar.js, thuat toan Ho
+  Ngoc Duc, mui gio +7). Ngay le duong va am lich co to mau. Khong can mang (tru font).
+-->
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lịch</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<script src="/lunar.js"></script>
+<style>
+  :root {
+    --bg: #14100f; --surface: #1f1918; --surface-2: #2a2221; --line: rgba(255, 240, 235, 0.07);
+    --text: #fbf3f0; --muted: #b3a29d; --red: #f05252; --gold: #f4b740; --pad: clamp(8px, 2.6vmin, 22px);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden;
+    font-family: "Be Vietnam Pro", system-ui, sans-serif; font-variant-numeric: tabular-nums; -webkit-user-select: none; user-select: none; }
+  main { height: 100%; padding: calc(var(--pad) + 14px) var(--pad) var(--pad); display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.6fr); gap: var(--pad); }
+  .card { background: var(--surface); border-radius: clamp(10px, 2.4vmin, 18px); padding: var(--pad); min-height: 0; }
+
+  /* Hom nay: to lich treo tuong */
+  .today { display: flex; flex-direction: column; align-items: center; text-align: center; gap: clamp(2px, 1vmin, 8px); overflow: hidden; }
+  .today .mon { font-size: clamp(12px, 3vmin, 18px); font-weight: 600; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .today .big { font-size: clamp(56px, 24vmin, 150px); font-weight: 700; line-height: 1; color: var(--red); }
+  .today .wd { font-size: clamp(14px, 4vmin, 26px); font-weight: 600; }
+  .today hr { width: 70%; border: none; border-top: 1px dashed var(--line); margin: clamp(4px, 1.6vmin, 12px) 0; }
+  .today .ld { font-size: clamp(12px, 3vmin, 19px); }
+  .today .ld b { color: var(--gold); font-size: 1.5em; }
+  .today .cc { font-size: clamp(10px, 2.4vmin, 14px); color: var(--muted); line-height: 1.6; }
+  .today .hol { margin-top: auto; padding: 6px 12px; border-radius: 999px; background: rgba(240, 82, 82, 0.16); color: #fca5a5; font-size: clamp(11px, 2.6vmin, 15px); font-weight: 600; }
+
+  /* Thang */
+  .month { display: flex; flex-direction: column; gap: clamp(4px, 1.4vmin, 10px); }
+  .head { display: flex; align-items: center; gap: 8px; }
+  .head .title { flex: 1; font-size: clamp(14px, 3.8vmin, 24px); font-weight: 600; }
+  .head .title small { color: var(--muted); font-weight: 500; font-size: 0.62em; margin-left: 8px; }
+  .nav { flex: none; min-width: clamp(34px, 8vmin, 48px); height: clamp(30px, 7.5vmin, 44px); padding: 0 12px; border-radius: 10px; background: var(--surface-2); display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: 600; font-size: clamp(12px, 2.8vmin, 16px); }
+  .nav:focus-visible, .cell:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+  .dow, .days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: clamp(2px, 0.6vmin, 5px); }
+  .dow div { text-align: center; font-size: clamp(9px, 2.2vmin, 13px); color: var(--muted); font-weight: 600; }
+  .dow div:nth-child(7) { color: var(--red); }
+  .days { flex: 1; grid-auto-rows: minmax(0, 1fr); min-height: 0; }
+  .cell { border-radius: clamp(6px, 1.4vmin, 10px); padding: clamp(2px, 0.8vmin, 6px) clamp(4px, 1vmin, 8px); display: flex; flex-direction: column; justify-content: space-between; cursor: pointer; min-height: 0; }
+  .cell .s { font-size: clamp(12px, 3.2vmin, 20px); font-weight: 600; }
+  .cell .l { font-size: clamp(8px, 1.9vmin, 12px); color: var(--muted); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cell .l.first { color: var(--gold); font-weight: 600; }
+  .cell.out { opacity: 0.28; }
+  .cell.sun .s { color: var(--red); }
+  .cell.hol { background: rgba(240, 82, 82, 0.12); }
+  .cell.hol .l { color: #fca5a5; }
+  .cell.sel { background: var(--surface-2); }
+  .cell.today { outline: 2px solid var(--red); outline-offset: -2px; }
+  @media (max-aspect-ratio: 1/1) { main { grid-template-columns: 1fr; } .today { display: none; } }
+</style>
+</head>
+<body>
+<main>
+  <section class="card today" id="today" aria-live="polite"></section>
+  <section class="card month" aria-label="Lịch tháng">
+    <div class="head">
+      <div class="nav" id="prev" role="button" tabindex="0" aria-label="Tháng trước">‹</div>
+      <div class="title" id="title"></div>
+      <div class="nav" id="now" role="button" tabindex="0">Hôm nay</div>
+      <div class="nav" id="next" role="button" tabindex="0" aria-label="Tháng sau">›</div>
+    </div>
+    <div class="dow"><div>T2</div><div>T3</div><div>T4</div><div>T5</div><div>T6</div><div>T7</div><div>CN</div></div>
+    <div class="days" id="days"></div>
+  </section>
+</main>
+<script>
+(function () {
+  'use strict';
+  var L = window.RwvLunar;
+  var $ = function (id) { return document.getElementById(id); };
+  var WD = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+  var SOLAR_HOL = { '1/1': 'Tết Dương lịch', '14/2': 'Lễ Tình nhân', '8/3': 'Quốc tế Phụ nữ', '30/4': 'Giải phóng miền Nam',
+    '1/5': 'Quốc tế Lao động', '1/6': 'Quốc tế Thiếu nhi', '2/9': 'Quốc khánh', '20/10': 'Phụ nữ Việt Nam',
+    '20/11': 'Nhà giáo Việt Nam', '22/12': 'Quân đội Nhân dân', '24/12': 'Đêm Giáng sinh', '25/12': 'Giáng sinh' };
+  var LUNAR_HOL = { '1/1': 'Tết Nguyên đán', '2/1': 'Tết Nguyên đán', '3/1': 'Tết Nguyên đán', '15/1': 'Rằm tháng Giêng',
+    '3/3': 'Tết Hàn thực', '10/3': 'Giỗ Tổ Hùng Vương', '15/4': 'Lễ Phật đản', '5/5': 'Tết Đoan ngọ', '15/7': 'Lễ Vu Lan',
+    '15/8': 'Tết Trung thu', '23/12': 'Ông Công Ông Táo' };
+  // Nghi le chinh thuc (to do dam hon)
+  var OFFICIAL = { 'Tết Dương lịch': 1, 'Giải phóng miền Nam': 1, 'Quốc tế Lao động': 1, 'Quốc khánh': 1, 'Tết Nguyên đán': 1, 'Giỗ Tổ Hùng Vương': 1 };
+
+  function lunarOf(d) { return L.solar2lunar(d.getDate(), d.getMonth() + 1, d.getFullYear(), 7); }
+  function holiday(d, l) {
+    var s = SOLAR_HOL[d.getDate() + '/' + (d.getMonth() + 1)];
+    var ln = l.leap ? null : LUNAR_HOL[l.day + '/' + l.month];
+    // Giao thua: ngay cuoi thang Chap (ngay mai la mung 1 Tet)
+    if (!ln && l.month === 12 && !l.leap) {
+      var t = new Date(d); t.setDate(t.getDate() + 1);
+      var nl = lunarOf(t); if (nl.day === 1 && nl.month === 1) ln = 'Giao thừa';
+    }
+    return ln || s || '';
+  }
+
+  var now = new Date(), view = new Date(now.getFullYear(), now.getMonth(), 1), sel = new Date(now);
+  function same(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+
+  function renderToday(d) {
+    var l = lunarOf(d), hol = holiday(d, l);
+    var el = $('today');
+    el.innerHTML =
+      '<div class="mon">Tháng ' + (d.getMonth() + 1) + ' · ' + d.getFullYear() + '</div>' +
+      '<div class="big">' + d.getDate() + '</div>' +
+      '<div class="wd">' + WD[d.getDay()] + '</div><hr>' +
+      '<div class="ld">Âm lịch <b>' + l.day + '</b> tháng ' + l.month + (l.leap ? ' nhuận' : '') + '</div>' +
+      '<div class="cc">Năm ' + L.canChiYear(l.year) + '<br>Tháng ' + L.canChiMonth(l.month, l.year) + ' · Ngày ' + L.canChiDay(l.jd) + '</div>' +
+      (hol ? '<div class="hol">' + hol + '</div>' : '');
+  }
+
+  function render() {
+    var y = view.getFullYear(), m = view.getMonth();
+    var l1 = L.solar2lunar(1, m + 1, y, 7);
+    $('title').innerHTML = 'Tháng ' + (m + 1) + ', ' + y + '<small>' + L.canChiYear(l1.year) + '</small>';
+    var first = new Date(y, m, 1);
+    var start = new Date(first); start.setDate(1 - ((first.getDay() + 6) % 7));  // thu Hai dau tuan
+    var html = '';
+    for (var i = 0; i < 42; i++) {
+      var d = new Date(start); d.setDate(start.getDate() + i);
+      if (i === 35 && d.getMonth() !== m) break;  // bo hang cuoi neu thua
+      var l = lunarOf(d), hol = holiday(d, l);
+      var cls = 'cell' + (d.getMonth() !== m ? ' out' : '') + (d.getDay() === 0 ? ' sun' : '') + (hol ? ' hol' : '') +
+        (same(d, now) ? ' today' : '') + (same(d, sel) ? ' sel' : '');
+      var lt = l.day === 1 ? l.day + '/' + l.month + (l.leap ? 'N' : '') : String(l.day);
+      html += '<div class="' + cls + '" role="button" tabindex="0" data-t="' + d.getTime() + '" title="' + (hol || '') + '">' +
+        '<div class="s">' + d.getDate() + '</div><div class="l' + (l.day === 1 ? ' first' : '') + '">' + (hol && OFFICIAL[hol] ? hol : lt) + '</div></div>';
+    }
+    $('days').innerHTML = html;
+    Array.prototype.forEach.call($('days').children, function (c) {
+      c.addEventListener('click', function () { sel = new Date(+c.getAttribute('data-t')); renderToday(sel); render(); });
+    });
+  }
+  function shift(n) { view = new Date(view.getFullYear(), view.getMonth() + n, 1); render(); }
+  function act(el, fn) {
+    el.addEventListener('click', fn);
+    el.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); } });
+  }
+  act($('prev'), function () { shift(-1); });
+  act($('next'), function () { shift(1); });
+  act($('now'), function () { now = new Date(); sel = new Date(now); view = new Date(now.getFullYear(), now.getMonth(), 1); renderToday(sel); render(); });
+  renderToday(sel); render();
+  // Qua nua dem: lam moi "hom nay"
+  setInterval(function () { var n = new Date(); if (!same(n, now)) { now = n; if (same(sel, new Date(n.getTime() - 864e5))) sel = new Date(n); renderToday(sel); render(); } }, 60000);
+})();
+</script>
+</body>
+</html>

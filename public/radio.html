@@ -1,0 +1,110 @@
+<!doctype html>
+<!--
+  (25/09/2026) Ung dung "Radio" cua launcher: cac kenh VOV phat truc tiep (HLS, str.vov.gov.vn — da kiem 25/09: VOV1,
+  VOV2, VOV3, VOV5 tra 200 + CORS). Am thanh trang -> loa P4 nhu YouTube; am luong = thanh truot trong menu.
+  Phat bang hls.js (Chrome desktop khong tu phat HLS).
+-->
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Radio</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js"></script>
+<style>
+  :root { --bg: #17100b; --surface: #231812; --surface-2: #33231a; --text: #fdf4ec; --muted: #bba291; --accent: #f97316; --pad: clamp(8px, 2.6vmin, 22px); color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden; font-family: "Be Vietnam Pro", system-ui, sans-serif; -webkit-user-select: none; user-select: none; }
+  main { height: 100%; padding: calc(var(--pad) + 14px) var(--pad) var(--pad); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: var(--pad); }
+  .card { background: var(--surface); border-radius: clamp(10px, 2.4vmin, 18px); padding: var(--pad); min-height: 0; }
+  .now { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(6px, 2vmin, 14px); text-align: center; }
+  .disc { width: clamp(90px, 30vmin, 180px); aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, var(--surface-2) 0 22%, #0e0907 23% 26%, var(--surface-2) 27% 100%); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: clamp(16px, 5vmin, 30px); color: var(--accent); }
+  .now .name { font-size: clamp(16px, 4.4vmin, 28px); font-weight: 700; }
+  .now .desc { font-size: clamp(11px, 2.7vmin, 16px); color: var(--muted); }
+  .now .state { font-size: clamp(10px, 2.4vmin, 14px); color: var(--muted); min-height: 1.3em; }
+  .play { width: clamp(52px, 15vmin, 88px); aspect-ratio: 1; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .play svg { width: 42%; height: 42%; }
+  .list { display: flex; flex-direction: column; gap: clamp(4px, 1.4vmin, 10px); overflow-y: auto; }
+  .st { display: flex; align-items: center; gap: clamp(8px, 2vmin, 14px); padding: clamp(8px, 2.2vmin, 16px); border-radius: clamp(8px, 2vmin, 14px); background: var(--surface-2); cursor: pointer; }
+  .st.on { outline: 2px solid var(--accent); }
+  .st .logo { flex: none; width: clamp(38px, 10vmin, 60px); aspect-ratio: 1; border-radius: 12px; background: #0e0907; display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--accent); font-size: clamp(11px, 2.8vmin, 17px); }
+  .st .t { font-weight: 600; font-size: clamp(13px, 3.2vmin, 19px); }
+  .st .d { color: var(--muted); font-size: clamp(10px, 2.4vmin, 14px); }
+  .st:focus-visible, .play:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .note { font-size: clamp(9px, 2.1vmin, 12px); color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <section class="card now">
+    <div class="disc" id="disc">VOV</div>
+    <div class="name" id="name">Chọn một kênh</div>
+    <div class="desc" id="desc">Phát trực tiếp — âm lượng chỉnh bằng thanh trượt trong menu</div>
+    <div class="play" id="play" role="button" tabindex="0" aria-label="Phát / dừng"></div>
+    <div class="state" id="state"></div>
+  </section>
+  <section class="card list" id="list" aria-label="Danh sách kênh"></section>
+</main>
+<audio id="au" preload="none"></audio>
+<script>
+(function () {
+  'use strict';
+  var BASE = 'https://str.vov.gov.vn/vovlive/';
+  var ST = [
+    { id: 'VOV1', name: 'VOV1 — Thời sự', desc: 'Tin tức, thời sự, chính luận', url: BASE + 'vov1vov5Vietnamese.sdp_aac/playlist.m3u8' },
+    { id: 'VOV2', name: 'VOV2 — Văn hoá, Xã hội', desc: 'Văn hoá, giáo dục, đời sống', url: BASE + 'vov2.sdp_aac/playlist.m3u8' },
+    { id: 'VOV3', name: 'VOV3 — Âm nhạc', desc: 'Âm nhạc, giải trí', url: BASE + 'vov3.sdp_aac/playlist.m3u8' },
+    { id: 'VOV5', name: 'VOV5 — Đối ngoại', desc: 'Chương trình tiếng nước ngoài', url: BASE + 'vov5.sdp_aac/playlist.m3u8' }
+  ];
+  var $ = function (id) { return document.getElementById(id); };
+  var au = $('au'), hls = null, cur = null, playing = false;
+  var PLAY = '<svg viewBox="0 0 24 24" fill="#fff"><path d="M7 4v16l13-8z"/></svg>';
+  var STOP = '<svg viewBox="0 0 24 24" fill="#fff"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>';
+  function setState(t) { $('state').textContent = t; }
+  function ui() {
+    $('play').innerHTML = playing ? STOP : PLAY;
+    Array.prototype.forEach.call($('list').children, function (el, i) { el.classList.toggle('on', cur === ST[i]); });
+    if (cur) { $('name').textContent = cur.name; $('desc').textContent = cur.desc; $('disc').textContent = cur.id; }
+  }
+  function stop() {
+    if (hls) { hls.destroy(); hls = null; }
+    au.pause(); au.removeAttribute('src'); au.load();
+    playing = false; setState(''); ui();
+  }
+  function play(s) {
+    stop();
+    cur = s; playing = true; ui(); setState('Đang kết nối…');
+    try { localStorage.setItem('rwv_radio', s.id); } catch (e) {}
+    if (window.Hls && window.Hls.isSupported()) {
+      hls = new window.Hls({ liveSyncDurationCount: 3 });
+      hls.loadSource(s.url);
+      hls.attachMedia(au);
+      hls.on(window.Hls.Events.ERROR, function (_, d) { if (d.fatal) { setState('Mất kết nối, thử lại…'); setTimeout(function () { if (cur === s && playing) play(s); }, 4000); } });
+    } else au.src = s.url;
+    au.play().catch(function () { setState('Chạm ▶ để phát'); playing = false; ui(); });
+  }
+  au.addEventListener('playing', function () { setState('● Đang phát trực tiếp'); });
+  au.addEventListener('waiting', function () { setState('Đang tải…'); });
+  ST.forEach(function (s) {
+    var el = document.createElement('div');
+    el.className = 'st'; el.tabIndex = 0; el.setAttribute('role', 'button');
+    el.innerHTML = '<div class="logo"></div><div><div class="t"></div><div class="d"></div></div>';
+    el.querySelector('.logo').textContent = s.id;
+    el.querySelector('.t').textContent = s.name;
+    el.querySelector('.d').textContent = s.desc;
+    el.addEventListener('click', function () { play(s); });
+    el.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); play(s); } });
+    $('list').appendChild(el);
+  });
+  var note = document.createElement('div');
+  note.className = 'note'; note.textContent = 'Nguồn: Đài Tiếng nói Việt Nam (vov.vn). Rời trang này là dừng phát.';
+  $('list').appendChild(note);
+  function toggle() { if (playing) stop(); else play(cur || ST[0]); }
+  $('play').addEventListener('click', toggle);
+  $('play').addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+  try { var last = localStorage.getItem('rwv_radio'); cur = ST.filter(function (s) { return s.id === last; })[0] || null; } catch (e) {}
+  ui();
+})();
+</script>
+</body>
+</html>
