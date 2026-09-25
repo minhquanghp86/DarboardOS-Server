@@ -1,3 +1,13 @@
+## V2.9.42
+### Hoàn thiện menu và các ứng dụng
+
+- Launcher dùng chuỗi font cố định: `system-ui` trong container trỏ tới font đơn cách, nên đồng hồ trên nút và báo
+  thức trông như chữ máy đánh ở các trang ứng dụng.
+- Hẹn giờ: nút hẹn nhanh ghi "1 phút", "3 phút"…
+- Cảnh: khi chưa có scene nào thì có gợi ý cách tạo trong HA.
+- Radio: ghi rõ cần ~10 giây để bắt đầu phát. Đo thật: máy chủ VOV giới hạn tải đúng bằng tốc độ phát (256 kbit/s),
+  mỗi đoạn 10 giây mất ~10 giây để tải; sau đó phát liên tục.
+
 ## V2.9.41
 ### Menu ứng dụng đầy đủ: thông tin + điều khiển nhanh + 15 ứng dụng chia nhóm
 

@@ -73,6 +73,8 @@
     }
     section('Cảnh', list.filter(function (s) { return s.domain === 'scene'; }));
     section('Kịch bản', list.filter(function (s) { return s.domain === 'script'; }));
+    if (!list.some(function (s) { return s.domain === 'scene'; }))
+      main.insertAdjacentHTML('beforeend', '<div class="empty">Mẹo: tạo Cảnh trong Home Assistant (Cài đặt → Tự động hoá &amp; Cảnh → Cảnh), vd “Đi ngủ”, “Ra khỏi nhà”, “Xem phim” — nút sẽ tự hiện ở đây.</div>');
   }).catch(function () {
     main.innerHTML = '<h1>Cảnh</h1><div class="empty">Không kết nối được Home Assistant.</div>';
   });

@@ -73,7 +73,7 @@
   }
   function play(s) {
     stop();
-    cur = s; playing = true; ui(); setState('Đang kết nối…');
+    cur = s; playing = true; ui(); setState('Đang kết nối… (đài phát bắt đầu sau khoảng 10 giây)');
     try { localStorage.setItem('rwv_radio', s.id); } catch (e) {}
     if (window.Hls && window.Hls.isSupported()) {
       hls = new window.Hls({ liveSyncDurationCount: 3 });
@@ -84,7 +84,7 @@
     au.play().catch(function () { setState('Chạm ▶ để phát'); playing = false; ui(); });
   }
   au.addEventListener('playing', function () { setState('● Đang phát trực tiếp'); });
-  au.addEventListener('waiting', function () { setState('Đang tải…'); });
+  au.addEventListener('waiting', function () { if (au.currentTime > 0) setState('Đang tải…'); });
   ST.forEach(function (s) {
     var el = document.createElement('div');
     el.className = 'st'; el.tabIndex = 0; el.setAttribute('role', 'button');

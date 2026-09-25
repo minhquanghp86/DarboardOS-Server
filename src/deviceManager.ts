@@ -961,6 +961,8 @@ export function buildLauncherScript(homeUrl: string | undefined): string {
   var APPS = ${JSON.stringify(apps)};
   var GROUPS = ${JSON.stringify(Object.entries(GROUP_TITLES))};
 
+  // (25/09/2026) Chuoi font CO DINH: 'system-ui' trong container tro toi font don cach (dong ho tren nut nhin nhu may
+  // danh chu o cac trang khong nap Roboto). Trang HA co Roboto, trang ung dung cua server co Be Vietnam Pro.
   var Z = 2147483647;
   var SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -1037,7 +1039,7 @@ export function buildLauncherScript(homeUrl: string | undefined): string {
       line('path', { d: 'M12 9.5v4l2.5 2M9.5 2.5h5M19 6l1.5-1.5' });
     } else if (k === 'generic') {
       var tx = svgEl('text', { x: '12', y: '16.5', 'text-anchor': 'middle', fill: '#fff',
-        'font-size': '13', 'font-weight': '700', 'font-family': 'system-ui,sans-serif' });
+        'font-size': '13', 'font-weight': '700', 'font-family': 'Be Vietnam Pro,Roboto,Noto Sans,DejaVu Sans,sans-serif' });
       tx.textContent = (app.label || '?').charAt(0).toUpperCase();
       svg.appendChild(tx);
     } else if (k === 'media') {
@@ -1083,7 +1085,7 @@ export function buildLauncherScript(homeUrl: string | undefined): string {
   btn.appendChild(tab);
   var clockEl = document.createElement('div');
   clockEl.style.cssText = ['position:absolute', 'top:1px', 'left:0', 'right:0', 'text-align:center', 'display:none',
-    'font:600 14px/19px system-ui,-apple-system,Segoe UI,Roboto,sans-serif', 'letter-spacing:0.5px',
+    'font:600 14px/19px Be Vietnam Pro,Roboto,Noto Sans,DejaVu Sans,sans-serif', 'letter-spacing:0.5px',
     'font-variant-numeric:tabular-nums', 'color:#fff', 'pointer-events:none'].join(';');
   btn.appendChild(clockEl);
 
@@ -1100,7 +1102,7 @@ export function buildLauncherScript(homeUrl: string | undefined): string {
   popup.style.cssText = ['position:absolute', 'left:16.667vw', 'top:16.667vh', 'width:66.667vw', 'height:66.667vh',
     'box-sizing:border-box', 'display:flex', 'flex-direction:column', 'gap:clamp(4px,2vmin,14px)',
     'padding:clamp(8px,3.5vmin,26px)', 'background:#181a20', 'border-radius:clamp(10px,3vmin,20px)',
-    'box-shadow:0 8px 30px rgba(0,0,0,0.5)', 'color:#fff', 'font-family:sans-serif', 'overflow:hidden'].join(';');
+    'box-shadow:0 8px 30px rgba(0,0,0,0.5)', 'color:#fff', 'font-family:Be Vietnam Pro,Roboto,Noto Sans,DejaVu Sans,sans-serif', 'overflow:hidden'].join(';');
   popup.style.setProperty('--rwv-ic', 'clamp(26px, 10vmin, 62px)');
   // (25/09/2026) BO CUC POPUP (tren -> duoi):
   //   1. HANG THONG TIN: gio lon + thu/ngay/am lich | chip hen gio | chip thoi tiet (cham -> ung dung)
@@ -1119,12 +1121,12 @@ export function buildLauncherScript(homeUrl: string | undefined): string {
     return s;
   }
   var CHIP_CSS = 'flex:none;display:none;align-items:center;gap:6px;padding:clamp(4px,1.3vmin,8px) clamp(8px,2.2vmin,14px);' +
-    'border-radius:999px;background:rgba(255,255,255,0.09);cursor:pointer;font:600 clamp(11px,2.8vmin,17px) system-ui,sans-serif;' +
+    'border-radius:999px;background:rgba(255,255,255,0.09);cursor:pointer;font:600 clamp(11px,2.8vmin,17px) Be Vietnam Pro,Roboto,Noto Sans,DejaVu Sans,sans-serif;' +
     'font-variant-numeric:tabular-nums;white-space:nowrap';
 
   var infoRow = el('div', 'flex:none;display:flex;align-items:center;gap:clamp(6px,1.8vmin,12px)');
   var timeBox = el('div', 'flex:none;display:none;min-width:0');
-  var timeBig = el('div', 'font:600 clamp(18px,6.4vmin,40px)/1 system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:0.5px');
+  var timeBig = el('div', 'font:600 clamp(18px,6.4vmin,40px)/1 Be Vietnam Pro,Roboto,Noto Sans,DejaVu Sans,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:0.5px');
   var dateEl = el('div', 'font-size:clamp(10px,2.4vmin,15px);opacity:0.65;margin-top:clamp(2px,0.6vmin,5px);white-space:nowrap');
   timeBox.appendChild(timeBig); timeBox.appendChild(dateEl);
   var timerChip = el('div', CHIP_CSS);
@@ -1174,7 +1176,7 @@ export function buildLauncherScript(homeUrl: string | undefined): string {
     var ic = iconSvg('clamp(14px,4.2vmin,24px)', drawIcon);
     ic.style.position = 'absolute'; ic.style.left = 'clamp(8px,2.4vmin,16px)'; ic.style.top = '50%'; ic.style.transform = 'translateY(-50%)';
     var pct = el('div', 'position:absolute;right:clamp(8px,2.4vmin,16px);top:50%;transform:translateY(-50%);' +
-      'font:600 clamp(10px,2.8vmin,17px) system-ui,sans-serif;font-variant-numeric:tabular-nums;pointer-events:none');
+      'font:600 clamp(10px,2.8vmin,17px) Be Vietnam Pro,Roboto,Noto Sans,DejaVu Sans,sans-serif;font-variant-numeric:tabular-nums;pointer-events:none');
     track.appendChild(fill); track.appendChild(ic); track.appendChild(pct);
     var s = { el: track, value: 0, dragging: false, releasedAt: 0, lastSent: 0, timer: null };
     function show(v){ s.value = v; fill.style.width = v + '%'; pct.textContent = v + '%'; }
@@ -1335,7 +1337,7 @@ export function buildLauncherScript(homeUrl: string | undefined): string {
     var old = document.getElementById('__rwv_alarm'); if (old) old.remove();
     var ov = el('div', ['position:fixed', 'inset:0', 'z-index:' + Z, 'background:rgba(10,12,18,0.94)', 'color:#fff',
       'display:flex', 'flex-direction:column', 'align-items:center', 'justify-content:center', 'gap:3vmin',
-      'font-family:system-ui,sans-serif', 'cursor:pointer'].join(';'));
+      'font-family:Be Vietnam Pro,Roboto,Noto Sans,DejaVu Sans,sans-serif', 'cursor:pointer'].join(';'));
     ov.id = '__rwv_alarm';
     ov.appendChild(iconSvg('18vmin', function(line){
       line('circle', { cx: '12', cy: '13.5', r: '7.5', stroke: '#f97316' }); line('path', { d: 'M12 9.5v4l2.5 2M9.5 2.5h5', stroke: '#f97316' });
