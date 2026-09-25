@@ -1,3 +1,8 @@
+## V2.9.34
+### Popup ứng dụng: nền đục hoàn toàn
+
+- Trên dashboard HA tối, nền popup 97% vẫn để lộ mờ chữ phía sau. Nay nền đục hoàn toàn, lớp phủ tối hơn (55%).
+
 ## V2.9.33
 ### Nút mở rộng thành POPUP ỨNG DỤNG
 

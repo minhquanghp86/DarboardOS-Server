@@ -962,16 +962,17 @@ function buildLauncherScript(homeUrl: string | undefined): string {
 
   // (25/09/2026) POPUP: chiem 2/3 man hinh, cach deu 4 canh (le 1/6), tren lop phu mo. Cham ra ngoai popup -> an;
   // chon ung dung -> an roi mo. Kich thuoc theo vmin de vua ca P4 1024x600 lan panel 480x272. KHONG hieu ung dong:
-  // moi khung hinh dong deu phai truyen qua mang toi man hinh.
+  // moi khung hinh dong deu phai truyen qua mang toi man hinh. Nen popup DUC HOAN TOAN: 0,97 van de lo chu dashboard
+  // toi phia sau (do that: chenh 4 muc sang, thay duoc tren nen HA toi).
   var overlay = document.createElement('div');
   overlay.id = '__rwv_launcher_overlay';
-  overlay.style.cssText = ['position:fixed', 'inset:0', 'display:none', 'background:rgba(0,0,0,0.45)',
+  overlay.style.cssText = ['position:fixed', 'inset:0', 'display:none', 'background:rgba(0,0,0,0.55)',
     'z-index:' + Z, 'touch-action:manipulation', '-webkit-user-select:none', 'user-select:none'].join(';');
   var popup = document.createElement('div');
   popup.id = '__rwv_launcher_popup';
   popup.style.cssText = ['position:absolute', 'left:16.667vw', 'top:16.667vh', 'width:66.667vw', 'height:66.667vh',
     'box-sizing:border-box', 'display:flex', 'flex-direction:column', 'gap:clamp(4px,2vmin,14px)',
-    'padding:clamp(8px,3.5vmin,26px)', 'background:rgba(24,26,32,0.97)', 'border-radius:clamp(10px,3vmin,20px)',
+    'padding:clamp(8px,3.5vmin,26px)', 'background:#181a20', 'border-radius:clamp(10px,3vmin,20px)',
     'box-shadow:0 8px 30px rgba(0,0,0,0.5)', 'color:#fff', 'font-family:sans-serif', 'overflow:hidden'].join(';');
   popup.style.setProperty('--rwv-ic', 'clamp(28px, 12vmin, 80px)');
   var title = document.createElement('div');
