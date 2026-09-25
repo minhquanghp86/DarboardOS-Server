@@ -1,3 +1,10 @@
+## V2.9.32
+### Sau khi thiết bị nối lại, điều tiết không còn kẹt ở nhịp thấp
+
+- Lúc thiết bị khởi động lại/OTA, server vẫn đẩy dữ liệu vào socket cũ đã chết → ghi nhận "nghẽn" ở 255–400 ms. Ngưỡng
+  tránh nghẽn đó theo sang phiên mới: mỗi 35 s chỉ hồi 17 ms → P4 YouTube 2,8 fps suốt hàng chục phút. Nay khi thiết
+  bị nối lại: xoá ngưỡng tránh nghẽn, bắt đầu lại từ nhịp an toàn (≤ 200 ms) và rút dần như bình thường.
+
 ## V2.9.31
 ### P4: hồi nhịp nhanh sau nghẽn thoáng qua
 
