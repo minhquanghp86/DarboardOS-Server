@@ -1186,6 +1186,19 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
       device.lastActive = Date.now();
       requestFullFrameFor(device);
 
+      // (25/09/2026) Thiet bi NOI LAI (khoi dong lai / OTA / watchdog WS): moi "nghen" ghi nhan TRUOC do la cua socket
+      // CU (server van day du lieu vao socket da chet, ton dong toi 1,6 MB) — khong noi gi ve duong truyen. Do that sau
+      // mot lan P4 khoi dong lai: nguong tranh nghen (probeFloorMs) ket o ~400 ms, moi 35 s chi hoi 17 ms -> YouTube
+      // 2,8 fps hang chuc phut. Xoa nguong do, bat dau lai tu nhip an toan; bo dieu tiet se rut dan nhu binh thuong.
+      const st = adaptiveStates.get(id);
+      if (st) {
+        st.probeFloorMs = undefined;
+        st.probeBlocked = 0;
+        st.goodStreak = 0;
+        st.minFrameIntervalMs = Math.min(st.minFrameIntervalMs, Math.max(cfg.minFrameInterval, SAFE_START_INTERVAL_MS));
+        device.tunedMinFrameIntervalMs = st.minFrameIntervalMs;
+      }
+
       // (24/09/2026) halfScale / audioEnabled cung KHONG nam trong deviceConfigsEqual() (co dinh theo
       // firmware) -> nhanh nay tu giu gia tri cua LAN KET NOI DAU. Do that: server khoi dong lai truoc khi P4
       // OTA xong, phien duoc tao boi firmware CU (khong co half=1); firmware moi noi lai roi vao day va
