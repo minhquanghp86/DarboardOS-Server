@@ -2,7 +2,8 @@
 <!--
   (25/09/2026) Ung dung "Thoi tiet" cua menu ung dung (launcher). Phuc vu tai HEALTH_PORT (/weather.html) nhu cam.html.
   Du lieu lay tu WEB (Open-Meteo: du bao + chat luong khong khi, khong can khoa API), KHONG lay tu Home Assistant.
-  Vi tri: ?lat=&lon=&name= > da luu (localStorage) > doan theo IP (ipwho.is) > Ha Noi. Cham ten noi chon de doi.
+  Vi tri: ?lat=&lon=&name= > noi nguoi dung TU CHON (localStorage) > vi tri NHA trong Home Assistant (/weather-location
+  cua server — chi toa do, du lieu thoi tiet van tu web) > doan theo IP > Ha Noi. Cham ten noi chon de doi.
   Man hinh dich: P4 1024x600 (ngang), van dung duoc tren panel 480x272. KHONG hieu ung dong: moi khung hinh deu phai
   truyen qua WiFi toi man hinh. Cap nhat 15 phut/lan.
 -->
@@ -170,7 +171,7 @@
     </div>
     <div class="results" id="results"></div>
     <div class="row">
-      <div class="btn" id="useIp" role="button" tabindex="0">Dùng vị trí theo mạng</div>
+      <div class="btn" id="useIp" role="button" tabindex="0">Vị trí nhà (Home Assistant)</div>
     </div>
   </div>
 </div>
@@ -266,9 +267,20 @@
 
   // ── Vi tri ─────────────────────────────────────────────────────────────
   var loc = null, placeHint = '';
+  // Chi dung vi tri nguoi dung TU CHON; vi tri doan (auto) cu khong duoc uu tien hon vi tri nha trong HA.
   function loadSaved() {
-    try { var v = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); if (v && isFinite(v.lat) && isFinite(v.lon)) return v; } catch (e) {}
+    try { var v = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); if (v && !v.auto && isFinite(v.lat) && isFinite(v.lon)) return v; } catch (e) {}
     return null;
+  }
+  function clearSaved() { try { localStorage.removeItem(LS_KEY); } catch (e) {} }
+  function haLoc() {
+    return getJSON('/weather-location', 6000).then(function (j) {
+      if (!isFinite(j.lat) || !isFinite(j.lon)) throw new Error('ha');
+      return { name: j.name || 'Nhà', lat: j.lat, lon: j.lon, ha: true };
+    });
+  }
+  function autoLoc() {
+    return haLoc().catch(byIp).catch(function () { return FALLBACK; });
   }
   function save(l) { try { localStorage.setItem(LS_KEY, JSON.stringify(l)); } catch (e) {} }
   function fromQuery() {
@@ -413,8 +425,9 @@
   onActivate($('search'), search);
   onActivate($('close'), closePicker);
   onActivate($('useIp'), function () {
-    $('results').innerHTML = '<div class="hint">Đang xác định vị trí theo mạng…</div>';
-    byIp().then(choose).catch(function () { $('results').innerHTML = '<div class="hint">Không xác định được vị trí theo mạng.</div>'; });
+    $('results').innerHTML = '<div class="hint">Đang lấy vị trí nhà…</div>';
+    clearSaved();
+    autoLoc().then(function (l) { loc = l; closePicker(); load(); });
   });
   $('q').addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); search(); } else if (e.key === 'Escape') closePicker();
@@ -424,8 +437,7 @@
   // ── Khoi dong ──────────────────────────────────────────────────────────
   loc = fromQuery() || loadSaved();
   if (loc) load();
-  else byIp().then(function (l) { loc = l; save(l); load(); })
-    .catch(function () { loc = FALLBACK; load(); });
+  else autoLoc().then(function (l) { loc = l; load(); });
   setInterval(load, REFRESH_MS);
 })();
 </script>
