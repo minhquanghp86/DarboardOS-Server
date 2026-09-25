@@ -23,6 +23,7 @@ import { getHaLocation } from './haLocation.js';
 import { handleAppApi } from './haApps.js';
 import { handleLauncherApi } from './launcherApi.js';
 import { ensureMdiIcons } from './launcherConfig.js';
+import { startDebugProxy } from './debugProxy.js';
 import { startWeatherMini } from './weatherMini.js';
 import type WebSocket from 'ws';
 
@@ -189,6 +190,7 @@ http.createServer((req, res) => {
 
 setInterval(() => cleanupIdleAsync(), 60_000);
 startWeatherMini();
+startDebugProxy();
 ensureMdiIcons().catch(() => { });  // bieu tuong MDI cua cau hinh cu (neu bo dem bi mat)
 // (14/09/2026) GD2: 30s/lan xin so lieu decode tu cac thiet bi -> /metrics
 // (17/09/2026) 30s -> 10s. Sau khi ha tick dieu tiet ve 5s, chinh chu ky XIN

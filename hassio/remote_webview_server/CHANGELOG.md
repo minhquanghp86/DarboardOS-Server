@@ -1,3 +1,16 @@
+## V2.9.44
+### Tài liệu addon, cấu hình gọn hơn
+
+- **Tab Tài liệu** của addon (`DOCS.md`): addon là gì, để làm gì, cần gì, bắt đầu từ đâu, dùng hằng ngày, điều khiển
+  từ Home Assistant, tuỳ chọn, cổng, hiệu năng đo thực tế, bảo mật, xử lý sự cố.
+- Phần **Cấu hình** có tên và giải thích tiếng Việt cho từng tuỳ chọn (`translations/vi.yaml`, kèm bản tiếng Anh).
+- Bỏ `launcher_apps` / `launcher_hide`: menu giờ chỉnh ở trang **Menu panel**.
+- `expose_debug_proxy` / `debug_proxy_port` **nay chạy thật**. Trước đây hai tuỳ chọn này có trên giao diện nhưng không
+  được dùng ở đâu cả; nay có proxy TCP nối cổng DevTools ra LAN (mặc định tắt).
+- Bỏ `aarch64` khỏi danh sách kiến trúc: image chỉ có bản amd64 (Google Chrome cho Linux không có bản ARM), nên máy
+  ARM trước đây thấy addon nhưng cài lỗi.
+- README viết lại theo hiện trạng dự án; `docker-compose.rwv.yml` dùng đúng image của dự án.
+
 ## V2.9.43
 ### Trang "Menu panel" trên thanh bên Home Assistant: cấu hình menu bằng giao diện
 

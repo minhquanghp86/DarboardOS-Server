@@ -1,6 +1,5 @@
 // (25/09/2026) Danh sach ung dung cua menu (launcher), chia 3 nhom. Tinh o SERVER roi chen vao script launcher.
-// Nguoi dung THEM ung dung (launcher_apps) / AN ung dung co san (launcher_hide) trong cau hinh addon — run.sh xuat ra
-// LAUNCHER_APPS_JSON / LAUNCHER_HIDE_JSON.
+// Nguoi dung an/hien, sap xep, doi bieu tuong/mau, them ung dung o trang "Menu panel" (launcherConfig.ts).
 
 export type AppGroup = 'nha' | 'giai_tri' | 'tien_ich';
 import { getLauncherConfig, getMdiPath } from './launcherConfig.js';
@@ -20,10 +19,9 @@ export const BUILTIN_PREVIEW: Record<string, string> = {
 };
 
 export const GROUP_TITLES: Record<AppGroup, string> = { nha: 'Nhà', giai_tri: 'Giải trí', tien_ich: 'Tiện ích' };
-/** Ten bieu tuong co san — launcher_apps.icon chon mot trong so nay (khac -> chu cai dau cua ten). */
+/** Ten bieu tuong ve tay co san trong launcher. */
 export const KNOWN_ICONS = ['home', 'camera', 'cams', 'scenes', 'energy', 'youtube', 'tiktok', 'music', 'radio', 'news',
   'media', 'weather', 'calendar', 'timer', 'browser'];
-const GROUP_COLORS: Record<AppGroup, string> = { nha: '#2f7cf6', giai_tri: '#db2777', tien_ich: '#0891b2' };
 
 const PORT = process.env.HEALTH_PORT || '18080';
 const LOCAL = `http://127.0.0.1:${PORT}`;
@@ -32,11 +30,6 @@ export const LAUNCHER_CAMERA_URL = process.env.LAUNCHER_CAMERA_URL || `${LOCAL}/
 export const LAUNCHER_WEATHER_URL = process.env.LAUNCHER_WEATHER_URL || `${LOCAL}/weather.html`;
 export const LAUNCHER_TIMER_URL = `${LOCAL}/timer.html`;
 
-function parseJsonArray(name: string): unknown[] {
-  try { const v = JSON.parse(process.env[name] || '[]'); return Array.isArray(v) ? v : []; } catch { return []; }
-}
-
-/** Tat ca ung dung (co san + tu them), da ap cau hinh, KE CA ung dung dang an (co hidden). Thu tu = thu tu hien. */
 export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   let haOrigin = '';
   try { if (homeUrl) haOrigin = new URL(homeUrl).origin; } catch { }
@@ -62,18 +55,6 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   add('tien_ich', 'Hẹn giờ', 'timer', '#f97316', LAUNCHER_TIMER_URL);
   add('tien_ich', 'Trình duyệt', 'browser', '#0891b2', undefined, 'url');
 
-  // Ung dung nguoi dung tu them — cach cu, trong cau hinh addon (van giu de tuong thich)
-  let n = 0;
-  for (const raw of parseJsonArray('LAUNCHER_APPS_JSON')) {
-    const a = raw as Record<string, unknown>;
-    const label = typeof a.label === 'string' ? a.label.trim().slice(0, 30) : '';
-    const url = typeof a.url === 'string' ? a.url.trim() : '';
-    if (!label || !/^https?:\/\//i.test(url)) continue;
-    const group: AppGroup = a.group === 'nha' || a.group === 'giai_tri' || a.group === 'tien_ich' ? a.group : 'tien_ich';
-    const kind = typeof a.icon === 'string' && KNOWN_ICONS.includes(a.icon) ? a.icon : 'generic';
-    const color = typeof a.color === 'string' && /^#[0-9a-f]{3,8}$/i.test(a.color) ? a.color : GROUP_COLORS[group];
-    add(group, label, kind, color, url, undefined, `opt_${n++}`);
-  }
   const builtinIds = new Set(apps.map(a => a.id));
   const conf = getLauncherConfig();
   // Ung dung them bang trang "Menu panel"
@@ -94,11 +75,9 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
     return info;
   });
 
-  // An: theo id (trang cau hinh) hoac theo ten (launcher_hide cu)
+  // An: theo trang "Menu panel"
   const hideIds = new Set(conf.hidden);
-  const hideNames = new Set(parseJsonArray('LAUNCHER_HIDE_JSON').filter((x): x is string => typeof x === 'string')
-    .map(s => s.trim().toLocaleLowerCase('vi')));
-  for (const a of out) a.hidden = hideIds.has(a.id) || hideNames.has(a.label.toLocaleLowerCase('vi'));
+  for (const a of out) a.hidden = hideIds.has(a.id);
 
   // Thu tu trong tung nhom: theo cau hinh, ung dung chua co trong danh sach giu thu tu goc o cuoi
   const orderIdx = (a: LauncherAppInfo) => {

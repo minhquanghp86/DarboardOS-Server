@@ -1,0 +1,49 @@
+configuration:
+  browser_locale:
+    name: 'Browser language'
+    description: 'Language the browser uses for pages (e.g. "vi-VN", "en-US").'
+  tile_size:
+    name: 'Tile size (fallback)'
+    description: 'Edge of each image tile in pixels. Only used when the device does not send its own value — panels using the remote_webview component always send it from their ESPHome YAML.'
+  full_frame_tile_count:
+    name: 'Tiles per full frame (fallback)'
+    description: 'How many tiles a full frame is split into. Usually sent by the firmware.'
+  full_frame_area_threshold:
+    name: 'Full-frame threshold (fallback)'
+    description: 'Changed-area ratio (0–1) above which a full frame is sent instead of tiles. Usually sent by the firmware.'
+  full_frame_every:
+    name: 'Force a full frame every N frames (fallback)'
+    description: 'Prevents accumulated artefacts. Usually sent by the firmware.'
+  every_nth_frame:
+    name: 'Use 1 of every N frames (fallback)'
+    description: '1 = every frame. Usually sent by the firmware.'
+  min_frame_interval_ms:
+    name: 'Minimum frame interval, ms (fallback)'
+    description: 'Frame-rate cap. The server''s adaptive controller tightens/relaxes it per display.'
+  jpeg_quality:
+    name: 'JPEG quality (fallback)'
+    description: '1–100. Usually sent by the firmware; the server also lowers it when the link is congested.'
+  max_bytes_per_message:
+    name: 'Max WebSocket message size, bytes (fallback)'
+    description: 'Usually sent by the firmware.'
+  ws_port:
+    name: 'WebSocket port'
+    description: 'Port the ESP32 displays connect to ("server: <hass-ip>:<port>" in ESPHome YAML). Default 8081.'
+  debug_port:
+    name: 'Internal DevTools port'
+    description: 'Chrome DevTools port inside the add-on (127.0.0.1 only). Rarely needs changing.'
+  expose_debug_proxy:
+    name: 'Expose DevTools on the LAN'
+    description: 'Lets a LAN computer open chrome://inspect to see and control the server''s tabs (e.g. first Home Assistant login). WARNING — anyone reaching this port controls the browser, including the HA session. Enable only while needed.'
+  debug_proxy_port:
+    name: 'LAN DevTools port'
+    description: 'Port used when "Expose DevTools on the LAN" is on. Default 9222.'
+  health_port:
+    name: 'Internal port (status, apps, Menu panel)'
+    description: 'Serves /metrics, the launcher apps (weather, calendar, cameras…) and the Menu panel page. Keep it LAN-only. Default 18080.'
+  prefers_reduced_motion:
+    name: 'Reduce motion'
+    description: 'Asks pages to disable animations — fewer frames to send, smoother displays.'
+  user_data_dir:
+    name: 'Browser profile directory'
+    description: 'Where the browser keeps cookies/logins. Keep it under /data (default /data/pw-data) so logins survive add-on updates.'

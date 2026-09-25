@@ -1,56 +1,32 @@
+# Chay Remote WebView Server NGOAI Home Assistant (Docker thuan, may x86-64).
+# Trong Home Assistant OS/Supervised hay dung addon (hassio/remote_webview_server) thay vi file nay.
 services:
   rwvserver:
-    #build: ./RemoteWebViewServer
-    build: https://github.com/minhquanghp86/RemoteWebViewServer.git
-    image: remote-webview-server:latest
+    image: ghcr.io/minhquanghp86/ha-darboard-server:chrome-h264   # chi co ban linux/amd64
     container_name: remote-webview-server
     restart: unless-stopped
     environment:
+      WS_PORT: 8081                 # man hinh ESP32 ket noi toi day
+      HEALTH_PORT: 18080            # /metrics + trang ung dung cua menu + Menu panel (chi LAN)
+      DEBUG_PORT: 9221              # Chrome DevTools noi bo (127.0.0.1)
+      USER_DATA_DIR: /pw-data       # ho so trinh duyet (dang nhap HA) — gan volume ben
+      BROWSER_LOCALE: "vi-VN"
+      PREFERS_REDUCED_MOTION: "false"
+      # Gia tri DU PHONG (firmware remote_webview luon tu gui gia tri rieng khi ket noi):
       TILE_SIZE: 32
-      FULL_FRAME_TILE_COUNT: 4
-      FULL_FRAME_AREA_THRESHOLD: 0.5
-      FULL_FRAME_EVERY: 50
-      EVERY_NTH_FRAME: 1
-      MIN_FRAME_INTERVAL_MS: 80
       JPEG_QUALITY: 85
-      MAX_BYTES_PER_MESSAGE: 14336
-      WS_PORT: 8081
-      DEBUG_PORT: 9221 # internal debug port
-      HEALTH_PORT: 18080
-      PREFERS_REDUCED_MOTION: true
-      USER_DATA_DIR: /pw-data
-      BROWSER_LOCALE: "en-US"
-    ports:
-      - "8081:8081"
-      - "9222:9222"
-    expose:
-      - "18080" # healthcheck
-      - "9221" # debug port for socat
+      MAX_BYTES_PER_MESSAGE: 61440
+      MIN_FRAME_INTERVAL_MS: 80
+      # Tuy chon: go2rtc cho ung dung "Camera nha" (mac dinh http://127.0.0.1:1984)
+      # GO2RTC_URL: http://192.168.1.10:1984
+      # Tuy chon: mo DevTools ra LAN (CANH BAO: ai vao duoc cong nay dieu khien duoc trinh duyet)
+      # EXPOSE_DEBUG_PROXY: "true"
+      # DEBUG_PROXY_PORT: 9222
+      # Ngoai HA khong co ingress: cho phep LUU cau hinh menu tu http://<may>:18080/launcher-config.html
+      # (bat ky may nao trong LAN deu sua duoc menu — chi bat neu mang tin cay)
+      # LAUNCHER_CONFIG_OPEN: "1"
+    network_mode: host             # giong addon: cong 8081/18080 tren may chu
     volumes:
-      - /opt/volumes/esp32-rdp/pw-data:/pw-data
-    devices:
-      - "/dev/dri:/dev/dri"
-    group_add:
-      - "993"
-      - "44"
+      - ./pw-data:/pw-data
+      - ./data:/app/data           # cau hinh menu (launcher.json) khi khong co /data cua addon
     shm_size: 1gb
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:18080 || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-      start_period: 10s
-
-  debug-proxy:
-    image: alpine/socat
-    container_name: remote-webview-server-debug
-    restart: unless-stopped
-    network_mode: "service:rwvserver"
-    depends_on:
-      rwvserver:
-        condition: service_healthy
-    command:
-    - "-d"
-    - "-d"
-    - "TCP-LISTEN:9222,fork,reuseaddr,keepalive" # external debug port
-    - "TCP:127.0.0.1:9221"

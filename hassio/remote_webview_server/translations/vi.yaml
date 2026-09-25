@@ -1,0 +1,49 @@
+configuration:
+  browser_locale:
+    name: 'Ngôn ngữ trình duyệt'
+    description: 'Ngôn ngữ trình duyệt dùng khi mở trang (vd "vi-VN" để trang web hiện tiếng Việt, "en-US" tiếng Anh).'
+  tile_size:
+    name: 'Cỡ ô ảnh (dự phòng)'
+    description: 'Cạnh mỗi ô ảnh gửi xuống màn hình, tính bằng pixel. Chỉ dùng khi firmware không tự gửi — panel dùng component remote_webview luôn gửi giá trị riêng trong YAML ESPHome.'
+  full_frame_tile_count:
+    name: 'Số ô cho một khung đầy đủ (dự phòng)'
+    description: 'Khung đầy đủ được chia thành bao nhiêu ô. Firmware thường tự gửi giá trị này.'
+  full_frame_area_threshold:
+    name: 'Ngưỡng gửi cả khung (dự phòng)'
+    description: 'Tỉ lệ diện tích thay đổi (0–1) mà vượt quá thì gửi cả khung thay vì từng ô. Firmware thường tự gửi.'
+  full_frame_every:
+    name: 'Ép khung đầy đủ sau mỗi N khung (dự phòng)'
+    description: 'Chống ảnh sai tích luỹ. Firmware thường tự gửi.'
+  every_nth_frame:
+    name: 'Chỉ lấy 1 trong N khung (dự phòng)'
+    description: '1 = lấy mọi khung. Firmware thường tự gửi.'
+  min_frame_interval_ms:
+    name: 'Khoảng cách tối thiểu giữa 2 khung, ms (dự phòng)'
+    description: 'Giới hạn tốc độ khung. Bộ điều tiết tự động của server sẽ tự rút/giãn theo khả năng từng màn hình.'
+  jpeg_quality:
+    name: 'Chất lượng JPEG (dự phòng)'
+    description: '1–100. Firmware thường tự gửi; server còn tự hạ khi mạng nghẽn.'
+  max_bytes_per_message:
+    name: 'Kích thước tối đa một gói WebSocket, byte (dự phòng)'
+    description: 'Firmware thường tự gửi.'
+  ws_port:
+    name: 'Cổng WebSocket'
+    description: 'Cổng các màn hình ESP32 kết nối tới (khai báo "server: <ip-hass>:<cổng>" trong YAML ESPHome). Mặc định 8081.'
+  debug_port:
+    name: 'Cổng DevTools nội bộ'
+    description: 'Cổng Chrome DevTools bên trong addon (chỉ 127.0.0.1). Thường không cần đổi.'
+  expose_debug_proxy:
+    name: 'Mở DevTools ra mạng LAN'
+    description: 'Cho máy tính trong LAN vào chrome://inspect để xem/thao tác trực tiếp các tab của server (vd đăng nhập Home Assistant lần đầu). CẢNH BÁO — ai vào được cổng này là điều khiển được trình duyệt, kể cả phiên đăng nhập HA. Chỉ bật khi cần rồi tắt ngay.'
+  debug_proxy_port:
+    name: 'Cổng DevTools ra LAN'
+    description: 'Cổng dùng khi bật "Mở DevTools ra mạng LAN". Mặc định 9222.'
+  health_port:
+    name: 'Cổng nội bộ (trạng thái, ứng dụng, Menu panel)'
+    description: 'Cổng phục vụ /metrics, các trang ứng dụng của menu (thời tiết, lịch, camera…) và trang Menu panel. Chỉ nên dùng trong LAN. Mặc định 18080.'
+  prefers_reduced_motion:
+    name: 'Giảm hiệu ứng chuyển động'
+    description: 'Yêu cầu các trang tắt hiệu ứng động — ít khung hình phải truyền hơn, màn hình mượt hơn.'
+  user_data_dir:
+    name: 'Thư mục hồ sơ trình duyệt'
+    description: 'Nơi lưu cookie/đăng nhập của trình duyệt. Để trong /data (mặc định /data/pw-data) để không phải đăng nhập lại sau mỗi lần cập nhật addon.'
