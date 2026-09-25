@@ -1,0 +1,82 @@
+<!doctype html>
+<!--
+  (25/09/2026) Ung dung "Canh" cua launcher: nut chay scene/script cua Home Assistant (server doc /api/states va goi
+  scene.turn_on / script.turn_on qua quyen homeassistant_api cua addon — xem src/haApps.ts). Them/doi scene trong HA
+  (Cai dat -> Tu dong hoa & Canh) la trang nay tu cap nhat.
+-->
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cảnh</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&display=swap">
+<style>
+  :root { --bg: #120f1c; --surface: #1e1a2e; --surface-2: #2a2440; --text: #f3f0fb; --muted: #a59fbd; --accent: #a855f7; --ok: #22c55e; --err: #ef4444; --pad: clamp(8px, 2.6vmin, 22px); color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: "Be Vietnam Pro", system-ui, sans-serif; -webkit-user-select: none; user-select: none; }
+  main { height: 100%; overflow-y: auto; padding: calc(var(--pad) + 18px) var(--pad) var(--pad); display: flex; flex-direction: column; gap: var(--pad); }
+  h1 { margin: 0; font-size: clamp(16px, 4.4vmin, 28px); font-weight: 600; }
+  h2 { margin: 0; font-size: clamp(10px, 2.4vmin, 14px); color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(clamp(130px, 30vmin, 220px), 1fr)); gap: clamp(6px, 1.8vmin, 14px); }
+  .btn {
+    position: relative; display: flex; align-items: center; gap: clamp(8px, 2vmin, 14px); padding: clamp(10px, 2.8vmin, 20px);
+    background: var(--surface); border-radius: clamp(10px, 2.4vmin, 16px); cursor: pointer; min-height: clamp(52px, 13vmin, 84px);
+    font-size: clamp(12px, 3vmin, 18px); font-weight: 500; line-height: 1.25;
+  }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn .ic { flex: none; width: clamp(28px, 7vmin, 44px); height: clamp(28px, 7vmin, 44px); border-radius: 50%; background: var(--surface-2); display: flex; align-items: center; justify-content: center; }
+  .btn .ic svg { width: 55%; height: 55%; }
+  .btn.running { background: var(--surface-2); }
+  .btn.ok .ic { background: var(--ok); }
+  .btn.err .ic { background: var(--err); }
+  .empty { color: var(--muted); font-size: clamp(12px, 2.9vmin, 17px); line-height: 1.5; max-width: 60ch; }
+</style>
+</head>
+<body>
+<main id="main"><h1>Cảnh</h1><div class="empty">Đang tải…</div></main>
+<script>
+(function () {
+  'use strict';
+  var main = document.getElementById('main');
+  var ICON = {
+    scene: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><path d="M12 3l2.2 5.2L20 9l-4.3 3.8L17 18.5 12 15.6 7 18.5l1.3-5.7L4 9l5.8-.8z"/></svg>',
+    script: '<svg viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg>'
+  };
+  function section(title, items) {
+    if (!items.length) return;
+    var h = document.createElement('h2'); h.textContent = title; main.appendChild(h);
+    var g = document.createElement('div'); g.className = 'grid';
+    items.forEach(function (s) {
+      var b = document.createElement('div');
+      b.className = 'btn'; b.tabIndex = 0; b.setAttribute('role', 'button');
+      b.innerHTML = '<span class="ic">' + ICON[s.domain] + '</span><span></span>';
+      b.lastChild.textContent = s.name;
+      function run() {
+        if (b.classList.contains('running')) return;
+        b.className = 'btn running';
+        fetch('/ha/run?entity=' + encodeURIComponent(s.entity_id), { method: 'POST' })
+          .then(function (r) { b.className = 'btn ' + (r.ok ? 'ok' : 'err'); })
+          .catch(function () { b.className = 'btn err'; })
+          .then(function () { setTimeout(function () { b.className = 'btn'; }, 2500); });
+      }
+      b.addEventListener('click', run);
+      b.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); run(); } });
+      g.appendChild(b);
+    });
+    main.appendChild(g);
+  }
+  fetch('/ha/scenes', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (list) {
+    main.innerHTML = '<h1>Cảnh</h1>';
+    if (!Array.isArray(list) || !list.length) {
+      main.insertAdjacentHTML('beforeend', '<div class="empty">Chưa có cảnh hoặc kịch bản nào. Tạo trong Home Assistant: Cài đặt → Tự động hoá &amp; Cảnh → Cảnh (vd “Đi ngủ”, “Ra khỏi nhà”, “Xem phim”) — trang này sẽ tự hiện nút.</div>');
+      return;
+    }
+    section('Cảnh', list.filter(function (s) { return s.domain === 'scene'; }));
+    section('Kịch bản', list.filter(function (s) { return s.domain === 'script'; }));
+  }).catch(function () {
+    main.innerHTML = '<h1>Cảnh</h1><div class="empty">Không kết nối được Home Assistant.</div>';
+  });
+})();
+</script>
+</body>
+</html>

@@ -61,6 +61,10 @@ export enum MsgType {
 export enum ControlField {
   Brightness = 1,
   Volume = 2,
+  // (25/09/2026) Nut bat/tat nhanh trong menu (value 0/1).
+  NoSleep = 3,
+  Mute = 4,
+  Aec = 5,
 }
 
 export interface DeviceStateInfo {
@@ -74,6 +78,8 @@ export interface DeviceStateInfo {
   epoch: number;
   /** Do lech mui gio cua thiet bi, phut (suy tu gio dia phuong thiet bi bao) */
   tzOffsetMin: number;
+  /** Nut bat/tat nhanh (byte 14, firmware moi); null = thiet bi khong bao */
+  toggles: { noSleep: boolean; muted: boolean; aec: boolean } | null;
 }
 
 export enum Encoding {
@@ -355,5 +361,8 @@ export function parseDeviceStatePacket(buf: Buffer): DeviceStateInfo | null {
     timeValid,
     epoch,
     tzOffsetMin: Math.round(off / 60),
+    toggles: buf.length >= 14 && buf.readUInt8(13) !== 0xff
+      ? { noSleep: (buf.readUInt8(13) & 1) !== 0, muted: (buf.readUInt8(13) & 2) !== 0, aec: (buf.readUInt8(13) & 4) !== 0 }
+      : null,
   };
 }

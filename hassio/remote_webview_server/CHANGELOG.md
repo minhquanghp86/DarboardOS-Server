@@ -1,3 +1,24 @@
+## V2.9.41
+### Menu ứng dụng đầy đủ: thông tin + điều khiển nhanh + 15 ứng dụng chia nhóm
+
+- **Hàng thông tin:** giờ lớn, thứ/ngày dương và âm lịch (thuật toán Hồ Ngọc Đức, `public/lunar.js`), ô hẹn giờ đang
+  chạy, ô thời tiết thu gọn cho vị trí nhà (server lấy 15 phút/lần). Chạm ô thời tiết hoặc hẹn giờ để mở ứng dụng.
+- **Hàng điều khiển:** hai thanh trượt, cộng 3 nút tròn: Luôn sáng, Tắt tiếng, Khử vọng mic (firmware có
+  `on_set_no_sleep` / `on_set_mute` / `on_set_aec`).
+- **Ứng dụng chia nhóm:**
+  - Nhà: Trang chủ, Camera P4, **Camera nhà**, **Cảnh**, **Năng lượng**
+  - Giải trí: YouTube, TikTok, **Nhạc**, **Radio**, **Tin tức**, Media
+  - Tiện ích: Thời tiết, **Lịch**, **Hẹn giờ**, Trình duyệt
+- **Ứng dụng mới:**
+  - Camera nhà: lưới ảnh chụp các camera go2rtc, làm mới lần lượt; chạm để xem trực tiếp.
+  - Cảnh: nút chạy scene/script của HA.
+  - Lịch: lịch tháng âm dương, can chi, ngày lễ.
+  - Radio: VOV1, VOV2, VOV3, VOV5.
+  - Hẹn giờ: server giữ giờ nên vẫn reo khi đã chuyển trang. Hết giờ thì bật màn hình, hiện báo thức toàn màn hình
+    và phát chuông ra loa P4.
+- **Tự thêm/ẩn ứng dụng** trong cấu hình addon: `launcher_apps` (label, url, group, icon, color) và `launcher_hide`
+  (theo tên).
+
 ## V2.9.40
 ### Thời tiết: chọn tỉnh, thành phố bằng danh sách thả xuống
 

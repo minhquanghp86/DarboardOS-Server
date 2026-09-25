@@ -1,5 +1,5 @@
 name: "Remote WebView Server"
-version: "2.9.40"
+version: "2.9.41"
 slug: "remote_webview_server"
 description: "Truyền bảng điều khiển HA hoặc bất kỳ trang web nào tới màn hình hiển thị dựa trên ESP32 dưới dạng ô thông qua WebSocket."
 url: "https://github.com/minhquanghp86/HA-Darboard-Server/tree/main/hassio/remote_webview_server"
@@ -43,6 +43,10 @@ options:
   # container tao lai (moi lan update). /data la thu muc rieng cua addon nay
   # do Supervisor tu cap, LUON ben qua update/restart.
   user_data_dir: "/data/pw-data"
+  # (25/09/2026) Menu ung dung cua panel: THEM ung dung (label, url, group: nha|giai_tri|tien_ich, icon: ten bieu
+  # tuong co san hoac bo trong, color: #rrggbb) va AN ung dung co san (theo ten, vd "TikTok").
+  launcher_apps: []
+  launcher_hide: []
 
 schema:
   browser_locale: str
@@ -61,3 +65,11 @@ schema:
   health_port: int
   prefers_reduced_motion: bool
   user_data_dir: str
+  launcher_apps:
+    - label: str
+      url: str
+      group: list(nha|giai_tri|tien_ich)?
+      icon: str?
+      color: str?
+  launcher_hide:
+    - str
