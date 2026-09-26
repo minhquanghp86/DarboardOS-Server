@@ -1,0 +1,254 @@
+<!doctype html>
+<!--
+  (27/09/2026) Ung dung "Phong": dieu khien nha theo KHU VUC cua Home Assistant (den, cong tac, quat, rem, dieu hoa,
+  loa/TV). Khong can cau hinh: gan thiet bi vao khu vuc trong HA (Cai dat -> Khu vuc) la phong tu hien.
+  Cham o = bat/tat. Den co do sang, rem, dieu hoa, loa: cham giu (hoac cham o khong bat/tat duoc) -> bang dieu khien.
+  Du lieu: /ha/rooms, thao tac: /ha/act (src/homeApi.ts — danh sach thao tac co dinh, chi tu chinh panel).
+-->
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Phòng</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/ui.css">
+<script src="/ui.js"></script>
+<style>
+  :root { --accent: #0ea5e9; --on: #fbbf24; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  main { height: 100%; overflow-y: auto; padding: calc(var(--pad) + 18px) var(--pad) var(--pad); display: flex; flex-direction: column; gap: var(--gap); }
+  header { display: flex; align-items: center; gap: var(--gap); flex-wrap: wrap; }
+  h1 { margin: 0; font-size: clamp(16px, 4.4vmin, 28px); font-weight: 600; margin-right: auto; }
+  .chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+  .chip { flex: none; padding: clamp(5px, 1.4vmin, 9px) clamp(10px, 2.6vmin, 16px); border-radius: 999px; background: var(--surface-2);
+    font-size: clamp(11px, 2.7vmin, 15px); cursor: pointer; white-space: nowrap; }
+  .chip.on { background: var(--accent); color: #fff; }
+  .rooms { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: var(--gap); align-items: start; }
+  .room { background: var(--surface); border-radius: var(--r-lg); padding: clamp(10px, 2.4vmin, 16px); display: flex; flex-direction: column; gap: clamp(8px, 2vmin, 12px); }
+  .rh { display: flex; align-items: baseline; gap: clamp(8px, 2vmin, 14px); flex-wrap: wrap; }
+  .rh .n { font-size: clamp(14px, 3.6vmin, 20px); font-weight: 600; margin-right: auto; }
+  .rh .m { color: var(--muted); font-size: clamp(11px, 2.7vmin, 14px); display: flex; gap: 10px; }
+  .rh .m .hot { color: var(--on); }
+  .rh .m .warn { color: var(--warn); }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(clamp(110px, 24vmin, 150px), 1fr)); gap: clamp(6px, 1.6vmin, 10px); }
+  .t { position: relative; min-height: clamp(64px, 15vmin, 92px); border-radius: var(--r-md); background: var(--surface-2); padding: clamp(8px, 2vmin, 12px);
+    display: flex; flex-direction: column; justify-content: space-between; gap: 4px; cursor: pointer; overflow: hidden; }
+  .t .ic { width: clamp(22px, 5.4vmin, 30px); height: clamp(22px, 5.4vmin, 30px); color: var(--muted); }
+  .t .nm { font-size: clamp(11px, 2.8vmin, 15px); font-weight: 500; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .t .st { font-size: clamp(10px, 2.4vmin, 13px); color: var(--muted); }
+  .t.on { background: color-mix(in srgb, var(--on) 22%, var(--surface-2)); }
+  .t.on .ic { color: var(--on); }
+  .t.climate.on { background: color-mix(in srgb, #38bdf8 22%, var(--surface-2)); }
+  .t.climate.on .ic { color: #38bdf8; }
+  .t.media.on { background: color-mix(in srgb, #a78bfa 22%, var(--surface-2)); }
+  .t.media.on .ic { color: #a78bfa; }
+  .t.na { opacity: 0.45; }
+  .t.busy { filter: brightness(1.25); }
+  .t .bar { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--on); }
+  /* Bang dieu khien (cham giu) */
+  .scrim { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 5; }
+  .sheet { width: min(92vw, 460px); background: var(--surface); border-radius: calc(var(--r-lg) + 4px); padding: clamp(14px, 3.4vmin, 22px);
+    display: flex; flex-direction: column; gap: clamp(10px, 2.6vmin, 16px); }
+  .sheet .hd { display: flex; align-items: center; gap: 10px; }
+  .sheet .hd .nm { font-size: clamp(15px, 3.8vmin, 21px); font-weight: 600; margin-right: auto; }
+  .big { font-size: clamp(34px, 10vmin, 60px); font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; }
+  .row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .row .rwv-btn { min-width: clamp(64px, 16vmin, 96px); }
+  .row .rwv-btn.sel { background: var(--accent); color: #fff; }
+  .slider { position: relative; height: clamp(48px, 12vmin, 64px); border-radius: var(--r-md); background: var(--surface-2); overflow: hidden; touch-action: none; }
+  .slider .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--on); }
+  .slider .lbl { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: clamp(14px, 3.6vmin, 20px); color: #fff; mix-blend-mode: difference; }
+  @media (max-height: 320px) { main { padding-top: 22px; } .room { padding: 8px; } }
+</style>
+</head>
+<body class="rwv-app">
+<main id="main"><header><h1>Phòng</h1></header><div id="box"></div></main>
+<script>
+(function () {
+  'use strict';
+  var box = document.getElementById('box'), header = document.querySelector('header');
+  var P = {
+    light: '<path d="M9 18h6M10 21h4M12 3a6 6 0 00-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0012 3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+    toggle: '<rect x="2.5" y="7" width="19" height="10" rx="5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="16" cy="12" r="3" fill="currentColor"/>',
+    cover: '<path d="M4 3h16M5 3v18M19 3v18M5 7h14M5 11h14M5 15h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+    climate: '<path d="M12 3a2 2 0 00-2 2v9.3a4 4 0 104 0V5a2 2 0 00-2-2z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="17.5" r="1.6" fill="currentColor"/><path d="M16 6h4M16 9h3M16 12h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+    media: '<rect x="3" y="5" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 21h6M12 17v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M10.5 8.5v5l4-2.5z" fill="currentColor"/>',
+    lock: '<rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 018 0v3" fill="none" stroke="currentColor" stroke-width="1.8"/>'
+  };
+  function svg(k) { return '<svg class="ic" viewBox="0 0 24 24">' + (P[k] || P.toggle) + '</svg>'; }
+  var MODE = { off: 'Tắt', heat: 'Sưởi', cool: 'Làm mát', auto: 'Tự động', heat_cool: 'Tự động', dry: 'Khô', fan_only: 'Quạt' };
+  var rooms = [], filter = localStorage.getItem('rooms.filter') || '', sheet = null, pressT = 0, touching = false;
+
+  function stateText(it) {
+    if (it.unavailable) return 'Không kết nối';
+    if (it.kind === 'light') return it.on ? (it.bri != null ? it.bri + '%' : 'Bật') : 'Tắt';
+    if (it.kind === 'cover') return it.pos != null ? (it.pos >= 99 ? 'Mở' : it.pos <= 1 ? 'Đóng' : 'Mở ' + it.pos + '%') : (it.state === 'open' ? 'Mở' : it.state === 'closed' ? 'Đóng' : it.state);
+    if (it.kind === 'climate') return it.on ? (MODE[it.mode] || it.mode) + (it.target != null ? ' · ' + it.target + '°' : '') : 'Tắt' + (it.cur != null ? ' · ' + it.cur + '°' : '');
+    if (it.kind === 'media') return it.on ? (it.title || (it.state === 'playing' ? 'Đang phát' : it.state === 'paused' ? 'Tạm dừng' : 'Bật')) : 'Tắt';
+    if (it.kind === 'lock') return it.on ? 'Đang mở khoá' : 'Đã khoá';
+    return it.on ? 'Bật' : 'Tắt';
+  }
+  function act(e, a, v, tile) {
+    if (tile) tile.classList.add('busy');
+    return fetch('/ha/act', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ e: e, a: a, v: v }) })
+      .then(function (r) { return r.json(); })
+      .then(function () { setTimeout(load, 350); setTimeout(load, 1500); })
+      .catch(function () { if (tile) tile.classList.remove('busy'); });
+  }
+  function find(id) { for (var i = 0; i < rooms.length; i++) for (var j = 0; j < rooms[i].items.length; j++) if (rooms[i].items[j].id === id) return rooms[i].items[j]; return null; }
+
+  // ── Ve ─────────────────────────────────────────────────────────────
+  function renderChips() {
+    var old = header.querySelector('.chips'); if (old) old.remove();
+    if (rooms.length < 2) return;
+    var c = document.createElement('div'); c.className = 'chips';
+    [{ id: '', name: 'Tất cả' }].concat(rooms).forEach(function (r) {
+      var b = document.createElement('div'); b.className = 'chip' + (filter === r.id ? ' on' : ''); b.textContent = r.name;
+      b.addEventListener('click', function () { filter = r.id; try { localStorage.setItem('rooms.filter', filter); } catch (e) {} render(); });
+      c.appendChild(b);
+    });
+    header.appendChild(c);
+  }
+  function tile(it) {
+    var t = document.createElement('div');
+    t.className = 't ' + it.kind + (it.on ? ' on' : '') + (it.unavailable ? ' na' : '');
+    t.dataset.id = it.id;
+    t.innerHTML = svg(it.kind) + '<div><div class="nm"></div><div class="st"></div></div>';
+    t.querySelector('.nm').textContent = it.name;
+    t.querySelector('.st').textContent = stateText(it);
+    if (it.kind === 'light' && it.on && it.bri != null) { var b = document.createElement('div'); b.className = 'bar'; b.style.width = it.bri + '%'; t.appendChild(b); }
+    return t;
+  }
+  function render() {
+    renderChips();
+    var wrap = document.createElement('div'); wrap.className = 'rooms';
+    rooms.filter(function (r) { return !filter || r.id === filter; }).forEach(function (r) {
+      var c = document.createElement('section'); c.className = 'room';
+      var h = document.createElement('div'); h.className = 'rh';
+      var n = document.createElement('div'); n.className = 'n'; n.textContent = r.name;
+      var m = document.createElement('div'); m.className = 'm';
+      function add(txt, cls) { var s = document.createElement('span'); s.textContent = txt; if (cls) s.className = cls; m.appendChild(s); }
+      if (r.temp != null) add(r.temp + '°');
+      if (r.hum != null) add(r.hum + '%');
+      if (r.lightsOn) add(r.lightsOn + ' đèn bật', 'hot');
+      if (r.open) add(r.open + ' cửa mở', 'warn');
+      if (r.motion) add('Có người');
+      h.append(n, m);
+      var g = document.createElement('div'); g.className = 'tiles';
+      r.items.forEach(function (it) { g.appendChild(tile(it)); });
+      c.append(h, g);
+      wrap.appendChild(c);
+    });
+    box.replaceChildren(wrap);
+  }
+
+  // ── Cham / cham giu ────────────────────────────────────────────────
+  box.addEventListener('pointerdown', function (e) {
+    var t = e.target.closest('.t'); if (!t) return;
+    touching = true;
+    var sx = e.clientX, sy = e.clientY, fired = false;
+    pressT = setTimeout(function () { fired = true; openSheet(t.dataset.id); }, 480);
+    function mv(ev) { if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) > 12) { clearTimeout(pressT); cleanup(); touching = false; } }
+    function up() {
+      clearTimeout(pressT); cleanup(); touching = false;
+      if (fired) return;
+      var it = find(t.dataset.id); if (!it || it.unavailable) return;
+      if (it.kind === 'light' || it.kind === 'toggle') { t.classList.toggle('on'); act(it.id, 'toggle', null, t); }
+      else if (it.kind !== 'lock') openSheet(it.id);
+    }
+    function cleanup() { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up); }
+    window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+  });
+
+  function slider(val, label, onSet) {
+    var s = document.createElement('div'); s.className = 'slider';
+    var f = document.createElement('div'); f.className = 'fill'; var l = document.createElement('div'); l.className = 'lbl';
+    s.append(f, l);
+    function show(v) { f.style.width = v + '%'; l.textContent = label(v); }
+    show(val);
+    var cur = val;
+    function at(ev) { var r = s.getBoundingClientRect(); return Math.max(1, Math.min(100, Math.round((ev.clientX - r.left) / r.width * 100))); }
+    s.addEventListener('pointerdown', function (ev) {
+      s.setPointerCapture(ev.pointerId); cur = at(ev); show(cur);
+      function mv(e2) { cur = at(e2); show(cur); }
+      function up() { s.removeEventListener('pointermove', mv); s.removeEventListener('pointerup', up); onSet(cur); }
+      s.addEventListener('pointermove', mv); s.addEventListener('pointerup', up);
+    });
+    return s;
+  }
+  function btn(txt, fn, sel) { var b = document.createElement('button'); b.className = 'rwv-btn' + (sel ? ' sel' : ''); b.textContent = txt; b.addEventListener('click', fn); return b; }
+  function closeSheet() { if (sheet) sheet.remove(); sheet = null; }
+  function openSheet(id) {
+    var it = find(id); if (!it || it.unavailable || it.kind === 'toggle') return;
+    closeSheet();
+    sheet = document.createElement('div'); sheet.className = 'scrim';
+    var openedAt = Date.now();  // cham giu mo bang: 'click' khi nhac tay roi vao nen -> khong dong ngay
+    sheet.addEventListener('click', function (e) { if (e.target === sheet && Date.now() - openedAt > 500) closeSheet(); });
+    var s = document.createElement('div'); s.className = 'sheet';
+    var hd = document.createElement('div'); hd.className = 'hd';
+    var nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = it.name;
+    hd.append(nm, btn('Đóng', closeSheet));
+    s.appendChild(hd);
+    if (it.kind === 'light') {
+      if (it.dim) s.appendChild(slider(it.on && it.bri != null ? it.bri : 0, function (v) { return v + '%'; }, function (v) { act(it.id, 'bri', v); }));
+      var r = document.createElement('div'); r.className = 'row';
+      r.append(btn(it.on ? 'Tắt' : 'Bật', function () { act(it.id, 'toggle'); closeSheet(); }));
+      s.appendChild(r);
+    } else if (it.kind === 'cover') {
+      var r2 = document.createElement('div'); r2.className = 'row';
+      r2.append(btn('Mở', function () { act(it.id, 'open'); }), btn('Dừng', function () { act(it.id, 'stop'); }), btn('Đóng', function () { act(it.id, 'close'); }));
+      s.appendChild(r2);
+    } else if (it.kind === 'climate') {
+      var big = document.createElement('div'); big.className = 'big';
+      var target = it.target != null ? it.target : 26;
+      function show() { big.textContent = target + '°'; }
+      show();
+      var t2 = null;
+      function bump(d) { target = Math.max(it.min, Math.min(it.max, Math.round((target + d) / it.step) * it.step)); show(); clearTimeout(t2); t2 = setTimeout(function () { act(it.id, 'temp', target); }, 700); }
+      var r3 = document.createElement('div'); r3.className = 'row';
+      r3.append(btn('−', function () { bump(-it.step); }), btn('+', function () { bump(it.step); }));
+      s.append(big, r3);
+      if (it.cur != null) { var cu = document.createElement('div'); cu.style.cssText = 'text-align:center;color:var(--muted)'; cu.textContent = 'Trong phòng ' + it.cur + '°'; s.appendChild(cu); }
+      if (it.modes && it.modes.length) {
+        var r4 = document.createElement('div'); r4.className = 'row';
+        it.modes.forEach(function (m) { r4.appendChild(btn(MODE[m] || m, function () { act(it.id, 'mode', m); closeSheet(); }, m === it.mode)); });
+        s.appendChild(r4);
+      }
+    } else if (it.kind === 'media') {
+      if (it.title) { var ti = document.createElement('div'); ti.style.cssText = 'text-align:center;color:var(--muted)'; ti.textContent = it.title; s.appendChild(ti); }
+      var r5 = document.createElement('div'); r5.className = 'row';
+      r5.append(btn('⏮', function () { act(it.id, 'prev'); }), btn(it.state === 'playing' ? '⏸' : '▶', function () { act(it.id, 'play'); }), btn('⏭', function () { act(it.id, 'next'); }), btn('⏻', function () { act(it.id, 'power'); closeSheet(); }));
+      s.appendChild(r5);
+      if (it.vol != null) s.appendChild(slider(it.vol, function (v) { return 'Âm lượng ' + v + '%'; }, function (v) { act(it.id, 'vol', v); }));
+    }
+    sheet.appendChild(s);
+    document.body.appendChild(sheet);
+  }
+
+  // ── Tai du lieu ────────────────────────────────────────────────────
+  var loadedOnce = false, lastSig = '';
+  function load() {
+    fetch('/ha/rooms', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.ok) { if (!loadedOnce) RwvUI.state(box, { kind: 'err', title: 'Không lấy được danh sách phòng', text: d.error, retry: load }); return; }
+      loadedOnce = true;
+      rooms = d.rooms || [];
+      if (!rooms.length) {
+        RwvUI.state(box, { kind: 'empty', title: 'Chưa có phòng nào',
+          text: 'Trong Home Assistant: Cài đặt → Khu vực, tạo phòng (Phòng khách, Phòng ngủ…) rồi gán đèn, công tắc, điều hoà, rèm vào phòng — chúng sẽ tự hiện ở đây.',
+          retry: load, retryLabel: 'Tải lại' });
+        return;
+      }
+      if (filter && !rooms.some(function (r) { return r.id === filter; })) filter = '';
+      var sig = JSON.stringify(rooms) + filter; if (sig === lastSig && box.querySelector('.rooms')) return; lastSig = sig;
+      if (!touching) render(); else lastSig = '';
+    }).catch(function () { if (!loadedOnce) RwvUI.state(box, { kind: 'err', title: 'Không kết nối được máy chủ', retry: load }); });
+  }
+  RwvUI.state(box, { kind: 'loading', title: 'Đang tải phòng…' });
+  load();
+  setInterval(function () { if (!document.hidden && !sheet) load(); }, 4000);
+  window.__rwvRooms = function () { return rooms; };
+})();
+</script>
+</body>
+</html>

@@ -41,7 +41,7 @@ hiện ở tab *Tài liệu* của addon trong Home Assistant.
 
 **Menu ứng dụng** (vuốt từ mép trên xuống, trên mọi trang)
 - Giờ, ngày dương/âm lịch, thời tiết thu gọn; thanh trượt độ sáng/âm lượng; nút Màn hình chờ / Tắt tiếng / Khử vọng mic / Không làm phiền.
-- Ứng dụng theo nhóm: Home Assistant, Camera P4, Camera nhà (lưới camera go2rtc), Cảnh (scene/script HA), Năng lượng,
+- Ứng dụng theo nhóm: Home Assistant, Camera P4, Camera nhà (lưới camera go2rtc), Cảnh (scene/script HA), Solar,
   YouTube, TikTok, Nhạc, Radio VOV, Tin tức, Media, Thời tiết (Open-Meteo, 34 tỉnh/thành), Lịch âm dương, Hẹn giờ
   (báo thức toàn màn hình, vẫn reo khi đã chuyển trang), Trình duyệt.
 - Trang **Menu panel** trên thanh bên Home Assistant (ingress): ẩn/hiện, sắp xếp, biểu tượng MDI, màu, thêm ứng dụng.

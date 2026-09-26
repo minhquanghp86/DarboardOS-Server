@@ -58,7 +58,7 @@ async function startFakeHa(): Promise<FakeHa> {
           ? [...Object.keys(st).map((entity_id) => ({ entity_id, device_id: 'dP4',
               entity_category: entity_id.startsWith('sensor.') ? 'diagnostic' : null })),
              { entity_id: 'switch.s3_khac', device_id: 'dS3' }]
-          : null;
+          : m.type === 'config/area_registry/list' ? [] : null;
       ws.send(JSON.stringify({ id: m.id, type: 'result', success: result !== null, result }));
     });
   });

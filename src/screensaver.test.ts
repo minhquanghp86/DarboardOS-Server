@@ -18,3 +18,18 @@ describe("man hinh cho", () => {
     expect(shouldShowSaver({ ...base, backlightOn: null })).toBe(true);
   });
 });
+
+import { deviceHour, isNightHour, nextSaverPhoto } from "./screensaver.js";
+describe("man hinh cho khung anh", () => {
+  it("gio thiet bi + ban dem", () => {
+    const t = Date.UTC(2026, 8, 27, 16, 30);  // 16:30 UTC = 23:30 gio VN
+    expect(deviceHour(t, 420)).toBe(23);
+    expect(isNightHour(23)).toBe(true); expect(isNightHour(5)).toBe(true); expect(isNightHour(6)).toBe(false); expect(isNightHour(21)).toBe(false);
+  });
+  it("anh ke tiep: khong lap lai anh vua hien", () => {
+    expect(nextSaverPhoto([], null)).toBeNull();
+    expect(nextSaverPhoto(["a"], "a")).toBe("a");
+    let r = 0; const seq = [0, 0, 0.9];
+    expect(nextSaverPhoto(["a", "b"], "a", () => seq[r++])).toBe("b");
+  });
+});

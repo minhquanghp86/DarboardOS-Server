@@ -211,6 +211,14 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .saver.night .sv-clock { color: #9a6a58; }
 .saver.night .sv-date, .saver.night .sv-wx { color: #5e463d; }
 .saver.night .sv-wx .wx-ic { opacity: 0.4; filter: sepia(1); }
+/* (27/09/2026) Man hinh cho dang khung anh: anh phu kin, dong ho nho o goc duoi trai (van dich moi phut). */
+.sv-ph { position: absolute; inset: 0; background: #000 center/cover no-repeat; opacity: 0; transition: opacity 900ms ease; }
+.sv-ph.show { opacity: 1; }
+.sv-box { position: relative; }
+.saver.photo { align-items: flex-end; justify-content: flex-start; padding: clamp(14px, 4vmin, 34px); }
+.saver.photo .sv-box { align-items: flex-start; gap: 2px; }
+.saver.photo .sv-clock { font-size: min(15vmin, 12vw); font-weight: 400; text-shadow: 0 2px 14px rgba(0,0,0,0.75); }
+.saver.photo .sv-date, .saver.photo .sv-wx { color: #fff; text-shadow: 0 1px 8px rgba(0,0,0,0.8); }
 
 /* ── Thong bao (OS-5) ────────────────────────────────────────────────── */
 .pill.unread::after { content: ''; position: absolute; top: 6px; right: 26px; width: 7px; height: 7px; border-radius: 50%; background: #f59e0b; }

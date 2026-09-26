@@ -36,6 +36,9 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
 
 (function () {
   if (window.__rwvShell) return;
+  // (27/09/2026) Chi khung CHINH: script tiem chay ca trong iframe (the iframe tren dashboard HA, camera trong trang
+  // chuong cua) — truoc day moi iframe mang them mot Shell thua (nut mo rong, thanh keo xuong trong khung).
+  try { if (window.top !== window) return; } catch { return; }
   const CFG: Cfg = window.__RWV_CFG;
   if (!CFG) return;
   const Z = '2147483647';
@@ -442,13 +445,31 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   // tiet tren nen den; dich cho moi phut (chong luu anh), tong am toi tu 22h-6h. Cham = tat (cham do KHONG toi trang). ──
   let saverEl: HTMLElement | null = null, svBox: HTMLElement, svClock: HTMLElement, svDate: HTMLElement, svWx: HTMLElement;
   let svShiftMin = -1, svWxSig = '';
+  // (27/09/2026) Nen anh gia dinh (server gui URL moi phut, null = chi dong ho — ban dem / khong co anh). Hai lop
+  // chong mo cheo; anh tai xong moi hien (mang cham thi giu anh cu).
+  let svPh: HTMLElement[] = [], svTop = 0;
+  function saverPhoto(url: string | null): void {
+    if (!saverEl) return;
+    if (!url || saverEl.classList.contains('night')) { saverEl.classList.remove('photo'); svPh.forEach((p) => p.classList.remove('show')); return; }
+    const img = new Image();
+    img.onload = () => {
+      if (!saverEl) return;
+      const next = svPh[1 - svTop];
+      next.style.backgroundImage = `url("${url}")`;
+      next.classList.add('show'); svPh[svTop].classList.remove('show'); svTop = 1 - svTop;
+      saverEl.classList.add('photo');
+    };
+    img.src = url;
+  }
   function screensaver(on: boolean): void {
     if (!on) { saverEl?.remove(); saverEl = null; return; }
     if (saverEl || !deviceNow()) return;
     closeShade(false); closeRecents();
     saverEl = el('div', 'saver'); svBox = el('div', 'sv-box');
     svClock = el('div', 'sv-clock'); svDate = el('div', 'sv-date'); svWx = el('div', 'sv-wx');
-    svBox.append(svClock, svDate, svWx); saverEl.appendChild(svBox);
+    svBox.append(svClock, svDate, svWx);
+    svPh = [el('div', 'sv-ph'), el('div', 'sv-ph')]; svTop = 0;
+    saverEl.append(svPh[0], svPh[1], svBox);
     if (CFG.motion === 'full') saverEl.classList.add('anim');
     // Tat o 'click' (khong phai pointerdown): neu go lop phu ngay luc cham xuong thi 'click' sau do roi xuong trang.
     saverEl.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); });
@@ -472,7 +493,9 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     }
     if (m !== svShiftMin) {  // moi phut mot vi tri moi — cung khung voi luc doi so phut, khong ton them khung nao
       svShiftMin = m;
-      const dx = (Math.random() * 2 - 1) * 7, dy = (Math.random() * 2 - 1) * 9;
+      // Dang khung anh: dong ho o goc duoi trai -> chi dich vao trong (khong ra ngoai mep).
+      const ph = saverEl.classList.contains('photo');
+      const dx = ph ? Math.random() * 4 : (Math.random() * 2 - 1) * 7, dy = ph ? -Math.random() * 4 : (Math.random() * 2 - 1) * 9;
       svBox.style.transform = `translate(${dx.toFixed(1)}vw, ${dy.toFixed(1)}vh)`;
     }
   }
@@ -646,6 +669,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     isOpen() { return shadeVisible > 0; },
     alarm,
     voice,
+    saverPhoto,
     /** (27/09/2026 OS-3) Bo cuc man hinh chinh vua doi (tu panel khac). */
     layout(l: HomeLayout) { homeApi?.setLayout(l); },
     homeInfo() { return homeApi?.info() ?? null; },

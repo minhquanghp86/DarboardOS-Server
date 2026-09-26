@@ -51,6 +51,11 @@ export DEBUG_PORT="$(get_opt debug_port "9221")"
 export HEALTH_PORT="$(get_opt health_port "18080")"
 export PREFERS_REDUCED_MOTION="$(get_opt prefers_reduced_motion "false")"
 export SCREENSAVER_IDLE_S="$(get_opt screensaver_idle_s "120")"
+# (27/09/2026) Man hinh cho khung anh; chao buoi sang (camera thay nguoi -> "Hom nay" + doc qua loa panel).
+export SCREENSAVER_PHOTOS="$(get_opt screensaver_photos "true")"
+export MORNING_BRIEFING="$(get_opt morning_briefing "true")"
+export MORNING_WINDOW="$(get_opt morning_window "06:00-09:30")"
+export MORNING_TTS="$(get_opt morning_tts "false")"
 export USER_DATA_DIR="$(get_opt user_data_dir "/data/pw-data")"
 
 # (25/09/2026) Proxy Chrome DevTools ra LAN (tat mac dinh) — truoc day 2 tuy chon nay co tren giao dien nhung KHONG

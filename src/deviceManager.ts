@@ -20,11 +20,15 @@ import { nudgeRepaintAsync } from "./browser.js";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildLauncherApps, listAllApps, GROUP_TITLES, LAUNCHER_CAMS_URL, LAUNCHER_OS_HOME_URL, LAUNCHER_SCENES_URL, LAUNCHER_TIMER_URL, LAUNCHER_WEATHER_URL } from "./launcherApps.js";
+import { buildLauncherApps, listAllApps, GROUP_TITLES, LOCAL_ORIGIN, LAUNCHER_CAMS_URL, LAUNCHER_OS_HOME_URL, LAUNCHER_SCENES_URL, LAUNCHER_TIMER_URL, LAUNCHER_WEATHER_URL } from "./launcherApps.js";
 import { createRequire } from "node:module";
 import { getWeatherMini, onWeatherMiniUpdate } from "./weatherMini.js";
 import { SerialQueue, appKeyForUrl, nowPlaying, pickEvictions, recentsList } from "./tabPolicy.js";
-import { SCREENSAVER_IDLE_S, shouldShowSaver } from "./screensaver.js";
+import { SAVER_PHOTO_MS, SCREENSAVER_IDLE_S, SCREENSAVER_PHOTOS, deviceHour, isNightHour, nextSaverPhoto, shouldShowSaver } from "./screensaver.js";
+import { listPhotos } from "./homeApi.js";
+import { deviceClock, parseWindow, shouldGreet } from "./today.js";
+import { getToday, speakOnPanel } from "./todayData.js";
+import { parseDoorbell, unlockCall } from "./doorbell.js";
 import { Notice, NoticeStore, NotifyRequest, parseNotify, shouldPopup, shouldWake } from "./notifications.js";
 import { callService, getSettingsView } from "./haSettings.js";
 import { planSet } from "./settingsModel.js";
@@ -147,10 +151,17 @@ export type DeviceSession = {
   /** (26/09/2026 OS-5) Lan cham cuoi (moc cho man hinh cho) va man hinh cho dang hien tren tab active hay khong. */
   lastTouchMs: number;
   saverOn: boolean;
+  /** (27/09/2026) Man hinh cho dang khung anh: anh dang hien + luc doi. */
+  saverPhoto?: string | null;
+  saverPhotoAt?: number;
   /** (27/09/2026) Tro ly giong noi: trang thai cuoi (s = VoiceState) + chu. */
   voice?: { s: number; t: string; at: number };
   /** (27/09/2026) Co nguoi truoc man hinh (camera cua panel). */
   presence?: { on: boolean; at: number };
+  /** (27/09/2026) Ngay (gio thiet bi) da chao buoi sang — moi ngay mot lan. */
+  morningDate?: string;
+  /** (27/09/2026) Chuong cua dang hien: id lan bam, URL trang, tab dang dung truoc do, hen gio tu dong. */
+  doorbell?: { id: string; url: string; prevKey: string; timer: NodeJS.Timeout; unlock: string | null };
   /**
    * (26/09/2026) Ton dong socket LON NHAT tai cac lan PHAI BO KHUNG vi nghen, ke tu tick dieu tiet truoc. Vong dieu
    * tiet chi doc ton dong DUNG luc tick (5 s/lan) — do that tren P4 (2.9.52, YouTube): bo khung ~5 s/lan lien tuc ma
@@ -1428,6 +1439,7 @@ const MAX_APP_TABS = Math.max(0, parseInt(process.env.MAX_APP_TABS ?? '2', 10) |
 function resolveAppSpec(dev: DeviceSession, key: string): { kind: string; label: string; url: string; pinned: boolean } | null {
   if (key === '__system') return { kind: 'system', label: 'Màn hình chính', url: LAUNCHER_OS_HOME_URL, pinned: true };
   if (key === 'home') return dev.cfg.homeUrl ? { kind: 'ha', label: 'Home Assistant', url: dev.cfg.homeUrl, pinned: true } : null;
+  if (key === '__doorbell') return dev.doorbell ? { kind: 'doorbell', label: 'Chuông cửa', url: dev.doorbell.url, pinned: false } : null;
   const app = listAllApps(dev.cfg.homeUrl).find((a) => a.id === key && !a.hidden);
   if (!app || !app.url) return null;
   // baseKind, KHONG phai kind: nguoi dung doi bieu tuong o "Menu panel" thi kind thanh 'mdi' -> Radio/Nhac mat phat
@@ -1521,7 +1533,89 @@ export function onDeviceEvent(dev: DeviceSession, kind: number, value: number, t
     dev.presence = { on, at: Date.now() };
     console.log(`[presence] ${dev.deviceId}: ${on ? 'CO nguoi' : 'khong con nguoi'}`);
     pushDeviceStateToPage(dev);
+    if (on) maybeMorning(dev);
   }
+}
+
+// ── (27/09/2026) CHUONG CUA: sang man hinh, camera cong toan man hinh, Mo cong / Dong, het gio quay ve ─────────────
+export function postDoorbell(body: unknown): { ok: boolean; error?: string; id?: string; devices?: string[] } {
+  const p = parseDoorbell(body);
+  if (!p.ok) return { ok: false, error: p.error };
+  const b = p.bell;
+  const id = Date.now().toString(36);
+  const targets = b.device === 'all' ? [...devices.values()] : [devices.get(b.device)].filter((d): d is DeviceSession => !!d);
+  for (const dev of targets) {
+    const url = `${LOCAL_ORIGIN}/doorbell.html?cam=${encodeURIComponent(b.camera)}&title=${encodeURIComponent(b.title)}` +
+      `&id=${id}&u=${b.unlock ? 1 : 0}&t=${b.timeoutS}`;
+    const prevKey = dev.doorbell?.prevKey ?? (dev.activeTabKey === '__doorbell' ? 'home' : dev.activeTabKey);
+    if (dev.doorbell) clearTimeout(dev.doorbell.timer);
+    dev.doorbell = { id, url, prevKey, unlock: b.unlock, timer: setTimeout(() => endDoorbell(dev, id, 'het gio'), b.timeoutS * 1000) };
+    // Sang man hinh (nhu thong bao khan) roi mo trang chuong; da co tab chuong (bam lien tiep) thi tai lai trang moi.
+    if (dev.cfg.devControl) broadcaster.sendDeviceControl(dev.deviceId, ControlField.Brightness, dev.devState?.brightness ?? 100);
+    noteActivity(dev, 'chuong cua');
+    dev.tabOps.run(async () => {
+      const t = dev.tabs.get('__doorbell');
+      if (t) { await activateTab(dev, '__doorbell'); await navigateTab(dev, t, url); }
+      else await openAppNow(dev, '__doorbell');
+    }).catch((e) => console.warn(`[doorbell] ${dev.deviceId}:`, (e as Error).message));
+    console.log(`[doorbell] ${dev.deviceId}: chuong cua (${b.camera}${b.unlock ? ', mo cong = ' + b.unlock : ''}), ${b.timeoutS} s`);
+  }
+  return { ok: true, id, devices: targets.map((d) => d.deviceId) };
+}
+
+/** Dong man hinh chuong (id lan bam do) tren MOT man hinh: quay ve ung dung truoc, dong tab chuong. */
+function endDoorbell(dev: DeviceSession, id: string, why: string): void {
+  const d = dev.doorbell;
+  if (!d || d.id !== id) return;
+  clearTimeout(d.timer);
+  dev.doorbell = undefined;
+  dev.tabOps.run(async () => {
+    if (dev.activeTabKey === '__doorbell') await openAppNow(dev, dev.tabs.has(d.prevKey) || d.prevKey === 'home' || d.prevKey === '__system' ? d.prevKey : '__system');
+    closeTab(dev, '__doorbell', why);
+  }).catch(() => { });
+}
+
+/** Trang chuong: nguoi dung bam Dong (hoac da mo cong) -> dong tren MOI man hinh cung lan bam (da co nguoi tra loi). */
+export function closeDoorbell(id: string): boolean {
+  let n = 0;
+  for (const dev of devices.values()) if (dev.doorbell?.id === id) { endDoorbell(dev, id, 'nguoi dung dong'); n++; }
+  return n > 0;
+}
+
+/** Trang chuong: nut Mo cong -> chay dung thuc the HA da khai trong POST /doorbell (khong nhan thuc the tu trang). */
+export async function unlockDoorbell(id: string): Promise<{ ok: boolean; error?: string }> {
+  const dev = [...devices.values()].find((d) => d.doorbell?.id === id);
+  const entity = dev?.doorbell?.unlock;
+  if (!entity) return { ok: false, error: 'Không có lệnh mở cổng.' };
+  const ok = await callService(unlockCall(entity)).catch(() => false);
+  console.log(`[doorbell] mo cong ${entity}: ${ok ? 'OK' : 'LOI'}`);
+  return ok ? { ok } : { ok, error: 'Home Assistant không thực hiện được.' };
+}
+
+// ── (27/09/2026) CHAO BUOI SANG: lan dau camera thay nguoi trong khung gio sang (moi ngay, moi man hinh mot lan) -> mo
+// ung dung "Hom nay" (thoi tiet, lich, viec, ghi chu) va doc tom tat qua loa cua panel (tts.speak, neu HA co TTS).
+const off = (v: string | undefined) => v === '0' || v === 'false';
+const MORNING_WINDOW = off(process.env.MORNING_BRIEFING) ? null : parseWindow(process.env.MORNING_WINDOW || '06:00-09:30');
+// (27/09/2026) Nguoi dung: chua muon loi chao bang am thanh -> mac dinh TAT, chi hien chu (bat: morning_tts: true).
+const MORNING_TTS = process.env.MORNING_TTS === 'true' || process.env.MORNING_TTS === '1';
+
+function maybeMorning(dev: DeviceSession): void {
+  const tz = dev.devState?.tzOffsetMin ?? 420;
+  const c = deviceClock(Date.now(), tz);
+  if (!shouldGreet({ ...c, window: MORNING_WINDOW, lastDate: dev.morningDate ?? null })) return;
+  dev.morningDate = c.date;
+  console.log(`[morning] ${dev.deviceId}: chao buoi sang (${c.date})`);
+  openApp(dev, 'today').catch(() => { });
+  if (!MORNING_TTS) return;
+  getToday(tz).then((v) => speakOnPanel(dev.deviceId, v.briefing)).then((err) => {
+    console.log(`[morning] ${dev.deviceId}: ${err ? 'khong doc duoc: ' + err : 'da doc loi chao'}`);
+  }).catch((e) => console.warn(`[morning] ${dev.deviceId}:`, (e as Error).message));
+}
+
+/** Mui gio cua mot man hinh dang ket noi (trang "Hom nay" khong biet minh o thiet bi nao). Mac dinh +7. */
+export function anyTzOffset(): number {
+  for (const d of devices.values()) if (d.devState) return d.devState.tzOffsetMin;
+  return 420;
 }
 
 /** (26/09/2026) Mo man hinh "Gan day" — tu cu chi vuot-len-roi-giu o mep duoi (inputRouter.ts). */
@@ -2333,15 +2427,36 @@ export function screensaverTick(): void {
     const tab = d.tabs.get(d.activeTabKey);
     if (!tab || broadcaster.getClientCount(d.deviceId) === 0) continue;
     if (!shouldShowSaver({
-      now, lastTouchMs: d.lastTouchMs, idleMs: SCREENSAVER_IDLE_S * 1000, mediaPlaying: tab.mediaPlaying,
+      // (27/09/2026) Khung anh da la man hinh cho — khong phu dong ho len.
+      now, lastTouchMs: d.lastTouchMs, idleMs: SCREENSAVER_IDLE_S * 1000, mediaPlaying: tab.mediaPlaying || tab.kind === 'photos',
       backlightOn: d.devState ? d.devState.backlightOn : null, shown: d.saverOn,
     })) continue;
     d.saverOn = true;
+    d.saverPhotoAt = 0;
     d.cdp.send('Runtime.evaluate', {
       expression: 'window.__rwvShell && window.__rwvShell.screensaver && window.__rwvShell.screensaver(true)',
     }).catch(() => { });
     console.log(`[saver] ${d.deviceId}: hien man hinh cho (tab "${tab.key}")`);
   }
+  for (const d of devices.values()) if (d.saverOn) saverPhotoTick(d, now);
+}
+
+/**
+ * (27/09/2026) Man hinh cho dang khung anh: moi phut mot anh gia dinh (thu nho dung kich thuoc man hinh o server), dong
+ * ho de len goc. Ban dem (22h-6h theo gio thiet bi): khong anh — chi dong ho tong am toi.
+ */
+function saverPhotoTick(d: DeviceSession, now: number): void {
+  if (!SCREENSAVER_PHOTOS || now - (d.saverPhotoAt ?? 0) < SAVER_PHOTO_MS) return;
+  d.saverPhotoAt = now;
+  const night = isNightHour(deviceHour(now, d.devState?.tzOffsetMin ?? 420));
+  const files = night ? [] : listPhotos().files;
+  const f = nextSaverPhoto(files, d.saverPhoto ?? null);
+  if (f === (d.saverPhoto ?? null) && f === null) return;
+  d.saverPhoto = f;
+  const url = f ? `${LOCAL_ORIGIN}/photos/img?f=${encodeURIComponent(f)}&w=${d.cfg.width}&h=${d.cfg.height}` : null;
+  d.cdp.send('Runtime.evaluate', {
+    expression: `window.__rwvShell && window.__rwvShell.saverPhoto && window.__rwvShell.saverPhoto(${JSON.stringify(url)})`,
+  }).catch(() => { });
 }
 
 export function runAdaptiveTick(): void {

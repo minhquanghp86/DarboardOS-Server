@@ -1,0 +1,87 @@
+<!doctype html>
+<!--
+  (27/09/2026) MAN HINH CHUONG CUA — server mo trang nay tren moi panel khi Home Assistant goi POST /doorbell
+  (xem src/doorbell.ts). Camera cong truc tiep (cam.html, MSE qua go2rtc) toan man hinh + chuong keu (ra loa panel),
+  nut "Mo cong" (neu HA khai unlock) va "Dong"; dem nguoc roi tu quay ve ung dung truoc.
+  Tham so: cam, title, id, u (1 = co nut mo cong), t (giay).
+-->
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chuông cửa</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/ui.css">
+<style>
+  :root { --accent: #f97316; }
+  html, body { height: 100%; overflow: hidden; background: #000; }
+  iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; }
+  .top { position: fixed; left: 0; right: 0; top: 0; padding: clamp(18px, 4vmin, 30px) clamp(14px, 3vmin, 26px) 30px;
+    background: linear-gradient(rgba(0,0,0,0.75), transparent); display: flex; align-items: center; gap: 12px; pointer-events: none; }
+  .bell { width: clamp(36px, 9vmin, 56px); height: clamp(36px, 9vmin, 56px); border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; flex: none; }
+  .bell svg { width: 58%; height: 58%; fill: #fff; }
+  .tt { font-size: clamp(16px, 4.6vmin, 30px); font-weight: 700; text-shadow: 0 2px 8px rgba(0,0,0,0.6); }
+  .tm { color: #e5e7eb; font-size: clamp(11px, 2.7vmin, 15px); }
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; padding: 40px clamp(14px, 3vmin, 26px) clamp(14px, 3.4vmin, 28px);
+    background: linear-gradient(transparent, rgba(0,0,0,0.8)); display: flex; justify-content: center; gap: clamp(12px, 3vmin, 24px); }
+  .bar button { border: none; border-radius: 999px; font: inherit; font-weight: 700; font-size: clamp(14px, 3.8vmin, 22px);
+    padding: 0 clamp(20px, 5vmin, 40px); height: clamp(48px, 12vmin, 70px); cursor: pointer; color: #fff; display: flex; align-items: center; gap: 10px; }
+  #open { background: #16a34a; }
+  #open.done { background: #15803d; }
+  #open.err { background: #dc2626; }
+  #close { background: rgba(255,255,255,0.18); }
+</style>
+</head>
+<body>
+<iframe id="cam" allow="autoplay"></iframe>
+<div class="top">
+  <div class="bell"><svg viewBox="0 0 24 24"><path d="M10 21h4a2 2 0 01-4 0zm11-2v1H3v-1l2-2v-6a7 7 0 015-6.7V4a2 2 0 014 0v.3A7 7 0 0119 11v6l2 2z"/></svg></div>
+  <div><div class="tt" id="tt"></div><div class="tm" id="tm"></div></div>
+</div>
+<div class="bar"><button id="open" style="display:none">Mở cổng</button><button id="close">Đóng</button></div>
+<script>
+(function () {
+  'use strict';
+  var q = new URLSearchParams(location.search);
+  var id = q.get('id') || '', left = Math.max(10, Number(q.get('t')) || 60);
+  document.getElementById('tt').textContent = q.get('title') || 'Có người bấm chuông';
+  document.getElementById('cam').src = '/cam.html?src=' + encodeURIComponent(q.get('cam') || '') + '&fit=cover';
+  var d = new Date(), tm = document.getElementById('tm');
+  var at = (d.getHours() < 10 ? '0' : '') + d.getHours() + ':' + (d.getMinutes() < 10 ? '0' : '') + d.getMinutes();
+  function tick() { tm.textContent = at + ' · tự đóng sau ' + left + ' giây'; }
+  tick();
+  setInterval(function () { if (left > 0) left--; tick(); }, 1000);
+
+  // Chuong "ding-dong" hai lan (am thanh trang ra loa cua panel)
+  function chime() {
+    try {
+      var ctx = new AudioContext(), t0 = ctx.currentTime;
+      [[0, 784], [0.45, 622], [1.6, 784], [2.05, 622]].forEach(function (n) {
+        var o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'sine'; o.frequency.value = n[1];
+        g.gain.setValueAtTime(0.0001, t0 + n[0]); g.gain.exponentialRampToValueAtTime(0.5, t0 + n[0] + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + n[0] + 1.1);
+        o.connect(g); g.connect(ctx.destination); o.start(t0 + n[0]); o.stop(t0 + n[0] + 1.2);
+      });
+    } catch (e) {}
+  }
+  chime();
+
+  function post(p) { return fetch(p + '?id=' + encodeURIComponent(id), { method: 'POST' }).then(function (r) { return r.json(); }); }
+  var ob = document.getElementById('open');
+  if (q.get('u') === '1') ob.style.display = '';
+  ob.addEventListener('click', function () {
+    if (ob.classList.contains('done')) return;
+    ob.textContent = 'Đang mở…';
+    post('/doorbell/unlock').then(function (r) {
+      ob.className = r.ok ? 'done' : 'err';
+      ob.textContent = r.ok ? 'Đã mở cổng ✓' : (r.error || 'Không mở được');
+      window.__rwvDoor = r.ok ? 'opened' : 'error';
+      if (r.ok) setTimeout(function () { post('/doorbell/close'); }, 6000);
+    }).catch(function () { ob.className = 'err'; ob.textContent = 'Không mở được'; });
+  });
+  document.getElementById('close').addEventListener('click', function () { post('/doorbell/close'); });
+})();
+</script>
+</body>
+</html>
