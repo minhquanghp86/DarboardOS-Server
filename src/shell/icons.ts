@@ -21,6 +21,7 @@ export function appIcon(app: App, cls = 'app-ic'): HTMLElement {
     case 'ha': case 'home': fillPath(MDI.ha); break;
     case 'mdi': if (app.path) fillPath(app.path); break;
     case 'youtube': line('path', { d: 'M9 7v10l8.5-5z', fill: '#fff', stroke: 'none' }); break;
+    case 'yttv': line('rect', { x: '2.5', y: '4', width: '19', height: '13', rx: '2' }); line('path', { d: 'M8 21h8' }); line('path', { d: 'M10 8v5l4.5-2.5z', fill: '#fff', stroke: 'none' }); break;
     case 'tiktok':
       for (const [c, t] of [['#25f4ee', '-0.9 -0.9'], ['#fe2c55', '0.9 0.9'], ['#fff', '0 0']]) {
         line('path', { d: 'M14 3v11.5a3.5 3.5 0 11-3.5-3.5', stroke: c, transform: `translate(${t})` });
