@@ -16,6 +16,7 @@ import { metrics } from "./metrics.js";
 import { AdaptiveState, DEFAULT_ADAPTIVE_CFG, LinkEstimate, decideAdaptive, initialAdaptiveState, updateLinkEstimate } from "./adaptive.js";
 import { SelfTestRunner } from "./selfTest.js";
 import { tuning } from "./tuning.js";
+import { nudgeRepaintAsync } from "./browser.js";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -122,12 +123,40 @@ export type DeviceSession = {
   // KHONG nam trong deviceConfigsEqual() (co y, xem config.ts) nen doi no
   // khong lam "Reconfiguring"/pha Target — nhung cung vi vay phai tu tay
   // cap nhat script, server khong tu lam lai viec nay.
-  launcherScriptId?: string;
   /** (25/09/2026) Trang thai thiet bi bao len (DeviceState): do sang, am luong, gio — cho menu va dong ho. */
   devState?: DeviceStateInfo & { receivedAt: number };
   /** (25/09/2026) Hen gio cua menu — giu o SERVER nen van reo khi nguoi dung da chuyen trang. */
   timer?: { endsAt: number; label: string; handle: NodeJS.Timeout };
+
+  // (26/09/2026 OS-2) MOI UNG DUNG LA MOT TAB CHROMIUM RIENG — xem docs/KE-HOACH-GIAO-DIEN-HE-DIEU-HANH.md muc 3.1.
+  // `cdp`/`url` o tren LUON phan anh tab dang ACTIVE (dang hien tren man hinh — chi tab nay duoc Page.startScreencast).
+  // Cac tab khac (Home Assistant ghim + toi da MAX_APP_TABS ung dung) van "am": JS chay binh thuong, radio/nhac phat
+  // duoc, nhung KHONG duoc gui hinh — chuyen ve chi la doi con tro `cdp` + bat lai screencast, tuc thi, khong tai lai.
+  tabs: Map<string, Tab>;
+  /** Khoa cua tab dang active trong `tabs` ('' = chua co tab nao — chi dung trong luc ensureDeviceAsync khoi tao). */
+  activeTabKey: string;
 };
+
+/** (26/09/2026 OS-2) Mot "ung dung" = mot Chromium target/session rieng cua MOT thiet bi. */
+interface Tab {
+  /** 'home' (Home Assistant, ghim), '__system' (man hinh chinh /os/home, ghim), 'browser' (URL ngoai HA),
+   *  hoac id ung dung tu launcherApps.ts ('cams', 'scenes', 'radio', 'c_xxx'...). */
+  key: string;
+  kind: string;
+  url: string;
+  targetId: string;
+  session: CDPSession;
+  /** Id script Shell da dang ky qua Page.addScriptToEvaluateOnNewDocument — de go/thay khi homeUrl doi. */
+  launcherScriptId?: string;
+  /** Khong bao gio bi don don theo MAX_APP_TABS (Home Assistant + man hinh chinh). */
+  pinned: boolean;
+  screencastOn: boolean;
+  /** True neu duoc phep nghe tieng KE CA khi khong active (radio/nhac dang phat nen). */
+  backgroundAudio: boolean;
+  /** Trang thai am thanh HIEN TAI da gui cho tab nay — xem setTabAudioAllowed. */
+  audioAllowed: boolean;
+  lastUsed: number;
+}
 
 // (23/09/2026) SUA LOI: "man ngu tu bat lai nhung khong hien gi, phai vuot
 // lan 2" — chi xay ra sau khi da xem camera (che do passthrough) roi Go Home
@@ -789,39 +818,50 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
   console.log('[VKB] Ready — Telex Vietnamese IME active.');
 })();`;
 
-// (23/09/2026) CAM AM THANH cho thiet bi KHONG khai bao speaker_id (hien
-// tai: ca hai panel S3). Ly do ton tai: kien truc dung CHUNG mot tien trinh
-// Chrome cho ca ba thiet bi -> CHUNG mot sink PulseAudio duy nhat (xem
-// AUDIO-FEATURE-PLAN-2026-09-23.md muc 7.2 — da xac minh KHONG co cach nao
-// tach am thanh theo tung tab/target tu ben ngoai trang: setSinkId() can
-// HTTPS + cu chi nguoi dung that, CDP hoan toan khong co lenh "mute theo
-// target" nao — da doi chieu truc tiep voi JSON spec goc cua giao thuc,
-// khong chi mot ket qua tim kiem). Neu thiet bi khong co loa (S3) lo mo
-// YouTube, am thanh trang do van chay vao sink chung va bi tron lan, gui
-// NHAM sang loa cua thiet bi CO loa (P4) — nghe duoc la am thanh la khong
-// khop voi hinh dang xem.
+// (23/09/2026, mo rong 26/09/2026 OS-2) KHOA AM THANH THEO TAB.
 //
-// Giai phap: khong can tach tien trinh Chrome (dat, phuc tap). Vi thiet bi
-// khong co speaker_id KHONG BAO GIO can nghe duoc gi ca, chi can dam bao
-// trang cua NO khong bao gio tao ra am thanh o tang nguon — ghi de thang
-// len HTMLMediaElement.prototype (muted luon doc ra true, gan gi cung bi
-// bo qua; volume luon doc ra 0, gan gi cung bi bo qua). Ap dung cho MOI
-// <video>/<audio> hien co lan se duoc tao sau nay, khong can theo doi tung
-// phan tu rieng le.
-function buildAudioMuteScript(): string {
+// Kien truc dung CHUNG mot tien trinh Chrome cho ca ba thiet bi -> CHUNG mot sink PulseAudio duy nhat (xem
+// AUDIO-FEATURE-PLAN-2026-09-23.md muc 7.2 — da xac minh KHONG co cach nao tach am thanh theo tung
+// tab/target tu ben ngoai trang: setSinkId() can HTTPS + cu chi nguoi dung that, CDP hoan toan khong co lenh
+// "mute theo target" nao). Voi OS-2 (nhieu tab/thiet bi), rui ro nay TANG THEM mot bac: ngay CA CUNG mot
+// thiet bi co loa cung co the co NHIEU tab (YouTube, Radio...) cung phat cung luc va tron tieng.
+//
+// Giai phap khong doi: ghi de HTMLMediaElement.prototype.muted/volume NGAY TRUOC KHI trang tu chay (Page.
+// addScriptToEvaluateOnNewDocument), nhung nay THEO CO `window.__rwvAudioAllowed` (server bat/tat qua
+// Runtime.evaluate — xem setTabAudioAllowed) thay vi mot chieu vinh vien. `alwaysMuted` van la CO DINH cho
+// thiet bi KHONG khai bao speaker_id (S3): tab cua no khong bao gio duoc phep phat, du active hay khong.
+//
+// Mac dinh CAM khi vua tiem (an toan — tab moi tao chua duoc active). setTabAudioAllowed() bat/tat song, VA
+// handleTabNavigation() khang dinh lai moi lan tab dieu huong that su (chong truong hop lenh bat cho tab MOI
+// TAO bi "thua" navigation dang chay do — xem chu thich o setTabAudioAllowed).
+function buildAudioGuardScript(alwaysMuted: boolean): string {
   return `(function(){
-  if (window.__rwvAudioMuted) return;
-  window.__rwvAudioMuted = true;
+  window.__rwvAudioGuard = true;
+  window.__rwvAudioAllowed = false;
+  var ALWAYS_MUTED = ${alwaysMuted};
   try {
     var proto = HTMLMediaElement.prototype;
     Object.defineProperty(proto, 'muted', {
-      get: function(){ return true; }, set: function(){}, configurable: true
+      get: function(){ return ALWAYS_MUTED || !window.__rwvAudioAllowed; }, set: function(){}, configurable: true
     });
     Object.defineProperty(proto, 'volume', {
-      get: function(){ return 0; }, set: function(){}, configurable: true
+      get: function(){ return (ALWAYS_MUTED || !window.__rwvAudioAllowed) ? 0 : 1; }, set: function(){}, configurable: true
     });
   } catch (e) {}
 })();`;
+}
+
+/**
+ * Bat/tat am thanh cua MOT tab. Ghi lai `tab.audioAllowed` NGAY (dong bo) roi gui Runtime.evaluate — khong doi ket
+ * qua (nhu cac lenh dieu khien khac trong file nay). An toan ke ca khi tab dang dieu huong: neu lenh nay "thua"
+ * (chay tren tai lieu cu truoc khi trang moi commit), handleTabNavigation() se khang dinh lai gia tri dung ngay khi
+ * trang moi thuc su vao — xem chu thich o buildAudioGuardScript.
+ */
+function setTabAudioAllowed(tab: Tab, allowed: boolean): void {
+  tab.audioAllowed = allowed;
+  tab.session.send('Runtime.evaluate', {
+    expression: `window.__rwvAudioGuard && (window.__rwvAudioAllowed = ${allowed});`,
+  }).catch(() => { });
 }
 
 // (23/09/2026) Launcher: nut xo xuong dropdown chon "ung dung" (Home ve dashboard,
@@ -851,19 +891,53 @@ const URL_BINDING = '__rwvSetDisplayUrl';
  * Thiet bi co ?urlset=1 -> gui SetDisplayURL: thiet bi dat "URL hien thi" (HA thay), set_action mo trang qua
  * OpenURL nhu moi lan khac. Thiet bi cu -> server tu mo trang.
  */
-function handleUserEnteredUrl(id: string, session: CDPSession, payload: unknown): void {
+function handleUserEnteredUrl(id: string, payload: unknown): void {
   if (typeof payload !== 'string' || payload.length === 0 || payload.length > 1024) return;
   let url: URL;
   try { url = new URL(payload); } catch { return; }
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
   const dev = devices.get(id);
-  if (dev?.cfg.urlSet && broadcaster.sendSetDisplayURL(id, url.href)) {
+  if (!dev) return;
+  if (dev.cfg.urlSet && broadcaster.sendSetDisplayURL(id, url.href)) {
     console.log(`[launcher] ${id}: nguoi dung nhap URL ${url.href} -> gui thiet bi dat "URL hien thi"`);
     return;
   }
   console.log(`[launcher] ${id}: nguoi dung nhap URL ${url.href} -> server tu mo (thiet bi chua ho tro urlset)`);
-  session.send('Page.navigate', { url: url.href }).catch((e: unknown) =>
-    console.warn(`[launcher] ${id}: mo URL that bai:`, e));
+  navigateToUrl(dev, url.href).catch((e: unknown) => console.warn(`[launcher] ${id}: mo URL that bai:`, e));
+}
+
+/** URL co CUNG GOC voi Home URL cua thiet bi hay khong — quyet dinh dieu huong vao tab 'home' hay 'browser'. */
+function isHaUrl(dev: DeviceSession, url: string): boolean {
+  if (!dev.cfg.homeUrl) return false;
+  try { return new URL(url).origin === new URL(dev.cfg.homeUrl).origin; } catch { return false; }
+}
+
+/**
+ * (26/09/2026 OS-2) DIEM VAO DUY NHAT cho moi lenh "hien URL nay" tu phia thiet bi (OpenURL packet: nut/thuc the
+ * "Go Home" VA thuc the "URL hien thi" deu di qua CUNG mot goi tin o tang firmware — khong the phan biet duoc,
+ * xem docs/KE-HOACH-GIAO-DIEN-HE-DIEU-HANH.md muc 4). Phan loai theo GOC: cung goc voi Home URL -> tab 'home'
+ * (ghim); khac goc -> tab 'browser'. "Go Home" luon gui dung Home URL nen luon dua tab 'home' VE DUNG home_url,
+ * ke ca khi tab do dang o mot trang con khac cua HA — dung yeu cau ban dau cua nut nay.
+ */
+export async function navigateToUrl(dev: DeviceSession, url: string): Promise<void> {
+  const key = isHaUrl(dev, url) ? 'home' : 'browser';
+  let tab = dev.tabs.get(key);
+  let navigated = false;
+  if (!tab) {
+    tab = await createTab(dev, key, key === 'home' ? 'ha' : 'browser', url, key === 'home');
+    navigated = true; // createTab() da tu Page.navigate ben trong
+  } else if (tab.url !== url) {
+    await tab.session.send('Page.navigate', { url }).catch((e: unknown) =>
+      console.warn(`[device] ${dev.deviceId}: dieu huong tab "${key}" that bai:`, e));
+    tab.url = url;
+    navigated = true;
+  }
+  await activateTab(dev, key);
+  // (25/09/2026, giu nguyen tu ban OS-1) Trang TINH khong navigate lai (URL trung) sau khi thiet bi mat ket noi roi
+  // noi lai van can duoc VE LAI: "nudge" ep Chrome phat mot khung moi. Da navigate that thi Chrome tu ve lai, khong
+  // can nudge them.
+  if (!navigated) await nudgeRepaintAsync(dev.cdp).catch(() => { });
+  requestFullFrameFor(dev);
 }
 
 // (25/09/2026) Thanh truot trong menu goi window.__rwvControl(JSON). Chi nhan dung hai truong, gia tri 0..100 (trang
@@ -878,6 +952,12 @@ function handleMenuControl(id: string, payload: unknown): void {
   if (!dev) return;
   if (msg?.hello) { pushDeviceStateToPage(dev); return; }
   if (msg?.timer) { handleTimer(dev, msg.timer); return; }
+  // (26/09/2026 OS-2) Shell goi {app:"<id>"} khi nguoi dung cham mot ung dung (luoi Home cua OS, dock, thanh
+  // truot mep tren) — mo/kich hoat dung TAB cua ung dung do, xem openApp().
+  if (typeof msg?.app === 'string' && msg.app.length <= 40) {
+    openApp(dev, msg.app).catch((e: unknown) => console.warn(`[app] ${id}: mo "${msg.app}" that bai:`, e));
+    return;
+  }
   const v = Number(msg?.v);
   if (!Number.isFinite(v) || v < 0 || v > 100) return;
   const FIELDS: Record<string, ControlField> = {
@@ -949,29 +1029,37 @@ function pushDeviceStateToPage(dev: DeviceSession): void {
  * Dang ky lai script launcher (ap dung tu lan dieu huong ke tiep) VA thay ngay tren trang dang mo. Dung khi homeUrl
  * doi hoac khi nguoi dung luu cau hinh menu (trang "Menu panel").
  */
-async function reloadLauncher(device: DeviceSession): Promise<boolean> {
+async function reloadLauncherTab(device: DeviceSession, tab: Tab): Promise<boolean> {
   try {
-    if (device.launcherScriptId) {
-      await device.cdp.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: device.launcherScriptId });
+    // (26/09/2026 OS-2) launcherScriptId gio la CUA TUNG TAB (moi tab la mot session/target rieng) — xem
+    // reloadAllLaunchers() ben duoi, goi ham nay cho MOI tab dang mo cua thiet bi.
+    if (tab.launcherScriptId) {
+      await tab.session.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: tab.launcherScriptId });
     }
     const src = buildLauncherScript(device.cfg.homeUrl, device.cfg);
-    const { identifier } = await device.cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: src });
-    device.launcherScriptId = identifier;
-    // Don nut/popup CU tren trang DANG MO roi chay lai (script moi chi tu ap dung tu lan navigate ke tiep).
-    await device.cdp.send('Runtime.evaluate', {
+    const { identifier } = await tab.session.send('Page.addScriptToEvaluateOnNewDocument', { source: src });
+    tab.launcherScriptId = identifier;
+    // Don Shell CU tren trang DANG MO cua tab nay roi chay lai (script moi chi tu ap dung tu lan navigate ke tiep).
+    await tab.session.send('Runtime.evaluate', {
       expression:
         `(function(){` +
-        `var b=document.getElementById('__rwv_launcher_btn'); if(b) b.remove();` +
-        `var p=document.getElementById('__rwv_launcher_overlay'); if(p) p.remove();` +
         `document.querySelectorAll('rwv-shell').forEach(function(x){x.remove();});` +
         `window.__launcherInitialized=false; window.__rwvShell=undefined;` +
         `})();` + src,
     });
     return true;
   } catch (e) {
-    console.warn(`[device] ⚠️ Khong nap lai duoc launcher cho ${device.deviceId}:`, e);
+    console.warn(`[device] ⚠️ Khong nap lai duoc Shell cho ${device.deviceId} (tab "${tab.key}"):`, e);
     return false;
   }
+}
+
+async function reloadLauncher(device: DeviceSession): Promise<boolean> {
+  let ok = true;
+  for (const tab of device.tabs.values()) {
+    if (!(await reloadLauncherTab(device, tab))) ok = false;
+  }
+  return ok;
 }
 
 /** (25/09/2026) Sau khi luu cau hinh menu: nap lai launcher tren moi man hinh. */
@@ -1037,10 +1125,243 @@ function loadShellJs(): string {
   return shellJsCache!;
 }
 
-/** (25/09/2026) Ve Home cua OS (man hinh chinh). GD OS-2 se doi thanh chuyen tab thay vi dieu huong. */
+/** (26/09/2026 OS-2) Ve Home cua OS: mo/kich hoat tab '__system' (ghim — tao lan dau thi giu luon, khong tai lai
+ * nhung lan sau). Goi tu cu chi vuot len tu mep duoi (inputRouter.ts) va nut/bieu tuong "Ung dung" trong Shell. */
 export function goOsHome(dev: DeviceSession): void {
-  dev.cdp.send('Page.navigate', { url: LAUNCHER_OS_HOME_URL }).catch((e: unknown) =>
-    console.warn(`[shell] ${dev.deviceId}: ve Home that bai:`, e));
+  openApp(dev, '__system').catch((e: unknown) => console.warn(`[shell] ${dev.deviceId}: ve Home that bai:`, e));
+}
+
+// (26/09/2026 OS-2) So tab KHONG GHIM toi da moi thiet bi (Home Assistant + man hinh chinh luon duoc GHIM, khong
+// tinh vao day). Tab dang active hoac dang phat am thanh nen (radio/nhac) khong bao gio bi don. Moi tab la mot tien
+// trinh renderer Chromium song rieng — RAM addon da do thuc te ~1,1 GB/3 man hinh o che do MOT tab; gia tri nay giu
+// muc tang RAM trong tam kiem soat khi mo them ung dung. Chinh qua bien moi truong neu may chu du RAM.
+const MAX_APP_TABS = Math.max(0, parseInt(process.env.MAX_APP_TABS ?? '2', 10) || 2);
+
+/** Ung dung nguoi dung co the "mo" tu Shell (khong ke Home Assistant/man hinh chinh, xu ly rieng o day). */
+function resolveAppSpec(dev: DeviceSession, key: string): { kind: string; url: string; pinned: boolean } | null {
+  if (key === '__system') return { kind: 'system', url: LAUNCHER_OS_HOME_URL, pinned: true };
+  if (key === 'home') return dev.cfg.homeUrl ? { kind: 'ha', url: dev.cfg.homeUrl, pinned: true } : null;
+  const app = buildLauncherApps(dev.cfg.homeUrl).find((a) => a.id === key);
+  if (!app || !app.url) return null;
+  return { kind: app.kind, url: app.url, pinned: false };
+}
+
+/**
+ * (26/09/2026 OS-2) Mo mot ung dung: neu tab da co thi CHUYEN SANG NGAY (khong tai lai — tab van "am" trong luc
+ * khong active), chua co thi tao roi chuyen sang. Goi tu Shell (thanh truot/nut/luoi ung dung goi CONTROL_BINDING
+ * {app:key} — xem handleMenuControl) va tu goOsHome().
+ */
+async function openApp(dev: DeviceSession, key: string): Promise<void> {
+  if (!dev.tabs.has(key)) {
+    const spec = resolveAppSpec(dev, key);
+    if (!spec) { console.warn(`[app] ${dev.deviceId}: khong biet ung dung "${key}"`); return; }
+    await createTab(dev, key, spec.kind, spec.url, spec.pinned);
+  }
+  await activateTab(dev, key);
+  evictIfNeeded(dev);
+}
+
+function countNonPinnedTabs(dev: DeviceSession): number {
+  let n = 0;
+  for (const t of dev.tabs.values()) if (!t.pinned) n++;
+  return n;
+}
+
+/**
+ * (26/09/2026 OS-2) Don tab CU NHAT khong ghim/khong active/khong dang phat am thanh nen, cho toi khi ve duoi
+ * MAX_APP_TABS hoac het ung vien (co the tam vuot han muc neu tat ca tab con lai deu duoc mien don — chap nhan
+ * duoc, uu tien khong lam gian doan am thanh dang phat hon la giu dung han muc tuyet doi).
+ */
+function evictIfNeeded(dev: DeviceSession): void {
+  const evictable = [...dev.tabs.values()]
+    .filter((t) => !t.pinned && t.key !== dev.activeTabKey && !t.backgroundAudio)
+    .sort((a, b) => a.lastUsed - b.lastUsed);
+  while (evictable.length > 0 && countNonPinnedTabs(dev) > MAX_APP_TABS) {
+    closeTab(dev, evictable.shift()!.key);
+  }
+}
+
+function closeTab(dev: DeviceSession, key: string): void {
+  const tab = dev.tabs.get(key);
+  if (!tab) return;
+  dev.tabs.delete(key);
+  const root = getRoot() as unknown as CDPRoot;
+  tab.session.send('Page.stopScreencast').catch(() => { });
+  root?.send('Target.closeTarget', { targetId: tab.targetId }).catch(() => { });
+  console.log(`[app] ${dev.deviceId}: dong tab "${key}" (${tab.kind}, qua so tab toi da)`);
+}
+
+/**
+ * (26/09/2026 OS-2) Tao MOT tab (Chromium target + session) moi cho thiet bi: tiem day du cac script he thong
+ * (khoa am thanh, ban phim ao, Shell) va dang ky moi listener CDP CUA RIENG TAB NAY — screencastFrame/frameNavigated
+ * chi anh huong toi `dev` (bo dem khung, URL hien tai...) khi `dev.activeTabKey === key` (xem cac closure ben duoi),
+ * nen nhieu tab song song khong dam vao nhau. Luon KET THUC bang Page.navigate toi `url` (tru 'about:blank').
+ */
+async function createTab(dev: DeviceSession, key: string, kind: string, url: string, pinned: boolean): Promise<Tab> {
+  const root = getRoot() as unknown as CDPRoot;
+  if (!root) throw new Error('CDP not ready');
+
+  const { targetId } = await root.send<{ targetId: string }>('Target.createTarget', { url: 'about:blank' });
+  const { sessionId } = await root.send<{ sessionId: string }>('Target.attachToTarget', { targetId, flatten: true });
+  const session = root.session(sessionId);
+
+  await session.send('Page.enable');
+
+  // (23/09/2026, xem buildAudioGuardScript) Tiem TRUOC bat ky script nao khac va truoc lan dieu huong dau tien.
+  await session.send('Page.addScriptToEvaluateOnNewDocument', { source: buildAudioGuardScript(!dev.cfg.audioEnabled) });
+  await session.send('Page.addScriptToEvaluateOnNewDocument', { source: KIOSK_KEYBOARD_SCRIPT });
+  const { identifier: launcherScriptId } = await session.send(
+    'Page.addScriptToEvaluateOnNewDocument', { source: buildLauncherScript(dev.cfg.homeUrl, dev.cfg) }
+  );
+
+  const tab: Tab = {
+    key, kind, url: '', targetId, session, pinned,
+    screencastOn: false, backgroundAudio: false, audioAllowed: false, lastUsed: Date.now(), launcherScriptId,
+  };
+  dev.tabs.set(key, tab);
+
+  try {
+    await session.send('Runtime.enable');
+    await session.send('Runtime.addBinding', { name: URL_BINDING });
+    await session.send('Runtime.addBinding', { name: CONTROL_BINDING });
+    session.on('Runtime.bindingCalled', (evt: any) => {
+      if (evt?.name === URL_BINDING) handleUserEnteredUrl(dev.deviceId, evt.payload);
+      else if (evt?.name === CONTROL_BINDING) handleMenuControl(dev.deviceId, evt.payload);
+    });
+    // Moi trang moi cua TAB NAY: neu dang la tab active, dua lai trang thai thiet bi vao Shell.
+    session.on('Page.domContentEventFired', () => {
+      const d = devices.get(dev.deviceId);
+      if (d && d.activeTabKey === key) pushDeviceStateToPage(d);
+    });
+  } catch (e) {
+    console.warn(`[device] ⚠️ Khong dang ky duoc binding cho tab "${key}" (${dev.deviceId}):`, e);
+  }
+
+  const vpOk = await setupStableViewport(session, dev.cfg.width, dev.cfg.height);
+  if (!vpOk) console.warn(`[device] ⚠️ Viewport mismatch ${dev.cfg.width}x${dev.cfg.height} (tab "${key}")`);
+
+  await verifyCodecSupport(session);
+
+  try {
+    const realUA = await getRealChromeUserAgentAsync(session);
+    if (realUA) {
+      await session.send('Emulation.setUserAgentOverride', { userAgent: realUA, platform: 'Linux x86_64' });
+    }
+  } catch { }
+
+  session.on('Page.screencastFrame', (evt: any) => {
+    session.send('Page.screencastFrameAck', { sessionId: evt.sessionId }).catch(() => { });
+    // (26/09/2026 OS-2) Tab NEN (khong active) khong con Page.startScreencast bat (activateTab() da tat khi rời) —
+    // nhung ve chan cho chac (vd goi dang bay trong hang doi CDP luc vua chuyen tab).
+    if (dev.activeTabKey !== key) return;
+    if (broadcaster.getClientCount(dev.deviceId) === 0) return;
+    dev.lastActive = Date.now();
+    dev.pendingB64 = evt.data;
+    const now = Date.now();
+    const since = dev.lastProcessedMs ? (now - dev.lastProcessedMs) : Infinity;
+    if (!dev.throttleTimer) {
+      const interacting = INTERACTION_BOOST_MS > 0
+        && dev.lastInputMs != null
+        && (now - dev.lastInputMs) < INTERACTION_BOOST_MS;
+      const effInterval = interacting
+        ? dev.cfg.minFrameInterval
+        : (dev.tunedMinFrameIntervalMs ?? dev.cfg.minFrameInterval);
+      const delay = Math.max(0, effInterval - (Number.isFinite(since) ? since : 0));
+      dev.throttleTimer = setTimeout(() => flushPending(dev), delay);
+    }
+  });
+
+  session.on('Page.frameNavigated', (evt: any) => {
+    if (!evt?.frame?.parentId) handleTabNavigation(dev, tab, evt?.frame?.url);
+  });
+  session.on('Page.navigatedWithinDocument', (evt: any) => {
+    handleTabNavigation(dev, tab, evt?.url);
+  });
+
+  if (url && url !== 'about:blank') {
+    await session.send('Page.navigate', { url }).catch((e: unknown) =>
+      console.warn(`[device] ${dev.deviceId}: mo tab "${key}" (${url}) that bai:`, e));
+  }
+  return tab;
+}
+
+/**
+ * (18/09/2026, mo rong OS-2) DONG BO URL HAI CHIEU — theo TUNG TAB.
+ *
+ * Truoc day URL chi di MOT CHIEU (HA -> thiet bi). Khi nguoi dung tu cham chuyen tab tren dashboard, server khong
+ * theo doi gi ca, nen thiet bi va HA deu giu gia tri cu. Phai bat CA HAI su kien Page.frameNavigated (dieu huong
+ * day du) va Page.navigatedWithinDocument (dashboard HA la ung dung MOT TRANG, chuyen tab chi doi URL bang
+ * history.pushState) — chi bat frameNavigated se bo sot truong hop thuong gap nhat.
+ *
+ * `tab.url` luon duoc cap nhat (moi tab tu theo doi URL cua chinh no, ke ca khi dang o nen); `dev.url`/"URL hien
+ * tai" cua man hinh CHI doi khi day la tab DANG ACTIVE — tab nen dieu huong (vd HA tu lam moi ngam) khong duoc lam
+ * "URL hien tai" nhay sang thu nguoi dung khong he thay tren man hinh.
+ */
+function handleTabNavigation(dev: DeviceSession, tab: Tab, url: string | undefined): void {
+  if (!url || url === 'about:blank' || tab.url === url) return;
+  tab.url = url;
+  // Khang dinh lai trang thai am thanh MOI LAN tab nay thuc su vao mot tai lieu moi — xem buildAudioGuardScript:
+  // day la cho tu sua neu lenh setTabAudioAllowed() luc kich hoat da "thua" chinh navigation nay.
+  tab.session.send('Runtime.evaluate', {
+    expression: `window.__rwvAudioGuard && (window.__rwvAudioAllowed = ${tab.audioAllowed});`,
+  }).catch(() => { });
+  if (dev.activeTabKey !== tab.key) return;
+  dev.url = url;
+  broadcaster.sendCurrentURL(dev.deviceId, url);
+  metrics.onNavigate(dev.deviceId, url);
+  console.log(`[device] ${dev.deviceId}: URL doi thanh ${url} (tab "${tab.key}")`);
+}
+
+/**
+ * (26/09/2026 OS-2) Chuyen tab ACTIVE cua thiet bi: dung screencast + tat tieng (tru khi dang phat nen)
+ * + tam dung video tren tab CU; bat tieng + bat screencast tren tab MOI + ep gui lai khung day du. `dev.cdp` luon
+ * duoc gan lai de MOI cho khac trong file (dispatch cham, self-test, VIDEO_PROBE...) tu dong noi dung tab active
+ * ma khong can biet gi ve co che nhieu tab. Khong lam gi neu key da la tab active (goi lai an toan, vd luc chuyen
+ * doi nhanh hoac ket noi lai voi cung tab).
+ */
+async function activateTab(dev: DeviceSession, key: string): Promise<void> {
+  const next = dev.tabs.get(key);
+  if (!next) return;
+  if (dev.activeTabKey === key) { next.lastUsed = Date.now(); return; }
+
+  const prev = dev.tabs.get(dev.activeTabKey);
+  if (prev) {
+    // YouTube/TikTok: DUNG video khi roi tab, tranh tieng ngam tiep tuc chay ngam voi tab khac.
+    if (prev.kind === 'youtube' || prev.kind === 'tiktok') {
+      prev.session.send('Runtime.evaluate', {
+        expression: "document.querySelectorAll('video').forEach(function(v){try{v.pause();}catch(e){}});",
+      }).catch(() => { });
+    }
+    setTabAudioAllowed(prev, prev.backgroundAudio);
+    if (prev.screencastOn) {
+      prev.session.send('Page.stopScreencast').catch(() => { });
+      prev.screencastOn = false;
+    }
+  }
+
+  dev.activeTabKey = key;
+  dev.cdp = next.session;
+  next.lastUsed = Date.now();
+  // Radio/Nhac: duoc phep tiep tuc phat KE CA sau khi roi tab (thẻ "Đang phát" — GĐ sau se them dieu khien tat).
+  if (next.kind === 'radio' || next.kind === 'music') next.backgroundAudio = true;
+  setTabAudioAllowed(next, true);
+
+  if (!next.screencastOn) {
+    const canPassthrough = PASSTHROUGH_MIN_FPS > 0 && dev.cfg.maxBytesPerMessage >= 131072;
+    const screencastQuality = canPassthrough ? dev.cfg.jpegQuality : SCREENCAST_JPEG_QUALITY;
+    await next.session.send('Page.startScreencast', {
+      format: 'jpeg', quality: screencastQuality, maxWidth: dev.cfg.width, maxHeight: dev.cfg.height,
+      everyNthFrame: dev.cfg.everyNthFrame,
+    }).catch((e: unknown) => console.warn(`[device] ${dev.deviceId}: khong bat duoc screencast tab "${key}":`, e));
+    next.screencastOn = true;
+  }
+  if (next.url) {
+    dev.url = next.url;
+    broadcaster.sendCurrentURL(dev.deviceId, next.url);
+  }
+  requestFullFrameFor(dev);
+  pushDeviceStateToPage(dev);
+  console.log(`[app] ${dev.deviceId}: chuyen sang tab "${key}" (${next.kind})`);
 }
 
 // ============================================
@@ -1192,97 +1513,10 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     await deleteDeviceAsync(device);
   }
 
-  const { targetId } = await root.send<{ targetId: string }>('Target.createTarget', {
-    url: 'about:blank',
-    // width/height removed: Chrome stable does not support
-    // position params for new targets — viewport set via
-    // Emulation.setDeviceMetricsOverride in setupStableViewport()
-  });
-  const { sessionId } = await root.send<{ sessionId: string }>('Target.attachToTarget', {
-    targetId, flatten: true
-  });
-  // Cải tiến: dùng CDPRoot interface thay cast `any`
-  const session = root.session(sessionId);
-
-  await session.send('Page.enable');
-
-  // (23/09/2026) Thiet bi KHONG khai bao speaker_id (chua tu bao ?audio=1)
-  // -> khong bao gio duoc phep tao ra am thanh that vao sink chung — xem
-  // chu thich day du o buildAudioMuteScript(). PHAI tiem TRUOC bat ky script
-  // nao khac va truoc ca lan dieu huong dau tien.
-  if (!cfg.audioEnabled) {
-    await session.send('Page.addScriptToEvaluateOnNewDocument', { source: buildAudioMuteScript() });
-    console.log('[device] ✓ Da cam am thanh (thiet bi khong khai bao speaker_id)');
-  }
-
-  await session.send('Page.addScriptToEvaluateOnNewDocument', { source: KIOSK_KEYBOARD_SCRIPT });
-  console.log('[device] ✓ Keyboard + Telex IME registered');
-
-  const { identifier: launcherScriptId } = await session.send(
-    'Page.addScriptToEvaluateOnNewDocument', { source: buildLauncherScript(cfg.homeUrl, cfg) }
-  );
-  console.log(`[device] ✓ Launcher registered${cfg.homeUrl ? '' : ' (chua co homeUrl — chi hien YouTube)'}`);
-
-  // (25/09/2026) O "URL" cua launcher goi window.__rwvSetDisplayUrl(url). Binding ton tai qua moi lan dieu huong.
-  // Runtime.enable: can de nhan su kien Runtime.bindingCalled.
-  try {
-    await session.send('Runtime.enable');
-    await session.send('Runtime.addBinding', { name: URL_BINDING });
-    await session.send('Runtime.addBinding', { name: CONTROL_BINDING });
-    session.on('Runtime.bindingCalled', (evt: any) => {
-      if (evt?.name === URL_BINDING) handleUserEnteredUrl(id, session, evt.payload);
-      else if (evt?.name === CONTROL_BINDING) handleMenuControl(id, evt.payload);
-    });
-    // (25/09/2026) Moi trang moi: dua lai trang thai thiet bi vao launcher (thanh truot, dong ho tren nut menu).
-    session.on('Page.domContentEventFired', () => {
-      const d = devices.get(id);
-      if (d) pushDeviceStateToPage(d);
-    });
-  } catch (e) {
-    console.warn(`[device] ⚠️ Khong dang ky duoc binding o URL cho ${id}:`, e);
-  }
-
-  const vpOk = await setupStableViewport(session, cfg.width, cfg.height);
-  if (!vpOk) console.warn(`[device] ⚠️ Viewport mismatch ${cfg.width}x${cfg.height}`);
-
-  await verifyCodecSupport(session);
-
-  try {
-    const realUA = await getRealChromeUserAgentAsync(session);
-    if (realUA) {
-      await session.send('Emulation.setUserAgentOverride', {
-        userAgent: realUA,
-        platform: 'Linux x86_64'
-      });
-    }
-  } catch { }
-
-  // Cải tiến: dùng format 'jpeg' thay 'png'
-  // → Chrome encode JPEG trực tiếp, bỏ hoàn toàn bước sharp decode PNG → raw RGBA
-  // → Giảm đáng kể CPU và memory trên server HASS addon
-  // → SCREENCAST_JPEG_QUALITY có thể tuỉnh qua env SCREENCAST_JPEG_QUALITY (mặc định 90)
-  // (16/09/2026) Chất lượng screencast chọn theo TỪNG thiết bị.
-  //
-  // Thiết bị có cap message đủ lớn để chứa cả khung (ví dụ P4: 256KB) sẽ dùng
-  // đường tắt chuyển thẳng JPEG. Với chúng, ảnh của Chrome CHÍNH LÀ ảnh gửi đi,
-  // nên phải encode ngay ở chất lượng đích — để q90 thì khung nặng hơn ~33% và
-  // khi bị chặn băng thông thì fps tụt (đo thật: 26,4 → 20,1 fps). Encode thẳng
-  // ở chất lượng đích vừa lấy lại fps vừa cho ảnh ĐẸP HƠN vì chỉ nén MỘT lần.
-  //
-  // Thiết bị cap nhỏ (S3: 32KB) không bao giờ đi được đường tắt — chúng luôn
-  // phải giải nén rồi nén lại theo tile. Với chúng phải GIỮ ảnh nguồn chất
-  // lượng cao, nếu hạ xuống q60 thì thành nén hai lần ở q60 = ảnh xấu đi.
-  const canPassthrough = PASSTHROUGH_MIN_FPS > 0 && cfg.maxBytesPerMessage >= 131072;
-  const screencastQuality = canPassthrough ? cfg.jpegQuality : SCREENCAST_JPEG_QUALITY;
-  await session.send('Page.startScreencast', {
-    format: 'jpeg',
-    quality: screencastQuality,
-    maxWidth: cfg.width,
-    maxHeight: cfg.height,
-    everyNthFrame: cfg.everyNthFrame,
-  });
-  console.log(`[device] Screencast format: jpeg, quality: ${screencastQuality}` + (canPassthrough ? ' (theo jpeg_quality cua thiet bi — co the di duong tat)' : ''));
-
+  // (26/09/2026 OS-2) TAO TAB DAU TIEN — Home Assistant (ghim) neu thiet bi da bao ?home=, khong thi tab 'browser'
+  // (se duoc navigateToUrl() dua ve dung tab ngay khi OpenURL dau tien toi — xem index.ts pendingOpenURLs). Phai tao
+  // XONG (co session that) roi moi dua vao `devices`: cac noi khac (dispatch cham, self-test...) doc `dev.cdp` ma
+  // khong kiem tra null, giong bat bien cua ban goc mot-tab (session luon san sang truoc khi thiet bi "hien dien").
   const processor = new FrameProcessor({
     tileSize: cfg.tileSize,
     fullframeTileCount: cfg.fullFrameTileCount,
@@ -1295,7 +1529,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
 
   metrics.setConfig(id, cfg);
   const newDevice: DeviceSession = {
-    id: targetId, deviceId: id, cdp: session, cfg,
+    id: '', deviceId: id, cdp: undefined as unknown as CDPSession, cfg,
     url: '', lastActive: Date.now(), frameId: 0, prevFrameHash: 0,
     processor, selfTestRunner: new SelfTestRunner(broadcaster),
     pendingB64: undefined, throttleTimer: undefined, lastProcessedMs: undefined,
@@ -1305,19 +1539,45 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     consecutiveFrameErrors: 0, // Cải tiến: tracking lỗi liên tiếp
     recentFrameMs: [], passthroughFrames: 0, passthroughOn: false,
     halfOn: false, halfFrames: 0, forceSharp: false,
-    launcherScriptId,
+    tabs: new Map<string, Tab>(), activeTabKey: '',
   };
-  devices.set(id, newDevice);
-  requestFullFrameFor(newDevice);
 
-  const flushPending = async () => {
+  const initialKey = cfg.homeUrl ? 'home' : 'browser';
+  await createTab(newDevice, initialKey, cfg.homeUrl ? 'ha' : 'browser', cfg.homeUrl || 'about:blank', !!cfg.homeUrl);
+  const initialTab = newDevice.tabs.get(initialKey)!;
+  newDevice.id = initialTab.targetId;
+  newDevice.cdp = initialTab.session;
+  devices.set(id, newDevice);
+  // activateTab() tu lam: bat screencast, cho phep am thanh (neu thiet bi co loa), ep gui khung day du.
+  await activateTab(newDevice, initialKey);
+
+  // (24/09/2026) Xem markInteraction: gui lai khung video cuoi o do phan giai day du ngay lap tuc.
+  newDevice.sharpenNow = () => {
     const dev = newDevice;
+    if (!dev.lastVideoB64 || dev.pendingB64) return;
+    if (dev.sharpTimer) { clearTimeout(dev.sharpTimer); dev.sharpTimer = undefined; }
+    dev.forceSharp = true;
+    dev.pendingB64 = dev.lastVideoB64;
+    dev.lastVideoB64 = undefined;
+    dev.prevFrameHash = -1;
+    if (!dev.throttleTimer) dev.throttleTimer = setTimeout(() => flushPending(dev), 0);
+  };
+
+  console.log(`[device] ✓ Device ${id} ready (${cfg.width}x${cfg.height}) [${devices.size}/${MAX_DEVICES} slots used]`);
+  return newDevice;
+}
+
+// (26/09/2026 OS-2) Tach khoi ensureDeviceAsync() thanh HAM CAP MODULE, nhan `dev` lam tham so thay vi dong ("moi
+// tab moi thiet bi mot ham") — moi tab (createTab()) chi can goi flushPending(dev), khong can tu dinh nghia lai
+// toan bo duong ong nen anh. Duong ong giai ma/nen/gui NGUYEN VEN nhu ban mot-tab: no thuoc ve THIET BI (cai gi
+// dang duoc GUI toi man hinh), khong thuoc ve tab nguon — chi NGUON (session nao dang active) doi khi chuyen tab.
+async function flushPending(dev: DeviceSession): Promise<void> {
     dev.throttleTimer = undefined;
     // (23/09/2026) MOT KHUNG MOT LUC — xem `flushInFlight`. Khong BO khung o
     // day: `pendingB64` luon giu khung MOI NHAT, nen hen lai mot nhip ngan la
     // khung ke tiep van la khung moi nhat tai thoi diem do.
     if (dev.flushInFlight) {
-      if (!dev.throttleTimer) dev.throttleTimer = setTimeout(flushPending, 10);
+      if (!dev.throttleTimer) dev.throttleTimer = setTimeout(() => flushPending(dev), 10);
       return;
     }
     dev.flushInFlight = true;
@@ -1344,14 +1604,14 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
       // kế tiếp. Bỏ ở đây thì nền so sánh giữ nguyên, khung sau vẫn diff đúng.
       //
       // Bỏ nguyên khung (không bỏ một phần) để không bao giờ sinh khung rách.
-      const backlog = broadcaster.backlogBytes(id);
+      const backlog = broadcaster.backlogBytes(dev.deviceId);
       const highWater = tuning().wsHighWaterBytes ?? WS_HIGH_WATER_BYTES;
       if (backlog > highWater) {
-        metrics.onFrameSkipped(id);
+        metrics.onFrameSkipped(dev.deviceId);
         dev.lastProcessedMs = Date.now();
         if (Date.now() - (dev.lastBacklogLogMs ?? 0) > 5000) {
           dev.lastBacklogLogMs = Date.now();
-          console.warn(`[device] ${id}: bo khung, ton dong socket ${backlog}B > ${highWater}B`);
+          console.warn(`[device] ${dev.deviceId}: bo khung, ton dong socket ${backlog}B > ${highWater}B`);
         }
         return;
       }
@@ -1363,7 +1623,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
       const imgBuf = Buffer.from(b64, 'base64');
       const h32 = hash32(imgBuf);
       if (dev.prevFrameHash === h32) {
-        metrics.onFrameSkipped(id);
+        metrics.onFrameSkipped(dev.deviceId);
         dev.lastProcessedMs = Date.now();
         return;
       }
@@ -1463,7 +1723,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
         const halfW = Math.ceil(fullW / 2), halfH = Math.ceil(fullH / 2);
         let halfJpeg: Buffer | undefined;
         for (const factor of [1, 0.75, 0.55]) {
-          const q = Math.max(20, Math.round(processor.tuning.jpegQuality * factor));
+          const q = Math.max(20, Math.round(dev.processor.tuning.jpegQuality * factor));
           const b = await sharp(imgBuf).resize(halfW, halfH).jpeg({ quality: q, chromaSubsampling: '4:2:0' }).toBuffer();
           if (b.length <= capBytes) { halfJpeg = b; break; }
         }
@@ -1478,11 +1738,11 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
           dev.halfFrames++;
           if (!dev.halfOn) {
             dev.halfOn = true;
-            console.log(`[half] ${id}: bat (nhip ${fps.toFixed(1)} fps, <video> ${((dev.videoElArea ?? 0) * 100).toFixed(0)}% man hinh, ${imgBuf.length} -> ${halfJpeg.length} B/khung)`);
+            console.log(`[half] ${dev.deviceId}: bat (nhip ${fps.toFixed(1)} fps, <video> ${((dev.videoElArea ?? 0) * 100).toFixed(0)}% man hinh, ${imgBuf.length} -> ${halfJpeg.length} B/khung)`);
           }
-          metrics.onFrameEncoded(id, out, processor.stats, 0);
+          metrics.onFrameEncoded(dev.deviceId, out, dev.processor.stats, 0);
           dev.frameId = (dev.frameId + 1) >>> 0;
-          broadcaster.sendFrameChunked(id, out, dev.frameId, dev.cfg.maxBytesPerMessage);
+          broadcaster.sendFrameChunked(dev.deviceId, out, dev.frameId, dev.cfg.maxBytesPerMessage);
           dev.consecutiveFrameErrors = 0;
           dev.lastProcessedMs = Date.now();
           // Hen lam net: moi khung video moi dat lai dong ho.
@@ -1490,19 +1750,19 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
           if (dev.sharpTimer) clearTimeout(dev.sharpTimer);
           dev.sharpTimer = setTimeout(() => {
             dev.sharpTimer = undefined;
-            if (devices.get(id) !== dev || dev.pendingB64 || !dev.lastVideoB64) return;
+            if (devices.get(dev.deviceId) !== dev || dev.pendingB64 || !dev.lastVideoB64) return;
             dev.forceSharp = true;
             dev.pendingB64 = dev.lastVideoB64;
             dev.lastVideoB64 = undefined;
             dev.prevFrameHash = -1;
-            if (!dev.throttleTimer) dev.throttleTimer = setTimeout(flushPending, 0);
+            if (!dev.throttleTimer) dev.throttleTimer = setTimeout(() => flushPending(dev), 0);
           }, SHARP_REFRESH_MS);
           return;
         }
       }
       if (dev.halfOn) {
         dev.halfOn = false;
-        console.log(`[half] ${id}: tat (nhip ${fps.toFixed(1)} fps${sharpRefresh ? ', lam net' : ''})`);
+        console.log(`[half] ${dev.deviceId}: tat (nhip ${fps.toFixed(1)} fps${sharpRefresh ? ', lam net' : ''})`);
       }
       // ══════════════════════════════════════════════════════════════════
 
@@ -1521,11 +1781,11 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
             dev.passthroughFrames++;
             if (!dev.passthroughOn) {
               dev.passthroughOn = true;
-              console.log(`[passthrough] ${id}: bật (nhịp ${fps.toFixed(1)} fps, ${imgBuf.length} B/khung)`);
+              console.log(`[passthrough] ${dev.deviceId}: bật (nhịp ${fps.toFixed(1)} fps, ${imgBuf.length} B/khung)`);
             }
-            metrics.onFrameEncoded(id, out, processor.stats, 0);
+            metrics.onFrameEncoded(dev.deviceId, out, dev.processor.stats, 0);
             dev.frameId = (dev.frameId + 1) >>> 0;
-            broadcaster.sendFrameChunked(id, out, dev.frameId, dev.cfg.maxBytesPerMessage);
+            broadcaster.sendFrameChunked(dev.deviceId, out, dev.frameId, dev.cfg.maxBytesPerMessage);
             dev.consecutiveFrameErrors = 0;
             dev.lastProcessedMs = Date.now();
             return;
@@ -1534,7 +1794,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
       }
       if (dev.passthroughOn) {
         dev.passthroughOn = false;
-        console.log(`[passthrough] ${id}: tắt (nhịp ${fps.toFixed(1)} fps) — quay về đường thường`);
+        console.log(`[passthrough] ${dev.deviceId}: tắt (nhịp ${fps.toFixed(1)} fps) — quay về đường thường`);
       }
       // ════════════════════════════════════════════════════════════════════
 
@@ -1542,11 +1802,11 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
       if (dev.cfg.rotation) img = img.rotate(dev.cfg.rotation);
       const { data, info } = await img.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
       const _tEnc = Date.now();
-      const out = await processor.processFrameAsync({ data, width: info.width, height: info.height });
-      metrics.onFrameEncoded(id, out, processor.stats, Date.now() - _tEnc);
+      const out = await dev.processor.processFrameAsync({ data, width: info.width, height: info.height });
+      metrics.onFrameEncoded(dev.deviceId, out, dev.processor.stats, Date.now() - _tEnc);
       if (out.rects.length > 0) {
         dev.frameId = (dev.frameId + 1) >>> 0;
-        broadcaster.sendFrameChunked(id, out, dev.frameId, cfg.maxBytesPerMessage);
+        broadcaster.sendFrameChunked(dev.deviceId, out, dev.frameId, dev.cfg.maxBytesPerMessage);
       }
 
       // Cải tiến: reset bộ đếm lỗi sau frame thành công
@@ -1555,27 +1815,27 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     } catch (e) {
       // Cải tiến: đếm lỗi liên tiếp và tự restart device khi vượt ngưỡng
       dev.consecutiveFrameErrors++;
-      metrics.onFrameError(id, (e as Error).message);
+      metrics.onFrameError(dev.deviceId, (e as Error).message);
       console.warn(
-        `[device] Frame error ${id} (${dev.consecutiveFrameErrors}/${MAX_CONSECUTIVE_FRAME_ERRORS}): ` +
+        `[device] Frame error ${dev.deviceId} (${dev.consecutiveFrameErrors}/${MAX_CONSECUTIVE_FRAME_ERRORS}): ` +
         `${(e as Error).message}`
       );
       if (dev.consecutiveFrameErrors >= MAX_CONSECUTIVE_FRAME_ERRORS) {
         console.error(
-          `[device] Too many consecutive frame errors on ${id}, scheduling device restart...`
+          `[device] Too many consecutive frame errors on ${dev.deviceId}, scheduling device restart...`
         );
         dev.consecutiveFrameErrors = 0;
         // Restart bất đồng bộ — không block pipeline hiện tại
         setImmediate(async () => {
           try {
-            const currentDev = devices.get(id);
+            const currentDev = devices.get(dev.deviceId);
             if (currentDev) {
-              console.log(`[device] Restarting device ${id} after repeated errors`);
+              console.log(`[device] Restarting device ${dev.deviceId} after repeated errors`);
               await deleteDeviceAsync(currentDev);
-              await ensureDeviceAsync(id, cfg);
+              await ensureDeviceAsync(dev.deviceId, dev.cfg);
             }
           } catch (restartErr) {
-            console.error(`[device] Restart failed for ${id}:`, (restartErr as Error).message);
+            console.error(`[device] Restart failed for ${dev.deviceId}:`, (restartErr as Error).message);
           }
         });
       }
@@ -1584,76 +1844,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
       // thuc = nhip + thoi gian xu ly (do do phan giai day du: 66 ms + ~35-40 ms giai nen/nen -> ~10 fps thay vi 15).
       // Moc da danh o DAU ham (xem tren) -> chu ky = max(nhip, thoi gian xu ly). Van MOT khung mot luc (flushInFlight).
       dev.flushInFlight = false;
-    }
-  };
-
-  // (24/09/2026) Xem markInteraction: gui lai khung video cuoi o do phan giai day du ngay lap tuc.
-  newDevice.sharpenNow = () => {
-    const dev = newDevice;
-    if (!dev.lastVideoB64 || dev.pendingB64) return;
-    if (dev.sharpTimer) { clearTimeout(dev.sharpTimer); dev.sharpTimer = undefined; }
-    dev.forceSharp = true;
-    dev.pendingB64 = dev.lastVideoB64;
-    dev.lastVideoB64 = undefined;
-    dev.prevFrameHash = -1;
-    if (!dev.throttleTimer) dev.throttleTimer = setTimeout(flushPending, 0);
-  };
-
-  // (18/09/2026) DONG BO URL HAI CHIEU.
-  //
-  // Truoc day URL chi di MOT CHIEU (HA -> thiet bi). Khi nguoi dung tu cham
-  // chuyen tab tren dashboard, server khong theo doi gi ca, nen thiet bi va HA
-  // deu giu gia tri cu. Hau qua nguoi dung gap: nut "Go Home" mat tac dung —
-  // no lam text.set voi dung gia tri dang co, ma ESPHome chi kich set_action
-  // khi gia tri THAY DOI.
-  //
-  // Phai bat CA HAI su kien:
-  //   - Page.frameNavigated        : dieu huong day du (tai lai trang)
-  //   - Page.navigatedWithinDocument: dieu huong TRONG CUNG TRANG
-  // Cai thu hai moi la then chot: dashboard Home Assistant la ung dung MOT
-  // TRANG, chuyen tab chi doi URL bang history.pushState chu khong tai lai.
-  // Chi bat frameNavigated se bo sot dung truong hop thuong gap nhat.
-  const handleNavigation = (url: string) => {
-    if (!url || url === 'about:blank') return;
-    if (newDevice.url === url) return;
-    newDevice.url = url;
-    broadcaster.sendCurrentURL(newDevice.deviceId, url);
-    metrics.onNavigate(newDevice.deviceId, url);
-    console.log(`[device] ${id}: URL doi thanh ${url}`);
-  };
-
-  session.on('Page.frameNavigated', (evt: any) => {
-    // Chi theo doi khung chinh, bo qua iframe
-    if (!evt?.frame?.parentId) handleNavigation(evt?.frame?.url);
-  });
-
-  session.on('Page.navigatedWithinDocument', (evt: any) => {
-    handleNavigation(evt?.url);
-  });
-
-  session.on('Page.screencastFrame', async (evt: any) => {
-    session.send('Page.screencastFrameAck', { sessionId: evt.sessionId }).catch(() => { });
-    if (broadcaster.getClientCount(newDevice.deviceId) === 0) return;
-    newDevice.lastActive = Date.now();
-    newDevice.pendingB64 = evt.data;
-    const now = Date.now();
-    const since = newDevice.lastProcessedMs ? (now - newDevice.lastProcessedMs) : Infinity;
-    if (!newDevice.throttleTimer) {
-      // Dang thao tac -> uu tien do muot, dung nhip GOC thay vi nhip da dieu tiet.
-      const interacting = INTERACTION_BOOST_MS > 0
-        && newDevice.lastInputMs != null
-        && (now - newDevice.lastInputMs) < INTERACTION_BOOST_MS;
-      const effInterval = interacting
-        ? cfg.minFrameInterval
-        : (newDevice.tunedMinFrameIntervalMs ?? cfg.minFrameInterval);
-      const delay = Math.max(0, effInterval - (Number.isFinite(since) ? since : 0));
-      newDevice.throttleTimer = setTimeout(flushPending, delay);
-    }
-  });
-
-  console.log(`[device] ✓ Device ${id} ready (${cfg.width}x${cfg.height}) [${devices.size}/${MAX_DEVICES} slots used]`);
-  return newDevice;
-}
+    }}
 
 export async function cleanupIdleAsync(ttlMs = 5 * 60_000) {
   if (_cleanupRunning) return;
@@ -1820,10 +2011,15 @@ async function deleteDeviceAsync(device: DeviceSession) {
   // bao minFrameInterval=100 va adaptiveChanges=0).
   adaptiveStates.delete(device.deviceId);
   if (device.sharpTimer) { clearTimeout(device.sharpTimer); device.sharpTimer = undefined; }
+  if (device.timer) { clearTimeout(device.timer.handle); device.timer = undefined; }
   // linkEstimates co y GIU LAI: bang thong la cua duong truyen WiFi, khong cua phien.
   // updateLinkEstimate tu dat lai moc khi thay bo dem socket moi quay ve 0.
   if (device.throttleTimer) clearTimeout(device.throttleTimer);
-  try { await device.cdp.send("Page.stopScreencast").catch(() => { }); } catch { }
-  try { await root?.send("Target.closeTarget", { targetId: device.id }); } catch { }
+  // (26/09/2026 OS-2) Dong TAT CA tab cua thiet bi (khong chi tab active) — moi tab la mot Chromium target rieng.
+  for (const tab of device.tabs.values()) {
+    try { await tab.session.send("Page.stopScreencast").catch(() => { }); } catch { }
+    try { await root?.send("Target.closeTarget", { targetId: tab.targetId }); } catch { }
+  }
+  device.tabs.clear();
   console.log(`[device] Device ${device.deviceId} deleted [${devices.size}/${MAX_DEVICES} slots used]`);
 }

@@ -13,6 +13,33 @@ Ngày lập: 25/09/2026. Mốc quay về: **Bản Ổn định 25/09 đêm** (ta
     Home của OS `/os/home` (đồng hồ, thời tiết, lưới chia trang, dock), "Trang chủ" → ứng dụng Home Assistant.
   - Đo trên P4: YouTube 28,8 fps (không đổi).
   - Việc cần điều tra sau: một lần WiFi nghẽn làm WS đứt và **60 s** mới nối lại (watchdog), lẽ ra < 1 s.
+- **OS-2 xong — server 2.9.47**:
+  - **Mỗi ứng dụng một tab Chromium riêng** (`Tab` interface, `dev.tabs: Map<string,Tab>` trong `deviceManager.ts`):
+    Home Assistant (`key: 'home'`) và màn hình chính (`key: '__system'`) GHIM, tạo khi cần (không tạo trước lúc kết
+    nối), không bao giờ bị đóng tự động. Ứng dụng khác mở qua `openApp()` — tạo tab mới hoặc kích hoạt tab đã có.
+  - **Chuyển tab tức thì, không tải lại**: `activateTab()` chỉ đổi con trỏ `dev.cdp` sang session của tab kia, dừng
+    `Page.startScreencast` ở tab cũ và bật lại ở tab mới — không có `Page.navigate` nào xảy ra khi chuyển đổi.
+  - **Âm thanh theo tab**: `buildAudioGuardScript()` ghi đè `HTMLMediaElement.prototype.muted/volume`, đọc cờ
+    `window.__rwvAudioAllowed` (server bật/tắt qua `Runtime.evaluate`, tự khẳng định lại mỗi lần tab điều hướng
+    thật — chống việc lệnh bật "thua" một navigation đang chạy dở, xem chú thích `setTabAudioAllowed`). Radio/Nhạc
+    được đánh dấu `backgroundAudio=true` nên tiếp tục phát khi không active; YouTube/TikTok bị tạm dừng khi rời tab.
+  - **Định tuyến "Go Home"/"URL hiển thị"**: `navigateToUrl()` (export, dùng chung bởi `inputRouter.ts` và
+    `handleUserEnteredUrl`) phân loại theo GỐC URL — cùng gốc Home URL vào tab `'home'`, khác gốc vào tab
+    `'browser'` — vì hai loại lệnh này ĐI CHUNG một gói tin OpenURL ở tầng firmware, không phân biệt được.
+  - **Giới hạn tab**: `MAX_APP_TABS` (mặc định 2) ứng dụng phụ mỗi màn hình, LRU theo `tab.lastUsed`; tab active
+    hoặc đang phát nhạc nền không bao giờ bị đóng (có thể tạm vượt hạn mức khi cả hai đang giữ chỗ).
+  - Shell (`src/shell/main.ts`) đổi từ `location.href = url` sang `sendControl({app: id})` — server quyết định mở
+    tab nào, Shell không tự điều hướng ứng dụng nữa (chỉ còn ô nhập URL của "Trình duyệt" dùng `location.href`
+    làm phương án dự phòng cho firmware cũ chưa hỗ trợ `urlset`).
+  - Kiểm tra: `tsc --noEmit` sạch, 59/59 test qua (thêm 5 test `gestures.test.ts` cho cử chỉ mép). Xem lại cần đo
+    trên thiết bị thật (fps, thời gian chuyển Home Assistant, âm thanh nền) — xem mục "Còn lại" bên dưới.
+- **Việc còn lại cho phiên sau** (chưa làm trong OS-2):
+  - Chưa có nút/thẻ "Đang phát" trong thanh trạng thái để NGƯỜI DÙNG chủ động dừng nhạc/radio đang phát nền — hiện
+    chỉ dừng được bằng cách mở lại đúng ứng dụng đó rồi bấm nút dừng trong trang.
+  - Chưa đo RAM addon thực tế với nhiều tab cùng mở (giả định ~1,1 GB/3 màn hình một-tab trước đây; OS-2 có thể
+    cộng thêm 100–250 MB mỗi tab phụ đang mở — xem DOCS.md mục Giới hạn đã biết).
+  - OS-3 (theo lộ trình mục 8): màn hình "Gần đây" thật (ảnh thu nhỏ từng ứng dụng đang mở), thanh điều hướng
+    Quay lại/Home/Gần đây trên các ứng dụng "trần", hoàn thiện trang Ứng dụng.
 
 ## 1. Ý tưởng của người dùng (tóm lại để thống nhất)
 

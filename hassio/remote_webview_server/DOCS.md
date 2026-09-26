@@ -249,13 +249,20 @@ luôn gửi giá trị riêng của từng màn hình (trong YAML ESPHome) khi k
 - **Chrome DevTools**: bật *Mở DevTools ra mạng LAN* → trên máy tính mở Chrome, vào `chrome://inspect/#devices` →
   *Configure…* → thêm `<ip-HA>:9222` → *inspect* tab của màn hình. Tắt lại khi xong.
 - **Self-test**: đặt `url: "self-test"` trong YAML để đo thời gian dựng hình của màn hình.
+- **`MAX_APP_TABS`** (mặc định `2`): số ứng dụng "phụ" tối đa được giữ mở cùng lúc mỗi màn hình, không kể Home
+  Assistant và màn hình chính (hai cái đó luôn giữ). Mỗi ứng dụng mở là một tiến trình renderer Chrome riêng — tăng
+  giá trị này cho quay lại ứng dụng gần đây nhanh hơn, đổi lại tốn thêm RAM (xem mục Giới hạn đã biết).
 
 ## Giới hạn đã biết
 
-- Một trình duyệt dùng chung cho mọi màn hình: nếu **nhiều màn hình cùng có loa**, âm thanh của chúng có thể lẫn nhau.
+- Một trình duyệt dùng chung cho mọi màn hình: nếu **nhiều màn hình cùng có loa**, âm thanh của chúng có thể lẫn nhau
+  — tại một thời điểm chỉ một tab của một màn hình được phép phát tiếng (server tự khoá/mở, xem mục "Menu ứng dụng").
 - ESP32-S3 giải mã JPEG bằng phần mềm nên chậm hơn P4 nhiều — hợp với dashboard hơn video.
 - Radio VOV cần ~10 giây để bắt đầu phát (máy chủ đài giới hạn tốc độ).
 - Hẹn giờ lưu trong bộ nhớ addon: khởi động lại addon thì hẹn giờ đang chạy bị huỷ.
+- **RAM tăng theo số tab mở**: mỗi ứng dụng đang mở (kể cả chạy nền) là một tiến trình Chrome renderer riêng. Với
+  `MAX_APP_TABS` mặc định (2) cộng Home Assistant + màn hình chính, một màn hình có thể giữ tới 4 tab cùng lúc.
+  Chưa có nút "đóng ứng dụng" thủ công trong bản này — ứng dụng cũ nhất tự đóng khi vượt hạn mức.
 
 ## Mã nguồn, ghi công, giấy phép
 

@@ -35,7 +35,12 @@ interface DevState {
     const fn = window[CFG.bindings.control];
     if (typeof fn === 'function') { try { fn(JSON.stringify(obj)); } catch { /* bo qua */ } }
   }
-  function go(url: string): void { closeShade(false); location.href = url; }
+  // (26/09/2026 OS-2) MOI ung dung la MOT TAB rieng o server (docs/KE-HOACH-GIAO-DIEN-HE-DIEU-HANH.md muc 3.1):
+  // cham mot ung dung KHONG con dieu huong tab hien tai (location.href) ma xin SERVER chuyen sang dung tab do —
+  // server tu tao tab neu chua co, giu am cac tab khac (radio/nhac van phat khi khong active). Nho vay quay lai
+  // Home Assistant tuc thi, khong tai lai.
+  function openApp(id: string): void { closeShade(false); sendControl({ app: id }); }
+  function hasApp(id: string): boolean { return CFG.apps.some((a) => a.id === id); }
 
   // ── Khung Shadow DOM ──────────────────────────────────────────────────
   const host = document.createElement('rwv-shell');
@@ -89,8 +94,8 @@ interface DevState {
   const timerChip = el('button', 'chip timer'); timerChip.append(mdi('timer'), el('span'));
   const wxChip = el('button', 'chip'); const wxIcoBox = el('span'); const wxTxt = el('span');
   wxChip.append(wxIcoBox, wxTxt);
-  timerChip.addEventListener('click', () => go(CFG.urls.timer));
-  wxChip.addEventListener('click', () => go(CFG.urls.weather));
+  timerChip.addEventListener('click', () => openApp('timer'));
+  wxChip.addEventListener('click', () => openApp('weather'));
   info.append(infoL, el('div', 'spacer'), timerChip, wxChip);
 
   // O bat/tat nhanh
@@ -139,14 +144,15 @@ interface DevState {
 
   // Hang bieu tuong mo trang toan man hinh (chi hien muc DA CO — khong de nut chet)
   const shortcuts = el('div', 'shortcuts');
-  const SC: [string, string, () => void][] = [
-    ['apps', 'Ứng dụng', () => go(CFG.urls.osHome)],
-    ['ha', 'Home Assistant', () => { if (CFG.urls.ha) go(CFG.urls.ha); }],
-    ['cams', 'Camera', () => go(CFG.urls.cams)],
-    ['scenes', 'Cảnh', () => go(CFG.urls.scenes)],
+  const SC: [string, string, string | null, () => void][] = [
+    ['apps', 'Ứng dụng', null, () => openApp('__system')],
+    ['ha', 'Home Assistant', 'home', () => openApp('home')],
+    ['cams', 'Camera', 'cams', () => openApp('cams')],
+    ['scenes', 'Cảnh', 'scenes', () => openApp('scenes')],
   ];
-  for (const [icon, label, fn] of SC) {
-    if (icon === 'ha' && !CFG.urls.ha) continue;
+  for (const [icon, label, appId, fn] of SC) {
+    // Chi hien khi ung dung THAT SU co (chua bi an o Menu panel, hoac chua co Home URL) — khong de nut chet.
+    if (appId && !hasApp(appId)) continue;
     const b = el('button', 'sc'); const c = el('span', 'b'); c.appendChild(mdi(icon)); b.append(c, el('span', 'l', label));
     if (icon === 'ha') c.style.background = '#1a8fd6';
     b.addEventListener('click', (e) => { e.stopPropagation(); fn(); });
@@ -183,7 +189,7 @@ interface DevState {
   let homeWx: HTMLElement | null = null, homeWxIco: HTMLElement | null = null, homeWxT: HTMLElement | null = null, homeWxS: HTMLElement | null = null;
   function launch(app: App) {
     if (app.action === 'url') { closeShade(false); openUrlBox(); return; }
-    if (app.url) go(app.url);
+    openApp(app.id);
   }
   function appButton(app: App): HTMLElement {
     const b = el('button', 'app'); b.setAttribute('data-app', app.kind);
@@ -200,7 +206,7 @@ interface DevState {
     wc.append(hc, hd); clockEls.push(hc); dateEls.push(hd);
     homeWx = el('button', 'w-wx'); homeWxIco = el('span'); const col = el('div'); homeWxT = el('div', 't'); homeWxS = el('div', 's');
     col.append(homeWxT, homeWxS); homeWx.append(homeWxIco, col);
-    homeWx.addEventListener('click', () => go(CFG.urls.weather));
+    homeWx.addEventListener('click', () => openApp('weather'));
     widgets.append(wc, el('div', 'spacer'), homeWx);
     // Dock: Home Assistant truoc, roi toi da 4 ung dung hay dung
     const DOCK_KINDS = ['cams', 'youtube', 'weather', 'radio'];

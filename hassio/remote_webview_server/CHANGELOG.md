@@ -1,3 +1,21 @@
+## V2.9.47
+### Giai đoạn OS-2 — mỗi ứng dụng một tab Chromium riêng
+
+- **Mở ứng dụng không còn tải lại trang.** Home Assistant, Camera, Cảnh, Thời tiết, Radio… mỗi ứng dụng chạy trong
+  một tab Chromium riêng, giữ nguyên trạng thái (cuộn, video đang phát…). Quay lại Home Assistant từ ứng dụng khác
+  gần như tức thì thay vì tải lại dashboard 2–4 giây.
+- **Radio/Nhạc phát nền:** mở Radio rồi chuyển sang ứng dụng khác, tiếng vẫn tiếp tục — cho tới khi mở lại Radio và
+  bấm dừng. YouTube/TikTok thì ngược lại: rời trang là tự dừng phát, tránh tiếng chồng lên ứng dụng khác.
+  Do kiến trúc dùng chung một tiến trình Chrome, tại một thời điểm chỉ MỘT tab được phép phát tiếng ra loa; server
+  tự khoá/mở âm thanh theo tab đang hiện hoặc được đánh dấu "phát nền".
+  - **Chỉ MỘT tab được truyền hình** — tab đang hiện trên màn hình; các tab khác vẫn chạy JavaScript bình thường
+    (kể cả phát nhạc) nhưng không tốn công mã hoá/truyền ảnh.
+  - Tối đa 2 ứng dụng "phụ" mở cùng lúc mỗi màn hình (Home Assistant và màn hình chính không tính, luôn giữ);
+    ứng dụng cũ nhất tự đóng khi mở thêm — trừ khi đang phát nhạc nền hoặc đang hiện. Chỉnh qua biến môi trường
+    `MAX_APP_TABS` (mặc định 2, xem DOCS.md mục Nâng cao).
+  - "Trang chủ" đổi tên hẳn thành ứng dụng **Home Assistant**; nút/thực thể "Go Home" của ESPHome vẫn luôn đưa tab
+    này về đúng Home URL dù đang ở trang con nào của HA.
+
 ## V2.9.46
 ### Đồng hồ ở giữa mép trên chỉ để xem giờ
 
