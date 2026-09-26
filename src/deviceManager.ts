@@ -1594,8 +1594,9 @@ export async function unlockDoorbell(id: string): Promise<{ ok: boolean; error?:
 
 // ── (27/09/2026) CHAO BUOI SANG: lan dau camera thay nguoi trong khung gio sang (moi ngay, moi man hinh mot lan) -> mo
 // ung dung "Hom nay" (thoi tiet, lich, viec, ghi chu) va doc tom tat qua loa cua panel (tts.speak, neu HA co TTS).
-const MORNING_WINDOW = process.env.MORNING_BRIEFING === '0' ? null : parseWindow(process.env.MORNING_WINDOW || '06:00-09:30');
-const MORNING_TTS = process.env.MORNING_TTS !== '0';
+const off = (v: string | undefined) => v === '0' || v === 'false';
+const MORNING_WINDOW = off(process.env.MORNING_BRIEFING) ? null : parseWindow(process.env.MORNING_WINDOW || '06:00-09:30');
+const MORNING_TTS = !off(process.env.MORNING_TTS);
 
 function maybeMorning(dev: DeviceSession): void {
   const tz = dev.devState?.tzOffsetMin ?? 420;

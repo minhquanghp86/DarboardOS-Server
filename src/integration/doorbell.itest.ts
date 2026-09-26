@@ -43,13 +43,13 @@ it('chuong cua: mo camera, mo cong bang script da khai, dong / het gio thi quay 
   for (let i = 0; i < 40 && !ha.calls.some((c) => c.path === 'script.turn_on'); i++) await sleep(150);
   expect(ha.calls.find((c) => c.path === 'script.turn_on')?.body).toEqual({ entity_id: 'script.mo_cong' });
   // Mo xong 6 s -> tu dong -> ve Home Assistant, tab chuong dong
-  await dev.waitFor(() => dev!.currentUrls().at(-1) === home, 12_000, 've HA');
+  await dev.waitFor(() => dev!.currentUrls().slice(-1)[0] === home, 12_000, 've HA');
   for (let i = 0; i < 20 && (await srv.pageUrls()).some((u) => u.includes('/doorbell.html')); i++) await sleep(200);
   expect((await srv.pageUrls()).some((u) => u.includes('/doorbell.html'))).toBe(false);
 
   // Het gio (10 s) khong ai tra loi -> tu quay ve
   await ring({ camera: 'cong', timeout: 10 });
-  await dev.waitFor(() => dev!.currentUrls().at(-1)!.includes('/doorbell.html'), 8000, 'chuong lan 2');
-  await dev.waitFor(() => dev!.currentUrls().at(-1) === home, 16_000, 'het gio ve HA');
+  await dev.waitFor(() => dev!.currentUrls().slice(-1)[0]!.includes('/doorbell.html'), 8000, 'chuong lan 2');
+  await dev.waitFor(() => dev!.currentUrls().slice(-1)[0] === home, 16_000, 'het gio ve HA');
   expect(srv.log()).toContain("dong tab \"__doorbell\" (doorbell, het gio)");
 });

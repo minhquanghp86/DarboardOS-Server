@@ -143,6 +143,31 @@ Giọt nước ở giữa mép trên mọi trang hiện **giờ của chính mà
 Chạm = bật/tắt; **chạm giữ** một ô trong *Phòng* để mở bảng chi tiết (độ sáng, rèm, nhiệt độ). Các ứng dụng này chỉ
 nhận lệnh từ chính màn hình, và chỉ các thao tác kể trên (không mở khoá cửa, không tắt báo động).
 
+**Ảnh riêng tư:** thư mục ảnh là `media/photos` của Home Assistant (HA → Media → Local media, hoặc Samba `\\<máy HA>\media\photos`).
+Khác thư mục `www` (ai có địa chỉ cũng xem được qua `/local/…`, không cần đăng nhập), thư mục media **chỉ xem được khi đã
+đăng nhập HA**. Addon chỉ **đọc** thư mục này và chỉ trả ảnh cho **trình duyệt của chính addon** (127.0.0.1): máy khác
+trong LAN, trang ingress hay Internet gọi `/photos/…` đều bị từ chối (403).
+
+### Bảng tin, chuông cửa (gọi từ Home Assistant)
+
+```yaml
+rest_command:
+  ghi_chu_panel:
+    url: "http://127.0.0.1:18080/board"      # hoặc http://<IP máy HA>:18080/board
+    method: post
+    content_type: "application/json"
+    payload: '{"text": "{{ text }}", "by": "{{ by | default(\'\') }}", "color": "pink"}'
+  chuong_cua_panel:
+    url: "http://127.0.0.1:18080/doorbell"
+    method: post
+    content_type: "application/json"
+    payload: '{"camera": "cong_truoc", "title": "Cổng trước", "unlock": "script.mo_cong", "timeout": 60}'
+```
+
+- `camera`: tên luồng trong go2rtc. `unlock` (tuỳ chọn): `script.*`, `button.*` hoặc `lock.*` — nút **Mở cổng** chỉ
+  chạy đúng thực thể này. `timeout`: 10–300 giây rồi tự quay về ứng dụng trước.
+- Automation mẫu: khi nút chuông (binary_sensor/event) bật → `rest_command.chuong_cua_panel`.
+
 ### Trợ lý giọng nói (cần firmware có `voice_assistant`)
 
 - Nói từ đánh thức (chọn trong thực thể **Từ đánh thức** của màn hình: Tắt / Okay Nabu / Hey Jarvis), hoặc chạm nút
