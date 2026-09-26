@@ -141,7 +141,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // (25/09/2026) Them weather.html (ung dung "Thoi tiet" cua launcher) — cung nguyen tac: chi LAN, khong qua HA.
 // (25/09/2026) + cac ung dung launcher: camera nha, canh, lich am duong, radio, hen gio; lunar.js dung chung.
 const STATIC_PAGES = ['cam.html', 'weather.html', 'cams.html', 'scenes.html', 'calendar.html', 'radio.html', 'timer.html', 'lunar.js',
-  'launcher-config.html', 'os-home.html'];
+  'launcher-config.html', 'os-home.html', 'ui.css', 'ui.js'];
 const staticCache = new Map<string, Buffer>();
 for (const name of STATIC_PAGES) {
   const p = path.join(__dirname, '..', 'public', name);
@@ -179,7 +179,8 @@ http.createServer((req, res) => {
     if (!page) { res.writeHead(500); res.end(`${pathname.slice(1)} khong tai duoc`); return; }
     // no-store: file co the duoc cap nhat qua rebuild addon, khong muon
     // Chromium cache lau nhu HA tung lam voi /local/ (31 ngay).
-    const type = pathname.endsWith('.js') ? 'text/javascript; charset=utf-8' : 'text/html; charset=utf-8';
+    const type = pathname.endsWith('.js') ? 'text/javascript; charset=utf-8'
+      : pathname.endsWith('.css') ? 'text/css; charset=utf-8' : 'text/html; charset=utf-8';
     res.writeHead(200, { 'content-type': type, 'cache-control': 'no-store' });
     res.end(page);
     return;

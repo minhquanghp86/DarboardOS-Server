@@ -10,7 +10,9 @@ import { DeviceBroadcaster } from "./broadcaster";
 
 export class SelfTestRunner {
   private _broadcaster: DeviceBroadcaster;
-  private _stage = 0;
+  // (26/09/2026) -1 = KHONG chay self-test. Truoc day mac dinh 0 va giu 2 sau khi xong -> moi goi FrameStats (5 s/lan)
+  // deu ghi log "Frame render time" va, sau mot lan self-test, tai lai trang ket qua moi 5 s.
+  private _stage = -1;
   private _partial?: number;
   private _full?: number;
   private _timeoutId0?: NodeJS.Timeout;
@@ -48,6 +50,7 @@ export class SelfTestRunner {
   }
 
   public async setFrameRenderTimeAsync(value: number, session: CDPSession): Promise<void> {
+    if (this._stage < 0) return;
     console.log(`[Self test] Frame render time: ${value}ms`);
     switch (this._stage) {
       case 1:
@@ -56,6 +59,8 @@ export class SelfTestRunner {
       case 2:
         this._full = value ?? 0;
         console.log(`Self test result: partial=${this._partial}ms, full=${this._full}ms`);
+        this._stage = -1;
+        this._timeoutId0 = this._timeoutId1 = this._timeoutId2 = undefined;
         await session.send('Page.navigate', { url: `file:///app/self-test/test1.html?partial=${this._partial}&full=${this._full}` });
         break;
     }
@@ -71,6 +76,6 @@ export class SelfTestRunner {
     this._timeoutId0 = undefined;
     this._timeoutId1 = undefined;
     this._timeoutId2 = undefined;
-    this._stage = 0;
+    this._stage = -1;
   }
 }

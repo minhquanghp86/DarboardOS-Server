@@ -23,7 +23,7 @@ import { fileURLToPath } from "node:url";
 import { buildLauncherApps, listAllApps, GROUP_TITLES, LAUNCHER_CAMS_URL, LAUNCHER_OS_HOME_URL, LAUNCHER_SCENES_URL, LAUNCHER_TIMER_URL, LAUNCHER_WEATHER_URL } from "./launcherApps.js";
 import { createRequire } from "node:module";
 import { getWeatherMini, onWeatherMiniUpdate } from "./weatherMini.js";
-import { SerialQueue, nowPlaying, pickEvictions } from "./tabPolicy.js";
+import { SerialQueue, appKeyForUrl, nowPlaying, pickEvictions, recentsList } from "./tabPolicy.js";
 import { ControlField, DeviceStateInfo, Encoding, FRAME_HEADER_BYTES, TILE_HEADER_BYTES, parseDeviceStatePacket } from "./protocol.js";
 
 // ── Type-safe interface cho CDP root (thay thế cast `any`) ────────────────────
@@ -165,6 +165,8 @@ interface Tab {
   /** Trang da bao trang thai phat it nhat mot lan tu lan dieu huong gan nhat (chua bao -> chinh sach don than trong). */
   mediaKnown: boolean;
   lastUsed: number;
+  /** (26/09/2026 OS-3) Anh thu nho (data URL JPEG ~320 px) chup luc roi tab — cho man hinh "Gan day". */
+  thumb?: string;
 }
 
 // (23/09/2026) SUA LOI: "man ngu tu bat lai nhung khong hien gi, phai vuot
@@ -959,12 +961,18 @@ export function navigateToUrl(dev: DeviceSession, url: string): Promise<void> {
 
 async function navigateToUrlNow(dev: DeviceSession, url: string): Promise<void> {
   if (devices.get(dev.deviceId) !== dev) return;  // phien da bi xoa trong luc lenh nay xep hang
-  const key = isHaUrl(dev, url) ? 'home' : 'browser';
+  // (26/09/2026) URL thuoc mot ung dung trong menu (vd youtu.be -> YouTube) vao DUNG tab ung dung do.
+  // Thu tu: ung dung khop (ke ca ung dung nam tren HA nhu Nang luong) -> cung goc HA (tab 'home') -> Trinh duyet.
+  const appKey = appKeyForUrl(url, listAllApps(dev.cfg.homeUrl).filter((a) => !a.hidden && a.id !== 'home'))
+    ?? (isHaUrl(dev, url) ? 'home' : null);
+  const spec = appKey && appKey !== 'home' ? resolveAppSpec(dev, appKey) : null;
+  const key = appKey === 'home' ? 'home' : spec ? appKey! : 'browser';
   let tab = dev.tabs.get(key);
   let navigated = false;
   if (!tab) {
-    tab = await createTab(dev, key, key === 'home' ? 'ha' : 'browser', key === 'home',
-      key === 'home' ? 'Home Assistant' : 'Trình duyệt');
+    tab = key === 'home' ? await createTab(dev, key, 'ha', true, 'Home Assistant')
+      : spec ? await createTab(dev, key, spec.kind, false, spec.label)
+      : await createTab(dev, key, 'browser', false, 'Trình duyệt');
     if (devices.get(dev.deviceId) !== dev) { closeTab(dev, key, 'phien thiet bi da bi xoa'); return; }
     // Bat screencast TRUOC (tren trang trang, an toan) roi moi dieu huong cheo nguon — xem createTab().
     await activateTab(dev, key);
@@ -982,6 +990,7 @@ async function navigateToUrlNow(dev: DeviceSession, url: string): Promise<void> 
   // can nudge them.
   if (!navigated) await nudgeRepaintAsync(dev.cdp).catch(() => { });
   requestFullFrameFor(dev);
+  evictIfNeeded(dev);
 }
 
 // (25/09/2026) Thanh truot trong menu goi window.__rwvControl(JSON). Chi nhan dung hai truong, gia tri 0..100 (trang
@@ -998,6 +1007,20 @@ function handleMenuControl(id: string, payload: unknown, from?: Tab): void {
   // (26/09/2026) Trang cua MOT tab bao dang phat / da dung (buildAudioGuardScript). Chi tin tab con thuoc thiet bi.
   if (msg?.media != null) {
     if (from && dev.tabs.get(from.key) === from) onTabMedia(dev, from, !!msg.media);
+    return;
+  }
+  // (26/09/2026 OS-3) Man hinh "Gan day": mo (chup anh tab dang hien truoc), dong mot ung dung, dong tat ca.
+  if (msg?.recents) { showRecents(dev, true).catch(() => { }); return; }
+  if (typeof msg?.close === 'string' || msg?.closeAll) {
+    const keys = msg.closeAll ? [...dev.tabs.keys()] : [msg.close as string];
+    dev.tabOps.run(async () => {
+      for (const k of keys) {
+        const t = dev.tabs.get(k);
+        if (t && !t.pinned && k !== dev.activeTabKey) closeTab(dev, k, 'nguoi dung dong o Gan day');
+      }
+      pushDeviceStateToPage(dev);
+      await showRecents(dev, false);
+    }).catch(() => { });
     return;
   }
   // Nut "Dung" cua the Dang phat trong thanh trang thai.
@@ -1242,6 +1265,33 @@ function evictIfNeeded(dev: DeviceSession): void {
   for (const key of pickEvictions(dev.tabs.values(), dev.activeTabKey, MAX_APP_TABS)) closeTab(dev, key);
 }
 
+/**
+ * (26/09/2026 OS-3) Chup anh thu nho cua MOT tab (JPEG ~320 px ngang, ~10 KB) cho man hinh "Gan day". Goi luc tab
+ * sap roi man hinh (activateTab) — luc do trang con dang dung dung trang thai nguoi dung vua thay. Toi da 1,5 s.
+ */
+async function captureThumb(dev: DeviceSession, tab: Tab): Promise<void> {
+  const scale = Math.min(1, 320 / dev.cfg.width);
+  try {
+    const r = await Promise.race([
+      tab.session.send('Page.captureScreenshot', {
+        format: 'jpeg', quality: 60, clip: { x: 0, y: 0, width: dev.cfg.width, height: dev.cfg.height, scale },
+      }) as Promise<{ data: string }>,
+      new Promise<never>((_, rej) => setTimeout(() => rej(new Error('het gio')), 1500)),
+    ]);
+    if (r?.data) tab.thumb = 'data:image/jpeg;base64,' + r.data;
+  } catch { /* giu anh cu (neu co) */ }
+}
+
+/** Dua danh sach "Gan day" vao Shell cua tab dang hien. open=false: chi cap nhat neu man hinh Gan day DANG mo. */
+async function showRecents(dev: DeviceSession, open: boolean): Promise<void> {
+  const active = dev.tabs.get(dev.activeTabKey);
+  if (open && active) await captureThumb(dev, active);
+  const list = recentsList(dev.tabs.values(), dev.activeTabKey);
+  await dev.cdp.send('Runtime.evaluate', {
+    expression: `window.__rwvShell && window.__rwvShell.recents && window.__rwvShell.recents(${JSON.stringify(list)}, ${open})`,
+  }).catch(() => { });
+}
+
 /** (26/09/2026) Trang cua tab bao bat dau/ngung phat. Doi trang thai -> cap nhat the "Dang phat" tren man hinh. */
 function onTabMedia(dev: DeviceSession, tab: Tab, playing: boolean): void {
   const changed = tab.mediaPlaying !== playing || !tab.mediaKnown;
@@ -1431,6 +1481,7 @@ async function activateTab(dev: DeviceSession, key: string): Promise<void> {
       }).catch(() => { });
     }
     setTabAudioAllowed(prev, prev.backgroundAudio);
+    void captureThumb(dev, prev);  // anh cho "Gan day" — truoc khi tat screencast, khong cho
     if (prev.screencastOn) {
       prev.session.send('Page.stopScreencast').catch(() => { });
       prev.screencastOn = false;

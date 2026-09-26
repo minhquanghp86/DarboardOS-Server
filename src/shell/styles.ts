@@ -118,6 +118,37 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .dock .app .l { display: none; }
 .dock .app:first-child .app-ic { box-shadow: 0 0 0 2px rgba(65,189,245,0.65), 0 3px 10px rgba(0,0,0,0.35); }
 
+/* ── Gan day (OS-3) ────────────────────────────────────────────────── */
+.recents { position: absolute; inset: 0; pointer-events: auto; background: rgba(12,14,20,0.97); display: flex; flex-direction: column;
+  padding: calc(var(--pad) + 8px) 0 var(--pad); gap: var(--gap); }
+.recents.anim { animation: rc-in 140ms ease-out; }
+@keyframes rc-in { from { opacity: 0; } }
+.rc-head { display: flex; align-items: center; gap: var(--gap); padding: 0 calc(var(--pad) * 1.6); }
+.rc-head .t { font-size: 1.35em; font-weight: 600; }
+.rc-all { padding: clamp(6px, 1.6vmin, 10px) clamp(12px, 3vmin, 20px); border-radius: 999px; background: var(--surface-2); font-weight: 600; }
+.rc-row { flex: 1; min-height: 0; display: flex; align-items: center; gap: calc(var(--gap) * 1.8); overflow-x: auto; overflow-y: hidden;
+  padding: 0 calc(var(--pad) * 1.6); scroll-snap-type: x mandatory; scrollbar-width: none; }
+.rc-row::-webkit-scrollbar { display: none; }
+.rc { flex: none; width: clamp(140px, 29vw, 360px); display: flex; flex-direction: column; gap: clamp(6px, 1.4vmin, 10px);
+  scroll-snap-align: center; touch-action: pan-x; cursor: pointer; transition: transform 160ms ease-out, opacity 160ms ease-out; }
+/* can giua khi vua man hinh, van cuon duoc khi tran */
+.rc:first-child { margin-left: auto; }
+.rc:last-child { margin-right: auto; }
+.rc-top { display: flex; align-items: center; gap: clamp(6px, 1.4vmin, 10px); min-width: 0; }
+.rc-top .app-ic { width: clamp(22px, 5.5vmin, 32px); height: clamp(22px, 5.5vmin, 32px); border-radius: 28%; box-shadow: none; }
+.rc-l { flex: 1; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rc-x { flex: none; width: clamp(26px, 6.5vmin, 36px); height: clamp(26px, 6.5vmin, 36px); border-radius: 50%; background: var(--surface-2);
+  display: flex; align-items: center; justify-content: center; font-size: 0.95em; }
+.rc-img { position: relative; aspect-ratio: var(--ar, 1.7); max-height: 62vh; border-radius: var(--r-lg); overflow: hidden; background: var(--surface-2);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; }
+.rc-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.rc-ph { width: 30%; aspect-ratio: 1; border-radius: 26%; display: flex; align-items: center; justify-content: center; }
+.rc.cur .rc-img { box-shadow: 0 0 0 2px var(--accent), 0 8px 28px rgba(0,0,0,0.45); }
+.rc.gone { opacity: 0; transform: translateY(-40%); pointer-events: none; }
+.rc-empty { margin: auto; color: var(--muted); }
+.recents-btn .app-ic { background: rgba(255,255,255,0.14); }
+.recents-btn .app-ic .ic { width: 55%; height: 55%; }
+
 /* ── Bao thuc ────────────────────────────────────────────────────────── */
 .alarm { position: absolute; inset: 0; pointer-events: auto; background: rgba(10,12,18,0.95); display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 3vmin; cursor: pointer; }

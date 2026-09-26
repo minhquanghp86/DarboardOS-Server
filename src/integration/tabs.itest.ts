@@ -112,4 +112,14 @@ describe('OS-2: moi ung dung mot tab (server + Chromium that)', () => {
     expect(urls.some((u) => u.includes('/radio.html'))).toBe(false);
     expect(urls.some((u) => u.includes('/weather.html'))).toBe(false);
   });
+
+  it('URL tu HA thuoc mot ung dung trong menu mo vao DUNG tab ung dung do (khong phai tab Trinh duyet)', async () => {
+    const { home } = await connectPanel('it-route');
+    const url = srv.local('/weather.html?tu=ha');
+    dev!.openUrl(url);
+    await srv.waitPage((u) => u === url);
+    await control(url, { app: 'weather' });   // mo Thoi tiet tu menu: dung lai tab do, khong tao tab moi
+    await sleep(1_500);
+    expect((await srv.pageUrls()).sort()).toEqual([home, url].sort());
+  });
 });
