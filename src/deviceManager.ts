@@ -1388,6 +1388,16 @@ async function captureThumb(dev: DeviceSession, tab: Tab): Promise<void> {
   } catch { /* giu anh cu (neu co) */ }
 }
 
+/**
+ * (26/09/2026) Thiet bi xin ve lai mot vung (da tu ve vong tron phan hoi cham de len): ep gui lai cac o do o khung ke
+ * tiep, bo qua loc "khung trung khung truoc", va nudge de Chrome phat mot khung moi ngay ca khi trang dung yen.
+ */
+export function repaintRect(dev: DeviceSession, x: number, y: number, w: number, h: number): void {
+  dev.processor.invalidateRect(x, y, w, h);
+  dev.prevFrameHash = -1;
+  nudgeRepaintAsync(dev.cdp).catch(() => { });
+}
+
 /** (26/09/2026) Mo man hinh "Gan day" — tu cu chi vuot-len-roi-giu o mep duoi (inputRouter.ts). */
 export function openRecents(dev: DeviceSession): void {
   showRecents(dev, true).catch(() => { });

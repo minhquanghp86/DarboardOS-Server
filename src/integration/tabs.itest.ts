@@ -151,4 +151,15 @@ describe('OS-2: moi ung dung mot tab (server + Chromium that)', () => {
     expect(dev!.currentUrls().slice(-1)[0]).toBe(home);   // khong ve man hinh chinh
     expect((await srv.pageUrls()).some((u) => u.includes('/os/home'))).toBe(false);
   });
+
+  it('RepaintRect: trang dung yen van gui lai dung vung thiet bi xin ve lai (xoa vong tron phan hoi cham)', async () => {
+    await connectPanel('it-repaint');
+    await dev!.waitFor(() => dev!.frameCount() > 0, 15_000, 'khung dau');
+    await sleep(2_500);                               // trang tinh: het khung moi
+    const from = dev!.msgs.length;
+    dev!.repaintRect(300, 200, 44, 44);
+    await dev!.waitFor(() => dev!.tilesSince(from).length > 0, 5_000, 'server gui lai vung');
+    const tiles = dev!.tilesSince(from);
+    expect(tiles.some((r) => r.x <= 300 && r.x + r.w >= 344 && r.y <= 200 && r.y + r.h >= 244)).toBe(true);
+  });
 });

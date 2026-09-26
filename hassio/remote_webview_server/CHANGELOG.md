@@ -1,3 +1,12 @@
+## V2.9.54
+### Hỗ trợ phản hồi chạm tức thì trên thiết bị
+
+- Firmware mới (tuỳ chọn `touch_feedback: true`, P4) vẽ **vòng tròn tại điểm chạm ngay trên thiết bị**, không chờ
+  server (~100–250 ms đi-về). Khi nhấc tay, thiết bị gửi gói mới `RepaintRect` xin server **vẽ lại đúng vùng đó** —
+  server ép gửi lại các ô ảnh ở vùng này kể cả khi trang đứng yên, nên vòng tròn tự biến mất.
+- **Cập nhật addon này TRƯỚC khi nạp firmware có `touch_feedback`**: server cũ không hiểu gói mới, vòng tròn sẽ đọng lại
+  tới khi vùng đó đổi nội dung.
+
 ## V2.9.53
 ### Thông báo từ Home Assistant + Không làm phiền (OS-5)
 

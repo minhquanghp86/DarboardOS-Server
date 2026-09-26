@@ -55,6 +55,9 @@ export enum MsgType {
   DeviceControl = 9,
   // (25/09/2026) Thiet bi -> server: do sang, am luong hien tai + GIO cua thiet bi (dong ho tren nut menu).
   DeviceState = 10,
+  // (26/09/2026) Thiet bi -> server: "ve lai vung nay" [11][1][x u16][y u16][w u16][h u16] — thiet bi vua tu ve de
+  // len man hinh (vong tron phan hoi cham, touch_feedback) va can server gui lai noi dung that cua vung do.
+  RepaintRect = 11,
 }
 
 /** Truong cua goi DeviceControl (khop proto::ControlField ben firmware). */
@@ -365,4 +368,11 @@ export function parseDeviceStatePacket(buf: Buffer): DeviceStateInfo | null {
       ? { noSleep: (buf.readUInt8(13) & 1) !== 0, muted: (buf.readUInt8(13) & 2) !== 0, aec: (buf.readUInt8(13) & 4) !== 0 }
       : null,
   };
+}
+
+/** (26/09/2026) Goi RepaintRect: [type][ver][x u16][y u16][w u16][h u16] = 10 byte. */
+export function parseRepaintRectPacket(buf: Buffer): { x: number; y: number; w: number; h: number } | null {
+  if (!Buffer.isBuffer(buf) || buf.length < 10 || buf.readUInt8(0) !== MsgType.RepaintRect) return null;
+  const r = { x: buf.readUInt16LE(2), y: buf.readUInt16LE(4), w: buf.readUInt16LE(6), h: buf.readUInt16LE(8) };
+  return r.w > 0 && r.h > 0 && r.w <= 4096 && r.h <= 4096 ? r : null;
 }

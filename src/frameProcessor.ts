@@ -55,6 +55,8 @@ export class FrameProcessor {
   private _cfg: FrameProcessorCfg;
   private _cols = 0;
   private _rows = 0;
+  /** (26/09/2026) O bat buoc gui lai o khung ke tiep du bam khong doi — xem invalidateRect(). */
+  private _dirty?: Uint8Array;
   /** Kich thuoc khung ma luoi o hien tai duoc tao theo. */
   private _gridW = 0;
   private _gridH = 0;
@@ -116,6 +118,20 @@ export class FrameProcessor {
     return { jpegQuality: this._cfg.jpegQuality };
   }
 
+  /**
+   * (26/09/2026) Ep gui lai cac o chong len hinh chu nhat (toa do khung ra) o khung ke tiep, ke ca khi noi dung trang
+   * khong doi. Dung khi THIET BI tu ve de len man hinh (vong tron phan hoi cham ve thang vao framebuffer) roi xin server
+   * "ve lai vung nay" de xoa no: bang bam o cu van khop anh tren server nen vi sai se khong bao gio gui lai vung do.
+   */
+  public invalidateRect(x: number, y: number, w: number, h: number): void {
+    if (!this._prev || w <= 0 || h <= 0) return;
+    const ts = this._cfg.tileSize;
+    if (!this._dirty || this._dirty.length !== this._prev.length) this._dirty = new Uint8Array(this._prev.length);
+    const tx0 = Math.max(0, Math.floor(x / ts)), ty0 = Math.max(0, Math.floor(y / ts));
+    const tx1 = Math.min(this._cols - 1, Math.floor((x + w - 1) / ts)), ty1 = Math.min(this._rows - 1, Math.floor((y + h - 1) / ts));
+    for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) this._dirty[ty * this._cols + tx] = 1;
+  }
+
   public requestFullFrame(): void {
     this._iter = 0;
     this._fullFrameRequested = true;
@@ -155,13 +171,14 @@ export class FrameProcessor {
         const h32 = hash32(raw);
         const idx = ty * this._cols + tx;
         const prev = this._prev![idx];
-        const changed = forceFull || (prev !== h32);
+        const changed = forceFull || (prev !== h32) || this._dirty?.[idx] === 1;
 
         tiles.push({ x, y, w, h, idx, h32, changed });
         if (changed) changedArea += w * h;
       }
     }
 
+    this._dirty?.fill(0);
     const totalArea = rgba.width * rgba.height;
     const changedPct = totalArea > 0 ? (changedArea / totalArea) : 0;
     // (25/09/2026) Co the ghi de luc chay (tuning.ts) de thu nghiem ma khong can OTA thiet bi.
@@ -402,6 +419,7 @@ export class FrameProcessor {
     this._cols = Math.ceil(w / this._cfg.tileSize);
     this._rows = Math.ceil(h / this._cfg.tileSize);
     this._prev = new Uint32Array(this._cols * this._rows);
+    this._dirty = undefined;
   }
 
   private _extractRaw(rgba: RGBA, x: number, y: number, w: number, h: number): Buffer {

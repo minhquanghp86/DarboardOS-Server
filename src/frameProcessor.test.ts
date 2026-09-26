@@ -232,3 +232,18 @@ describe("khung doi kich thuoc giua chung (OS-2: tab moi bat screencast)", () =>
     expect(back.isFullFrame).toBe(true);
   });
 });
+
+describe("ve lai vung (xoa vong tron phan hoi cham cua thiet bi)", () => {
+  it("khung giong het van gui lai DUNG cac o chong len vung xin ve lai", async () => {
+    const p = mkProc({ tileSize: 64, fullFrameEvery: 1000, fullframeAreaThreshold: 0.9 });
+    const f = makeFrame(256, 256, "ui");
+    await p.processFrameAsync(f);                      // khung dau: ca khung
+    expect((await p.processFrameAsync(f)).rects).toEqual([]);   // khong doi: khong gui gi
+    p.invalidateRect(100, 100, 44, 44);                // vung 100..143 -> o (1,1),(2,1),(1,2),(2,2)
+    const out = await p.processFrameAsync(f);
+    const area = out.rects.reduce((a, r) => a + r.w * r.h, 0);
+    expect(area).toBe(4 * 64 * 64);
+    for (const r of out.rects) expect(r.x < 144 && r.x + r.w > 100 && r.y < 144 && r.y + r.h > 100).toBe(true);
+    expect((await p.processFrameAsync(f)).rects).toEqual([]);   // chi mot lan
+  });
+});
