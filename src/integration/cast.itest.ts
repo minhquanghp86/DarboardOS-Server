@@ -44,7 +44,7 @@ async function search(): Promise<string[]> {
 
 it('dien thoai tim thay panel, truyen YouTube -> YouTube TV tren panel, ngat -> quay ve', async () => {
   const home = srv.local('/ha');
-  dev = await FakeDevice.connect(srv, DEV_ID, { home, ctl: '1' });
+  dev = await FakeDevice.connect(srv, DEV_ID, { home, ctl: '1', audio: '1' });
   await dev.waitFor(() => dev!.currentUrls().includes(home), 20_000, 'ket noi');
   await srv.waitPage((u) => u === home);
 
@@ -69,6 +69,8 @@ it('dien thoai tim thay panel, truyen YouTube -> YouTube TV tren panel, ngat -> 
   const yt = await srv.waitPage((u) => u.includes('pairingCode=ab12-cd34'));
   expect(yt.url).toContain('theme=cl');
   expect(await srv.evaluate<string>(yt, 'navigator.userAgent')).toContain('SMART-TV');
+  // Tab YouTube TV: khong ghi de muted/volume (giao dien TV phai thay am thanh that, dien thoai chinh am luong duoc)
+  expect(await srv.evaluate<string>(yt, "String(Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'volume').set)")).toContain('native code');
   await dev.waitFor(() => dev!.currentUrls().slice(-1)[0].includes('pairingCode=ab12-cd34'), 8000, 'panel hien YouTube TV');
   expect(dev.msgs.slice(before).some((m) => m[0] === 9 && m[2] === 1)).toBe(true);        // bat den nen
   expect(await (await fetch(appUrl + 'YouTube')).text()).toContain('<state>running</state>');

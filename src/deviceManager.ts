@@ -885,12 +885,17 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
 // Mac dinh CAM khi vua tiem (an toan — tab moi tao chua duoc active). setTabAudioAllowed() bat/tat song, VA
 // handleTabNavigation() khang dinh lai moi lan tab dieu huong that su (chong truong hop lenh bat cho tab MOI
 // TAO bi "thua" navigation dang chay do — xem chu thich o setTabAudioAllowed).
-export function buildAudioGuardScript(alwaysMuted: boolean): string {
+//
+// (27/09/2026) `passthrough` (tab YouTube TV khi truyen tu dien thoai): KHONG ghi de muted/volume. Giao dien TV cua
+// YouTube doc video.muted/volume luc khoi dong (truoc khi server kip bat co) -> tuong TV dang tat tieng/am luong 0
+// va giu nguyen trang thai do (panel co hinh, mat tieng); nut am luong tren dien thoai cung khong tac dung vi setter
+// bi vo hieu. Tab nay luon o tien canh va duoc tam dung khi roi di (activateTab) nen khong can khoa.
+export function buildAudioGuardScript(alwaysMuted: boolean, passthrough = false): string {
   return `(function(){
   window.__rwvAudioGuard = true;
   window.__rwvAudioAllowed = false;
   var ALWAYS_MUTED = ${alwaysMuted};
-  try {
+  if (${passthrough} && !ALWAYS_MUTED) {} else try {
     var proto = HTMLMediaElement.prototype;
     Object.defineProperty(proto, 'muted', {
       get: function(){ return ALWAYS_MUTED || !window.__rwvAudioAllowed; }, set: function(){}, configurable: true
@@ -1713,6 +1718,13 @@ function onTabMedia(dev: DeviceSession, tab: Tab, playing: boolean): void {
   if (!changed) return;
   if (tab.backgroundAudio) console.log(`[app] ${dev.deviceId}: tab "${tab.key}" ${playing ? 'dang phat' : 'da dung phat'}`);
   if (playing && dev.activeTabKey === tab.key) noteActivity(dev, 'bat dau phat video/am thanh');
+  // (27/09/2026) Chan doan truyen YouTube: trang thai am thanh THAT cua trinh phat (log addon).
+  if (playing && tab.kind === 'yttv') {
+    tab.session.send('Runtime.evaluate', { returnByValue: true, expression:
+      "Array.prototype.map.call(document.querySelectorAll('audio,video'),function(m){return m.tagName+' muted='+m.muted+' vol='+m.volume+' paused='+m.paused}).join('; ')" })
+      .then((r) => console.log(`[cast] ${dev.deviceId}: dang phat — ${(r as { result?: { value?: string } })?.result?.value || 'khong thay the media'}`))
+      .catch(() => { });
+  }
   pushDeviceStateToPage(dev);
 }
 
@@ -1751,7 +1763,7 @@ async function createTab(dev: DeviceSession, key: string, kind: string, pinned: 
   await session.send('Page.enable');
 
   // (23/09/2026, xem buildAudioGuardScript) Tiem TRUOC bat ky script nao khac va truoc lan dieu huong dau tien.
-  await session.send('Page.addScriptToEvaluateOnNewDocument', { source: buildAudioGuardScript(!dev.cfg.audioEnabled) });
+  await session.send('Page.addScriptToEvaluateOnNewDocument', { source: buildAudioGuardScript(!dev.cfg.audioEnabled, kind === 'yttv') });
   await session.send('Page.addScriptToEvaluateOnNewDocument', { source: KIOSK_KEYBOARD_SCRIPT });
   const { identifier: launcherScriptId } = await session.send(
     'Page.addScriptToEvaluateOnNewDocument', { source: buildLauncherScript(dev.cfg.homeUrl, dev.cfg) }
@@ -1892,7 +1904,7 @@ async function activateTab(dev: DeviceSession, key: string): Promise<void> {
   const prev = dev.tabs.get(dev.activeTabKey);
   if (prev) {
     // YouTube/TikTok: DUNG video khi roi tab, tranh tieng ngam tiep tuc chay ngam voi tab khac.
-    if (prev.kind === 'youtube' || prev.kind === 'tiktok') {
+    if (prev.kind === 'youtube' || prev.kind === 'tiktok' || prev.kind === 'yttv') {
       prev.session.send('Runtime.evaluate', {
         expression: "document.querySelectorAll('video').forEach(function(v){try{v.pause();}catch(e){}});",
       }).catch(() => { });
