@@ -11,8 +11,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Camera nhà</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@500;600&display=swap">
+<link rel="stylesheet" href="/ui.css">
+<script src="/ui.js"></script>
 <style>
-  :root { --bg: #0b1119; --surface: #151e2b; --text: #eef3fb; --muted: #93a3b8; --live: #22c55e; --pad: clamp(6px, 2vmin, 16px); color-scheme: dark; }
+  :root { --accent: #22c55e; --live: #22c55e; }  /* nen, be mat, chu, bo goc: /ui.css (dung chung voi Shell) */
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden;
     font-family: "Be Vietnam Pro", system-ui, sans-serif; -webkit-user-select: none; user-select: none; }
@@ -33,7 +35,7 @@
   .msg { display: flex; align-items: center; justify-content: center; text-align: center; color: var(--muted); font-size: clamp(13px, 3vmin, 18px); padding: 20px; }
 </style>
 </head>
-<body>
+<body class="rwv-app">
 <main id="grid"><div class="msg">Đang tải danh sách camera…</div></main>
 <script>
 (function () {

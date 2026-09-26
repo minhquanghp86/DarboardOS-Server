@@ -8,6 +8,10 @@
 - **URL từ Home Assistant mở vào đúng ứng dụng**: đặt "URL hiển thị" (hoặc tự động hoá) thành một link YouTube /
   TikTok / trang của ứng dụng trong menu thì nó mở trong đúng ứng dụng đó (tự dừng khi rời đi, hiện đúng tên trong Gần
   đây) thay vì tab "Trình duyệt" chung.
+- **Giao diện thống nhất cho các ứng dụng hệ thống** (Thời tiết, Hẹn giờ, Radio, Lịch, Cảnh, Camera nhà): dùng chung
+  một bộ màu nền/bề mặt/chữ/bo góc với thanh kéo xuống và màn hình chính (`public/ui.css`), mỗi ứng dụng chỉ giữ một
+  màu nhấn riêng — chuyển qua lại giữa các ứng dụng giờ trông như một hệ điều hành. Trang lỗi/trống có biểu tượng,
+  giải thích và nút "Thử lại" (`public/ui.js`). Sửa chữ bị ngắt dòng trên màn 480×272 (Hẹn giờ).
 - Sửa log bị spam `[Self test] Frame render time: 0ms` mỗi 5 giây khi không chạy self-test, và lỗi sau một lần
   self-test thì trang kết quả bị tải lại mỗi 5 giây.
 

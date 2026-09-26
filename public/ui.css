@@ -1,0 +1,38 @@
+/* (26/09/2026) BO GIAO DIEN CHUNG cho moi trang he thong (Thoi tiet, Hen gio, Radio, Lich, Canh, Camera...).
+   Cung token voi Shell (src/shell/styles.ts): nen, be mat, chu, bo goc, khoang cach — chuyen tu thanh keo xuong /
+   man hinh chinh / Gan day sang bat ky ung dung nao deu thay MOT he dieu hanh, khong phai nhieu trang roi rac.
+   Moi trang CHI dat mot mau nhan rieng (--accent, vd Radio cam, Canh tim) sau khi nap file nay.
+   Quy tac: khong hieu ung chay lien tuc (moi khung dong la bang thong WiFi toi panel). */
+:root {
+  --bg: #0f1117; --surface: #171a22; --surface-2: #232834; --surface-3: #2d3342;
+  --line: rgba(255, 255, 255, 0.07); --text: #f2f4f8; --muted: #9aa3b5;
+  --accent: #3b82f6; --ok: #22c55e; --err: #ef4444; --warn: #f59e0b;
+  --r-lg: clamp(14px, 3.4vmin, 26px); --r-md: clamp(10px, 2.4vmin, 18px);
+  --gap: clamp(6px, 1.8vmin, 14px); --pad: clamp(8px, 2.6vmin, 22px);
+  color-scheme: dark;
+}
+html, body { margin: 0; background: var(--bg); color: var(--text);
+  font-family: "Be Vietnam Pro", Roboto, "Noto Sans", "DejaVu Sans", sans-serif;
+  -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
+/* Nhan dien ung dung: mot vet sang rat nhe cua mau nhan o goc tren trai, tren nen trung tinh chung. */
+body.rwv-app { background: radial-gradient(110% 70% at 0% 0%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 62%), var(--bg);
+  background-attachment: fixed; min-height: 100vh; }
+
+/* Nut */
+.rwv-btn { font: inherit; font-weight: 600; color: var(--text); border: none; cursor: pointer; display: inline-flex; align-items: center;
+  justify-content: center; gap: 8px; height: clamp(36px, 8.5vmin, 50px); padding: 0 clamp(14px, 3.4vmin, 24px); border-radius: 999px;
+  background: var(--surface-2); }
+.rwv-btn.primary { background: var(--accent); color: #fff; }
+.rwv-btn:active { filter: brightness(1.15); }
+
+/* Trang thai rong / loi / dang tai — thay cho mot dong chu tron */
+.rwv-state { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  gap: clamp(6px, 1.8vmin, 12px); padding: calc(var(--pad) * 2) var(--pad); min-height: 50vh; box-sizing: border-box; }
+.rwv-state .ic { width: clamp(44px, 12vmin, 76px); height: clamp(44px, 12vmin, 76px); border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; background: color-mix(in srgb, var(--accent) 18%, var(--surface-2)); color: var(--accent); }
+.rwv-state.err .ic { background: color-mix(in srgb, var(--err) 18%, var(--surface-2)); color: var(--err); }
+.rwv-state .ic svg { width: 52%; height: 52%; fill: currentColor; }
+.rwv-state .t { font-size: clamp(15px, 3.8vmin, 22px); font-weight: 600; }
+.rwv-state .s { color: var(--muted); font-size: clamp(12px, 2.9vmin, 16px); line-height: 1.45; max-width: 46ch; }
+.rwv-state .rwv-btn { margin-top: clamp(4px, 1vmin, 8px); }
+@media (max-height: 320px) { .rwv-state { min-height: 0; padding: var(--pad); } }
