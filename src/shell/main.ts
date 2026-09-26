@@ -436,6 +436,61 @@ interface DevState {
     backEl.style.transform = `translateX(${side === 'left' ? off : -off}px)`;
   }
 
+  // ── Vuot len tu mep duoi: thanh chi bao + goi y (tha = Man hinh chinh, giu = Gan day) — nhu dien thoai ──
+  const homeBar = el('div', 'homebar'); const homeHint = el('div', 'hb-t'); homeBar.append(homeHint, el('div', 'hb-pill'));
+  root.appendChild(homeBar);
+  function homeDrag(phase: 'start' | 'move' | 'end', d: number): void {
+    if (phase === 'end') { homeBar.classList.remove('on'); homeBar.style.transform = ''; return; }
+    const thrRecents = Math.max(90, Math.round(window.innerHeight * 0.15));
+    const hint = d >= thrRecents ? 'Giữ: Gần đây · Thả: Màn hình chính' : d > 50 ? 'Thả: Màn hình chính' : '';
+    const changed = homeHint.textContent !== hint || !homeBar.classList.contains('on');
+    if (!changed && CFG.motion !== 'full') return;          // S3: chi ve lai khi goi y doi
+    setText(homeHint, hint);
+    homeBar.classList.add('on');
+    homeBar.classList.toggle('armed', d >= thrRecents);
+    const lift = CFG.motion === 'full' ? Math.min(d, thrRecents * 1.3) * 0.5 : 0;
+    homeBar.style.transform = `translateX(-50%) translateY(${-lift}px)`;
+  }
+
+  // ── Man hinh cho (OS-5): server bat sau mot luc khong cham (src/screensaver.ts). Dong ho lon + ngay am duong + thoi
+  // tiet tren nen den; dich cho moi phut (chong luu anh), tong am toi tu 22h-6h. Cham = tat (cham do KHONG toi trang). ──
+  let saverEl: HTMLElement | null = null, svBox: HTMLElement, svClock: HTMLElement, svDate: HTMLElement, svWx: HTMLElement;
+  let svShiftMin = -1, svWxSig = '';
+  function screensaver(on: boolean): void {
+    if (!on) { saverEl?.remove(); saverEl = null; return; }
+    if (saverEl || !deviceNow()) return;
+    closeShade(false); closeRecents();
+    saverEl = el('div', 'saver'); svBox = el('div', 'sv-box');
+    svClock = el('div', 'sv-clock'); svDate = el('div', 'sv-date'); svWx = el('div', 'sv-wx');
+    svBox.append(svClock, svDate, svWx); saverEl.appendChild(svBox);
+    if (CFG.motion === 'full') saverEl.classList.add('anim');
+    // Tat o 'click' (khong phai pointerdown): neu go lop phu ngay luc cham xuong thi 'click' sau do roi xuong trang.
+    saverEl.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); });
+    saverEl.addEventListener('click', (e) => { e.stopPropagation(); screensaver(false); sendControl({ wake: 1 }); });
+    root.appendChild(saverEl);
+    svShiftMin = -1; svWxSig = '';
+    updateSaver();
+  }
+  function updateSaver(): void {
+    const t = deviceNow();
+    if (!saverEl || !t) return;
+    const h = t.getUTCHours(), m = t.getUTCMinutes();
+    setText(svClock, pad2(h) + ':' + pad2(m));
+    setText(svDate, dateText(t));
+    saverEl.classList.toggle('night', h >= 22 || h < 6);
+    const w = st?.wx;
+    const sig = w ? `${w.code}|${w.day}|${w.t}|${w.name}` : '';
+    if (sig !== svWxSig) {
+      svWxSig = sig;
+      svWx.replaceChildren(...(w ? [weatherIcon(w.code, w.day), el('span', '', `${w.t}° · ${w.name}`)] : []));
+    }
+    if (m !== svShiftMin) {  // moi phut mot vi tri moi — cung khung voi luc doi so phut, khong ton them khung nao
+      svShiftMin = m;
+      const dx = (Math.random() * 2 - 1) * 7, dy = (Math.random() * 2 - 1) * 9;
+      svBox.style.transform = `translate(${dx.toFixed(1)}vw, ${dy.toFixed(1)}vh)`;
+    }
+  }
+
   // ── Bao thuc (het hen gio) ──────────────────────────────────────────
   function alarm(label: string) {
     shadow.querySelector('.alarm')?.remove();
@@ -477,6 +532,7 @@ interface DevState {
       setText(timerChip.lastChild as Element, (h ? h + ':' + pad2(m) : String(m)) + ':' + pad2(s));
       timerChip.classList.add('show');
     } else timerChip.classList.remove('show');
+    updateSaver();
   }
   setInterval(tick, 1000);
 
@@ -519,6 +575,8 @@ interface DevState {
     open() { openShade(true); },
     recents: renderRecents,
     back: backGesture,
+    homeDrag,
+    screensaver,
     close() { closeShade(true); },
     isOpen() { return shadeVisible > 0; },
     alarm,

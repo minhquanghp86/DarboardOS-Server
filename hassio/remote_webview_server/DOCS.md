@@ -249,6 +249,9 @@ luôn gửi giá trị riêng của từng màn hình (trong YAML ESPHome) khi k
 - **Chrome DevTools**: bật *Mở DevTools ra mạng LAN* → trên máy tính mở Chrome, vào `chrome://inspect/#devices` →
   *Configure…* → thêm `<ip-HA>:9222` → *inspect* tab của màn hình. Tắt lại khi xong.
 - **Self-test**: đặt `url: "self-test"` trong YAML để đo thời gian dựng hình của màn hình.
+- **Màn hình chờ sau (giây)** (`screensaver_idle_s`, mặc định `120`, `0` = tắt): không chạm bao lâu thì hiện đồng
+  hồ lớn + ngày âm dương + thời tiết (tông tối 22h–6h, dịch chỗ mỗi phút chống lưu ảnh). Không hiện khi đang phát
+  video/camera hoặc màn hình đã tắt đèn nền.
 - **`MAX_APP_TABS`** (mặc định `2`): số ứng dụng "phụ" tối đa được giữ mở cùng lúc mỗi màn hình, không kể Home
   Assistant và màn hình chính (hai cái đó luôn giữ). Mỗi ứng dụng mở là một tiến trình renderer Chrome riêng — tăng
   giá trị này cho quay lại ứng dụng gần đây nhanh hơn, đổi lại tốn thêm RAM (xem mục Giới hạn đã biết). Radio/Nhạc

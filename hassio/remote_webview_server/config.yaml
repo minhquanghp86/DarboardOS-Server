@@ -46,6 +46,7 @@ options:
   debug_proxy_port: 9222
   health_port: 18080
   prefers_reduced_motion: false
+  screensaver_idle_s: 120
   # (23/09/2026) /pw-data KHONG nam trong volume ben cua addon — mat het khi
   # container tao lai (moi lan update). /data la thu muc rieng cua addon nay
   # do Supervisor tu cap, LUON ben qua update/restart.
@@ -67,4 +68,5 @@ schema:
   debug_proxy_port: int
   health_port: int
   prefers_reduced_motion: bool
+  screensaver_idle_s: "int(0,)?"
   user_data_dir: str

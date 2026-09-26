@@ -85,7 +85,14 @@ Ngày lập: 25/09/2026. Mốc quay về: **Bản Ổn định 25/09 đêm** (ta
   ngang, ngưỡng thả 8% / ≥ 60 px), bong bóng mũi tên trong Shell, `goBack()` dùng `Page.getNavigationHistory` +
   `navigateToHistoryEntry` (bỏ mục `about:blank` lúc tạo tab); hết lịch sử → màn hình chính. Thay cho thanh 3 nút
   đề xuất ở mục 3.3: Home = vuốt lên từ mép dưới (quyết định 25/09), Gần đây = nút, Quay lại = vuốt mép.
+  - Thêm (yêu cầu 26/09): **vuốt lên từ mép dưới qua ngưỡng rồi GIỮ ~0,35 s = Gần đây** (`EdgeGestures.poll()` +
+    `holdDeadline()`, hẹn giờ trong `inputRouter.ts` vì lúc giữ yên có thể không có sự kiện chạm nào), thanh chỉ báo
+    mép dưới + gợi ý. Sửa chống dội Move dùng chung giữa các màn hình.
   - Còn lại của OS-3: hoàn thiện màn hình chính (thư mục, sắp xếp bằng chạm giữ).
+- **OS-5 bước 1 — Màn hình chờ (2.9.52)**: `src/screensaver.ts` (quyết định: idle ≥ `SCREENSAVER_IDLE_S`, tab không
+  phát media, đèn nền không tắt), `screensaverTick()` 5 s/lần, Shell `screensaver()` (đồng hồ/ngày âm/thời tiết, dịch
+  chỗ mỗi phút, tông đêm 22h–6h, tắt ở `click` + `{wake}`). Tuỳ chọn addon `screensaver_idle_s`. Còn lại OS-5: thông
+  báo HA / chuông cửa, không làm phiền, tự giảm độ sáng theo lịch, khoá trẻ em.
 
 ## 1. Ý tưởng của người dùng (tóm lại để thống nhất)
 
