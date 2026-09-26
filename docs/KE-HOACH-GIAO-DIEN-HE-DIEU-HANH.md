@@ -62,6 +62,18 @@ Ngày lập: 25/09/2026. Mốc quay về: **Bản Ổn định 25/09 đêm** (ta
     `window.__rwvMediaStop()`, trang radio tự huỷ HLS qua `window.rwvStop`). Chính sách dọn tab: Radio/Nhạc chỉ được
     miễn khi đang phát (hoặc chưa từng báo — thận trọng). Kiểm bằng Chromium thật: báo phát/dừng đúng, bấm ■ gửi đúng
     lệnh, bố cục ở 1024×600, 480×480, 480×272 (màn thấp xếp thẻ thành hàng ngang, bảng không vượt chiều cao màn).
+  - **Thử tích hợp + CI** (`src/integration/`, `.github/workflows/test.yml`, `npm run test:integration`): 6 kịch bản
+    OS-2 với server thật + Chromium + panel giả. Đã chứng minh bắt được lỗi: gỡ hàng đợi tuần tự → 2 kịch bản race
+    đỏ. Bộ thử phát hiện thêm 2 lỗi có sẵn từ 2.9.47, đã sửa trong 2.9.49:
+    - `handleTabNavigation` bỏ qua điều hướng tới đúng URL đã xin (vì `navigateTab` gán `tab.url` lạc quan) → không
+      gửi CurrentURL, không khẳng định lại quyền âm thanh. Nay chống lặp theo `dev.url`.
+    - `FrameProcessor` tạo lưới ô một lần theo khung đầu → khung đổi kích thước (tab mới) cho cạnh ô âm, "Frame error".
+  - **Quan sát CHƯA giải quyết**: trong Chromium của container/CI, screencast phần lớn ra khung **1024×465** (tỉ lệ
+    cửa sổ thật 1280×~580) thay vì 1024×600, chỉ khung đầu của tab mới đúng 1024×600 — **giống hệt ở 2.9.48**, nên
+    không phải do OS-2/2.9.49. Trên HASS, passthrough YouTube từng bật (cần khung đúng 1024×600) nên có thể chỉ là
+    khác biệt Chromium container. Cần kiểm trên addon: log `[frame] kich thuoc khung doi` xuất hiện thường xuyên
+    nghĩa là máy thật cũng bị (màn hình chỉ nhận phần trên, co dẹt). Đã thử `viewport: null` (ra 780×441) và
+    `Target.createTarget` kèm `width/height` (mất khung) — đều không phải cách sửa.
 ## 1. Ý tưởng của người dùng (tóm lại để thống nhất)
 
 - Panel không còn là "trình duyệt mở dashboard HA + popup menu", mà là **một hệ điều hành nhỏ** kiểu điện thoại / máy
