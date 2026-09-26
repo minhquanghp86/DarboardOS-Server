@@ -924,15 +924,18 @@ export async function navigateToUrl(dev: DeviceSession, url: string): Promise<vo
   let tab = dev.tabs.get(key);
   let navigated = false;
   if (!tab) {
-    tab = await createTab(dev, key, key === 'home' ? 'ha' : 'browser', url, key === 'home');
-    navigated = true; // createTab() da tu Page.navigate ben trong
-  } else if (tab.url !== url) {
-    await tab.session.send('Page.navigate', { url }).catch((e: unknown) =>
-      console.warn(`[device] ${dev.deviceId}: dieu huong tab "${key}" that bai:`, e));
-    tab.url = url;
+    tab = await createTab(dev, key, key === 'home' ? 'ha' : 'browser', key === 'home');
+    // Bat screencast TRUOC (tren trang trang, an toan) roi moi dieu huong cheo nguon — xem createTab().
+    await activateTab(dev, key);
+    await navigateTab(dev, tab, url);
     navigated = true;
+  } else {
+    if (tab.url !== url) {
+      await navigateTab(dev, tab, url); // tab da ton tai: neu dang active thi screencast da chay tu truoc, an toan;
+      navigated = true;                 // neu dang o nen thi khong ai xem, cung an toan.
+    }
+    await activateTab(dev, key);
   }
-  await activateTab(dev, key);
   // (25/09/2026, giu nguyen tu ban OS-1) Trang TINH khong navigate lai (URL trung) sau khi thiet bi mat ket noi roi
   // noi lai van can duoc VE LAI: "nudge" ep Chrome phat mot khung moi. Da navigate that thi Chrome tu ve lai, khong
   // can nudge them.
@@ -1152,12 +1155,17 @@ function resolveAppSpec(dev: DeviceSession, key: string): { kind: string; url: s
  * {app:key} — xem handleMenuControl) va tu goOsHome().
  */
 async function openApp(dev: DeviceSession, key: string): Promise<void> {
-  if (!dev.tabs.has(key)) {
+  let tab = dev.tabs.get(key);
+  if (!tab) {
     const spec = resolveAppSpec(dev, key);
     if (!spec) { console.warn(`[app] ${dev.deviceId}: khong biet ung dung "${key}"`); return; }
-    await createTab(dev, key, spec.kind, spec.url, spec.pinned);
+    tab = await createTab(dev, key, spec.kind, spec.pinned);
+    // Bat screencast TRUOC (tren trang trang, an toan) roi moi dieu huong cheo nguon — xem createTab().
+    await activateTab(dev, key);
+    await navigateTab(dev, tab, spec.url);
+  } else {
+    await activateTab(dev, key);
   }
-  await activateTab(dev, key);
   evictIfNeeded(dev);
 }
 
@@ -1197,7 +1205,15 @@ function closeTab(dev: DeviceSession, key: string): void {
  * chi anh huong toi `dev` (bo dem khung, URL hien tai...) khi `dev.activeTabKey === key` (xem cac closure ben duoi),
  * nen nhieu tab song song khong dam vao nhau. Luon KET THUC bang Page.navigate toi `url` (tru 'about:blank').
  */
-async function createTab(dev: DeviceSession, key: string, kind: string, url: string, pinned: boolean): Promise<Tab> {
+/**
+ * (26/09/2026 OS-2, sua sau khi phat hien loi tren thiet bi that) KHONG dieu huong o day. Chi tao target/session,
+ * tiem script, chuan bi viewport/codec/UA tren trang 'about:blank' ON DINH. Ban goc mot-tab CHUA TUNG dieu huong
+ * truoc khi bat screencast — luon Page.startScreencast() TREN TRANG TRANG roi moi Page.navigate() sau (xem
+ * activateTab() + navigateTab()). Dao nguoc thu tu (dieu huong CHEO NGUON GOC — vd ve dashboard HA — TRUOC khi
+ * bat screencast) gay loi CDP that "Not attached to an active page": dieu huong cheo nguon co the khien Chrome
+ * doi tien trinh renderer (site isolation) dung luc phien CDP dang gan (flatten) vao muc tieu do.
+ */
+async function createTab(dev: DeviceSession, key: string, kind: string, pinned: boolean): Promise<Tab> {
   const root = getRoot() as unknown as CDPRoot;
   if (!root) throw new Error('CDP not ready');
 
@@ -1278,11 +1294,19 @@ async function createTab(dev: DeviceSession, key: string, kind: string, url: str
     handleTabNavigation(dev, tab, evt?.url);
   });
 
-  if (url && url !== 'about:blank') {
-    await session.send('Page.navigate', { url }).catch((e: unknown) =>
-      console.warn(`[device] ${dev.deviceId}: mo tab "${key}" (${url}) that bai:`, e));
-  }
   return tab;
+}
+
+/**
+ * Dieu huong MOT TAB toi `url` — chi goi SAU KHI tab da active (Page.startScreencast dang chay), tru phi tab
+ * dang o NEN (khong active, khong ai xem — an toan du dieu huong cheo nguon luc do, xem createTab()). Bo qua neu
+ * tab da o dung URL nay roi.
+ */
+async function navigateTab(dev: DeviceSession, tab: Tab, url: string): Promise<void> {
+  if (!url || url === 'about:blank' || tab.url === url) return;
+  await tab.session.send('Page.navigate', { url }).catch((e: unknown) =>
+    console.warn(`[device] ${dev.deviceId}: dieu huong tab "${tab.key}" (${url}) that bai:`, e));
+  tab.url = url; // lac quan — handleTabNavigation() se xac nhan/sua lai khi Page.frameNavigated thuc su toi
 }
 
 /**
@@ -1543,13 +1567,14 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
   };
 
   const initialKey = cfg.homeUrl ? 'home' : 'browser';
-  await createTab(newDevice, initialKey, cfg.homeUrl ? 'ha' : 'browser', cfg.homeUrl || 'about:blank', !!cfg.homeUrl);
-  const initialTab = newDevice.tabs.get(initialKey)!;
+  const initialTab = await createTab(newDevice, initialKey, cfg.homeUrl ? 'ha' : 'browser', !!cfg.homeUrl);
   newDevice.id = initialTab.targetId;
   newDevice.cdp = initialTab.session;
   devices.set(id, newDevice);
-  // activateTab() tu lam: bat screencast, cho phep am thanh (neu thiet bi co loa), ep gui khung day du.
+  // activateTab() tu lam: bat screencast TRUOC (tren trang trang, an toan — xem createTab()), cho phep am thanh
+  // (neu thiet bi co loa), ep gui khung day du. Dieu huong toi homeUrl chi sau khi screencast da chay.
   await activateTab(newDevice, initialKey);
+  if (cfg.homeUrl) await navigateTab(newDevice, initialTab, cfg.homeUrl);
 
   // (24/09/2026) Xem markInteraction: gui lai khung video cuoi o do phan giai day du ngay lap tuc.
   newDevice.sharpenNow = () => {

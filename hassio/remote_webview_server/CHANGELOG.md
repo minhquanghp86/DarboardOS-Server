@@ -1,3 +1,11 @@
+## V2.9.48
+### Sửa lỗi "Not attached to an active page" khi mở/chuyển ứng dụng (OS-2)
+
+- Bản 2.9.47 đôi khi báo lỗi CDP khi mở tab mới, do điều hướng (đổi trang) được gọi TRƯỚC khi bật truyền hình cho
+  tab đó — điều hướng sang gốc khác (ví dụ mở dashboard Home Assistant) có thể khiến Chrome đổi tiến trình dựng
+  trang đúng lúc, làm mất kết nối tạm thời. Nay tab luôn được bật truyền hình trên trang trắng ổn định trước, rồi
+  mới điều hướng — đúng thứ tự bản gốc một-tab đã dùng an toàn từ đầu.
+
 ## V2.9.47
 ### Giai đoạn OS-2 — mỗi ứng dụng một tab Chromium riêng
 
