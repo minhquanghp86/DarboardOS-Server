@@ -58,7 +58,7 @@ configuration:
     description: 'Dạng HH:MM-HH:MM theo giờ của màn hình, vd 06:00-09:30.'
   morning_tts:
     name: 'Đọc lời chào qua loa'
-    description: 'Đọc tóm tắt (thời tiết, lịch, việc, ghi chú) qua loa của chính màn hình bằng dịch vụ TTS của Home Assistant (ưu tiên Piper).'
+    description: 'Mặc định TẮT (chỉ hiện chữ). Bật để đọc tóm tắt (thời tiết, lịch, việc, ghi chú) qua loa của chính màn hình bằng dịch vụ TTS của Home Assistant (ưu tiên Piper).'
   user_data_dir:
     name: 'Thư mục hồ sơ trình duyệt'
     description: 'Nơi lưu cookie/đăng nhập của trình duyệt. Để trong /data (mặc định /data/pw-data) để không phải đăng nhập lại sau mỗi lần cập nhật addon.'

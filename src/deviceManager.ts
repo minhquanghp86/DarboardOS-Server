@@ -1596,7 +1596,8 @@ export async function unlockDoorbell(id: string): Promise<{ ok: boolean; error?:
 // ung dung "Hom nay" (thoi tiet, lich, viec, ghi chu) va doc tom tat qua loa cua panel (tts.speak, neu HA co TTS).
 const off = (v: string | undefined) => v === '0' || v === 'false';
 const MORNING_WINDOW = off(process.env.MORNING_BRIEFING) ? null : parseWindow(process.env.MORNING_WINDOW || '06:00-09:30');
-const MORNING_TTS = !off(process.env.MORNING_TTS);
+// (27/09/2026) Nguoi dung: chua muon loi chao bang am thanh -> mac dinh TAT, chi hien chu (bat: morning_tts: true).
+const MORNING_TTS = process.env.MORNING_TTS === 'true' || process.env.MORNING_TTS === '1';
 
 function maybeMorning(dev: DeviceSession): void {
   const tz = dev.devState?.tzOffsetMin ?? 420;

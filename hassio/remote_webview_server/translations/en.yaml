@@ -58,7 +58,7 @@ configuration:
     description: 'HH:MM-HH:MM in the panel local time, e.g. 06:00-09:30.'
   morning_tts:
     name: 'Speak the briefing'
-    description: 'Read the summary on the panel speaker via Home Assistant TTS (Piper preferred).'
+    description: 'Off by default (text only). Turn on to read the summary on the panel speaker via Home Assistant TTS (Piper preferred).'
   user_data_dir:
     name: 'Browser profile directory'
     description: 'Where the browser keeps cookies/logins. Keep it under /data (default /data/pw-data) so logins survive add-on updates.'
