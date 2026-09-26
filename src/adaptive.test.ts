@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from "vitest";
 import { DEFAULT_ADAPTIVE_CFG, decideAdaptive, initialAdaptiveState, adaptiveBudgetMs, updateLinkEstimate, bandwidthFloorMs, LINK_CONGESTED_BYTES, LINK_PROBE_UP } from "./adaptive.js";
-import type { AdaptiveState, AdaptiveSample } from "./adaptive.js";
+import type { AdaptiveState, AdaptiveSample, LinkEstimate } from "./adaptive.js";
 
 const cfg = { ...DEFAULT_ADAPTIVE_CFG };
 const t0 = 1_000_000;
@@ -178,7 +178,7 @@ describe("GĐ3 - bộ điều khiển thích nghi", () => {
   });
 
   it("ngưỡng tránh nghẽn tự nới sau khi ổn định lâu (không khoá fps vĩnh viễn)", () => {
-    let st = { ...initialAdaptiveState(80, 33, t0), quality: 80, minFrameIntervalMs: 100,
+    let st: AdaptiveState = { ...initialAdaptiveState(80, 33, t0), quality: 80, minFrameIntervalMs: 100,
                probeFloorMs: 50, probeBlocked: 0 };
     let now = t0;
     const light = { decodeMs: 5, bytesPerSec: 1000, frameErrors: 0 };
@@ -286,7 +286,7 @@ describe("GĐ3 - ước lượng đường truyền", () => {
   it("không nghẽn -> ước lượng TỰ NÂNG dần (một lần đo lúc WiFi kém không khoá fps vĩnh viễn)", () => {
     // Kich ban that: do 230KB/s luc WiFi kem; san nhip giu tai o ~215KB/s < 230 nen
     // neu khong tu nang thi duong truyen khong bao gio co dip chung minh no chiu duoc 564KB/s.
-    let l = { lastAt: t0, lastSent: 0, lastBacklog: 0, lastFrames: 0, capacityBytesPerSec: 230_000 };
+    let l: LinkEstimate = { lastAt: t0, lastSent: 0, lastBacklog: 0, lastFrames: 0, capacityBytesPerSec: 230_000 };
     let now = t0;
     for (let i = 0; i < 20; i++) {
       now += 5_000;

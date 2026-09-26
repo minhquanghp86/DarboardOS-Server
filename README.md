@@ -128,8 +128,16 @@ Tham số kết nối (`?id=&w=&h=&ts=&q=…&home=&audio=1&fb=1&urlset=1&ctl=1`)
 ```bash
 npm ci
 npm run build        # TypeScript -> dist/
-npm run test:run     # kiểm thử (giao thức, bộ điều tiết, menu, cú pháp script launcher…)
+npm run typecheck    # kiểm kiểu toàn bộ, kể cả file test
+npm run test:run     # unit test (giao thức, bộ điều tiết, menu, chính sách tab, cú pháp script launcher…)
+npm run test:integration   # thử tích hợp: server thật + Chromium thật + panel giả qua WebSocket (~1 phút)
 ```
+
+- **Thử tích hợp** (`src/integration/`): mỗi kịch bản khởi động một server thật, một "panel giả" kết nối WebSocket
+  như firmware (gửi chạm, nhận khung/URL), rồi soi Chromium qua cổng DevTools (đếm tab, chạy JS trong tab). Cần
+  Chromium: tự tìm `CHROME_EXECUTABLE`, Chrome hệ thống hoặc bản Playwright; `ITEST_LOG=1` in log server kể cả khi đạt.
+- **CI** (`.github/workflows/test.yml`): mỗi PR / push chạy kiểm kiểu + unit test + build, rồi thử tích hợp với
+  Chrome có sẵn trên runner GitHub.
 
 - `src/` — máy chủ (Node/TypeScript): `deviceManager.ts` (phiên thiết bị, launcher, bàn phím), `frameProcessor.ts`
   (chia ô, JPEG), `adaptive.ts` (điều tiết), `broadcaster.ts`, `audioCapture.ts`, `launcher*.ts`, `haApps.ts`,
