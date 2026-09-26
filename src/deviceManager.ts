@@ -26,6 +26,7 @@ import { getWeatherMini, onWeatherMiniUpdate } from "./weatherMini.js";
 import { SerialQueue, appKeyForUrl, nowPlaying, pickEvictions, recentsList } from "./tabPolicy.js";
 import { SAVER_PHOTO_MS, SCREENSAVER_IDLE_S, SCREENSAVER_PHOTOS, deviceHour, isNightHour, nextSaverPhoto, shouldShowSaver } from "./screensaver.js";
 import { listPhotos } from "./homeApi.js";
+import { panelPrefs } from "./panelPrefs.js";
 import { deviceClock, parseWindow, shouldGreet } from "./today.js";
 import { getToday, speakOnPanel } from "./todayData.js";
 import { parseDoorbell, unlockCall } from "./doorbell.js";
@@ -1210,13 +1211,20 @@ async function pushSettings(dev: DeviceSession, tab: Tab, note?: { ok: boolean; 
     heap: m?.deviceHeapFree ?? null,
   };
   await tab.session.send('Runtime.evaluate', {
-    expression: `window.__rwvSettings && window.__rwvSettings(${JSON.stringify({ ...r, server, note: note ?? null })})`,
+    expression: `window.__rwvSettings && window.__rwvSettings(${JSON.stringify({ ...r, server, panel: panelPrefs.items(dev.deviceId, SCREENSAVER_PHOTOS), note: note ?? null })})`,
   }).catch(() => { });
 }
 
 async function handleSettings(dev: DeviceSession, tab: Tab, msg: any): Promise<void> {
   if (msg.settings === 'get') return pushSettings(dev, tab);
   if (msg.settings !== 'set' || typeof msg.id !== 'string') return;
+  // (27/09/2026) Muc cua addon (id "rwv.*"): server tu luu, khong qua HA.
+  if (msg.id.startsWith('rwv.')) {
+    const ok = panelPrefs.set(dev.deviceId, msg.id, msg.v);
+    console.log(`[settings] ${dev.deviceId}: ${msg.id} = ${JSON.stringify(msg.v)} ${ok ? 'OK' : 'TU CHOI'}`);
+    if (ok && msg.id === 'rwv.saver_photos') { dev.saverPhotoAt = 0; if (!msg.v) { dev.saverPhoto = null; showSaverPhoto(dev, null); } }
+    return pushSettings(dev, tab, ok ? undefined : { ok: false, msg: 'Không đổi được cài đặt này.' });
+  }
   const r = await getSettingsView(dev.deviceId);
   if (!r.ok) return pushSettings(dev, tab);
   const plan = planSet(r.view, msg.id, msg.v);
@@ -2446,14 +2454,17 @@ export function screensaverTick(): void {
  * ho de len goc. Ban dem (22h-6h theo gio thiet bi): khong anh — chi dong ho tong am toi.
  */
 function saverPhotoTick(d: DeviceSession, now: number): void {
-  if (!SCREENSAVER_PHOTOS || now - (d.saverPhotoAt ?? 0) < SAVER_PHOTO_MS) return;
+  if (!panelPrefs.saverPhotos(d.deviceId, SCREENSAVER_PHOTOS) || now - (d.saverPhotoAt ?? 0) < SAVER_PHOTO_MS) return;
   d.saverPhotoAt = now;
   const night = isNightHour(deviceHour(now, d.devState?.tzOffsetMin ?? 420));
   const files = night ? [] : listPhotos().files;
   const f = nextSaverPhoto(files, d.saverPhoto ?? null);
   if (f === (d.saverPhoto ?? null) && f === null) return;
   d.saverPhoto = f;
-  const url = f ? `${LOCAL_ORIGIN}/photos/img?f=${encodeURIComponent(f)}&w=${d.cfg.width}&h=${d.cfg.height}` : null;
+  showSaverPhoto(d, f ? `${LOCAL_ORIGIN}/photos/img?f=${encodeURIComponent(f)}&w=${d.cfg.width}&h=${d.cfg.height}` : null);
+}
+
+function showSaverPhoto(d: DeviceSession, url: string | null): void {
   d.cdp.send('Runtime.evaluate', {
     expression: `window.__rwvShell && window.__rwvShell.saverPhoto && window.__rwvShell.saverPhoto(${JSON.stringify(url)})`,
   }).catch(() => { });
