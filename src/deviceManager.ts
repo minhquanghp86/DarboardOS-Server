@@ -2333,7 +2333,8 @@ export function screensaverTick(): void {
     const tab = d.tabs.get(d.activeTabKey);
     if (!tab || broadcaster.getClientCount(d.deviceId) === 0) continue;
     if (!shouldShowSaver({
-      now, lastTouchMs: d.lastTouchMs, idleMs: SCREENSAVER_IDLE_S * 1000, mediaPlaying: tab.mediaPlaying,
+      // (27/09/2026) Khung anh da la man hinh cho — khong phu dong ho len.
+      now, lastTouchMs: d.lastTouchMs, idleMs: SCREENSAVER_IDLE_S * 1000, mediaPlaying: tab.mediaPlaying || tab.kind === 'photos',
       backlightOn: d.devState ? d.devState.backlightOn : null, shown: d.saverOn,
     })) continue;
     d.saverOn = true;

@@ -1,0 +1,140 @@
+<!doctype html>
+<!--
+  (27/09/2026) Ung dung "Dieu khien": moi TV / loa / Chromecast (media_player cua Home Assistant) tren mot man hinh —
+  anh bia, bai dang phat, phat/tam dung, bai truoc/sau, am luong, bat/tat. Dang phat duoc xep len dau.
+  Du lieu: /ha/media, anh bia /ha/art (thu nho qua server), thao tac /ha/act (src/homeApi.ts).
+-->
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Điều khiển</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/ui.css">
+<script src="/ui.js"></script>
+<style>
+  :root { --accent: #8b5cf6; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  main { height: 100%; overflow-y: auto; padding: calc(var(--pad) + 18px) var(--pad) var(--pad); display: flex; flex-direction: column; gap: var(--gap); }
+  h1 { margin: 0; font-size: clamp(16px, 4.4vmin, 28px); font-weight: 600; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); gap: var(--gap); }
+  .p { background: var(--surface); border-radius: var(--r-lg); padding: clamp(10px, 2.4vmin, 16px); display: flex; gap: clamp(10px, 2.6vmin, 16px); align-items: stretch; }
+  .p.off { opacity: 0.6; }
+  .art { flex: none; width: clamp(72px, 20vmin, 128px); aspect-ratio: 1; border-radius: var(--r-md); background: var(--surface-2) center/cover no-repeat;
+    display: flex; align-items: center; justify-content: center; color: var(--muted); }
+  .art svg { width: 45%; height: 45%; fill: currentColor; }
+  .col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: clamp(6px, 1.4vmin, 10px); justify-content: space-between; }
+  .nm { color: var(--muted); font-size: clamp(11px, 2.6vmin, 14px); display: flex; gap: 8px; }
+  .nm .a { margin-left: auto; }
+  .ti { font-size: clamp(14px, 3.6vmin, 20px); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ar { color: var(--muted); font-size: clamp(12px, 2.9vmin, 16px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ctl { display: flex; gap: 8px; align-items: center; }
+  .ctl button { flex: none; width: clamp(38px, 9vmin, 52px); height: clamp(38px, 9vmin, 52px); border-radius: 50%; border: none; background: var(--surface-2);
+    color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .ctl button.main { background: var(--accent); }
+  .ctl button svg { width: 50%; height: 50%; fill: currentColor; }
+  .vol { flex: 1; min-width: 60px; height: clamp(30px, 7vmin, 40px); border-radius: 999px; background: var(--surface-2); position: relative; overflow: hidden; touch-action: none; }
+  .vol .f { position: absolute; left: 0; top: 0; bottom: 0; background: color-mix(in srgb, var(--accent) 70%, transparent); }
+  .vol .l { position: absolute; inset: 0; display: flex; align-items: center; padding-left: 12px; font-size: clamp(11px, 2.6vmin, 14px); font-weight: 600; }
+  @media (max-height: 320px) { main { padding-top: 22px; } .art { width: 64px; } }
+</style>
+</head>
+<body class="rwv-app">
+<main id="main"><h1>Điều khiển</h1><div id="box"></div></main>
+<script>
+(function () {
+  'use strict';
+  var box = document.getElementById('box');
+  var I = {
+    play: 'M8 5v14l11-7z', pause: 'M6 19h4V5H6v14zm8-14v14h4V5h-4z', prev: 'M6 6h2v12H6zm3.5 6l8.5 6V6z', next: 'M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z',
+    power: 'M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42A6.92 6.92 0 0119 12a7 7 0 11-11.4-5.4L6.17 5.17A8.93 8.93 0 003 12a9 9 0 0018 0c0-2.74-1.23-5.18-3.17-6.83z',
+    mute: 'M16.5 12A4.5 4.5 0 0014 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63zM19 12c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.8 8.8 0 0021 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 003.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z',
+    vol: 'M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0014 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z',
+    tv: 'M21 3H3a2 2 0 00-2 2v12a2 2 0 002 2h5v2h8v-2h5a2 2 0 002-2V5a2 2 0 00-2-2zm0 14H3V5h18v12z'
+  };
+  function ic(k) { return '<svg viewBox="0 0 24 24"><path d="' + I[k] + '"/></svg>'; }
+  var players = [], dragging = false, artKey = {};
+  var ST = { playing: 'Đang phát', paused: 'Tạm dừng', idle: 'Chờ', on: 'Bật', off: 'Tắt', standby: 'Chờ', buffering: 'Đang tải' };
+
+  function act(e, a, v) {
+    return fetch('/ha/act', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ e: e, a: a, v: v }) })
+      .then(function () { setTimeout(load, 400); setTimeout(load, 1500); }).catch(function () {});
+  }
+  function button(k, fn, main) {
+    var b = document.createElement('button'); if (main) b.className = 'main'; b.innerHTML = ic(k);
+    b.addEventListener('click', function (e) { e.stopPropagation(); fn(); }); return b;
+  }
+  function volBar(p) {
+    var v = document.createElement('div'); v.className = 'vol';
+    var f = document.createElement('div'); f.className = 'f'; var l = document.createElement('div'); l.className = 'l';
+    v.append(f, l);
+    function show(x) { f.style.width = x + '%'; l.textContent = (p.muted ? 'Tắt tiếng · ' : '') + x + '%'; }
+    show(p.vol);
+    function at(ev) { var r = v.getBoundingClientRect(); return Math.max(0, Math.min(100, Math.round((ev.clientX - r.left) / r.width * 100))); }
+    v.addEventListener('pointerdown', function (ev) {
+      dragging = true; v.setPointerCapture(ev.pointerId); var x = at(ev); show(x);
+      function mv(e2) { x = at(e2); show(x); }
+      function up() { v.removeEventListener('pointermove', mv); v.removeEventListener('pointerup', up); dragging = false; act(p.id, 'vol', x); }
+      v.addEventListener('pointermove', mv); v.addEventListener('pointerup', up);
+    });
+    return v;
+  }
+  function card(p) {
+    var c = document.createElement('section'); c.className = 'p' + (p.state === 'off' ? ' off' : '');
+    var art = document.createElement('div'); art.className = 'art';
+    if (p.art && p.state !== 'off') {
+      var k = p.id + '|' + (p.title || '') + '|' + (p.artist || '');
+      if (!artKey[p.id] || artKey[p.id].k !== k) artKey[p.id] = { k: k, n: Date.now() };
+      art.style.backgroundImage = 'url("/ha/art?e=' + encodeURIComponent(p.id) + '&n=' + artKey[p.id].n + '")';
+    } else art.innerHTML = ic('tv');
+    var col = document.createElement('div'); col.className = 'col';
+    var nm = document.createElement('div'); nm.className = 'nm';
+    var n1 = document.createElement('span'); n1.textContent = p.name + (p.area ? ' · ' + p.area : '');
+    var n2 = document.createElement('span'); n2.className = 'a'; n2.textContent = ST[p.state] || p.state;
+    nm.append(n1, n2);
+    var ti = document.createElement('div'); ti.className = 'ti'; ti.textContent = p.title || (p.state === 'off' ? 'Đang tắt' : '—');
+    var ar = document.createElement('div'); ar.className = 'ar'; ar.textContent = p.artist || '';
+    var ctl = document.createElement('div'); ctl.className = 'ctl';
+    if (p.state !== 'off') {
+      if (p.canPrev) ctl.appendChild(button('prev', function () { act(p.id, 'prev'); }));
+      ctl.appendChild(button(p.state === 'playing' ? 'pause' : 'play', function () { act(p.id, 'play'); }, true));
+      if (p.canNext) ctl.appendChild(button('next', function () { act(p.id, 'next'); }));
+    }
+    if (p.canPower) ctl.appendChild(button('power', function () { act(p.id, 'power'); }));
+    col.append(nm, ti, ar, ctl);
+    // Am luong: hang rieng (chung hang voi 5 nut thi thanh keo con qua hep de cham)
+    if (p.state !== 'off' && p.canVol && p.vol != null) {
+      var vr = document.createElement('div'); vr.className = 'ctl';
+      vr.append(button(p.muted ? 'mute' : 'vol', function () { act(p.id, 'mute'); }), volBar(p));
+      col.appendChild(vr);
+    }
+    c.append(art, col);
+    return c;
+  }
+  var loaded = false, lastSig = '';
+  function load() {
+    fetch('/ha/media', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.ok) { if (!loaded) RwvUI.state(box, { kind: 'err', title: 'Không kết nối được Home Assistant', text: d.error, retry: load }); return; }
+      loaded = true;
+      players = d.players || [];
+      if (!players.length) {
+        RwvUI.state(box, { kind: 'empty', title: 'Chưa có TV hay loa nào',
+          text: 'Thêm TV (Android TV, Samsung, LG…), loa (Google Cast, Sonos…) vào Home Assistant — chúng sẽ tự hiện ở đây.', retry: load, retryLabel: 'Tải lại' });
+        return;
+      }
+      if (dragging) return;
+      var sig = JSON.stringify(players); if (sig === lastSig) return; lastSig = sig;  // khong doi -> khong ve lai (bot khung WiFi)
+      var g = document.createElement('div'); g.className = 'grid';
+      players.forEach(function (p) { g.appendChild(card(p)); });
+      box.replaceChildren(g);
+    }).catch(function () { if (!loaded) RwvUI.state(box, { kind: 'err', title: 'Không kết nối được máy chủ', retry: load }); });
+  }
+  RwvUI.state(box, { kind: 'loading', title: 'Đang tải…' });
+  load();
+  setInterval(function () { if (!document.hidden) load(); }, 3000);
+  window.__rwvRemote = function () { return players; };
+})();
+</script>
+</body>
+</html>

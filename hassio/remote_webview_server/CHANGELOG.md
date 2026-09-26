@@ -1,3 +1,21 @@
+## V2.9.59
+### Bốn ứng dụng mới cho ngôi nhà: Phòng, Điều khiển, Việc cần làm, Khung ảnh
+
+- **Phòng** (nhóm Nhà): điều khiển theo **khu vực** của Home Assistant — đèn, công tắc, quạt, rèm, điều hoà, TV/loa.
+  Chạm = bật/tắt; chạm giữ đèn → thanh độ sáng; rèm → Mở/Dừng/Đóng; điều hoà → nhiệt độ ± và chế độ. Đầu mỗi phòng:
+  nhiệt độ, độ ẩm, số đèn đang bật, cửa đang mở, có người. Không cần cấu hình: gán thiết bị vào khu vực trong HA.
+- **Điều khiển** (nhóm Nhà): mọi TV / loa / Chromecast — ảnh bìa, bài đang phát, phát/tạm dừng, bài trước/sau,
+  âm lượng, tắt tiếng, bật/tắt. Thiết bị đang phát xếp lên đầu.
+- **Việc cần làm** (nhóm Tiện ích): danh sách việc / đi chợ của HA (tích hợp *Danh sách mua sắm*, *Local To-do*,
+  Google Tasks…), dùng chung với app HA trên điện thoại. Thêm nhanh bằng chip (Sữa, Trứng, Gạo…) hoặc gõ; chạm để
+  đánh dấu xong; xoá mục đã xong (chạm 2 lần).
+- **Khung ảnh** (nhóm Giải trí): trình chiếu ảnh gia đình từ thư mục **media/photos** của HA (hoặc media), thu nhỏ vừa
+  màn hình ở server, xoay theo EXIF, đổi ảnh mỗi 30 giây, kèm đồng hồ và ngày âm lịch. Chạm để hiện nút. Đang mở
+  Khung ảnh thì màn hình chờ không che lên.
+- An toàn: API mới (`/ha/rooms`, `/ha/act`, `/ha/todo`, `/photos/*`) **chỉ nhận từ chính addon** (trình duyệt của
+  panel), máy khác trong LAN không điều khiển được; chỉ một danh sách thao tác cố định (không khoá cửa, không báo động).
+- Addon được quyền **đọc** thư mục media (`map: media`) — cần khởi động lại addon sau khi cập nhật.
+
 ## V2.9.58
 ### Màn hình chính sắp xếp được, thư mục, bố cục S3, trợ lý giọng nói, dò người bằng camera
 

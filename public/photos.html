@@ -1,0 +1,110 @@
+<!doctype html>
+<!--
+  (27/09/2026) Ung dung "Khung anh": trinh chieu anh gia dinh tu thu muc media cua Home Assistant (/media/photos, hoac
+  /media neu khong co thu muc photos). Them anh: HA -> Media -> Local media -> tao thu muc "photos" -> tai anh len
+  (hoac chep qua Samba). Anh thu nho dung kich thuoc man hinh o server (sharp, xoay theo EXIF) -> panel chi nhan mot khung
+  JPEG moi moi lan doi anh (mac dinh 30 s) — gan nhu khong ton bang thong.
+  Cham: hien nut (truoc / dung / sau / vua khung). Dong ho nho o goc.
+-->
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Khung ảnh</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/ui.css">
+<script src="/ui.js"></script>
+<script src="/lunar.js"></script>
+<style>
+  :root { --accent: #db2777; }
+  html, body { height: 100%; overflow: hidden; background: #000; }
+  .ph { position: fixed; inset: 0; background: #000 center/cover no-repeat; opacity: 0; transition: opacity 700ms ease; }
+  .ph.fit { background-size: contain; }
+  .ph.show { opacity: 1; }
+  .clock { position: fixed; left: clamp(12px, 3vmin, 28px); bottom: clamp(10px, 3vmin, 26px); color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.7);
+    pointer-events: none; }
+  .clock .t { font-size: clamp(28px, 9vmin, 64px); font-weight: 500; line-height: 1; font-variant-numeric: tabular-nums; }
+  .clock .d { font-size: clamp(11px, 2.8vmin, 17px); opacity: 0.9; margin-top: 4px; }
+  .bar { position: fixed; left: 50%; bottom: clamp(12px, 3vmin, 26px); transform: translateX(-50%); display: none; gap: 10px; padding: 8px;
+    border-radius: 999px; background: rgba(20,22,30,0.85); }
+  .bar.on { display: flex; }
+  .bar button { width: clamp(42px, 10vmin, 56px); height: clamp(42px, 10vmin, 56px); border-radius: 50%; border: none; background: var(--surface-2);
+    color: #fff; font-size: clamp(16px, 4vmin, 22px); cursor: pointer; }
+  .bar .cap { color: var(--muted); align-self: center; padding: 0 8px; font-size: clamp(11px, 2.6vmin, 14px); max-width: 30vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #state { position: fixed; inset: 0; background: var(--bg); }
+</style>
+</head>
+<body class="rwv-app">
+<div class="ph" id="a"></div><div class="ph" id="b"></div>
+<div class="clock"><div class="t" id="ct"></div><div class="d" id="cd"></div></div>
+<div class="bar" id="bar"><button id="prev">⏮</button><button id="pp">⏸</button><button id="next">⏭</button><button id="fit">⤢</button><span class="cap" id="cap"></span></div>
+<div id="state"></div>
+<script>
+(function () {
+  'use strict';
+  var INTERVAL = 30000;
+  var layers = [document.getElementById('a'), document.getElementById('b')], top = 0;
+  var files = [], order = [], pos = -1, paused = false, fit = false, timer = 0, barT = 0;
+  var stateEl = document.getElementById('state'), bar = document.getElementById('bar');
+  try { fit = localStorage.getItem('photos.fit') === '1'; } catch (e) {}
+
+  function shuffle(n) { var a = []; for (var i = 0; i < n; i++) a.push(i); for (var j = n - 1; j > 0; j--) { var k = Math.floor(Math.random() * (j + 1)); var t = a[j]; a[j] = a[k]; a[k] = t; } return a; }
+  function url(f) {
+    var w = Math.round(innerWidth * (devicePixelRatio || 1)), h = Math.round(innerHeight * (devicePixelRatio || 1));
+    return '/photos/img?f=' + encodeURIComponent(f) + '&w=' + w + '&h=' + h + (fit ? '&fit=contain' : '');
+  }
+  function show(step) {
+    if (!files.length) return;
+    pos = (pos + step + order.length) % order.length;
+    var f = files[order[pos]];
+    var img = new Image();
+    img.onload = function () {
+      var next = layers[1 - top];
+      next.classList.toggle('fit', fit);
+      next.style.backgroundImage = 'url("' + img.src + '")';
+      next.classList.add('show'); layers[top].classList.remove('show'); top = 1 - top;
+      document.getElementById('cap').textContent = f.split('/').pop();
+      window.__rwvPhoto = f;
+    };
+    img.src = url(f);
+    // Anh sau: tai truoc cho lan doi ke tiep
+    var pre = new Image(); pre.src = url(files[order[(pos + 1) % order.length]]);
+    schedule();
+  }
+  function schedule() { clearTimeout(timer); if (!paused) timer = setTimeout(function () { show(1); }, INTERVAL); }
+  function showBar() { bar.classList.add('on'); clearTimeout(barT); barT = setTimeout(function () { bar.classList.remove('on'); }, 5000); }
+  document.addEventListener('click', function (e) { if (!e.target.closest('.bar')) showBar(); });
+  document.getElementById('prev').addEventListener('click', function () { show(-1); showBar(); });
+  document.getElementById('next').addEventListener('click', function () { show(1); showBar(); });
+  document.getElementById('pp').addEventListener('click', function (e) { paused = !paused; e.target.textContent = paused ? '▶' : '⏸'; schedule(); showBar(); });
+  document.getElementById('fit').addEventListener('click', function () { fit = !fit; try { localStorage.setItem('photos.fit', fit ? '1' : '0'); } catch (e) {} show(0); showBar(); });
+
+  function tick() {
+    var d = new Date();
+    document.getElementById('ct').textContent = (d.getHours() < 10 ? '0' : '') + d.getHours() + ':' + (d.getMinutes() < 10 ? '0' : '') + d.getMinutes();
+    var WD = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'];
+    var s = WD[d.getDay()] + ', ' + d.getDate() + '/' + (d.getMonth() + 1);
+    try { var L = window.RwvLunar; if (L) { var l = L.solar2lunar(d.getDate(), d.getMonth() + 1, d.getFullYear(), 7); if (l) s += ' · ' + l.day + '/' + l.month + ' âm lịch'; } } catch (e) {}
+    document.getElementById('cd').textContent = s;
+  }
+  tick(); setInterval(tick, 15000);
+
+  function load() {
+    RwvUI.state(stateEl, { kind: 'loading', title: 'Đang tìm ảnh…' });
+    fetch('/photos/list', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+      files = (d && d.files) || [];
+      if (!files.length) {
+        RwvUI.state(stateEl, { kind: 'empty', title: 'Chưa có ảnh nào',
+          text: 'Trong Home Assistant: Media → Local media → tạo thư mục “photos” và tải ảnh lên (hoặc chép vào thư mục media qua Samba). Ảnh JPG/PNG/WebP.',
+          retry: load, retryLabel: 'Tìm lại' });
+        return;
+      }
+      stateEl.remove();
+      order = shuffle(files.length); pos = -1; show(1);
+    }).catch(function () { RwvUI.state(stateEl, { kind: 'err', title: 'Không kết nối được máy chủ', retry: load }); });
+  }
+  load();
+})();
+</script>
+</body>
+</html>
