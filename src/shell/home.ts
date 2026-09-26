@@ -29,7 +29,7 @@ export interface HomeApi {
   wx: { box: HTMLElement; ico: HTMLElement; t: HTMLElement; s: HTMLElement };
   setLayout(l: HomeLayout): void;
   /** Cho thu tich hop (Shadow DOM dong): trang thai + vi tri tung o. */
-  info(): { editing: boolean; folder: string | null; page: number; layout: HomeLayout; tiles: Record<string, number[]> };
+  info(): { fit: number[]; editing: boolean; folder: string | null; page: number; rows: number; cols: number; layout: HomeLayout; tiles: Record<string, number[]> };
 }
 
 const LONG_PRESS_MS = 480;
@@ -59,20 +59,22 @@ export function mountHome(ctx: HomeCtx): HomeApi {
   const ebReset = el('button', 'eb-b', 'Đặt lại');
   const ebDone = el('button', 'eb-b pri', 'Xong');
   editBar.append(ebHint, ebReset, ebDone);
-  widgets.append(wc, el('div', 'spacer'), wxBox, editBar);
+  widgets.append(wc, el('div', 'spacer'), wxBox);
 
   const pager = el('div', 'pager'); const pages = el('div', 'pages'); pager.appendChild(pages);
   const dots = el('div', 'dots');
   const dock = el('div', 'dock');
-  home.append(widgets, pager, dots, dock);
+  home.append(widgets, pager, dots, dock, editBar);
   ctx.root.insertBefore(home, ctx.root.firstChild);
   document.title = 'Ứng dụng';
 
   // Luoi: so cot/hang theo kich thuoc man hinh
   const W = window.innerWidth, H = window.innerHeight;
   const cols = W >= 900 ? 7 : W >= 600 ? 5 : 4;
-  const rows = H >= 420 ? 2 : 1;
-  const per = cols * rows;
+  // So hang: DO sau lan ve dau (chieu cao vung luoi / chieu cao mot o) — 1024x600 duoc 3 hang, 480x480 duoc 3-4,
+  // 480x272 duoc 1. Uoc luong ban dau theo chieu cao man hinh.
+  let rows = H >= 420 ? 2 : 1;
+  let per = cols * rows;
   pager.style.setProperty('--cols', String(cols));
 
   let editing = false;
@@ -123,6 +125,20 @@ export function mountHome(ctx: HomeCtx): HomeApi {
     dock.replaceChildren(...dockTiles, rb);
     showPage(cur, false);
     if (openFolderId) renderFolder();
+    fitRows();
+  }
+
+  let fitted = false;
+  function fitRows(): void {
+    if (fitted) return;
+    const page = pages.firstElementChild as HTMLElement | null;
+    const tile = page?.querySelector('.app') as HTMLElement | null;
+    if (!page || !tile || !page.clientHeight || !tile.offsetHeight) return;
+    fitted = true;
+    const cs = getComputedStyle(page);
+    const gap = parseFloat(cs.rowGap) || 0, padTop = parseFloat(cs.paddingTop) || 0;
+    const fit = Math.max(1, Math.min(6, Math.floor((page.clientHeight - padTop + gap) / (tile.offsetHeight + gap))));
+    if (fit !== rows) { rows = fit; per = cols * rows; render(); }
   }
 
   function showPage(i: number, animate: boolean): void {
@@ -399,6 +415,14 @@ export function mountHome(ctx: HomeCtx): HomeApi {
   });
 
   render();
+  // Do lai so hang khi vung luoi co kich thuoc that (Shell gan vao trang sau mot khung) hoac doi kich thuoc.
+  try {
+    let lastH = 0;
+    new ResizeObserver(() => {
+      const h = pager.clientHeight;
+      if (h && Math.abs(h - lastH) > 4) { lastH = h; fitted = false; fitRows(); }
+    }).observe(pager);
+  } catch { /* trinh duyet cu: giu uoc luong */ }
   return {
     wx: { box: wxBox, ico: wxIco, t: wxT, s: wxS },
     setLayout(l: HomeLayout) {
@@ -410,9 +434,11 @@ export function mountHome(ctx: HomeCtx): HomeApi {
       const tiles: Record<string, number[]> = {};
       ctx.shadow.querySelectorAll<HTMLElement>('.app[data-k]').forEach((t) => {
         const r = t.getBoundingClientRect();
-        if (r.width > 0 && r.right > 0 && r.left < window.innerWidth && !t.classList.contains('drag')) tiles[t.dataset.k!] = [r.left, r.top, r.width, r.height];
+        const pg = (t.closest('.page') as HTMLElement | null)?.dataset.p;
+        if (r.width > 0 && (pg == null || pg === String(cur)) && !t.classList.contains('drag')) tiles[t.dataset.k!] = [r.left, r.top, r.width, r.height];
       });
-      return { editing, folder: openFolderId, page: cur, layout: JSON.parse(JSON.stringify(layout)), tiles };
+      const pg0 = pages.firstElementChild as HTMLElement | null, t0 = pg0?.querySelector('.app') as HTMLElement | null;
+      return { fit: [pg0?.clientHeight ?? 0, t0?.offsetHeight ?? 0, pg0 ? parseFloat(getComputedStyle(pg0).rowGap) : 0], editing, folder: openFolderId, page: cur, rows, cols, layout: JSON.parse(JSON.stringify(layout)), tiles };
     },
   };
 }
