@@ -31,6 +31,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .scrim.on { pointer-events: auto; }
 .shade { position: absolute; top: 0; left: 0; right: 0; height: 0; overflow: hidden; pointer-events: auto;
   background: var(--surface); border-radius: 0 0 var(--r-lg) var(--r-lg); box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+.shade.scroll { overflow-y: auto; overscroll-behavior: contain; }
 .shade.anim { transition: height 180ms cubic-bezier(.2,.8,.2,1); }
 .scrim.anim { transition: opacity 180ms linear; }
 .shade-in { padding: calc(var(--pad) + 6px) var(--pad) calc(var(--pad) + 14px); display: flex; flex-direction: column; gap: var(--gap); }
@@ -58,6 +59,26 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .slider .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; }
 .slider .ic { position: absolute; left: clamp(10px, 2.6vmin, 16px); top: 50%; transform: translateY(-50%); width: 1.45em; height: 1.45em; }
 .slider .pct { position: absolute; right: clamp(10px, 2.6vmin, 16px); top: 50%; transform: translateY(-50%); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* The "Dang phat": tab nen dang phat (Radio/Nhac) — mo lai hoac dung ngay tu thanh keo xuong */
+.np { display: flex; flex-direction: column; gap: calc(var(--gap) * 0.6); }
+.np-row { display: flex; align-items: center; gap: var(--gap); padding: clamp(6px, 1.6vmin, 10px) clamp(10px, 2.6vmin, 16px);
+  border-radius: var(--r-md); background: rgba(234,88,12,0.18); }
+.np-row .ic { width: 1.45em; height: 1.45em; color: #fdba74; }
+.np-t { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.np-l { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.np-s { color: var(--muted); font-size: 0.86em; }
+.np-b { flex: none; height: clamp(32px, 8vmin, 44px); min-width: clamp(32px, 8vmin, 44px); padding: 0 clamp(10px, 2.4vmin, 16px);
+  border-radius: 999px; background: var(--surface-2); font-weight: 600; display: flex; align-items: center; justify-content: center; }
+.np-b.stop { padding: 0; background: #ea580c; }
+.np-b.stop .ic { color: #fff; width: 1.2em; height: 1.2em; }
+.np-row.busy { opacity: 0.5; }
+/* Man thap (S3 480x272): cac the nam NGANG mot hang, bo dong phu — de bang khong vuot chieu cao man hinh */
+@media (max-height: 320px) {
+  .np { flex-direction: row; }
+  .np-row { flex: 1 1 0; min-width: 0; gap: 6px; padding: 4px 6px 4px 10px; }
+  .np-s, .np-row > .ic { display: none; }
+}
 
 .shortcuts { display: flex; gap: var(--gap); justify-content: space-around; padding-top: 2px; }
 .sc { display: flex; flex-direction: column; align-items: center; gap: clamp(4px, 1vmin, 7px); min-width: 0; flex: 1; max-width: 120px; }
