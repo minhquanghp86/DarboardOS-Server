@@ -51,6 +51,7 @@ hiện ở tab *Tài liệu* của addon trong Home Assistant.
 - **Mỗi ứng dụng một tab Chromium riêng**: mở Home Assistant/Camera/Radio… không tải lại — tab được giữ "ấm" ở nền,
   quay lại gần như tức thì. Chỉ tab đang hiện mới được mã hoá/truyền hình; các tab khác vẫn chạy JS (radio/nhạc phát
   nền được). Tối đa `MAX_APP_TABS` ứng dụng phụ mở song song, cũ nhất tự đóng khi vượt hạn mức.
+- Thẻ **Đang phát** trong thanh kéo xuống: Radio/Nhạc đang phát nền — mở lại hoặc dừng ngay, không cần vào ứng dụng.
 
 **Vận hành**
 - `/metrics` (JSON số liệu từng màn hình), tinh chỉnh nóng qua `/data/rwv-tuning.json`, self-test đo thời gian dựng

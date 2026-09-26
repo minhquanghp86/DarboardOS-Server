@@ -22,6 +22,8 @@ interface DevState {
   tg: { noSleep: boolean; muted: boolean; aec: boolean } | null;
   wx: { t: number; code: number; day: boolean; pp: number | null; name: string } | null;
   tm: { endsAt: number; label: string } | null;
+  /** (26/09/2026) Tab nen dang phat (Radio/Nhac): k = khoa tab o server, l = ten ung dung. Server < 2.9.49 khong gui. */
+  np?: { k: string; l: string }[];
 }
 
 (function () {
@@ -158,13 +160,37 @@ interface DevState {
     b.addEventListener('click', (e) => { e.stopPropagation(); fn(); });
     shortcuts.appendChild(b);
   }
-  inner.append(info, ctl, shortcuts);
+  // The "Dang phat" (docs/KE-HOACH-GIAO-DIEN-HE-DIEU-HANH.md muc 5.2): Radio/Nhac dang phat nen -> Mo lai / Dung ngay,
+  // khong phai mo lai dung ung dung do moi tat duoc. Chi dung lai DOM khi danh sach DOI (moi lan ve = mot khung WiFi).
+  const npBox = el('div', 'np');
+  npBox.style.display = 'none';
+  let npSig = '';
+  function renderNowPlaying(list: { k: string; l: string }[]) {
+    const sig = JSON.stringify(list);
+    if (sig === npSig) return;
+    npSig = sig;
+    npBox.replaceChildren(...list.map((it) => {
+      const row = el('div', 'np-row');
+      const txt = el('div', 'np-t'); txt.append(el('span', 'np-l', it.l), el('span', 'np-s', 'Đang phát nền'));
+      const open = el('button', 'np-b', 'Mở');
+      open.addEventListener('click', (e) => { e.stopPropagation(); openApp(it.k); });
+      const stop = el('button', 'np-b stop'); stop.setAttribute('aria-label', 'Dừng ' + it.l); stop.appendChild(mdi('stop'));
+      stop.addEventListener('click', (e) => { e.stopPropagation(); row.classList.add('busy'); sendControl({ stop: it.k }); });
+      row.append(mdi('music'), txt, open, stop);
+      return row;
+    }));
+    npBox.style.display = list.length ? '' : 'none';
+    if (shadeVisible > 0) setVisible(fullH(), false);  // bang dang mo: chieu cao noi dung vua doi
+  }
+  inner.append(info, ctl, npBox, shortcuts);
 
   // Chieu cao, keo, mo/dong. Muc 'full' (P4): keo theo ngon; 'reduced'/'minimal' (S3): nhay thang.
   let shadeVisible = 0;
   const fullH = () => inner.offsetHeight;
   function setVisible(px: number, animate: boolean) {
-    const h = fullH();
+    // Khong cao hon man hinh: noi dung nhieu hon (vd nhieu the Dang phat tren S3 480x272) thi cuon trong bang.
+    const h = Math.min(fullH(), window.innerHeight);
+    shade.classList.toggle('scroll', fullH() > h);
     shadeVisible = Math.max(0, Math.min(h, px));
     const anim = animate && CFG.motion === 'full';
     shade.classList.toggle('anim', anim); scrim.classList.toggle('anim', anim);
@@ -371,6 +397,7 @@ interface DevState {
         homeWx.classList.add('show');
       }
     }
+    renderNowPlaying(s.np || []);
     tick();
     try { window.dispatchEvent(new CustomEvent('rwv-state', { detail: s })); } catch { /* */ }
   }

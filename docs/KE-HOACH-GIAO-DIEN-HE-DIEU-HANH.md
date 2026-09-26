@@ -49,6 +49,19 @@ Ngày lập: 25/09/2026. Mốc quay về: **Bản Ổn định 25/09 đêm** (ta
       nào cho tab "home"** (so với dòng điều hướng duy nhất lúc kết nối lần đầu) — xác nhận không tải lại trang.
     - **Chưa đo được** bằng tai/số liệu: âm thanh nền thật của Radio khi chuyển sang ứng dụng khác (mới xác minh
       logic qua đọc mã + luồng lệnh, chưa nghe thật trên loa P4); RAM addon thực tế khi mở nhiều tab cùng lúc.
+- **Bổ sung 2.9.49 (26/09, phiên cloud — CHƯA nạp lên HASS, nằm trên nhánh `claude/two-repo-research-3ulwjd`)**:
+  - **Sửa rò tab (race)**: `openApp()`/`navigateToUrl()` giờ chạy tuần tự theo từng thiết bị (`dev.tabOps`,
+    `SerialQueue` trong `src/tabPolicy.ts`). Trước đó hai lệnh sát nhau cùng thấy "chưa có tab" và tạo hai tab, tab
+    đầu bị ghi đè khỏi `dev.tabs` và không bao giờ đóng. **Đã tái hiện trên server thật + Chromium** (client WS giả,
+    3 cử chỉ vuốt-về-Home cách ~13 ms): mã 2.9.48 → 3 tab `/os/home`; 2.9.49 → 1 tab.
+  - **Sửa `resolveAppSpec` dùng `baseKind`**: ứng dụng bị đổi biểu tượng ở Menu panel có `kind: 'mdi'`, làm Radio/Nhạc
+    mất phát nền và YouTube/TikTok không tự dừng khi rời tab.
+  - **Thẻ "Đang phát" (việc 5 của bàn giao cũ)**: script khoá âm thanh (`buildAudioGuardScript`) báo `{media:0|1}` qua
+    `__rwvControl` khi thẻ `<audio>/<video>` đổi trạng thái phát; server lưu `tab.mediaPlaying/mediaKnown` và đẩy
+    `np` (danh sách tab NỀN đang phát) trong trạng thái Shell. Thanh kéo xuống hiện thẻ với nút Mở / ■ (`{stop:key}` →
+    `window.__rwvMediaStop()`, trang radio tự huỷ HLS qua `window.rwvStop`). Chính sách dọn tab: Radio/Nhạc chỉ được
+    miễn khi đang phát (hoặc chưa từng báo — thận trọng). Kiểm bằng Chromium thật: báo phát/dừng đúng, bấm ■ gửi đúng
+    lệnh, bố cục ở 1024×600, 480×480, 480×272 (màn thấp xếp thẻ thành hàng ngang, bảng không vượt chiều cao màn).
 ## 1. Ý tưởng của người dùng (tóm lại để thống nhất)
 
 - Panel không còn là "trình duyệt mở dashboard HA + popup menu", mà là **một hệ điều hành nhỏ** kiểu điện thoại / máy
@@ -260,7 +273,13 @@ chưa đầu tư nhiều vào giao diện.
 
 ## 11. Bàn giao cho phiên làm việc sau (kể cả phiên cloud không có hội thoại này)
 
-**Trạng thái hiện tại**: OS-2 đã xong và đang chạy thật trên HASS (192.168.10.2), server bản **2.9.48**, đã xác
+**Cập nhật 26/09 (phiên cloud)**: đã làm bản **2.9.49** (mục 0 — sửa race rò tab, sửa `baseKind`, thẻ "Đang phát").
+Phiên cloud **không truy cập được HASS/LAN**, nên 2.9.49 mới kiểm bằng test + Chromium trong container, **chưa nạp lên
+addon, chưa thử trên panel thật**. Việc tiếp theo cho phiên có quyền SSH: merge nhánh `claude/two-repo-research-3ulwjd`
+vào `main` → cập nhật addon → làm 3 việc kiểm chứng dưới đây (việc 3 nay nghe thêm: thẻ "Đang phát" hiện khi Radio phát
+nền, bấm ■ thì im hẳn và thẻ biến mất). Việc 5 cũ (thẻ Đang phát) đã xong.
+
+**Trạng thái trước đó**: OS-2 đã xong và đang chạy thật trên HASS (192.168.10.2), server bản **2.9.48**, đã xác
 minh trên cả 3 màn hình (P4 1024×600, S3 480×480, S3 480×272) không lỗi lúc kết nối, YouTube trên P4 vẫn 28,2 fps.
 Toàn bộ mã đã commit và push lên `main` của repo này; addon HASS đã cập nhật lên 2.9.48 (không chỉ commit suông).
 
@@ -284,8 +303,7 @@ trình đã dùng ở các lần chốt trước — sao lưu firmware+server+Fr
 4. Sau khi (1)–(3) ổn, tiếp **OS-3** theo mục 8: màn hình "Gần đây" thật (ảnh thu nhỏ từng tab đang mở — có sẵn
    `dev.tabs` để lặp qua, còn thiếu cơ chế chụp ảnh thu nhỏ mỗi tab nền, vd `Page.captureScreenshot` định kỳ hoặc
    khi deactivate), thanh điều hướng Quay lại/Home/Gần đây trên ứng dụng "trần", hoàn thiện trang Ứng dụng.
-5. Việc nhỏ chưa làm: nút/thẻ "Đang phát" trong thanh trạng thái để chủ động dừng nhạc/radio nền (hiện chỉ dừng
-   được bằng cách mở lại đúng ứng dụng đó rồi bấm nút dừng trong trang) — thuộc phạm vi OS-3/5.2 theo kế hoạch.
+5. ~~Thẻ "Đang phát" trong thanh trạng thái~~ — **xong ở 2.9.49** (chờ kiểm trên panel thật).
 
 **Chỗ nên đọc trước khi sửa `deviceManager.ts`**: các hàm mới quanh quản lý tab nằm liền nhau, theo thứ tự
 `resolveAppSpec` → `openApp` → `countNonPinnedTabs`/`evictIfNeeded`/`closeTab` → `createTab` → `navigateTab` →

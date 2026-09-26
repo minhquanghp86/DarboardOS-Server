@@ -20,9 +20,10 @@ import { nudgeRepaintAsync } from "./browser.js";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildLauncherApps, GROUP_TITLES, LAUNCHER_CAMS_URL, LAUNCHER_OS_HOME_URL, LAUNCHER_SCENES_URL, LAUNCHER_TIMER_URL, LAUNCHER_WEATHER_URL } from "./launcherApps.js";
+import { buildLauncherApps, listAllApps, GROUP_TITLES, LAUNCHER_CAMS_URL, LAUNCHER_OS_HOME_URL, LAUNCHER_SCENES_URL, LAUNCHER_TIMER_URL, LAUNCHER_WEATHER_URL } from "./launcherApps.js";
 import { createRequire } from "node:module";
 import { getWeatherMini, onWeatherMiniUpdate } from "./weatherMini.js";
+import { SerialQueue, nowPlaying, pickEvictions } from "./tabPolicy.js";
 import { ControlField, DeviceStateInfo, Encoding, FRAME_HEADER_BYTES, TILE_HEADER_BYTES, parseDeviceStatePacket } from "./protocol.js";
 
 // ── Type-safe interface cho CDP root (thay thế cast `any`) ────────────────────
@@ -135,6 +136,8 @@ export type DeviceSession = {
   tabs: Map<string, Tab>;
   /** Khoa cua tab dang active trong `tabs` ('' = chua co tab nao — chi dung trong luc ensureDeviceAsync khoi tao). */
   activeTabKey: string;
+  /** (26/09/2026) Moi thao tac mo/chuyen tab (openApp, navigateToUrl) chay TUAN TU — xem SerialQueue (tabPolicy.ts). */
+  tabOps: SerialQueue;
 };
 
 /** (26/09/2026 OS-2) Mot "ung dung" = mot Chromium target/session rieng cua MOT thiet bi. */
@@ -143,6 +146,8 @@ interface Tab {
    *  hoac id ung dung tu launcherApps.ts ('cams', 'scenes', 'radio', 'c_xxx'...). */
   key: string;
   kind: string;
+  /** Ten hien thi (the "Đang phát" trong thanh trang thai). */
+  label: string;
   url: string;
   targetId: string;
   session: CDPSession;
@@ -155,6 +160,10 @@ interface Tab {
   backgroundAudio: boolean;
   /** Trang thai am thanh HIEN TAI da gui cho tab nay — xem setTabAudioAllowed. */
   audioAllowed: boolean;
+  /** (26/09/2026) Trang tu bao dang phat <audio>/<video> (buildAudioGuardScript -> {media}), reset moi lan dieu huong. */
+  mediaPlaying: boolean;
+  /** Trang da bao trang thai phat it nhat mot lan tu lan dieu huong gan nhat (chua bao -> chinh sach don than trong). */
+  mediaKnown: boolean;
   lastUsed: number;
 }
 
@@ -834,7 +843,7 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
 // Mac dinh CAM khi vua tiem (an toan — tab moi tao chua duoc active). setTabAudioAllowed() bat/tat song, VA
 // handleTabNavigation() khang dinh lai moi lan tab dieu huong that su (chong truong hop lenh bat cho tab MOI
 // TAO bi "thua" navigation dang chay do — xem chu thich o setTabAudioAllowed).
-function buildAudioGuardScript(alwaysMuted: boolean): string {
+export function buildAudioGuardScript(alwaysMuted: boolean): string {
   return `(function(){
   window.__rwvAudioGuard = true;
   window.__rwvAudioAllowed = false;
@@ -848,6 +857,31 @@ function buildAudioGuardScript(alwaysMuted: boolean): string {
       get: function(){ return (ALWAYS_MUTED || !window.__rwvAudioAllowed) ? 0 : 1; }, set: function(){}, configurable: true
     });
   } catch (e) {}
+  // (26/09/2026) Bao server trang nay CO dang phat <audio>/<video> khong — de the "Dang phat" chi hien khi that su
+  // phat, va tab Radio/Nhac da dung duoc don nhu tab thuong. Su kien media khong noi bot nhung BAT duoc o pha capture
+  // cua document. Gop 300 ms, chi gui khi trang thai DOI.
+  var last = null, pend = 0;
+  function report(){
+    pend = 0;
+    var p = false;
+    try {
+      var ms = document.querySelectorAll('audio,video');
+      for (var i = 0; i < ms.length; i++) if (!ms[i].paused && !ms[i].ended) { p = true; break; }
+    } catch (e) {}
+    if (p === last) return;
+    last = p;
+    var fn = window[${JSON.stringify(CONTROL_BINDING)}];
+    if (typeof fn === 'function') { try { fn(JSON.stringify({ media: p ? 1 : 0 })); } catch (e) {} }
+  }
+  ['play', 'playing', 'pause', 'ended', 'emptied'].forEach(function(ev){
+    document.addEventListener(ev, function(){ if (!pend) pend = setTimeout(report, 300); }, true);
+  });
+  // Nut "Dung" cua the Dang phat: trang tu dung theo cach cua no (window.rwvStop, vd radio.html huy luon HLS), khong
+  // thi tam dung moi the media.
+  window.__rwvMediaStop = function(){
+    if (typeof window.rwvStop === 'function') { try { window.rwvStop(); return; } catch (e) {} }
+    try { document.querySelectorAll('audio,video').forEach(function(m){ try { m.pause(); } catch (e) {} }); } catch (e) {}
+  };
 })();`;
 }
 
@@ -919,12 +953,19 @@ function isHaUrl(dev: DeviceSession, url: string): boolean {
  * (ghim); khac goc -> tab 'browser'. "Go Home" luon gui dung Home URL nen luon dua tab 'home' VE DUNG home_url,
  * ke ca khi tab do dang o mot trang con khac cua HA — dung yeu cau ban dau cua nut nay.
  */
-export async function navigateToUrl(dev: DeviceSession, url: string): Promise<void> {
+export function navigateToUrl(dev: DeviceSession, url: string): Promise<void> {
+  return dev.tabOps.run(() => navigateToUrlNow(dev, url));
+}
+
+async function navigateToUrlNow(dev: DeviceSession, url: string): Promise<void> {
+  if (devices.get(dev.deviceId) !== dev) return;  // phien da bi xoa trong luc lenh nay xep hang
   const key = isHaUrl(dev, url) ? 'home' : 'browser';
   let tab = dev.tabs.get(key);
   let navigated = false;
   if (!tab) {
-    tab = await createTab(dev, key, key === 'home' ? 'ha' : 'browser', key === 'home');
+    tab = await createTab(dev, key, key === 'home' ? 'ha' : 'browser', key === 'home',
+      key === 'home' ? 'Home Assistant' : 'Trình duyệt');
+    if (devices.get(dev.deviceId) !== dev) { closeTab(dev, key, 'phien thiet bi da bi xoa'); return; }
     // Bat screencast TRUOC (tren trang trang, an toan) roi moi dieu huong cheo nguon — xem createTab().
     await activateTab(dev, key);
     await navigateTab(dev, tab, url);
@@ -947,13 +988,27 @@ export async function navigateToUrl(dev: DeviceSession, url: string): Promise<vo
 // web bat ky cung goi duoc binding nay: viec toi da no lam duoc la doi do sang/am luong cua chinh man hinh nay).
 const CONTROL_BINDING = '__rwvControl';
 
-function handleMenuControl(id: string, payload: unknown): void {
+function handleMenuControl(id: string, payload: unknown, from?: Tab): void {
   if (typeof payload !== 'string' || payload.length > 200) return;
   let msg: any;
   try { msg = JSON.parse(payload); } catch { return; }
   const dev = devices.get(id);
   if (!dev) return;
   if (msg?.hello) { pushDeviceStateToPage(dev); return; }
+  // (26/09/2026) Trang cua MOT tab bao dang phat / da dung (buildAudioGuardScript). Chi tin tab con thuoc thiet bi.
+  if (msg?.media != null) {
+    if (from && dev.tabs.get(from.key) === from) onTabMedia(dev, from, !!msg.media);
+    return;
+  }
+  // Nut "Dung" cua the Dang phat trong thanh trang thai.
+  if (typeof msg?.stop === 'string') {
+    const tab = dev.tabs.get(msg.stop);
+    if (tab) {
+      tab.session.send('Runtime.evaluate', { expression: 'window.__rwvMediaStop && window.__rwvMediaStop();' }).catch(() => { });
+      console.log(`[app] ${id}: dung phat nen tab "${tab.key}"`);
+    }
+    return;
+  }
   if (msg?.timer) { handleTimer(dev, msg.timer); return; }
   // (26/09/2026 OS-2) Shell goi {app:"<id>"} khi nguoi dung cham mot ung dung (luoi Home cua OS, dock, thanh
   // truot mep tren) — mo/kich hoat dung TAB cua ung dung do, xem openApp().
@@ -1022,6 +1077,7 @@ function pushDeviceStateToPage(dev: DeviceSession): void {
     tg: s?.toggles ?? null,
     wx: getWeatherMini(),
     tm: dev.timer ? { endsAt: dev.timer.endsAt, label: dev.timer.label } : null,
+    np: nowPlaying(dev.tabs.values(), dev.activeTabKey),
   };
   dev.cdp.send('Runtime.evaluate', {
     expression: `(window.__rwvShell ? window.__rwvShell.state : window.__rwvDeviceState || function(){})(${JSON.stringify(payload)})`,
@@ -1141,12 +1197,14 @@ export function goOsHome(dev: DeviceSession): void {
 const MAX_APP_TABS = Math.max(0, parseInt(process.env.MAX_APP_TABS ?? '2', 10) || 2);
 
 /** Ung dung nguoi dung co the "mo" tu Shell (khong ke Home Assistant/man hinh chinh, xu ly rieng o day). */
-function resolveAppSpec(dev: DeviceSession, key: string): { kind: string; url: string; pinned: boolean } | null {
-  if (key === '__system') return { kind: 'system', url: LAUNCHER_OS_HOME_URL, pinned: true };
-  if (key === 'home') return dev.cfg.homeUrl ? { kind: 'ha', url: dev.cfg.homeUrl, pinned: true } : null;
-  const app = buildLauncherApps(dev.cfg.homeUrl).find((a) => a.id === key);
+function resolveAppSpec(dev: DeviceSession, key: string): { kind: string; label: string; url: string; pinned: boolean } | null {
+  if (key === '__system') return { kind: 'system', label: 'Màn hình chính', url: LAUNCHER_OS_HOME_URL, pinned: true };
+  if (key === 'home') return dev.cfg.homeUrl ? { kind: 'ha', label: 'Home Assistant', url: dev.cfg.homeUrl, pinned: true } : null;
+  const app = listAllApps(dev.cfg.homeUrl).find((a) => a.id === key && !a.hidden);
   if (!app || !app.url) return null;
-  return { kind: app.kind, url: app.url, pinned: false };
+  // baseKind, KHONG phai kind: nguoi dung doi bieu tuong o "Menu panel" thi kind thanh 'mdi' -> Radio/Nhac mat phat
+  // nen, YouTube/TikTok khong tu dung khi roi tab (activateTab dua vao loai ung dung goc).
+  return { kind: app.baseKind, label: app.label, url: app.url, pinned: false };
 }
 
 /**
@@ -1154,12 +1212,18 @@ function resolveAppSpec(dev: DeviceSession, key: string): { kind: string; url: s
  * khong active), chua co thi tao roi chuyen sang. Goi tu Shell (thanh truot/nut/luoi ung dung goi CONTROL_BINDING
  * {app:key} — xem handleMenuControl) va tu goOsHome().
  */
-async function openApp(dev: DeviceSession, key: string): Promise<void> {
+function openApp(dev: DeviceSession, key: string): Promise<void> {
+  return dev.tabOps.run(() => openAppNow(dev, key));
+}
+
+async function openAppNow(dev: DeviceSession, key: string): Promise<void> {
+  if (devices.get(dev.deviceId) !== dev) return;  // phien da bi xoa trong luc lenh nay xep hang
   let tab = dev.tabs.get(key);
   if (!tab) {
     const spec = resolveAppSpec(dev, key);
     if (!spec) { console.warn(`[app] ${dev.deviceId}: khong biet ung dung "${key}"`); return; }
-    tab = await createTab(dev, key, spec.kind, spec.pinned);
+    tab = await createTab(dev, key, spec.kind, spec.pinned, spec.label);
+    if (devices.get(dev.deviceId) !== dev) { closeTab(dev, key, 'phien thiet bi da bi xoa'); return; }
     // Bat screencast TRUOC (tren trang trang, an toan) roi moi dieu huong cheo nguon — xem createTab().
     await activateTab(dev, key);
     await navigateTab(dev, tab, spec.url);
@@ -1169,34 +1233,33 @@ async function openApp(dev: DeviceSession, key: string): Promise<void> {
   evictIfNeeded(dev);
 }
 
-function countNonPinnedTabs(dev: DeviceSession): number {
-  let n = 0;
-  for (const t of dev.tabs.values()) if (!t.pinned) n++;
-  return n;
-}
-
 /**
  * (26/09/2026 OS-2) Don tab CU NHAT khong ghim/khong active/khong dang phat am thanh nen, cho toi khi ve duoi
  * MAX_APP_TABS hoac het ung vien (co the tam vuot han muc neu tat ca tab con lai deu duoc mien don — chap nhan
  * duoc, uu tien khong lam gian doan am thanh dang phat hon la giu dung han muc tuyet doi).
  */
 function evictIfNeeded(dev: DeviceSession): void {
-  const evictable = [...dev.tabs.values()]
-    .filter((t) => !t.pinned && t.key !== dev.activeTabKey && !t.backgroundAudio)
-    .sort((a, b) => a.lastUsed - b.lastUsed);
-  while (evictable.length > 0 && countNonPinnedTabs(dev) > MAX_APP_TABS) {
-    closeTab(dev, evictable.shift()!.key);
-  }
+  for (const key of pickEvictions(dev.tabs.values(), dev.activeTabKey, MAX_APP_TABS)) closeTab(dev, key);
 }
 
-function closeTab(dev: DeviceSession, key: string): void {
+/** (26/09/2026) Trang cua tab bao bat dau/ngung phat. Doi trang thai -> cap nhat the "Dang phat" tren man hinh. */
+function onTabMedia(dev: DeviceSession, tab: Tab, playing: boolean): void {
+  const changed = tab.mediaPlaying !== playing || !tab.mediaKnown;
+  tab.mediaPlaying = playing;
+  tab.mediaKnown = true;
+  if (!changed) return;
+  if (tab.backgroundAudio) console.log(`[app] ${dev.deviceId}: tab "${tab.key}" ${playing ? 'dang phat' : 'da dung phat'}`);
+  pushDeviceStateToPage(dev);
+}
+
+function closeTab(dev: DeviceSession, key: string, reason = 'qua so tab toi da'): void {
   const tab = dev.tabs.get(key);
   if (!tab) return;
   dev.tabs.delete(key);
   const root = getRoot() as unknown as CDPRoot;
   tab.session.send('Page.stopScreencast').catch(() => { });
   root?.send('Target.closeTarget', { targetId: tab.targetId }).catch(() => { });
-  console.log(`[app] ${dev.deviceId}: dong tab "${key}" (${tab.kind}, qua so tab toi da)`);
+  console.log(`[app] ${dev.deviceId}: dong tab "${key}" (${tab.kind}, ${reason})`);
 }
 
 /**
@@ -1213,7 +1276,7 @@ function closeTab(dev: DeviceSession, key: string): void {
  * bat screencast) gay loi CDP that "Not attached to an active page": dieu huong cheo nguon co the khien Chrome
  * doi tien trinh renderer (site isolation) dung luc phien CDP dang gan (flatten) vao muc tieu do.
  */
-async function createTab(dev: DeviceSession, key: string, kind: string, pinned: boolean): Promise<Tab> {
+async function createTab(dev: DeviceSession, key: string, kind: string, pinned: boolean, label: string): Promise<Tab> {
   const root = getRoot() as unknown as CDPRoot;
   if (!root) throw new Error('CDP not ready');
 
@@ -1231,8 +1294,11 @@ async function createTab(dev: DeviceSession, key: string, kind: string, pinned: 
   );
 
   const tab: Tab = {
-    key, kind, url: '', targetId, session, pinned,
-    screencastOn: false, backgroundAudio: false, audioAllowed: false, lastUsed: Date.now(), launcherScriptId,
+    key, kind, label, url: '', targetId, session, pinned,
+    screencastOn: false,
+    // Radio/Nhac: duoc phep tiep tuc keu KHI KHONG active (the "Dang phat" trong thanh trang thai dung duoc).
+    backgroundAudio: kind === 'radio' || kind === 'music',
+    audioAllowed: false, mediaPlaying: false, mediaKnown: false, lastUsed: Date.now(), launcherScriptId,
   };
   dev.tabs.set(key, tab);
 
@@ -1242,7 +1308,7 @@ async function createTab(dev: DeviceSession, key: string, kind: string, pinned: 
     await session.send('Runtime.addBinding', { name: CONTROL_BINDING });
     session.on('Runtime.bindingCalled', (evt: any) => {
       if (evt?.name === URL_BINDING) handleUserEnteredUrl(dev.deviceId, evt.payload);
-      else if (evt?.name === CONTROL_BINDING) handleMenuControl(dev.deviceId, evt.payload);
+      else if (evt?.name === CONTROL_BINDING) handleMenuControl(dev.deviceId, evt.payload, tab);
     });
     // Moi trang moi cua TAB NAY: neu dang la tab active, dua lai trang thai thiet bi vao Shell.
     session.on('Page.domContentEventFired', () => {
@@ -1288,7 +1354,11 @@ async function createTab(dev: DeviceSession, key: string, kind: string, pinned: 
   });
 
   session.on('Page.frameNavigated', (evt: any) => {
-    if (!evt?.frame?.parentId) handleTabNavigation(dev, tab, evt?.frame?.url);
+    if (evt?.frame?.parentId) return;
+    // Tai lieu moi: moi <audio>/<video> cua trang cu da mat -> khong con phat, trang moi se tu bao lai neu phat.
+    if (tab.mediaKnown && tab.mediaPlaying) onTabMedia(dev, tab, false);
+    tab.mediaKnown = false;
+    handleTabNavigation(dev, tab, evt?.frame?.url);
   });
   session.on('Page.navigatedWithinDocument', (evt: any) => {
     handleTabNavigation(dev, tab, evt?.url);
@@ -1366,8 +1436,6 @@ async function activateTab(dev: DeviceSession, key: string): Promise<void> {
   dev.activeTabKey = key;
   dev.cdp = next.session;
   next.lastUsed = Date.now();
-  // Radio/Nhac: duoc phep tiep tuc phat KE CA sau khi roi tab (thẻ "Đang phát" — GĐ sau se them dieu khien tat).
-  if (next.kind === 'radio' || next.kind === 'music') next.backgroundAudio = true;
   setTabAudioAllowed(next, true);
 
   if (!next.screencastOn) {
@@ -1563,11 +1631,12 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     consecutiveFrameErrors: 0, // Cải tiến: tracking lỗi liên tiếp
     recentFrameMs: [], passthroughFrames: 0, passthroughOn: false,
     halfOn: false, halfFrames: 0, forceSharp: false,
-    tabs: new Map<string, Tab>(), activeTabKey: '',
+    tabs: new Map<string, Tab>(), activeTabKey: '', tabOps: new SerialQueue(),
   };
 
   const initialKey = cfg.homeUrl ? 'home' : 'browser';
-  const initialTab = await createTab(newDevice, initialKey, cfg.homeUrl ? 'ha' : 'browser', !!cfg.homeUrl);
+  const initialTab = await createTab(newDevice, initialKey, cfg.homeUrl ? 'ha' : 'browser', !!cfg.homeUrl,
+    cfg.homeUrl ? 'Home Assistant' : 'Trình duyệt');
   newDevice.id = initialTab.targetId;
   newDevice.cdp = initialTab.session;
   devices.set(id, newDevice);
