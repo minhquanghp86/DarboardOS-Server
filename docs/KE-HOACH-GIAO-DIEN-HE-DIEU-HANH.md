@@ -31,16 +31,24 @@ Ngày lập: 25/09/2026. Mốc quay về: **Bản Ổn định 25/09 đêm** (ta
   - Shell (`src/shell/main.ts`) đổi từ `location.href = url` sang `sendControl({app: id})` — server quyết định mở
     tab nào, Shell không tự điều hướng ứng dụng nữa (chỉ còn ô nhập URL của "Trình duyệt" dùng `location.href`
     làm phương án dự phòng cho firmware cũ chưa hỗ trợ `urlset`).
-  - Kiểm tra: `tsc --noEmit` sạch, 59/59 test qua (thêm 5 test `gestures.test.ts` cho cử chỉ mép). Xem lại cần đo
-    trên thiết bị thật (fps, thời gian chuyển Home Assistant, âm thanh nền) — xem mục "Còn lại" bên dưới.
-- **Việc còn lại cho phiên sau** (chưa làm trong OS-2):
-  - Chưa có nút/thẻ "Đang phát" trong thanh trạng thái để NGƯỜI DÙNG chủ động dừng nhạc/radio đang phát nền — hiện
-    chỉ dừng được bằng cách mở lại đúng ứng dụng đó rồi bấm nút dừng trong trang.
-  - Chưa đo RAM addon thực tế với nhiều tab cùng mở (giả định ~1,1 GB/3 màn hình một-tab trước đây; OS-2 có thể
-    cộng thêm 100–250 MB mỗi tab phụ đang mở — xem DOCS.md mục Giới hạn đã biết).
-  - OS-3 (theo lộ trình mục 8): màn hình "Gần đây" thật (ảnh thu nhỏ từng ứng dụng đang mở), thanh điều hướng
-    Quay lại/Home/Gần đây trên các ứng dụng "trần", hoàn thiện trang Ứng dụng.
-
+  - Kiểm tra: `tsc --noEmit` sạch, 59/59 test qua (thêm 5 test `gestures.test.ts` cho cử chỉ mép).
+  - **Lỗi thật gặp khi nạp lên P4/S3 (2.9.47), đã sửa trong 2.9.48**: `Page.startScreencast` báo lỗi CDP
+    `Not attached to an active page` cho CẢ BA thiết bị lúc kết nối lần đầu. Nguyên nhân: `createTab()` gọi
+    `Page.navigate` tới URL thật (đổi gốc, vd dashboard HA) NGAY TRONG lúc tạo tab, TRƯỚC KHI bật screencast —
+    ngược thứ tự an toàn của bản gốc một-tab (luôn bật screencast trên trang `about:blank` ổn định trước, điều
+    hướng sau; điều hướng đổi gốc có thể khiến Chrome đổi tiến trình dựng trang — site isolation — đúng lúc phiên
+    CDP đang gắn vào mục tiêu đó). Sửa: tách `createTab()` (chỉ tạo target/tiêm script, không điều hướng) khỏi
+    `navigateTab()` (điều hướng riêng); mọi nơi gọi đều theo thứ tự tạo tab → `activateTab()` (bật screencast) →
+    `navigateTab()`.
+  - **Đã xác minh thật trên P4 (2.9.48, xem log `docker logs` + kịch bản CDP tự lái)**:
+    - Không còn lỗi `Not attached to an active page` lúc 3 thiết bị cùng kết nối.
+    - YouTube vẫn 28,2 khung/giây (không đổi so với trước OS-2).
+    - Mở "Camera" từ thanh trạng thái → log `[app] ...: chuyen sang tab "cams" (cams)` — tab mới được tạo và
+      kích hoạt.
+    - Quay lại "Home Assistant" → log `[app] ...: chuyen sang tab "home" (ha)`, **không có dòng log điều hướng
+      nào cho tab "home"** (so với dòng điều hướng duy nhất lúc kết nối lần đầu) — xác nhận không tải lại trang.
+    - **Chưa đo được** bằng tai/số liệu: âm thanh nền thật của Radio khi chuyển sang ứng dụng khác (mới xác minh
+      logic qua đọc mã + luồng lệnh, chưa nghe thật trên loa P4); RAM addon thực tế khi mở nhiều tab cùng lúc.
 ## 1. Ý tưởng của người dùng (tóm lại để thống nhất)
 
 - Panel không còn là "trình duyệt mở dashboard HA + popup menu", mà là **một hệ điều hành nhỏ** kiểu điện thoại / máy
@@ -249,6 +257,40 @@ chưa đầu tư nhiều vào giao diện.
 2. **Khởi động panel vào đâu**: Home Assistant (như hiện nay) hay Màn hình chính?
 3. **Thanh điều hướng**: kiểu 3 nút (Quay lại · Home · Gần đây, hiện khi vuốt lên từ mép dưới) hay chỉ cử chỉ?
 4. Danh sách biểu tượng ở mục 6 — thêm/bớt gì?
+
+## 11. Bàn giao cho phiên làm việc sau (kể cả phiên cloud không có hội thoại này)
+
+**Trạng thái hiện tại**: OS-2 đã xong và đang chạy thật trên HASS (192.168.10.2), server bản **2.9.48**, đã xác
+minh trên cả 3 màn hình (P4 1024×600, S3 480×480, S3 480×272) không lỗi lúc kết nối, YouTube trên P4 vẫn 28,2 fps.
+Toàn bộ mã đã commit và push lên `main` của repo này; addon HASS đã cập nhật lên 2.9.48 (không chỉ commit suông).
+
+**Bản Ổn định CHƯA được cập nhật sang OS-2** — vẫn là bản tối 25/09 (tag `ban-on-dinh-2026-09-25-dem`, trước OS-1
+lẫn OS-2, xem `hassio/remote_webview_server/DOCS.md`/`ban-on-dinh-stable-version.md` trong bộ nhớ dự án). Nếu người
+dùng xác nhận OS-2 dùng ổn sau vài ngày, nên hỏi họ có muốn chốt bản này thành Bản Ổn định mới không (theo đúng quy
+trình đã dùng ở các lần chốt trước — sao lưu firmware+server+Frigate+launcher.json, gắn tag `ban-on-dinh` mới).
+
+**Việc còn lại, ưu tiên theo thứ tự đề xuất**:
+1. **Theo dõi thêm vài ngày sử dụng thật** trước khi làm tiếp OS-3 — đây là thay đổi kiến trúc lớn (nhiều tab
+   Chromium/thiết bị), rủi ro rò rỉ tab/RAM hoặc lỗi race hiếm gặp cao hơn các bản trước. Xem log addon
+   (`docker logs app_5e50eaa0_remote_webview_server`) tìm dòng `[app]`/`Not attached`/`Restarting device` nếu có
+   báo cáo bất thường.
+2. **Đo RAM addon thực tế với nhiều tab mở cùng lúc** (mở vài ứng dụng trên mỗi màn hình, so với mốc cũ ~1,1 GB/3
+   màn hình một-tab) — chưa làm trong phiên này do ưu tiên bàn giao sớm. Lệnh: `docker stats --no-stream
+   app_5e50eaa0_remote_webview_server` trước/sau khi mở đủ `MAX_APP_TABS` ứng dụng trên cả 3 màn hình.
+3. **Nghe thật âm thanh nền của Radio** khi chuyển sang ứng dụng khác trên P4 (mở Radio → bấm phát → mở YouTube/
+   Camera → xác nhận Radio vẫn kêu; mở lại Radio → bấm dừng → xác nhận im hẳn, không còn tiếng rơi lại sang tab
+   khác). Logic đã viết đúng theo thiết kế (`backgroundAudio`, `setTabAudioAllowed`) và đã tự kiểm bằng đọc mã,
+   nhưng CHƯA nghe thật bằng tai trên loa P4.
+4. Sau khi (1)–(3) ổn, tiếp **OS-3** theo mục 8: màn hình "Gần đây" thật (ảnh thu nhỏ từng tab đang mở — có sẵn
+   `dev.tabs` để lặp qua, còn thiếu cơ chế chụp ảnh thu nhỏ mỗi tab nền, vd `Page.captureScreenshot` định kỳ hoặc
+   khi deactivate), thanh điều hướng Quay lại/Home/Gần đây trên ứng dụng "trần", hoàn thiện trang Ứng dụng.
+5. Việc nhỏ chưa làm: nút/thẻ "Đang phát" trong thanh trạng thái để chủ động dừng nhạc/radio nền (hiện chỉ dừng
+   được bằng cách mở lại đúng ứng dụng đó rồi bấm nút dừng trong trang) — thuộc phạm vi OS-3/5.2 theo kế hoạch.
+
+**Chỗ nên đọc trước khi sửa `deviceManager.ts`**: các hàm mới quanh quản lý tab nằm liền nhau, theo thứ tự
+`resolveAppSpec` → `openApp` → `countNonPinnedTabs`/`evictIfNeeded`/`closeTab` → `createTab` → `navigateTab` →
+`handleTabNavigation` → `activateTab`, ngay trước `setupStableViewport`/`ensureDeviceAsync`. `flushPending` đã
+tách thành hàm cấp module (nhận `dev` làm tham số) nằm ngay sau `ensureDeviceAsync`, dùng chung cho mọi tab.
 
 ## Nguồn tham khảo
 
