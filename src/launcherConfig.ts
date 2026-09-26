@@ -5,6 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { AppGroup } from './launcherApps.js';
+import { HomeLayout, sanitizeLayout } from './homeLayout.js';
 
 export interface CustomApp { id: string; label: string; url: string; group: AppGroup; icon: string; color: string; }
 export interface AppOverride { label?: string; icon?: string; color?: string; group?: AppGroup; }
@@ -13,6 +14,8 @@ export interface LauncherConfig {
   order: Partial<Record<AppGroup, string[]>>;
   custom: CustomApp[];
   overrides: Record<string, AppOverride>;
+  /** (27/09/2026 OS-3) Bo cuc man hinh chinh sap tren panel. null = mac dinh theo thu tu Menu panel. */
+  home: HomeLayout | null;
 }
 
 const DATA_DIR = fs.existsSync('/data') ? '/data' : path.join(process.cwd(), 'data');
@@ -22,7 +25,7 @@ const MDI_CDN = 'https://cdn.jsdelivr.net/npm/@mdi/svg@7.4.47/svg/';
 export const MDI_VERSION = '7.4.47';
 
 const GROUPS: AppGroup[] = ['nha', 'giai_tri', 'tien_ich'];
-const EMPTY: LauncherConfig = { hidden: [], order: {}, custom: [], overrides: {} };
+const EMPTY: LauncherConfig = { hidden: [], order: {}, custom: [], overrides: {}, home: null };
 
 let cfg: LauncherConfig = load();
 let mdi: Record<string, string> = loadMdi();
@@ -74,15 +77,28 @@ export function sanitize(raw: any): LauncherConfig {
       if (Object.keys(ov).length) out.overrides[id] = ov;
     }
   }
+  out.home = sanitizeLayout(raw.home);
   return out;
+}
+
+function writeConfig(next: LauncherConfig): void {
+  fs.mkdirSync(path.dirname(CFG_FILE), { recursive: true });
+  fs.writeFileSync(CFG_FILE, JSON.stringify(next, null, 2));
+  cfg = next;
+}
+
+/** (27/09/2026 OS-3) Luu bo cuc man hinh chinh (panel gui sau moi lan keo tha). null = dat lai mac dinh. */
+export function saveHomeLayout(raw: unknown): HomeLayout | null {
+  writeConfig({ ...cfg, home: raw == null ? null : sanitizeLayout(raw) });
+  return cfg.home;
 }
 
 export async function saveLauncherConfig(raw: unknown): Promise<LauncherConfig> {
   const next = sanitize(raw);
+  // Trang Menu panel cu khong biet "home": thieu khoa -> giu bo cuc dang co (khong xoa mat viec nguoi dung da sap).
+  if (!raw || typeof raw !== 'object' || !('home' in raw)) next.home = cfg.home;
   await ensureMdiIcons(next);
-  fs.mkdirSync(path.dirname(CFG_FILE), { recursive: true });
-  fs.writeFileSync(CFG_FILE, JSON.stringify(next, null, 2));
-  cfg = next;
+  writeConfig(next);
   return cfg;
 }
 
