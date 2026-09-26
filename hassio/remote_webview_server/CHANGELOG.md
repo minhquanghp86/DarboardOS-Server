@@ -1,3 +1,20 @@
+## V2.9.61
+### Màn hình chờ thành khung ảnh số: vuốt xem ảnh, hiệu ứng, album Google Photos, cài đặt trên màn hình
+
+- **Vuốt trái / phải** trên màn hình chờ (đang hiện ảnh) = ảnh sau / trước (có lịch sử để lùi lại); **chạm** = thoát
+  như cũ. Ứng dụng *Khung ảnh* cũng vuốt được.
+- **Cài đặt → nhóm "Khung ảnh"** (riêng từng màn hình): **Đổi ảnh sau** 15 giây / 30 giây / 1 / 2 / 5 phút · **Hiệu ứng
+  chuyển** Mờ dần / Trượt (theo hướng vuốt) / Thu phóng / Không · **Kiểu hiển thị** Lấp đầy / **Vừa khung** (giữ trọn
+  ảnh, nền là chính ảnh đó làm mờ — như khung ảnh số) · **Thứ tự** Ngẫu nhiên (không lặp ảnh vừa xem) / Theo thứ tự ·
+  **Nguồn ảnh** Thư mục / Google Photos / Cả hai · **Hiện đồng hồ** · **Hiện ngày chụp / album** (ngày EXIF + tên
+  thư mục con) · **Album Google Photos** (dán link chia sẻ, dùng chung mọi màn hình; hoặc tuỳ chọn addon `gphotos_album`).
+- **Album Google Photos chia sẻ**: không cần chép ảnh vào HA — server đọc danh sách ảnh của album (làm mới 30 phút),
+  thu nhỏ vừa màn hình. Chỉ tải đúng ảnh thuộc album đã cấu hình. Lưu ý: dùng trang album công khai (Google không còn
+  cho ứng dụng đọc thư viện ảnh từ 03/2025) — Google đổi trang thì có thể phải cập nhật addon; album lỗi mạng thì vẫn
+  dùng ảnh thư mục.
+- Màn hình S3 (giải mã chậm) luôn đổi ảnh không hiệu ứng để tiết kiệm băng thông.
+- Gồm cả hai mục của 2.9.60 chưa vào bản trước: **Hiện màn hình chờ sau** và **Chào buổi sáng** riêng từng màn hình.
+
 ## V2.9.60
 ### Sửa: màn hình chờ / Khung ảnh hiện ảnh camera Frigate
 

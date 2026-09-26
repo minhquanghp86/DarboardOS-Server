@@ -17,7 +17,7 @@
 <script src="/lunar.js"></script>
 <style>
   :root { --accent: #db2777; }
-  html, body { height: 100%; overflow: hidden; background: #000; }
+  html, body { height: 100%; overflow: hidden; background: #000; touch-action: none; }
   .ph { position: fixed; inset: 0; background: #000 center/cover no-repeat; opacity: 0; transition: opacity 700ms ease; }
   .ph.fit { background-size: contain; }
   .ph.show { opacity: 1; }
@@ -49,9 +49,12 @@
   try { fit = localStorage.getItem('photos.fit') === '1'; } catch (e) {}
 
   function shuffle(n) { var a = []; for (var i = 0; i < n; i++) a.push(i); for (var j = n - 1; j > 0; j--) { var k = Math.floor(Math.random() * (j + 1)); var t = a[j]; a[j] = a[k]; a[k] = t; } return a; }
+  // (27/09/2026) Muc anh: tep trong media/photos, hoac anh album Google Photos (bat dau "https://"). Vua khung = server
+  // ghep nen mo tu chinh anh (nhu khung anh so), mot JPEG duy nhat.
   function url(f) {
     var w = Math.round(innerWidth * (devicePixelRatio || 1)), h = Math.round(innerHeight * (devicePixelRatio || 1));
-    return '/photos/img?f=' + encodeURIComponent(f) + '&w=' + w + '&h=' + h + (fit ? '&fit=contain' : '');
+    var q = '&w=' + w + '&h=' + h + (fit ? '&fit=frame' : '');
+    return (/^https:\/\//.test(f) ? '/photos/gp?u=' : '/photos/img?f=') + encodeURIComponent(f) + q;
   }
   function show(step) {
     if (!files.length) return;
@@ -60,10 +63,10 @@
     var img = new Image();
     img.onload = function () {
       var next = layers[1 - top];
-      next.classList.toggle('fit', fit);
+      next.classList.remove('fit');
       next.style.backgroundImage = 'url("' + img.src + '")';
       next.classList.add('show'); layers[top].classList.remove('show'); top = 1 - top;
-      document.getElementById('cap').textContent = f.split('/').pop();
+      document.getElementById('cap').textContent = /^https:/.test(f) ? 'Google Photos' : f.split('/').pop();
       window.__rwvPhoto = f;
     };
     img.src = url(f);
@@ -73,7 +76,15 @@
   }
   function schedule() { clearTimeout(timer); if (!paused) timer = setTimeout(function () { show(1); }, INTERVAL); }
   function showBar() { bar.classList.add('on'); clearTimeout(barT); barT = setTimeout(function () { bar.classList.remove('on'); }, 5000); }
-  document.addEventListener('click', function (e) { if (!e.target.closest('.bar')) showBar(); });
+  // Vuot trai/phai = anh sau/truoc (nhu khung anh so); cham = hien nut.
+  var sx = 0, sy = 0, lx = 0, ly = 0, swiped = false;
+  document.addEventListener('pointerdown', function (e) { sx = lx = e.clientX; sy = ly = e.clientY; swiped = false; });
+  document.addEventListener('pointermove', function (e) { lx = e.clientX; ly = e.clientY; });
+  document.addEventListener('pointerup', function (e) {
+    var dx = lx - sx, dy = ly - sy;
+    if (!e.target.closest('.bar') && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.3) { swiped = true; show(dx < 0 ? 1 : -1); }
+  });
+  document.addEventListener('click', function (e) { if (swiped) { swiped = false; return; } if (!e.target.closest('.bar')) showBar(); });
   document.getElementById('prev').addEventListener('click', function () { show(-1); showBar(); });
   document.getElementById('next').addEventListener('click', function () { show(1); showBar(); });
   document.getElementById('pp').addEventListener('click', function (e) { paused = !paused; e.target.textContent = paused ? '▶' : '⏸'; schedule(); showBar(); });
@@ -92,10 +103,10 @@
   function load() {
     RwvUI.state(stateEl, { kind: 'loading', title: 'Đang tìm ảnh…' });
     fetch('/photos/list', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
-      files = (d && d.files) || [];
+      files = ((d && d.files) || []).concat((d && d.google) || []);
       if (!files.length) {
         RwvUI.state(stateEl, { kind: 'empty', title: 'Chưa có ảnh nào',
-          text: 'Trong Home Assistant: Media → Local media → tạo thư mục “photos” và tải ảnh lên (hoặc chép vào thư mục media qua Samba). Ảnh JPG/PNG/WebP.',
+          text: 'Trong Home Assistant: Media → Local media → tạo thư mục “photos” và tải ảnh lên (JPG/PNG/WebP). Hoặc dán link album Google Photos chia sẻ ở Cài đặt → Khung ảnh.',
           retry: load, retryLabel: 'Tìm lại' });
         return;
       }

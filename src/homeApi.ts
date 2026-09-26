@@ -20,6 +20,9 @@ import sharp from 'sharp';
 import { callService, getRegistry, getStates, haGetRaw, haReady, wsCalls } from './haSettings.js';
 import { buildMedia, buildRooms, buildTodoLists, planAction, planTodo, todoItemsOf } from './homeModel.js';
 import type { HaState } from './settingsModel.js';
+import { FitMode, albumImageUrl, cachedAlbum, renderPhoto } from './photoFrame.js';
+import { albumItems } from './photoSource.js';
+import { panelPrefs } from './panelPrefs.js';
 
 function json(res: http.ServerResponse, code: number, body: unknown): void {
   res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
@@ -102,11 +105,29 @@ async function sendPhoto(res: http.ServerResponse, url: URL): Promise<void> {
   if (!files.includes(f)) { json(res, 404, { error: 'khong co anh' }); return; }
   const full = path.resolve(dir, f);
   if (!full.startsWith(path.resolve(dir) + path.sep)) { json(res, 400, { error: 'duong dan' }); return; }
+  const { w, h, fit } = sizeOf(url);
+  const buf = await renderPhoto(full, w, h, fit);
+  res.writeHead(200, { 'content-type': 'image/jpeg', 'cache-control': 'max-age=300' });
+  res.end(buf);
+}
+
+function sizeOf(url: URL): { w: number; h: number; fit: FitMode } {
   const w = Math.min(2048, Math.max(64, Number(url.searchParams.get('w')) || 1024));
   const h = Math.min(2048, Math.max(64, Number(url.searchParams.get('h')) || 600));
-  const fit = url.searchParams.get('fit') === 'contain' ? 'inside' : 'cover';
-  const buf = await sharp(full).rotate().resize(w, h, { fit, withoutEnlargement: false }).jpeg({ quality: 82, mozjpeg: true }).toBuffer();
-  res.writeHead(200, { 'content-type': 'image/jpeg', 'cache-control': 'max-age=300' });
+  const f = url.searchParams.get('fit');
+  return { w, h, fit: f === 'frame' || f === 'contain' ? 'frame' : 'cover' };
+}
+
+/** (27/09/2026) Anh album Google Photos: CHI URL co trong album da cau hinh (khong tai URL tuy y -> khong SSRF). */
+async function sendAlbumPhoto(res: http.ServerResponse, url: URL): Promise<void> {
+  const u = url.searchParams.get('u') || '';
+  const album = panelPrefs.albumUrl(process.env.GPHOTOS_ALBUM || '');
+  if (!album || !cachedAlbum(album).includes(u)) { json(res, 404, { error: 'khong co anh' }); return; }
+  const { w, h, fit } = sizeOf(url);
+  const r = await fetch(albumImageUrl(u, Math.min(2048, w * 2), Math.min(2048, h * 2)), { signal: AbortSignal.timeout(15000) });
+  if (!r.ok) { json(res, 502, { error: `Google ${r.status}` }); return; }
+  const buf = await renderPhoto(Buffer.from(await r.arrayBuffer()), w, h, fit);
+  res.writeHead(200, { 'content-type': 'image/jpeg', 'cache-control': 'max-age=600' });
   res.end(buf);
 }
 
@@ -120,7 +141,13 @@ export function handleHomeApi(req: http.IncomingMessage, res: http.ServerRespons
 
   if (p === '/photos/list' && req.method === 'GET') {
     const { dir, files } = listPhotos();
-    json(res, 200, { ok: true, dir, files });
+    albumItems(panelPrefs.albumUrl(process.env.GPHOTOS_ALBUM || ''))
+      .then((google) => json(res, 200, { ok: true, dir, files, google }))
+      .catch(() => json(res, 200, { ok: true, dir, files, google: [] }));
+    return true;
+  }
+  if (p === '/photos/gp' && req.method === 'GET') {
+    sendAlbumPhoto(res, url).catch((e) => json(res, 500, { error: (e as Error).message }));
     return true;
   }
   if (p === '/photos/img' && req.method === 'GET') {
