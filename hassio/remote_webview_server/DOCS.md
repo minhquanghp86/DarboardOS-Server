@@ -143,6 +143,15 @@ Giọt nước ở giữa mép trên mọi trang hiện **giờ của chính mà
 Chạm = bật/tắt; **chạm giữ** một ô trong *Phòng* để mở bảng chi tiết (độ sáng, rèm, nhiệt độ). Các ứng dụng này chỉ
 nhận lệnh từ chính màn hình, và chỉ các thao tác kể trên (không mở khoá cửa, không tắt báo động).
 
+### Khung ảnh số (màn hình chờ)
+
+- Màn hình chờ hiện ảnh: **vuốt trái/phải** để xem ảnh sau/trước, **chạm** để thoát.
+- Chỉnh trên chính màn hình: **Cài đặt → Khung ảnh** — thời gian đổi ảnh, hiệu ứng, Lấp đầy / Vừa khung, thứ tự,
+  nguồn ảnh, đồng hồ, ngày chụp. Mỗi màn hình một cài đặt riêng.
+- **Album Google Photos**: trong app Google Photos → album → Chia sẻ → Tạo đường liên kết → dán vào *Cài đặt → Khung ảnh
+  → Album Google Photos* (hoặc tuỳ chọn addon `gphotos_album`). Thêm ảnh vào album trên điện thoại là khung ảnh tự có
+  (cập nhật mỗi 30 phút). **Lưu ý riêng tư:** ai có link chia sẻ đều xem được album — đừng dùng album chứa ảnh nhạy cảm.
+
 **Ảnh riêng tư:** thư mục ảnh là `media/photos` của Home Assistant (HA → Media → Local media, hoặc Samba `\\<máy HA>\media\photos`).
 Khác thư mục `www` (ai có địa chỉ cũng xem được qua `/local/…`, không cần đăng nhập), thư mục media **chỉ xem được khi đã
 đăng nhập HA**. Addon chỉ **đọc** thư mục này và chỉ trả ảnh cho **trình duyệt của chính addon** (127.0.0.1): máy khác

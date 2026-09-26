@@ -199,7 +199,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .hb-t:empty { display: none; }
 
 /* ── Man hinh cho (OS-5) ──────────────────────────────────────────────── */
-.saver { position: absolute; inset: 0; pointer-events: auto; background: #000; display: flex; align-items: center; justify-content: center; }
+.saver { position: absolute; inset: 0; pointer-events: auto; touch-action: none; background: #000; display: flex; align-items: center; justify-content: center; }
 .saver.anim { animation: sv-in 500ms ease-out; }
 @keyframes sv-in { from { opacity: 0; } }
 .sv-box { display: flex; flex-direction: column; align-items: center; gap: clamp(4px, 1.6vmin, 14px); }
@@ -212,8 +212,24 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .saver.night .sv-date, .saver.night .sv-wx { color: #5e463d; }
 .saver.night .sv-wx .wx-ic { opacity: 0.4; filter: sepia(1); }
 /* (27/09/2026) Man hinh cho dang khung anh: anh phu kin, dong ho nho o goc duoi trai (van dich moi phut). */
-.sv-ph { position: absolute; inset: 0; background: #000 center/cover no-repeat; opacity: 0; transition: opacity 900ms ease; }
+.sv-ph { position: absolute; inset: 0; background: #000 center/cover no-repeat; opacity: 0; }
 .sv-ph.show { opacity: 1; }
+/* (27/09/2026) Hieu ung chuyen anh — chay mot lan (~0,7 s) moi lan doi, khong co chuyen dong lien tuc. */
+.sv-ph.fx-fade { transition: opacity 800ms ease; }
+.sv-ph.fx-slide { transition: transform 650ms cubic-bezier(.2,.8,.2,1); opacity: 1; }
+.sv-ph.fx-slide.fromR { transform: translateX(100%); transition: none; }
+.sv-ph.fx-slide.fromL { transform: translateX(-100%); transition: none; }
+.sv-ph.fx-slide.show { transform: translateX(0); }
+.sv-ph.fx-slide.toL { transform: translateX(-100%); }
+.sv-ph.fx-slide.toR { transform: translateX(100%); }
+.sv-ph.fx-zoom { transition: opacity 800ms ease, transform 800ms ease; }
+.sv-ph.fx-zoom.fromR, .sv-ph.fx-zoom.fromL { transform: scale(1.08); transition: none; }
+.sv-ph.fx-zoom.show { transform: scale(1); }
+.sv-ph.fx-none { transition: none; }
+.sv-cap { font-size: clamp(11px, 2.6vmin, 16px); color: #fff; opacity: 0.85; text-shadow: 0 1px 8px rgba(0,0,0,0.8); }
+.sv-cap:empty { display: none; }
+.saver:not(.photo) .sv-cap { display: none; }
+.saver.photo.noclock .sv-clock, .saver.photo.noclock .sv-date, .saver.photo.noclock .sv-wx { display: none; }
 .sv-box { position: relative; }
 .saver.photo { align-items: flex-end; justify-content: flex-start; padding: clamp(14px, 4vmin, 34px); }
 .saver.photo .sv-box { align-items: flex-start; gap: 2px; }
