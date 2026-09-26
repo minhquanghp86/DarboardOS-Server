@@ -23,7 +23,7 @@ describe("cau hinh menu (trang Menu panel)", () => {
     expect(c.overrides).toEqual({ home: { label: "Nhà tôi", icon: "mdi:home-heart", color: "#123456", group: "tien_ich" } });
   });
   it("du lieu rac -> cau hinh rong", () => {
-    expect(sanitize(null)).toEqual({ hidden: [], order: {}, custom: [], overrides: {} });
-    expect(sanitize("x")).toEqual({ hidden: [], order: {}, custom: [], overrides: {} });
+    expect(sanitize(null)).toEqual({ hidden: [], order: {}, custom: [], overrides: {}, home: null });
+    expect(sanitize("x")).toEqual({ hidden: [], order: {}, custom: [], overrides: {}, home: null });
   });
 });
