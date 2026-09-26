@@ -102,6 +102,16 @@ Ngày lập: 25/09/2026. Mốc quay về: **Bản Ổn định 25/09 đêm** (ta
   nó → nhóm Điều khiển/Cấu hình/Chẩn đoán theo `entity_category`; ghi qua REST `services/<domain>/<service>` sau
   `planSet()` (kiểm loại, kẹp khoảng, bỏ factory reset). Chỉ nhận lệnh từ tab `kind === 'settings'`. Thử tích hợp với
   HA giả (`settings.itest.ts`). **Còn lại OS-4**: không; OS-3: thư mục + chạm giữ sắp xếp; OS-6: tinh chỉnh S3.
+- **OS-3 bước 3 — 2.9.58: sắp xếp màn hình chính** (`src/homeLayout.ts` thuần + test, `src/shell/home.ts`): chạm giữ →
+  chế độ sắp xếp, kéo thả đổi chỗ / vào dock / gộp thư mục, thư mục mở/lấy ra/đổi tên bằng chip; bố cục lưu THỨ TỰ
+  (không toạ độ) trong `launcher.json` → dùng chung mọi panel, `applyHomeLayout()` đẩy sang panel khác và thay script
+  tiêm. Chỉ nhận `{home}` từ tab `system`. Thử tích hợp `home.itest.ts`. **OS-3 hoàn tất.**
+- **OS-6 — 2.9.58**: số hàng lưới đo thật sau khi gắn Shell (ResizeObserver); 480×480: 3 hàng (đồng hồ 46 px, biểu
+  tượng 48 px); 480×272: bỏ hàng tiện ích → 2 hàng, thanh sắp xếp thu gọn. `s3.itest.ts` kiểm mọi ô nằm trong màn
+  hình ở hai cỡ S3 và chụp màn hình chính / bảng kéo / thông báo / màn hình chờ. **OS-6 hoàn tất.**
+- **Trợ lý giọng nói + có người — 2.9.58** (cần firmware mới): `DeviceEvent = 12` (kind 1 giọng nói, 2 có người),
+  `ControlField.Assist = 6`; thẻ trợ lý trong Shell, nút Trợ lý khi `?va=1`. Firmware: `remote_webview.voice_state`,
+  `remote_webview.presence`, `on_assist`; component `camera_motion` (repo client).
 
 ## 1. Ý tưởng của người dùng (tóm lại để thống nhất)
 

@@ -1,3 +1,20 @@
+## V2.9.58
+### Màn hình chính sắp xếp được, thư mục, bố cục S3, trợ lý giọng nói, dò người bằng camera
+
+- **Sắp xếp màn hình chính (OS-3)**: chạm giữ một ứng dụng ~0,5 giây để vào chế độ sắp xếp và kéo nó đi luôn. Kéo sang
+  cạnh ứng dụng khác thì đổi chỗ; thả **vào giữa** ứng dụng khác thì tạo **thư mục** (tên tự đặt theo nhóm, chạm chip để
+  đổi tên); kéo xuống/ra khỏi dock (tối đa 5); giữ sát mép thì sang trang. Chạm thư mục để mở; kéo ứng dụng ra ngoài
+  khung thư mục để lấy ra. **Xong** hoặc chạm chỗ trống để thoát; **Đặt lại** (chạm 2 lần) về mặc định.
+  Bố cục lưu ở server (`/data/launcher.json`, khoá `home`), dùng chung cho cả 3 màn hình, màn khác cập nhật ngay.
+  Lưu cấu hình ở trang Menu panel **không** xoá bố cục này.
+- **Lưới tự tính số hàng** theo chiều cao màn hình: P4 1024×600 được 3 hàng, S3 480×480 được 3 hàng (trước 2), S3
+  480×272 được 2 hàng (trước 1; bỏ hàng đồng hồ/thời tiết, đồng hồ vẫn ở thanh kéo xuống) (OS-6).
+- **Trợ lý giọng nói** (cần firmware mới, `on_assist` + `voice_assistant`): thẻ ở cuối màn hình hiện *Đang nghe… →
+  Đang xử lý… "câu bạn nói" → câu trả lời*; chạm thẻ để dừng/đóng. Nút **Trợ lý** trong thanh kéo xuống (chỉ hiện khi
+  firmware hỗ trợ). Trợ lý nghe thì màn hình chờ tắt.
+- **Có người trước màn hình** (firmware `camera_motion`): server nhận sự kiện, ghi log `[presence]`.
+- Giao thức: gói mới `DeviceEvent = 12` (thiết bị → server), trường `Assist = 6` của `DeviceControl`.
+
 ## V2.9.57
 ### Ứng dụng "Cài đặt" ngay trên màn hình (OS-4)
 
