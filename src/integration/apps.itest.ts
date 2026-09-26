@@ -19,6 +19,9 @@ beforeEach(async () => {
   await sharp({ create: { width: 1600, height: 1200, channels: 3, background: '#2563eb' } }).jpeg().toFile(path.join(photos, 'a.jpg'));
   await sharp({ create: { width: 900, height: 1400, channels: 3, background: '#16a34a' } }).jpeg().toFile(path.join(photos, 'he 2026', 'b.jpg'));
   fs.writeFileSync(path.join(photos, 'ghi-chu.txt'), 'x');
+  // Anh camera (Frigate) lo nam trong thu muc anh: khong bao gio duoc trinh chieu
+  fs.mkdirSync(path.join(photos, 'frigate', 'clips'), { recursive: true });
+  await sharp({ create: { width: 64, height: 64, channels: 3, background: '#000' } }).jpeg().toFile(path.join(photos, 'frigate', 'clips', 'cam-person.jpg'));
   ha = await startFakeHa({
     areas: [{ area_id: 'khach', name: 'Phòng khách' }, { area_id: 'ngu', name: 'Phòng ngủ' }],
     devices: [{ id: 'd_ac', name: 'Điều hoà', area_id: 'ngu' }],
@@ -115,6 +118,7 @@ it('Phong / Viec can lam / Dieu khien / Khung anh: cham tren panel -> dung dich 
   const pp = await openApp(mp, 'photos', '/photos.html');
   const f = await until(() => srv.evaluate<string | null>(pp, 'window.__rwvPhoto || null'), (v) => !!v, 'anh dau tien');
   expect(['a.jpg', 'he 2026/b.jpg']).toContain(f);
+  expect((await (await fetch(srv.local('/photos/list'))).json()).files).toEqual(['a.jpg', 'he 2026/b.jpg']);
   const meta = await sharp(Buffer.from(await (await fetch(srv.local('/photos/img?f=' + encodeURIComponent('he 2026/b.jpg') + '&w=1024&h=600'))).arrayBuffer())).metadata();
   expect([meta.width, meta.height]).toEqual([1024, 600]);
   expect((await fetch(srv.local('/photos/img?f=' + encodeURIComponent('../etc/passwd')))).status).toBe(404);

@@ -1,3 +1,13 @@
+## V2.9.60
+### Sửa: màn hình chờ / Khung ảnh hiện ảnh camera Frigate
+
+- Chưa có thư mục **media/photos** thì 2.9.59 lùi về quét **cả /media** — trúng ảnh chụp phát hiện người của Frigate
+  (/media/frigate) và trình chiếu lên màn hình chờ. Nay **chỉ đọc đúng media/photos**; chưa có thư mục thì chỉ hiện
+  đồng hồ. Kể cả trong media/photos, các thư mục `frigate`, `clips`, `recordings`, `snapshots`… luôn bị bỏ qua.
+- **Cài đặt trên màn hình → nhóm "Màn hình"**: công tắc **Màn hình chờ hiện ảnh** cho **riêng từng màn hình** (server lưu
+  `/data/rwv-panel-prefs.json`). Chưa chỉnh thì theo tuỳ chọn addon `screensaver_photos`. Tắt thì ảnh biến mất ngay.
+- Sửa: mục *Máy chủ (addon)* ở Chẩn đoán hiện sai phiên bản (package.json không được tăng theo addon) — thêm test giữ khớp.
+
 ## V2.9.59
 ### Bốn ứng dụng mới cho ngôi nhà: Phòng, Điều khiển, Việc cần làm, Khung ảnh
 
@@ -9,7 +19,7 @@
 - **Việc cần làm** (nhóm Tiện ích): danh sách việc / đi chợ của HA (tích hợp *Danh sách mua sắm*, *Local To-do*,
   Google Tasks…), dùng chung với app HA trên điện thoại. Thêm nhanh bằng chip (Sữa, Trứng, Gạo…) hoặc gõ; chạm để
   đánh dấu xong; xoá mục đã xong (chạm 2 lần).
-- **Khung ảnh** (nhóm Giải trí): trình chiếu ảnh gia đình từ thư mục **media/photos** của HA (hoặc media), thu nhỏ vừa
+- **Khung ảnh** (nhóm Giải trí): trình chiếu ảnh gia đình từ thư mục **media/photos** của HA (chỉ thư mục này), thu nhỏ vừa
   màn hình ở server, xoay theo EXIF, đổi ảnh mỗi 30 giây, kèm đồng hồ và ngày âm lịch. Chạm để hiện nút. Đang mở
   Khung ảnh thì màn hình chờ không che lên.
 - An toàn: API mới (`/ha/rooms`, `/ha/act`, `/ha/todo`, `/photos/*`) **chỉ nhận từ chính addon** (trình duyệt của

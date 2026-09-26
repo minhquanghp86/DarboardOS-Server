@@ -138,7 +138,7 @@ Giọt nước ở giữa mép trên mọi trang hiện **giờ của chính mà
 | **Phòng** | Cài đặt → Khu vực: tạo phòng và gán thiết bị (đèn, công tắc, quạt, rèm, điều hoà, TV). Nhiệt độ/độ ẩm/cửa/chuyển động của phòng lấy từ cảm biến gán cùng phòng. |
 | **Điều khiển** | Có ít nhất một `media_player` (Android TV, Samsung/LG, Google Cast, Sonos…). |
 | **Việc cần làm** | Thêm tích hợp *Danh sách mua sắm* hoặc *Local To-do* (hoặc Google Tasks). |
-| **Khung ảnh** | Media → Local media → tạo thư mục `photos` → tải ảnh lên (JPG/PNG/WebP). Không có `photos` thì dùng cả thư mục media. |
+| **Khung ảnh** | Media → Local media → tạo thư mục `photos` → tải ảnh lên (JPG/PNG/WebP). Chỉ đọc đúng thư mục này (không bao giờ lấy ảnh camera/Frigate). Chưa có thư mục thì khung ảnh và màn hình chờ chỉ hiện đồng hồ. |
 
 Chạm = bật/tắt; **chạm giữ** một ô trong *Phòng* để mở bảng chi tiết (độ sáng, rèm, nhiệt độ). Các ứng dụng này chỉ
 nhận lệnh từ chính màn hình, và chỉ các thao tác kể trên (không mở khoá cửa, không tắt báo động).
