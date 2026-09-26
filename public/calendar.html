@@ -10,12 +10,10 @@
 <title>Lịch</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
 <script src="/lunar.js"></script>
+<link rel="stylesheet" href="/ui.css">
+<script src="/ui.js"></script>
 <style>
-  :root {
-    --bg: #14100f; --surface: #1f1918; --surface-2: #2a2221; --line: rgba(255, 240, 235, 0.07);
-    --text: #fbf3f0; --muted: #b3a29d; --red: #f05252; --gold: #f4b740; --pad: clamp(8px, 2.6vmin, 22px);
-    color-scheme: dark;
-  }
+  :root { --accent: #dc2626; --red: #f05252; --gold: #f4b740; }  /* nen, be mat, chu, bo goc: /ui.css (dung chung voi Shell) */
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden;
     font-family: "Be Vietnam Pro", system-ui, sans-serif; font-variant-numeric: tabular-nums; -webkit-user-select: none; user-select: none; }
@@ -57,7 +55,7 @@
   @media (max-aspect-ratio: 1/1) { main { grid-template-columns: 1fr; } .today { display: none; } }
 </style>
 </head>
-<body>
+<body class="rwv-app">
 <main>
   <section class="card today" id="today" aria-live="polite"></section>
   <section class="card month" aria-label="Lịch tháng">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SerialQueue, TabPolicyView, nowPlaying, pickEvictions } from "./tabPolicy.js";
+import { SerialQueue, TabPolicyView, appKeyForUrl, nowPlaying, pickEvictions, recentsList } from "./tabPolicy.js";
 
 const tab = (key: string, o: Partial<TabPolicyView> = {}): TabPolicyView => ({
   key, label: key, pinned: false, backgroundAudio: false, mediaPlaying: false, mediaKnown: false, lastUsed: 0, ...o,
@@ -68,5 +68,38 @@ describe("SerialQueue", () => {
     const q = new SerialQueue();
     await expect(q.run(async () => { throw new Error("x"); })).rejects.toThrow("x");
     await expect(q.run(async () => 42)).resolves.toBe(42);
+  });
+});
+
+describe("man hinh Gan day", () => {
+  it("moi dung gan nhat truoc, bo man hinh chinh, danh dau ghim/active", () => {
+    const tabs = [
+      { key: "home", label: "Home Assistant", pinned: true, lastUsed: 5 },
+      { key: "__system", label: "Màn hình chính", pinned: true, lastUsed: 9 },
+      { key: "radio", label: "Radio", pinned: false, lastUsed: 7, thumb: "data:image/jpeg;base64,AA" },
+      { key: "cams", label: "Camera", pinned: false, lastUsed: 1 },
+    ];
+    expect(recentsList(tabs, "radio")).toEqual([
+      { k: "radio", l: "Radio", t: "data:image/jpeg;base64,AA", p: false, a: true },
+      { k: "home", l: "Home Assistant", t: null, p: true, a: false },
+      { k: "cams", l: "Camera", t: null, p: false, a: false },
+    ]);
+  });
+});
+
+describe("URL -> ung dung", () => {
+  const apps = [
+    { id: "youtube", url: "https://m.youtube.com" }, { id: "music", url: "https://music.youtube.com" },
+    { id: "tiktok", url: "https://www.tiktok.com" }, { id: "browser" },
+  ];
+  it("khop theo trang web, ke ca ten mien bi danh", () => {
+    expect(appKeyForUrl("https://youtu.be/J4BAH7NE8cs", apps)).toBe("youtube");
+    expect(appKeyForUrl("https://www.youtube.com/watch?v=1", apps)).toBe("youtube");
+    expect(appKeyForUrl("https://music.youtube.com/watch?v=1", apps)).toBe("music");
+    expect(appKeyForUrl("https://vnexpress.net/", apps)).toBeNull();
+    expect(appKeyForUrl("khong-phai-url", apps)).toBeNull();
+    const local = [{ id: "weather", url: "http://127.0.0.1:18080/weather.html" }, { id: "timer", url: "http://127.0.0.1:18080/timer.html" }];
+    expect(appKeyForUrl("http://127.0.0.1:18080/timer.html?x=1", local)).toBe("timer");
+    expect(appKeyForUrl("http://127.0.0.1:18080/cam.html", local)).toBeNull();
   });
 });

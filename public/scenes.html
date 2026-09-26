@@ -10,8 +10,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Cảnh</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/ui.css">
+<script src="/ui.js"></script>
 <style>
-  :root { --bg: #120f1c; --surface: #1e1a2e; --surface-2: #2a2440; --text: #f3f0fb; --muted: #a59fbd; --accent: #a855f7; --ok: #22c55e; --err: #ef4444; --pad: clamp(8px, 2.6vmin, 22px); color-scheme: dark; }
+  :root { --accent: #a855f7;  }  /* nen, be mat, chu, bo goc: /ui.css (dung chung voi Shell) */
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: "Be Vietnam Pro", system-ui, sans-serif; -webkit-user-select: none; user-select: none; }
   main { height: 100%; overflow-y: auto; padding: calc(var(--pad) + 18px) var(--pad) var(--pad); display: flex; flex-direction: column; gap: var(--pad); }
@@ -32,7 +34,7 @@
   .empty { color: var(--muted); font-size: clamp(12px, 2.9vmin, 17px); line-height: 1.5; max-width: 60ch; }
 </style>
 </head>
-<body>
+<body class="rwv-app">
 <main id="main"><h1>Cảnh</h1><div class="empty">Đang tải…</div></main>
 <script>
 (function () {
@@ -65,19 +67,26 @@
     });
     main.appendChild(g);
   }
-  fetch('/ha/scenes', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (list) {
-    main.innerHTML = '<h1>Cảnh</h1>';
-    if (!Array.isArray(list) || !list.length) {
-      main.insertAdjacentHTML('beforeend', '<div class="empty">Chưa có cảnh hoặc kịch bản nào. Tạo trong Home Assistant: Cài đặt → Tự động hoá &amp; Cảnh → Cảnh (vd “Đi ngủ”, “Ra khỏi nhà”, “Xem phim”) — trang này sẽ tự hiện nút.</div>');
-      return;
-    }
-    section('Cảnh', list.filter(function (s) { return s.domain === 'scene'; }));
-    section('Kịch bản', list.filter(function (s) { return s.domain === 'script'; }));
-    if (!list.some(function (s) { return s.domain === 'scene'; }))
-      main.insertAdjacentHTML('beforeend', '<div class="empty">Mẹo: tạo Cảnh trong Home Assistant (Cài đặt → Tự động hoá &amp; Cảnh → Cảnh), vd “Đi ngủ”, “Ra khỏi nhà”, “Xem phim” — nút sẽ tự hiện ở đây.</div>');
-  }).catch(function () {
-    main.innerHTML = '<h1>Cảnh</h1><div class="empty">Không kết nối được Home Assistant.</div>';
-  });
+  function load() {
+    RwvUI.state(main, { kind: 'loading', title: 'Đang tải cảnh…' });
+    fetch('/ha/scenes', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (list) {
+      if (!Array.isArray(list) || !list.length) {
+        RwvUI.state(main, { kind: 'empty', title: 'Chưa có cảnh nào',
+          text: 'Tạo trong Home Assistant: Cài đặt → Tự động hoá & Cảnh → Cảnh (vd “Đi ngủ”, “Ra khỏi nhà”, “Xem phim”) — nút sẽ tự hiện ở đây.',
+          retry: load, retryLabel: 'Tải lại' });
+        return;
+      }
+      main.innerHTML = '<h1>Cảnh</h1>';
+      section('Cảnh', list.filter(function (s) { return s.domain === 'scene'; }));
+      section('Kịch bản', list.filter(function (s) { return s.domain === 'script'; }));
+      if (!list.some(function (s) { return s.domain === 'scene'; }))
+        main.insertAdjacentHTML('beforeend', '<div class="empty">Mẹo: tạo Cảnh trong Home Assistant (Cài đặt → Tự động hoá &amp; Cảnh → Cảnh), vd “Đi ngủ”, “Ra khỏi nhà”, “Xem phim” — nút sẽ tự hiện ở đây.</div>');
+    }).catch(function () {
+      RwvUI.state(main, { kind: 'err', title: 'Không kết nối được Home Assistant',
+        text: 'Kiểm tra Home Assistant đang chạy, rồi thử lại.', retry: load });
+    });
+  }
+  load();
 })();
 </script>
 </body>

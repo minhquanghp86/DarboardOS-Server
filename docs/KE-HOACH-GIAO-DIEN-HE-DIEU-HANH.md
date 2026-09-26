@@ -74,6 +74,14 @@ Ngày lập: 25/09/2026. Mốc quay về: **Bản Ổn định 25/09 đêm** (ta
     khác biệt Chromium container. Cần kiểm trên addon: log `[frame] kich thuoc khung doi` xuất hiện thường xuyên
     nghĩa là máy thật cũng bị (màn hình chỉ nhận phần trên, co dẹt). Đã thử `viewport: null` (ra 780×441) và
     `Target.createTarget` kèm `width/height` (mất khung) — đều không phải cách sửa.
+- **OS-3 bước 1 — server 2.9.51 (26/09, phiên cloud, chưa thử trên panel thật)**: màn hình **Gần đây**.
+  - Server: `captureThumb()` chụp `Page.captureScreenshot` (JPEG ~320 px) khi tab rời màn hình (`activateTab`) và
+    khi mở Gần đây; lệnh Shell `{recents}`, `{close:key}`, `{closeAll}` (không đóng tab ghim / tab đang hiện);
+    `recentsList()` (tabPolicy.ts) sắp mới dùng nhất trước, bỏ `__system`.
+  - Shell: nút Gần đây trong thanh kéo xuống + cuối dock; lớp phủ thẻ ảnh, chạm để chuyển, ✕ / vuốt lên để đóng.
+  - Thử tích hợp `recents.itest.ts`: 3 ứng dụng → 3 thẻ đúng thứ tự, đủ ảnh; đóng một / đóng tất cả; chạm chuyển.
+  - Còn lại của OS-3: thanh điều hướng Quay lại/Home/Gần đây trên ứng dụng "trần" (YouTube, HA), hoàn thiện Home.
+
 ## 1. Ý tưởng của người dùng (tóm lại để thống nhất)
 
 - Panel không còn là "trình duyệt mở dashboard HA + popup menu", mà là **một hệ điều hành nhỏ** kiểu điện thoại / máy
