@@ -202,6 +202,11 @@ export class FakeDevice {
   }
 
   /** Goi OpenURL nhu firmware (Go Home / thuc the "URL hien thi"): [4][1][flags u16][len u32][url utf8]. */
+  /** (27/09/2026) Goi DeviceEvent: [12][1][kind][value][text]. */
+  event(kind: number, value: number, text = ''): void {
+    this.ws.send(Buffer.concat([Buffer.from([12, 1, kind, value]), Buffer.from(text, 'utf8')]));
+  }
+
   openUrl(url: string): void {
     const u = Buffer.from(url, 'utf8'); const b = Buffer.alloc(8 + u.length);
     b[0] = 4; b[1] = 1; b.writeUInt16LE(0, 2); b.writeUInt32LE(u.length, 4); u.copy(b, 8);

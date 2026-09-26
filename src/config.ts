@@ -45,6 +45,8 @@ export type DeviceConfig = {
   // (25/09/2026) ?ctl=1: thiet bi nhan DeviceControl (thanh truot do sang/am luong) va gui DeviceState. Co dinh
   // theo firmware, KHONG dua vao deviceConfigsEqual().
   devControl: boolean;
+  // (27/09/2026) ?va=1: firmware co tro ly giong noi (on_assist) -> Shell hien nut "Tro ly". Co dinh theo firmware.
+  voice: boolean;
 };
 
 const DEFAULTS = {
@@ -148,6 +150,7 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
   const urlSet = params.get("urlset") === "1";
   const fbBands = params.get("fb") === "1";
   const devControl = params.get("ctl") === "1";
+  const voice = params.get("va") === "1";
 
   const dimensions = getRotatedDimensions(width, height, rotation);
 
@@ -169,6 +172,7 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
     urlSet,
     fbBands,
     devControl,
+    voice,
   };
 }
 

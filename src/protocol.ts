@@ -58,7 +58,13 @@ export enum MsgType {
   // (26/09/2026) Thiet bi -> server: "ve lai vung nay" [11][1][x u16][y u16][w u16][h u16] — thiet bi vua tu ve de
   // len man hinh (vong tron phan hoi cham, touch_feedback) va can server gui lai noi dung that cua vung do.
   RepaintRect = 11,
+  // (27/09/2026) Thiet bi -> server: su kien de Shell hien [12][1][kind][value][text utf8...]. kind 1 = tro ly giong
+  // noi (value = VoiceState), 2 = co nguoi truoc man hinh (value 0/1, tu camera cua panel).
+  DeviceEvent = 12,
 }
+
+export enum DeviceEventKind { Voice = 1, Presence = 2 }
+export enum VoiceState { Idle = 0, Listening = 1, Thinking = 2, Replying = 3, Error = 4 }
 
 /** Truong cua goi DeviceControl (khop proto::ControlField ben firmware). */
 export enum ControlField {
@@ -68,6 +74,8 @@ export enum ControlField {
   NoSleep = 3,
   Mute = 4,
   Aec = 5,
+  // (27/09/2026) Nut "Tro ly" tren Shell: 1 = bat dau nghe (dang nghe thi dung), 0 = dung.
+  Assist = 6,
 }
 
 export interface DeviceStateInfo {
@@ -368,6 +376,12 @@ export function parseDeviceStatePacket(buf: Buffer): DeviceStateInfo | null {
       ? { noSleep: (buf.readUInt8(13) & 1) !== 0, muted: (buf.readUInt8(13) & 2) !== 0, aec: (buf.readUInt8(13) & 4) !== 0 }
       : null,
   };
+}
+
+/** (27/09/2026) Goi DeviceEvent. text cat o 600 byte (firmware cung cat). */
+export function parseDeviceEventPacket(buf: Buffer): { kind: number; value: number; text: string } | null {
+  if (!Buffer.isBuffer(buf) || buf.length < 4 || buf.readUInt8(0) !== MsgType.DeviceEvent) return null;
+  return { kind: buf.readUInt8(2), value: buf.readUInt8(3), text: buf.subarray(4, 4 + 600).toString('utf8') };
 }
 
 /** (26/09/2026) Goi RepaintRect: [type][ver][x u16][y u16][w u16][h u16] = 10 byte. */

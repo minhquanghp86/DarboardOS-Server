@@ -30,7 +30,7 @@ import { callService, getSettingsView } from "./haSettings.js";
 import { planSet } from "./settingsModel.js";
 import { getLauncherConfig, saveHomeLayout } from "./launcherConfig.js";
 import { HomeLayout, resolveLayout } from "./homeLayout.js";
-import { ControlField, DeviceStateInfo, Encoding, FRAME_HEADER_BYTES, TILE_HEADER_BYTES, parseDeviceStatePacket } from "./protocol.js";
+import { ControlField, DeviceEventKind, DeviceStateInfo, Encoding, VoiceState, FRAME_HEADER_BYTES, TILE_HEADER_BYTES, parseDeviceStatePacket } from "./protocol.js";
 
 // ── Type-safe interface cho CDP root (thay thế cast `any`) ────────────────────
 interface CDPRoot {
@@ -147,6 +147,10 @@ export type DeviceSession = {
   /** (26/09/2026 OS-5) Lan cham cuoi (moc cho man hinh cho) va man hinh cho dang hien tren tab active hay khong. */
   lastTouchMs: number;
   saverOn: boolean;
+  /** (27/09/2026) Tro ly giong noi: trang thai cuoi (s = VoiceState) + chu. */
+  voice?: { s: number; t: string; at: number };
+  /** (27/09/2026) Co nguoi truoc man hinh (camera cua panel). */
+  presence?: { on: boolean; at: number };
   /**
    * (26/09/2026) Ton dong socket LON NHAT tai cac lan PHAI BO KHUNG vi nghen, ke tu tick dieu tiet truoc. Vong dieu
    * tiet chi doc ton dong DUNG luc tick (5 s/lan) — do that tren P4 (2.9.52, YouTube): bo khung ~5 s/lan lien tuc ma
@@ -1030,6 +1034,11 @@ function handleMenuControl(id: string, payload: unknown, from?: Tab): void {
     }
     return;
   }
+  // (27/09/2026) Nut / the "Tro ly": bat dau (hoac dung neu dang nghe) / dung.
+  if (msg?.assist != null) {
+    if (dev.cfg.voice && dev.cfg.devControl) broadcaster.sendDeviceControl(id, ControlField.Assist, Number(msg.assist) ? 1 : 0);
+    return;
+  }
   // (27/09/2026 OS-3) Bo cuc man hinh chinh sau khi keo tha. CHI tu tab he thong dang o /os/home.
   if (msg?.home !== undefined) {
     if (from && from.kind === 'system' && dev.tabs.get(from.key) === from) {
@@ -1247,6 +1256,8 @@ function pushDeviceStateToPage(dev: DeviceSession): void {
     np: nowPlaying(dev.tabs.values(), dev.activeTabKey),
     nt: noticesOf(dev.deviceId).list(8).map(noticeForShell),
     dnd: dndOf(dev.deviceId),
+    va: !!dev.cfg.voice && !!dev.cfg.devControl,
+    pr: dev.presence ?? null,
   };
   dev.cdp.send('Runtime.evaluate', {
     expression: `(window.__rwvShell ? window.__rwvShell.state : window.__rwvDeviceState || function(){})(${JSON.stringify(payload)})`,
@@ -1485,6 +1496,32 @@ export function repaintRect(dev: DeviceSession, x: number, y: number, w: number,
   dev.processor.invalidateRect(x, y, w, h);
   dev.prevFrameHash = -1;
   nudgeRepaintAsync(dev.cdp).catch(() => { });
+}
+
+/**
+ * (27/09/2026) Su kien tu thiet bi. Tro ly giong noi: dua trang thai + chu vao Shell cua tab dang hien (the tro ly),
+ * dong thoi tat man hinh cho — nguoi dung dang noi chuyen voi panel. Co nguoi: luu lai (Shell/metrics); viec bat den
+ * nen do firmware tu lam (khong phu thuoc mang).
+ */
+export function onDeviceEvent(dev: DeviceSession, kind: number, value: number, text: string): void {
+  if (kind === DeviceEventKind.Voice) {
+    const s = Math.min(4, value);
+    dev.voice = { s, t: text, at: Date.now() };
+    if (s !== VoiceState.Idle) noteActivity(dev, 'tro ly giong noi');
+    const names = ['xong', 'dang nghe', 'dang xu ly', 'tra loi', 'loi'];
+    console.log(`[voice] ${dev.deviceId}: ${names[s]}${text ? ` "${text.slice(0, 120)}"` : ''}`);
+    dev.cdp.send('Runtime.evaluate', {
+      expression: `window.__rwvShell && window.__rwvShell.voice && window.__rwvShell.voice(${JSON.stringify({ s, t: text })})`,
+    }).catch(() => { });
+    return;
+  }
+  if (kind === DeviceEventKind.Presence) {
+    const on = value !== 0;
+    if (dev.presence?.on === on) return;
+    dev.presence = { on, at: Date.now() };
+    console.log(`[presence] ${dev.deviceId}: ${on ? 'CO nguoi' : 'khong con nguoi'}`);
+    pushDeviceStateToPage(dev);
+  }
 }
 
 /** (26/09/2026) Mo man hinh "Gan day" — tu cu chi vuot-len-roi-giu o mep duoi (inputRouter.ts). */
@@ -1846,10 +1883,10 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
       // gi (khong script/target nao phu thuoc) nen chi can gan lai.
       if (device.cfg.halfScale !== cfg.halfScale || device.cfg.audioEnabled !== cfg.audioEnabled ||
           device.cfg.urlSet !== cfg.urlSet || device.cfg.fbBands !== cfg.fbBands ||
-          device.cfg.devControl !== cfg.devControl) {
+          device.cfg.devControl !== cfg.devControl || device.cfg.voice !== cfg.voice) {
         console.log(`[device] ${id}: cap nhat co firmware half=${cfg.halfScale} audio=${cfg.audioEnabled} urlset=${cfg.urlSet} fb=${cfg.fbBands}`);
         device.cfg = { ...device.cfg, halfScale: cfg.halfScale, audioEnabled: cfg.audioEnabled, urlSet: cfg.urlSet,
-                       fbBands: cfg.fbBands, devControl: cfg.devControl };
+                       fbBands: cfg.fbBands, devControl: cfg.devControl, voice: cfg.voice };
         device.processor.setBandSplit(cfg.fbBands);
       }
 

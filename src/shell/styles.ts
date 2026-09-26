@@ -244,6 +244,24 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .to-t { font-weight: 700; font-size: 1.08em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .to-m { color: #cfd6e4; margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
+/* ── (27/09/2026) The tro ly giong noi ──────────────────────────────── */
+.vc { position: absolute; left: 50%; bottom: clamp(18px, 5vmin, 34px); transform: translateX(-50%); width: min(640px, calc(100vw - 24px));
+  pointer-events: auto; display: flex; align-items: center; gap: clamp(10px, 2.4vmin, 16px); padding: clamp(10px, 2.4vmin, 16px);
+  border-radius: calc(var(--r-lg) + 4px); background: rgba(24,28,38,0.96); box-shadow: 0 10px 34px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.08); }
+.vc.anim { animation: to-in 200ms cubic-bezier(.2,.8,.2,1); }
+.vc-ic { flex: none; width: clamp(44px, 11vmin, 64px); height: clamp(44px, 11vmin, 64px); border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; background: var(--surface-3); }
+.vc-ic .ic { width: 50%; height: 50%; }
+.vc[data-s="1"] .vc-ic { background: var(--accent); box-shadow: 0 0 0 6px rgba(59,130,246,0.25); }
+.vc[data-s="2"] .vc-ic { background: #7c3aed; }
+.vc[data-s="3"] .vc-ic { background: #0d9488; }
+.vc[data-s="4"] .vc-ic { background: #dc2626; }
+.vc-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.vc-l { font-weight: 600; color: var(--muted); font-size: 0.92em; }
+.vc-q { font-size: 1.05em; color: #cfd6e4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vc-q:empty, .vc-a:empty { display: none; }
+.vc-a { font-size: 1.12em; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+
 /* ── Bao thuc ────────────────────────────────────────────────────────── */
 .alarm { position: absolute; inset: 0; pointer-events: auto; background: rgba(10,12,18,0.95); display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 3vmin; cursor: pointer; }
