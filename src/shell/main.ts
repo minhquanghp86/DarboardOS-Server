@@ -117,7 +117,9 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     b.addEventListener('click', (e) => { e.stopPropagation(); show(!t.on); t.at = Date.now(); sendControl({ f: field, v: t.on ? 1 : 0 }); });
     return t;
   }
-  const tiles = [makeTile('ns', 'Luôn sáng', 'eye', '#fbbf24'), makeTile('mu', 'Tắt tiếng', 'mute', '#f87171'), makeTile('aec', 'Khử vọng', 'mic_aec', '#34d399')];
+  // (26/09/2026) 'ns' (No Sleep cua firmware) doi ten thanh "Man hinh cho": BAT = khong tat den nen, ranh thi hien man
+  // hinh cho (dong ho); TAT = tat den nen sau Sleep time. Cung cong tac, chi doi ten/bieu tuong cho dung y nghia.
+  const tiles = [makeTile('ns', 'Màn hình chờ', 'clock', '#fbbf24'), makeTile('mu', 'Tắt tiếng', 'mute', '#f87171'), makeTile('aec', 'Khử vọng', 'mic_aec', '#34d399')];
   // (26/09/2026 OS-5) Khong lam phien: o SERVER (khong can firmware ho tro) nen hien tren moi man hinh.
   const dndTile = makeTile('dnd', 'Không làm phiền', 'bell_off', '#a78bfa');
   const tilesBox = el('div', 'tiles'); tiles.forEach((t) => tilesBox.appendChild(t.el)); tilesBox.appendChild(dndTile.el);
