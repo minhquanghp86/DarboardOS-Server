@@ -44,7 +44,7 @@ async function search(): Promise<string[]> {
 
 it('dien thoai tim thay panel, truyen YouTube -> YouTube TV tren panel, ngat -> quay ve', async () => {
   const home = srv.local('/ha');
-  dev = await FakeDevice.connect(srv, DEV_ID, { home, ctl: '1' });
+  dev = await FakeDevice.connect(srv, DEV_ID, { home, ctl: '1', audio: '1' });
   await dev.waitFor(() => dev!.currentUrls().includes(home), 20_000, 'ket noi');
   await srv.waitPage((u) => u === home);
 
@@ -61,6 +61,13 @@ it('dien thoai tim thay panel, truyen YouTube -> YouTube TV tren panel, ngat -> 
   expect(await (await fetch(appUrl + 'YouTube')).text()).toContain('<state>stopped</state>');
   expect((await fetch(appUrl + 'Netflix')).status).toBe(404);
 
+  // Radio dang phat nen truoc khi truyen (kiem tra "tieu diem am thanh" ben duoi)
+  const hp0 = await srv.waitPage((u) => u === home);
+  await srv.evaluate(hp0, `window.__rwvControl('{"app":"radio"}')`);
+  const radio = await srv.waitPage((u) => u.includes('/radio.html'));
+  await srv.evaluate(radio, `window.__rwvControl('{"media":1}')`);
+  await sleep(300);
+
   // 3) Truyen
   const before = dev.msgs.length;
   const post = await fetch(appUrl + 'YouTube', { method: 'POST', headers: { 'content-type': 'text/plain' }, body: 'pairingCode=ab12-cd34&theme=cl' });
@@ -69,13 +76,44 @@ it('dien thoai tim thay panel, truyen YouTube -> YouTube TV tren panel, ngat -> 
   const yt = await srv.waitPage((u) => u.includes('pairingCode=ab12-cd34'));
   expect(yt.url).toContain('theme=cl');
   expect(await srv.evaluate<string>(yt, 'navigator.userAgent')).toContain('SMART-TV');
+  // Tab YouTube TV: khong ghi de muted/volume (giao dien TV phai thay am thanh that, dien thoai chinh am luong duoc)
+  expect(await srv.evaluate<string>(yt, "String(Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'volume').set)")).toContain('native code');
+  // Chi H.264, <= 720p, <= 30 hinh/giay (giai ma CPU nhe hon nhieu -> panel khong giat)
+  expect(await srv.evaluate<boolean>(yt, `MediaSource.isTypeSupported('video/webm; codecs="vp9"')`)).toBe(false);
+  expect(await srv.evaluate<boolean>(yt, `MediaSource.isTypeSupported('video/mp4; codecs="av01.0.05M.08"')`)).toBe(false);
+  expect(await srv.evaluate<boolean>(yt, `MediaSource.isTypeSupported('video/mp4; codecs="avc1.4d401f"; height=1080')`)).toBe(false);
+  expect(await srv.evaluate<boolean>(yt, `MediaSource.isTypeSupported('video/mp4; codecs="avc1.4d401f"; framerate=60')`)).toBe(false);
+  expect(await srv.evaluate<string>(yt, `document.createElement('video').canPlayType('video/webm; codecs="vp9"')`)).toBe('');
+  // Khoa am thanh TAT TIENG THAT (muted goc): tab bi khoa -> volumechange; mo lai -> go ra; trang van thay "khong tat"
+  const mute = await srv.evaluate<string>(yt, `new Promise(function (res) {
+    var a = document.createElement('audio'), n = 0; a.addEventListener('volumechange', function () { n++; });
+    document.body.appendChild(a); a.play().catch(function () {});
+    setTimeout(function () {
+      var n0 = n; window.__rwvAudioAllowed = false; window.__rwvAudioApply();
+      setTimeout(function () {
+        var n1 = n, seen = a.muted; window.__rwvAudioAllowed = true; window.__rwvAudioApply();
+        setTimeout(function () { res(n0 + ',' + n1 + ',' + n + ',' + seen); }, 100);
+      }, 100);
+    }, 300);
+  })`);
+  expect(mute).toBe("0,1,2,false");
+  // YouTube TV bat dau phat -> Radio dang phat nen bi dung (khong chong tieng)
+  await srv.evaluate(yt, `window.__rwvControl('{"media":1}')`);
+  // (radio.html dung that -> tu bao media 0 -> the "Dang phat" khong con Radio)
+  let np: unknown[] | null = null;
+  for (let i = 0; i < 25; i++) {
+    await sleep(200);
+    np = await srv.evaluate<unknown[]>(yt, 'window.__rwvLastState && window.__rwvLastState.np');
+    if (Array.isArray(np) && !np.some((x) => (x as { k: string }).k === 'radio')) break;
+  }
+  expect((np ?? []).some((x) => (x as { k: string }).k === 'radio')).toBe(false);
   await dev.waitFor(() => dev!.currentUrls().slice(-1)[0].includes('pairingCode=ab12-cd34'), 8000, 'panel hien YouTube TV');
   expect(dev.msgs.slice(before).some((m) => m[0] === 9 && m[2] === 1)).toBe(true);        // bat den nen
   expect(await (await fetch(appUrl + 'YouTube')).text()).toContain('<state>running</state>');
 
   // 4) Ngat
   expect((await fetch(appUrl + 'YouTube/run', { method: 'DELETE' })).status).toBe(200);
-  await dev.waitFor(() => dev!.currentUrls().slice(-1)[0] === home, 8000, 've HA');
+  await dev.waitFor(() => dev!.currentUrls().slice(-1)[0].includes('/radio.html'), 8000, 've ung dung truoc (Radio)');
   for (let i = 0; i < 20 && (await srv.pageUrls()).some((u) => u.includes('pairingCode')); i++) await sleep(200);
   expect((await srv.pageUrls()).some((u) => u.includes('pairingCode'))).toBe(false);
 
