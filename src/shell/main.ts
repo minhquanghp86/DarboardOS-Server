@@ -41,7 +41,8 @@ interface DevState {
   // cham mot ung dung KHONG con dieu huong tab hien tai (location.href) ma xin SERVER chuyen sang dung tab do —
   // server tu tao tab neu chua co, giu am cac tab khac (radio/nhac van phat khi khong active). Nho vay quay lai
   // Home Assistant tuc thi, khong tai lai.
-  function openApp(id: string): void { closeShade(false); sendControl({ app: id }); }
+  function openApp(id: string): void { closeShade(false); closeRecents(); sendControl({ app: id }); }
+  function openRecents(): void { closeShade(false); sendControl({ recents: 1 }); }
   function hasApp(id: string): boolean { return CFG.apps.some((a) => a.id === id); }
 
   // ── Khung Shadow DOM ──────────────────────────────────────────────────
@@ -151,6 +152,7 @@ interface DevState {
     ['ha', 'Home Assistant', 'home', () => openApp('home')],
     ['cams', 'Camera', 'cams', () => openApp('cams')],
     ['scenes', 'Cảnh', 'scenes', () => openApp('scenes')],
+    ['recents', 'Gần đây', null, openRecents],
   ];
   for (const [icon, label, appId, fn] of SC) {
     // Chi hien khi ung dung THAT SU co (chua bi an o Menu panel, hoac chua co Home URL) — khong de nut chet.
@@ -283,6 +285,11 @@ interface DevState {
     pager.addEventListener('pointerup', end); pager.addEventListener('pointercancel', end);
     showPage(0, false);
     const dock = el('div', 'dock'); dockApps.forEach((a) => dock.appendChild(appButton(a)));
+    // Nut "Gan day" cuoi dock (quyet dinh 25/09: Gan day la MOT NUT, khong phai cu chi)
+    const rb = el('button', 'app recents-btn'); rb.setAttribute('aria-label', 'Gần đây');
+    const rbi = el('div', 'app-ic'); rbi.appendChild(mdi('recents')); rb.append(rbi, el('span', 'l', 'Gần đây'));
+    rb.addEventListener('click', (e) => { e.stopPropagation(); openRecents(); });
+    dock.appendChild(rb);
     home.append(widgets, pager, dots, dock);
     root.insertBefore(home, root.firstChild);
     document.title = 'Ứng dụng';
@@ -333,6 +340,82 @@ interface DevState {
     urlInput!.value = ''; urlInput!.style.outline = 'none';
     urlBox.style.display = 'flex';
     setTimeout(() => urlInput!.focus(), 30);
+  }
+
+  // ── Gan day (OS-3): the anh chup tung ung dung dang mo — cham de chuyen, x / vuot len de dong ──
+  interface RecentCard { k: string; l: string; t: string | null; p: boolean; a: boolean }
+  let recentsEl: HTMLElement | null = null;
+  function closeRecents(): void { recentsEl?.remove(); recentsEl = null; }
+  function appFor(c: RecentCard): App {
+    return CFG.apps.find((a) => a.id === c.k)
+      || { id: c.k, label: c.l, kind: c.k === 'browser' ? 'browser' : 'generic', color: '#475569', group: '' };
+  }
+  function renderRecents(list: RecentCard[], open: boolean): void {
+    window.__rwvLastRecents = list;
+    if (!open && !recentsEl) return;           // cap nhat sau khi dong mot the, nhung nguoi dung da thoat Gan day
+    const fresh = !recentsEl;
+    if (!recentsEl) {
+      recentsEl = el('div', 'recents');
+      recentsEl.addEventListener('click', (e) => { if (e.target === recentsEl || (e.target as Element).classList?.contains('rc-row')) closeRecents(); });
+      root.appendChild(recentsEl);
+    }
+    recentsEl.classList.toggle('anim', fresh && CFG.motion === 'full');
+    const head = el('div', 'rc-head'); head.append(el('span', 't', 'Gần đây'), el('div', 'spacer'));
+    if (list.some((c) => !c.p && !c.a)) {
+      const all = el('button', 'rc-all', 'Đóng tất cả');
+      all.addEventListener('click', (e) => { e.stopPropagation(); sendControl({ closeAll: 1 }); });
+      head.appendChild(all);
+    }
+    const row = el('div', 'rc-row');
+    const ar = String(window.innerWidth / Math.max(1, window.innerHeight));
+    for (const c of list) {
+      const card = el('div', 'rc'); if (c.a) card.classList.add('cur');
+      card.style.setProperty('--ar', ar);
+      const top = el('div', 'rc-top'); top.append(appIcon(appFor(c), 'app-ic'), el('span', 'rc-l', c.l));
+      const canClose = !c.p && !c.a;
+      if (canClose) {
+        const x = el('button', 'rc-x', '✕'); x.setAttribute('aria-label', 'Đóng ' + c.l);
+        x.addEventListener('click', (e) => { e.stopPropagation(); dismiss(); });
+        top.appendChild(x);
+      }
+      const img = el('div', 'rc-img');
+      if (c.t) {
+        const im = document.createElement('img'); im.alt = ''; im.src = c.t;
+        im.addEventListener('error', () => { im.remove(); img.appendChild(appIcon(appFor(c), 'rc-ph')); });
+        img.appendChild(im);
+      } else img.appendChild(appIcon(appFor(c), 'rc-ph'));
+      card.append(top, img);
+      function dismiss() {
+        card.classList.add('gone');
+        sendControl({ close: c.k });
+      }
+      // Vuot len tren the de dong (P4 keo theo ngon); cham = chuyen sang ung dung do.
+      let sy = 0, dy = 0, drag = false;
+      card.addEventListener('pointerdown', (e) => { sy = e.clientY; dy = 0; drag = true; });
+      card.addEventListener('pointermove', (e) => {
+        if (!drag) return; dy = e.clientY - sy;
+        if (canClose && dy < -10 && CFG.motion === 'full') card.style.transform = `translateY(${dy}px)`;
+      });
+      const end = () => {
+        if (!drag) return; drag = false;
+        if (canClose && dy < -70) { dismiss(); return; }
+        card.style.transform = '';
+      };
+      card.addEventListener('pointerup', end); card.addEventListener('pointercancel', end);
+      card.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (Math.abs(dy) > 12) return;
+        if (c.a) closeRecents(); else openApp(c.k);
+      });
+      row.appendChild(card);
+    }
+    if (!list.length) row.appendChild(el('div', 'rc-empty', 'Không có ứng dụng nào đang mở'));
+    recentsEl.replaceChildren(head, row);
+    // Cuon cho the TRUOC (ung dung dung ngay truoc) vao giua — dung thao tac chuyen qua lai nhanh nhat.
+    if (fresh && row.scrollWidth > row.clientWidth + 8) {
+      const second = row.children[1] as HTMLElement | undefined;
+      second?.scrollIntoView({ inline: 'center', block: 'nearest' });
+    }
   }
 
   // ── Bao thuc (het hen gio) ──────────────────────────────────────────
@@ -416,6 +499,7 @@ interface DevState {
       if (Math.max(gStartVisible, gLastY) > h / 3) openShade(true); else closeShade(true);
     },
     open() { openShade(true); },
+    recents: renderRecents,
     close() { closeShade(true); },
     isOpen() { return shadeVisible > 0; },
     alarm,
