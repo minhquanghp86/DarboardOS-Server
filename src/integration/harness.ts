@@ -171,6 +171,27 @@ export class FakeDevice {
     this.ws.send(b);
   }
 
+  /** Goi RepaintRect nhu firmware (sau khi ve vong tron phan hoi cham): [11][1][x][y][w][h] u16. */
+  repaintRect(x: number, y: number, w: number, h: number): void {
+    const b = Buffer.alloc(10); b[0] = 11; b[1] = 1;
+    b.writeUInt16LE(x, 2); b.writeUInt16LE(y, 4); b.writeUInt16LE(w, 6); b.writeUInt16LE(h, 8);
+    this.ws.send(b);
+  }
+
+  /** O anh (x,y,w,h) cua cac goi Frame nhan duoc tu chi so `from`. */
+  tilesSince(from: number): { x: number; y: number; w: number; h: number }[] {
+    const out: { x: number; y: number; w: number; h: number }[] = [];
+    for (const m of this.msgs.slice(from)) {
+      if (m[0] !== 1) continue;
+      let off = 11;
+      for (let i = 0, n = m.readUInt16LE(7); i < n && off + 12 <= m.length; i++) {
+        out.push({ x: m.readUInt16LE(off), y: m.readUInt16LE(off + 2), w: m.readUInt16LE(off + 4), h: m.readUInt16LE(off + 6) });
+        off += 12 + m.readUInt32LE(off + 8);
+      }
+    }
+    return out;
+  }
+
   /** Goi DeviceState nhu firmware (den nen, gio thiet bi): [10][1][bri][vol][flags][epoch u32][giay-trong-ngay u32]. */
   deviceState(o: { backlightOn?: boolean; tzMin?: number } = {}): void {
     const epoch = Math.floor(Date.now() / 1000), tz = (o.tzMin ?? 420) * 60;
