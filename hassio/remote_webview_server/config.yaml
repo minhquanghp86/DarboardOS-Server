@@ -1,5 +1,5 @@
 name: "Remote WebView Server"
-version: "2.9.60"
+version: "2.9.61"
 slug: "remote_webview_server"
 description: "Truyền bảng điều khiển HA hoặc bất kỳ trang web nào tới màn hình hiển thị dựa trên ESP32 dưới dạng ô thông qua WebSocket."
 url: "https://github.com/minhquanghp86/HA-Darboard-Server/tree/main/hassio/remote_webview_server"
@@ -54,6 +54,7 @@ options:
   morning_briefing: true
   morning_window: "06:00-09:30"
   morning_tts: false
+  gphotos_album: ""
   # (23/09/2026) /pw-data KHONG nam trong volume ben cua addon — mat het khi
   # container tao lai (moi lan update). /data la thu muc rieng cua addon nay
   # do Supervisor tu cap, LUON ben qua update/restart.
@@ -80,4 +81,5 @@ schema:
   morning_briefing: "bool?"
   morning_window: "match(^\\d{1,2}:\\d{2}-\\d{1,2}:\\d{2}$)?"
   morning_tts: "bool?"
+  gphotos_album: "str?"
   user_data_dir: str

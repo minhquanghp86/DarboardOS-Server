@@ -56,6 +56,8 @@ export SCREENSAVER_PHOTOS="$(get_opt screensaver_photos "true")"
 export MORNING_BRIEFING="$(get_opt morning_briefing "true")"
 export MORNING_WINDOW="$(get_opt morning_window "06:00-09:30")"
 export MORNING_TTS="$(get_opt morning_tts "false")"
+# (27/09/2026) Link album Google Photos chia se cho khung anh (chinh duoc ca o Cai dat tren man hinh).
+export GPHOTOS_ALBUM="$(get_opt gphotos_album "")"
 export USER_DATA_DIR="$(get_opt user_data_dir "/data/pw-data")"
 
 # (25/09/2026) Proxy Chrome DevTools ra LAN (tat mac dinh) — truoc day 2 tuy chon nay co tren giao dien nhung KHONG

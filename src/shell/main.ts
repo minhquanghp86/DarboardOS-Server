@@ -447,19 +447,34 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   let svShiftMin = -1, svWxSig = '';
   // (27/09/2026) Nen anh gia dinh (server gui URL moi phut, null = chi dong ho — ban dem / khong co anh). Hai lop
   // chong mo cheo; anh tai xong moi hien (mang cham thi giu anh cu).
-  let svPh: HTMLElement[] = [], svTop = 0;
-  function saverPhoto(url: string | null): void {
+  // (27/09/2026) KHUNG ANH SO: server gui {url, cap, fx, dir, clock}. Hieu ung chuyen (mo dan / truot theo huong vuot /
+  // thu phong / khong) chay MOT lan moi lan doi anh (~0,7 s) — man S3 luon 'khong' (moi khung dong ton bang thong).
+  let svPh: HTMLElement[] = [], svTop = 0, svCap: HTMLElement;
+  type SaverPhotoMsg = { url: string; cap?: string; fx?: string; dir?: number; clock?: boolean };
+  function saverPhoto(o: SaverPhotoMsg | string | null): void {
     if (!saverEl) return;
-    if (!url || saverEl.classList.contains('night')) { saverEl.classList.remove('photo'); svPh.forEach((p) => p.classList.remove('show')); return; }
+    const m: SaverPhotoMsg | null = typeof o === 'string' ? { url: o } : o;
+    if (!m || !m.url) { saverEl.classList.remove('photo'); svPh.forEach((p) => { p.className = 'sv-ph'; }); setText(svCap, ''); return; }
+    const fx = CFG.motion === 'full' ? (m.fx || 'fade') : 'none';
+    const dir = (m.dir ?? 1) < 0 ? -1 : 1;
     const img = new Image();
     img.onload = () => {
       if (!saverEl) return;
-      const next = svPh[1 - svTop];
-      next.style.backgroundImage = `url("${url}")`;
-      next.classList.add('show'); svPh[svTop].classList.remove('show'); svTop = 1 - svTop;
-      saverEl.classList.add('photo');
+      const next = svPh[1 - svTop], cur = svPh[svTop];
+      next.style.backgroundImage = `url("${m.url}")`;
+      // Vi tri bat dau (khong hieu ung) -> khung sau: vi tri cuoi (co hieu ung)
+      next.className = `sv-ph fx-${fx} from${dir > 0 ? 'R' : 'L'}`;
+      void next.offsetWidth;
+      next.className = `sv-ph fx-${fx} show`;
+      cur.className = `sv-ph fx-${fx} to${dir > 0 ? 'L' : 'R'}`;
+      svTop = 1 - svTop;
+      // Vua chuyen tu dong ho giua man hinh sang khung anh: tinh lai vi tri dong ho (goc duoi trai, khong ra ngoai mep).
+      if (!saverEl.classList.contains('photo')) { saverEl.classList.add('photo'); svShiftMin = -1; updateSaver(); }
+      saverEl.classList.toggle('noclock', m.clock === false);
+      setText(svCap, m.cap || '');
+      window.__rwvSaverShown = m;
     };
-    img.src = url;
+    img.src = m.url;
   }
   function screensaver(on: boolean): void {
     if (!on) { saverEl?.remove(); saverEl = null; return; }
@@ -467,13 +482,29 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     closeShade(false); closeRecents();
     saverEl = el('div', 'saver'); svBox = el('div', 'sv-box');
     svClock = el('div', 'sv-clock'); svDate = el('div', 'sv-date'); svWx = el('div', 'sv-wx');
-    svBox.append(svClock, svDate, svWx);
+    svCap = el('div', 'sv-cap');
+    svBox.append(svClock, svDate, svWx, svCap);
     svPh = [el('div', 'sv-ph'), el('div', 'sv-ph')]; svTop = 0;
     saverEl.append(svPh[0], svPh[1], svBox);
     if (CFG.motion === 'full') saverEl.classList.add('anim');
     // Tat o 'click' (khong phai pointerdown): neu go lop phu ngay luc cham xuong thi 'click' sau do roi xuong trang.
-    saverEl.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); });
-    saverEl.addEventListener('click', (e) => { e.stopPropagation(); screensaver(false); sendControl({ wake: 1 }); });
+    // (27/09/2026) Dang hien anh: VUOT trai/phai = anh sau/truoc (khung anh so), cham = thoat.
+    // touch-action: none (styles) — neu khong trinh duyet coi vuot la cuon trang va huy (pointercancel).
+    let sx = 0, sy = 0, lx = 0, ly = 0, swiped = false;
+    saverEl.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); sx = lx = e.clientX; sy = ly = e.clientY; swiped = false; });
+    saverEl.addEventListener('pointermove', (e) => { lx = e.clientX; ly = e.clientY; });
+    saverEl.addEventListener('pointerup', () => {
+      const dx = lx - sx, dy = ly - sy;
+      if (saverEl?.classList.contains('photo') && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.3) {
+        swiped = true;
+        sendControl({ saver: dx < 0 ? 'next' : 'prev' });
+      }
+    });
+    saverEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (swiped) { swiped = false; return; }
+      screensaver(false); sendControl({ wake: 1 });
+    });
     root.appendChild(saverEl);
     svShiftMin = -1; svWxSig = '';
     updateSaver();

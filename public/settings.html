@@ -121,7 +121,7 @@
         b.addEventListener('click', function () { seg.querySelectorAll('button').forEach(function (x) { x.classList.remove('sel'); }); b.classList.add('sel'); set(it.id, o); });
         seg.append(b);
       });
-      r.append(label(it), seg);
+      r.append(label(it, it.hint || ''), seg);
     } else if (it.kind === 'text') {
       if (editing === it.id) {
         r.classList.add('col');
@@ -137,7 +137,7 @@
       } else {
         var ed = el('button', 'btn', 'Sửa');
         ed.addEventListener('click', function () { editing = it.id; render(last); });
-        r.append(label(it, it.value), ed);
+        r.append(label(it, it.value || it.hint || ''), ed);
       }
     } else if (it.kind === 'button') {
       var b2 = el('button', 'btn' + (it.confirm ? ' warn' : ''), it.confirm ? 'Thực hiện' : 'Bấm');
@@ -177,6 +177,9 @@
     return s;
   }
 
+  // (27/09/2026) Muc cua addon (server luu): "Màn hình" va "Khung ảnh" (man hinh cho dang khung anh so).
+  function panelSec(d, sec) { return (d.panel || []).filter(function (i) { return (i.sec || 'screen') === sec; }); }
+
   function render(d) {
     if (!d) return;
     last = d;
@@ -190,14 +193,16 @@
       var box = el('div');
       main.replaceChildren(head, box);
       RwvUI.state(box, { kind: 'err', title: 'Chưa đọc được cài đặt', text: d.error, retry: function () { ctl({ settings: 'get' }); } });
-      var g0 = el('div', 'grid'); var sp = section('Màn hình', d.panel || []); if (sp) g0.append(sp); g0.append(diag([], d.server)); main.append(g0);
+      var g0 = el('div', 'grid'); [section('Màn hình', panelSec(d, 'screen')), section('Khung ảnh', panelSec(d, 'frame'))].forEach(function (s) { if (s) g0.append(s); });
+      g0.append(diag([], d.server)); main.append(g0);
       return;
     }
     var items = d.view.items;
     var by = function (g) { return items.filter(function (i) { return i.group === g; }); };
     var grid = el('div', 'grid');
     // (27/09/2026) "Màn hình": cai dat cua addon cho rieng man hinh nay (server luu), vd man hinh cho hien anh.
-    [section('Điều khiển', by('control')), section('Màn hình', d.panel || []), section('Cấu hình', by('config')), diag(by('diag'), d.server)]
+    [section('Điều khiển', by('control')), section('Màn hình', panelSec(d, 'screen')), section('Khung ảnh', panelSec(d, 'frame')),
+     section('Cấu hình', by('config')), diag(by('diag'), d.server)]
       .forEach(function (s) { if (s) grid.append(s); });
     main.replaceChildren(head, grid);
     if (d.note && !d.note.ok) { var n = document.getElementById('note'); n.textContent = d.note.msg; n.style.display = 'block'; setTimeout(function () { n.style.display = 'none'; }, 3500); }

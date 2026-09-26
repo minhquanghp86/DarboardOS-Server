@@ -59,6 +59,9 @@ configuration:
   morning_tts:
     name: 'Đọc lời chào qua loa'
     description: 'Mặc định TẮT (chỉ hiện chữ). Bật để đọc tóm tắt (thời tiết, lịch, việc, ghi chú) qua loa của chính màn hình bằng dịch vụ TTS của Home Assistant (ưu tiên Piper).'
+  gphotos_album:
+    name: 'Album Google Photos'
+    description: 'Link chia sẻ album (https://photos.app.goo.gl/…) cho khung ảnh / màn hình chờ. Ai có link đều xem được album. Có thể dán ngay trên màn hình: Cài đặt → Khung ảnh.'
   user_data_dir:
     name: 'Thư mục hồ sơ trình duyệt'
     description: 'Nơi lưu cookie/đăng nhập của trình duyệt. Để trong /data (mặc định /data/pw-data) để không phải đăng nhập lại sau mỗi lần cập nhật addon.'
