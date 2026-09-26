@@ -63,6 +63,10 @@ export function appIcon(app: App, cls = 'app-ic'): HTMLElement {
     case 'todo':
       line('path', { d: 'M4 6l1.5 1.5L8 5M4 12l1.5 1.5L8 11M4 18l1.5 1.5L8 17' }); line('path', { d: 'M11 6.5h9M11 12.5h9M11 18.5h9' });
       break;
+    case 'solar':
+      line('path', { d: 'M4 20l2.5-9h11l2.5 9z' }); line('path', { d: 'M5.4 15.5h13.2M9.7 11l-1 9M14.3 11l1 9' });
+      line('circle', { cx: '12', cy: '5', r: '2' }); line('path', { d: 'M12 1.5v.8M16 5h-.8M8.8 5H8M14.7 2.3l-.6.6M9.9 2.9l-.6-.6' });
+      break;
     case 'today':
       line('path', { d: 'M3 18h18M6 18a6 6 0 0112 0' }); line('path', { d: 'M12 5v3M4.9 9.9l2.1 2.1M19.1 9.9L17 12' }); line('path', { d: 'M8 21h8' });
       break;

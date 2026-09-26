@@ -32,7 +32,7 @@ export function shouldShowSaver(s: SaverInput): boolean {
 
 // ── (27/09/2026) Man hinh cho dang KHUNG ANH + theo gio trong ngay ─────────────────────────────────────────────────
 /** Addon: screensaver_photos (mac dinh bat). Co anh trong thu muc anh thi man hinh cho hien anh, doi moi phut. */
-export const SCREENSAVER_PHOTOS = process.env.SCREENSAVER_PHOTOS !== '0';
+export const SCREENSAVER_PHOTOS = !['0', 'false'].includes(process.env.SCREENSAVER_PHOTOS ?? '');
 export const SAVER_PHOTO_MS = 60_000;
 
 /** Gio (0..23) tai noi dat thiet bi: gio UTC + mui gio thiet bi bao (phut). */

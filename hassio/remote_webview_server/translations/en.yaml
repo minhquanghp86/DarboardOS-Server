@@ -47,6 +47,18 @@ configuration:
   screensaver_idle_s:
     name: 'Screensaver after (seconds)'
     description: 'Idle time before the screensaver (large clock, date, weather; dim at night) appears. Not shown while video/camera plays or the backlight is off. 0 = off.'
+  screensaver_photos:
+    name: 'Photo screensaver'
+    description: 'If there are photos in Home Assistant media/photos, the screensaver shows family photos (one per minute) with a corner clock. At night (22-06) only a dim clock.'
+  morning_briefing:
+    name: 'Morning briefing'
+    description: 'First time each day the panel camera sees someone (within the window below): open the "Today" app — weather, calendar, to-dos, notes. Needs firmware with camera_motion.'
+  morning_window:
+    name: 'Morning window'
+    description: 'HH:MM-HH:MM in the panel local time, e.g. 06:00-09:30.'
+  morning_tts:
+    name: 'Speak the briefing'
+    description: 'Read the summary on the panel speaker via Home Assistant TTS (Piper preferred).'
   user_data_dir:
     name: 'Browser profile directory'
     description: 'Where the browser keeps cookies/logins. Keep it under /data (default /data/pw-data) so logins survive add-on updates.'

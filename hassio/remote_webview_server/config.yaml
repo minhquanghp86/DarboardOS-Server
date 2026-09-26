@@ -50,6 +50,10 @@ options:
   health_port: 18080
   prefers_reduced_motion: false
   screensaver_idle_s: 120
+  screensaver_photos: true
+  morning_briefing: true
+  morning_window: "06:00-09:30"
+  morning_tts: true
   # (23/09/2026) /pw-data KHONG nam trong volume ben cua addon — mat het khi
   # container tao lai (moi lan update). /data la thu muc rieng cua addon nay
   # do Supervisor tu cap, LUON ben qua update/restart.
@@ -72,4 +76,8 @@ schema:
   health_port: int
   prefers_reduced_motion: bool
   screensaver_idle_s: "int(0,)?"
+  screensaver_photos: "bool?"
+  morning_briefing: "bool?"
+  morning_window: "match(^\\d{1,2}:\\d{2}-\\d{1,2}:\\d{2}$)?"
+  morning_tts: "bool?"
   user_data_dir: str

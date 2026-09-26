@@ -15,6 +15,17 @@
 - An toàn: API mới (`/ha/rooms`, `/ha/act`, `/ha/todo`, `/photos/*`) **chỉ nhận từ chính addon** (trình duyệt của
   panel), máy khác trong LAN không điều khiển được; chỉ một danh sách thao tác cố định (không khoá cửa, không báo động).
 - Addon được quyền **đọc** thư mục media (`map: media`) — cần khởi động lại addon sau khi cập nhật.
+- **Màn hình chờ hiện ảnh**: có ảnh trong media/photos thì màn hình chờ hiện ảnh gia đình (đổi mỗi phút), đồng hồ ở
+  góc; ban đêm (22h–6h) chỉ đồng hồ tông tối. Tuỳ chọn `screensaver_photos`.
+- **Chào buổi sáng**: lần đầu trong ngày camera thấy người (06:00–09:30, tuỳ chọn `morning_window`) → mở ứng dụng
+  mới **Hôm nay** (thời tiết, lịch hôm nay từ mọi calendar của HA, việc cần làm, ghi chú) và đọc tóm tắt qua loa của
+  chính màn hình (`tts.speak`, ưu tiên Piper; tắt bằng `morning_tts`).
+- **Bảng tin gia đình**: ghi chú dạng giấy nhớ dùng chung mọi màn hình; viết trên panel hoặc gửi từ HA / điện thoại
+  (`POST /board`), có thẻ thông báo "Ghi chú mới"; ghim / xoá.
+- **Chuông cửa**: HA gọi `POST /doorbell {camera, unlock?}` → mọi màn hình sáng lên, camera cổng toàn màn hình, chuông
+  kêu, nút **Mở cổng** (chạy đúng script/button/lock đã khai) và **Đóng**; hết giờ tự quay về ứng dụng trước.
+- **Solar**: ứng dụng mở trang solar.example.com.
+- Sửa: Shell không còn chạy trong iframe của trang (thẻ iframe trên dashboard HA từng có thêm nút/thanh thừa bên trong).
 
 ## V2.9.58
 ### Màn hình chính sắp xếp được, thư mục, bố cục S3, trợ lý giọng nói, dò người bằng camera

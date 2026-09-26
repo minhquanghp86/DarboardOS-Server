@@ -47,6 +47,18 @@ configuration:
   screensaver_idle_s:
     name: 'Màn hình chờ sau (giây)'
     description: 'Không chạm bao lâu thì hiện màn hình chờ (đồng hồ lớn, ngày âm dương, thời tiết; tông tối ban đêm). Không hiện khi đang phát video/camera hoặc màn hình đã tắt. 0 = tắt.'
+  screensaver_photos:
+    name: 'Màn hình chờ hiện ảnh'
+    description: 'Có ảnh trong thư mục media/photos của Home Assistant thì màn hình chờ hiện ảnh gia đình (đổi mỗi phút), đồng hồ ở góc. Ban đêm (22h–6h) chỉ hiện đồng hồ tông tối.'
+  morning_briefing:
+    name: 'Chào buổi sáng'
+    description: 'Lần đầu trong ngày camera của màn hình thấy người (trong khung giờ bên dưới): mở ứng dụng "Hôm nay" — thời tiết, lịch, việc cần làm, ghi chú. Cần firmware có camera_motion.'
+  morning_window:
+    name: 'Khung giờ chào buổi sáng'
+    description: 'Dạng HH:MM-HH:MM theo giờ của màn hình, vd 06:00-09:30.'
+  morning_tts:
+    name: 'Đọc lời chào qua loa'
+    description: 'Đọc tóm tắt (thời tiết, lịch, việc, ghi chú) qua loa của chính màn hình bằng dịch vụ TTS của Home Assistant (ưu tiên Piper).'
   user_data_dir:
     name: 'Thư mục hồ sơ trình duyệt'
     description: 'Nơi lưu cookie/đăng nhập của trình duyệt. Để trong /data (mặc định /data/pw-data) để không phải đăng nhập lại sau mỗi lần cập nhật addon.'
