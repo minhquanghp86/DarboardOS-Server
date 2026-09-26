@@ -11,8 +11,10 @@
 <title>Radio</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js"></script>
+<link rel="stylesheet" href="/ui.css">
+<script src="/ui.js"></script>
 <style>
-  :root { --bg: #17100b; --surface: #231812; --surface-2: #33231a; --text: #fdf4ec; --muted: #bba291; --accent: #f97316; --pad: clamp(8px, 2.6vmin, 22px); color-scheme: dark; }
+  :root { --accent: #ea580c;  }  /* nen, be mat, chu, bo goc: /ui.css (dung chung voi Shell) */
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden; font-family: "Be Vietnam Pro", system-ui, sans-serif; -webkit-user-select: none; user-select: none; }
   main { height: 100%; padding: calc(var(--pad) + 14px) var(--pad) var(--pad); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: var(--pad); }
@@ -34,7 +36,7 @@
   .note { font-size: clamp(9px, 2.1vmin, 12px); color: var(--muted); }
 </style>
 </head>
-<body>
+<body class="rwv-app">
 <main>
   <section class="card now">
     <div class="disc" id="disc">VOV</div>
