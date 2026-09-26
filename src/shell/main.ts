@@ -24,7 +24,11 @@ interface DevState {
   tm: { endsAt: number; label: string } | null;
   /** (26/09/2026) Tab nen dang phat (Radio/Nhac): k = khoa tab o server, l = ten ung dung. Server < 2.9.49 khong gui. */
   np?: { k: string; l: string }[];
+  /** (26/09/2026 OS-5) Thong bao moi nhat truoc + Khong lam phien. Server < 2.9.53 khong gui. */
+  nt?: Notice[];
+  dnd?: boolean;
 }
+interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'critical'; ts: number; img: string | null; act: boolean }
 
 (function () {
   if (window.__rwvShell) return;
@@ -114,7 +118,9 @@ interface DevState {
     return t;
   }
   const tiles = [makeTile('ns', 'Luôn sáng', 'eye', '#fbbf24'), makeTile('mu', 'Tắt tiếng', 'mute', '#f87171'), makeTile('aec', 'Khử vọng', 'mic_aec', '#34d399')];
-  const tilesBox = el('div', 'tiles'); tiles.forEach((t) => tilesBox.appendChild(t.el));
+  // (26/09/2026 OS-5) Khong lam phien: o SERVER (khong can firmware ho tro) nen hien tren moi man hinh.
+  const dndTile = makeTile('dnd', 'Không làm phiền', 'bell_off', '#a78bfa');
+  const tilesBox = el('div', 'tiles'); tiles.forEach((t) => tilesBox.appendChild(t.el)); tilesBox.appendChild(dndTile.el);
 
   // Thanh truot
   interface Slider { el: HTMLElement; set(v: number | null): void }
@@ -184,7 +190,44 @@ interface DevState {
     npBox.style.display = list.length ? '' : 'none';
     if (shadeVisible > 0) setVisible(fullH(), false);  // bang dang mo: chieu cao noi dung vua doi
   }
-  inner.append(info, ctl, npBox, shortcuts);
+  // Thong bao (OS-5): danh sach trong thanh keo xuong — cham = mo ung dung/URL kem theo, x = xoa, "Xoa het".
+  const ntBox = el('div', 'nt'); ntBox.style.display = 'none';
+  let ntSig = '';
+  function ago(ts: number): string {
+    const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+    return s < 60 ? 'vừa xong' : s < 3600 ? Math.floor(s / 60) + ' phút' : s < 86400 ? Math.floor(s / 3600) + ' giờ' : Math.floor(s / 86400) + ' ngày';
+  }
+  function noticeIcon(n: Notice, cls: string): HTMLElement {
+    const box = el('div', cls + ' ' + n.p);
+    if (n.img) { const im = document.createElement('img'); im.alt = ''; im.src = n.img; im.addEventListener('error', () => { im.replaceWith(mdi('bell')); }); box.appendChild(im); }
+    else box.appendChild(mdi('bell'));
+    return box;
+  }
+  function renderNotices(list: Notice[]) {
+    const sig = JSON.stringify(list.map((n) => n.id));
+    pill.classList.toggle('unread', list.length > 0);
+    if (sig === ntSig) { ntBox.querySelectorAll<HTMLElement>('[data-ts]').forEach((e) => setText(e, ago(Number(e.dataset.ts)))); return; }
+    ntSig = sig;
+    ntBox.style.display = list.length ? '' : 'none';
+    const head = el('div', 'nt-head'); head.append(el('span', 'nt-h', 'Thông báo'), el('div', 'spacer'));
+    const clr = el('button', 'nt-clr', 'Xoá hết'); clr.addEventListener('click', (e) => { e.stopPropagation(); sendControl({ ntClear: 1 }); });
+    head.appendChild(clr);
+    const rows = list.slice(0, 4).map((n) => {
+      const row = el('div', 'nt-row');
+      const txt = el('div', 'nt-txt'); const top = el('div', 'nt-top');
+      const when = el('span', 'nt-ago', ago(n.ts)); when.dataset.ts = String(n.ts);
+      top.append(el('span', 'nt-t', n.t || n.m), when);
+      txt.append(top); if (n.t && n.m) txt.appendChild(el('div', 'nt-m', n.m));
+      const x = el('button', 'nt-x', '✕'); x.setAttribute('aria-label', 'Xoá thông báo');
+      x.addEventListener('click', (e) => { e.stopPropagation(); row.remove(); sendControl({ ntDel: n.id }); });
+      row.append(noticeIcon(n, 'nt-ic'), txt, x);
+      row.addEventListener('click', (e) => { e.stopPropagation(); closeShade(false); sendControl(n.act ? { ntOpen: n.id } : { ntDel: n.id }); });
+      return row;
+    });
+    ntBox.replaceChildren(head, ...rows);
+    if (shadeVisible > 0) setVisible(fullH(), false);
+  }
+  inner.append(info, ctl, npBox, ntBox, shortcuts);
 
   // Chieu cao, keo, mo/dong. Muc 'full' (P4): keo theo ngon; 'reduced'/'minimal' (S3): nhay thang.
   let shadeVisible = 0;
@@ -201,7 +244,7 @@ interface DevState {
     scrim.classList.toggle('on', shadeVisible > 0);
     pillChev.style.transform = shadeVisible > 0 ? 'translateX(-50%) rotate(180deg)' : 'translateX(-50%)';
   }
-  function openShade(animate: boolean) { tick(); setVisible(fullH(), animate); }
+  function openShade(animate: boolean) { hideToast(); tick(); setVisible(fullH(), animate); }
   function closeShade(animate: boolean) { setVisible(0, animate); }
   scrim.addEventListener('click', (e) => { e.stopPropagation(); closeShade(true); });
   // Vuot len tren nen thanh (khong tren nut/thanh truot) -> dong
@@ -491,6 +534,38 @@ interface DevState {
     }
   }
 
+  // ── The thong bao noi (OS-5): truot xuong tu mep tren; tu an (normal 8 s, high 20 s), critical giu toi khi cham ──
+  let toastEl: HTMLElement | null = null, toastTimer: number | undefined;
+  function hideToast() { clearTimeout(toastTimer); toastEl?.remove(); toastEl = null; }
+  function chime(strong: boolean) {
+    try {
+      const ctx = new AudioContext();
+      const notes = strong ? [880, 660, 880, 660] : [880, 660];
+      notes.forEach((f, i) => {
+        const o = ctx.createOscillator(), g = ctx.createGain(), t0 = ctx.currentTime + i * 0.22;
+        o.frequency.value = f; g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(0.45, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.2);
+        o.connect(g); g.connect(ctx.destination); o.start(t0); o.stop(t0 + 0.21);
+      });
+      setTimeout(() => { try { ctx.close(); } catch { /* */ } }, 1500);
+    } catch { /* khong co am thanh */ }
+  }
+  function notify(n: Notice, sound: boolean): void {
+    window.__rwvLastNotice = n;
+    hideToast(); screensaver(false);
+    const t = el('div', 'toast ' + n.p); if (CFG.motion === 'full') t.classList.add('anim');
+    const txt = el('div', 'to-txt'); txt.append(el('div', 'to-t', n.t || n.m));
+    if (n.t && n.m) txt.appendChild(el('div', 'to-m', n.m));
+    const x = el('button', 'to-x', '✕'); x.setAttribute('aria-label', 'Đóng');
+    x.addEventListener('click', (e) => { e.stopPropagation(); hideToast(); });
+    t.append(noticeIcon(n, 'to-ic'), txt, x);
+    t.addEventListener('pointerdown', (e) => e.stopPropagation());
+    t.addEventListener('click', (e) => { e.stopPropagation(); hideToast(); if (n.act) sendControl({ ntOpen: n.id }); });
+    root.appendChild(t); toastEl = t;
+    if (n.p !== 'critical') toastTimer = window.setTimeout(hideToast, n.p === 'high' ? 20000 : 8000);
+    if (sound) chime(n.p === 'critical');
+  }
+
   // ── Bao thuc (het hen gio) ──────────────────────────────────────────
   function alarm(label: string) {
     shadow.querySelector('.alarm')?.remove();
@@ -533,14 +608,19 @@ interface DevState {
       timerChip.classList.add('show');
     } else timerChip.classList.remove('show');
     updateSaver();
+    if (shadeVisible > 0 && st?.nt) renderNotices(st.nt);  // cap nhat "x phut" khi bang dang mo
   }
   setInterval(tick, 1000);
 
   function applyState(s: DevState) {
     st = s;
     window.__rwvLastState = s;
-    ctl.style.display = s.ctl ? '' : 'none';
-    tilesBox.style.display = s.ctl && s.tg ? '' : 'none';
+    // Khong lam phien la cua server -> hang o nhanh luon hien; o/thanh truot cua THIET BI chi khi firmware ho tro.
+    sliders.style.display = s.ctl ? '' : 'none';
+    tiles.forEach((t) => { t.el.style.display = s.ctl && s.tg ? '' : 'none'; });
+    dndTile.el.style.display = s.dnd == null ? 'none' : '';
+    if (s.dnd != null) dndTile.set(s.dnd);
+    renderNotices(s.nt || []);
     bri.set(s.b); vol.set(s.v);
     if (s.tg) { tiles[0].set(s.tg.noSleep); tiles[1].set(s.tg.muted); tiles[2].set(s.tg.aec); }
     if (s.wx) {
@@ -566,7 +646,7 @@ interface DevState {
     /** Cu chi keo tu mep tren do server nhan dien: y = vi tri ngon tay (px trang). */
     gesture(phase: 'start' | 'move' | 'end', y: number) {
       const h = fullH();
-      if (phase === 'start') { tick(); gStartVisible = shadeVisible; gLastY = y; if (CFG.motion !== 'full') { openShade(false); } return; }
+      if (phase === 'start') { hideToast(); tick(); gStartVisible = shadeVisible; gLastY = y; if (CFG.motion !== 'full') { openShade(false); } return; }
       if (phase === 'move') { gLastY = y; if (CFG.motion === 'full') setVisible(Math.max(gStartVisible, y), false); return; }
       // end: qua 1/3 chieu cao thi mo han, khong thi dong
       if (CFG.motion !== 'full') return;
@@ -577,6 +657,7 @@ interface DevState {
     back: backGesture,
     homeDrag,
     screensaver,
+    notify,
     close() { closeShade(true); },
     isOpen() { return shadeVisible > 0; },
     alarm,
