@@ -92,7 +92,10 @@ Ngày lập: 25/09/2026. Mốc quay về: **Bản Ổn định 25/09 đêm** (ta
 - **OS-5 bước 1 — Màn hình chờ (2.9.52)**: `src/screensaver.ts` (quyết định: idle ≥ `SCREENSAVER_IDLE_S`, tab không
   phát media, đèn nền không tắt), `screensaverTick()` 5 s/lần, Shell `screensaver()` (đồng hồ/ngày âm/thời tiết, dịch
   chỗ mỗi phút, tông đêm 22h–6h, tắt ở `click` + `{wake}`). Tuỳ chọn addon `screensaver_idle_s`. Còn lại OS-5: thông
-  báo HA / chuông cửa, không làm phiền, tự giảm độ sáng theo lịch, khoá trẻ em.
+  báo HA / chuông cửa, không làm phiền (bỏ tự giảm độ sáng theo lịch và khoá trẻ em — quyết định người dùng 26/09).
+- **OS-5 bước 2 — 2.9.53**: `POST /notify` (`src/notifications.ts`: `parseNotify`, `NoticeStore`, `shouldPopup`,
+  `shouldWake`; `postNotify`/`openNotice` trong deviceManager), thẻ nổi + danh sách + chấm chưa đọc trong Shell, ô
+  Không làm phiền (lưu `/data/rwv-dnd.json`). Thử tích hợp `notify.itest.ts`. **OS-5 hoàn tất.**
 
 ## 1. Ý tưởng của người dùng (tóm lại để thống nhất)
 

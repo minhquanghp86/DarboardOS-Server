@@ -177,6 +177,54 @@ automation:
           message: "Có người bấm chuông cửa"
 ```
 
+## Thông báo từ Home Assistant (chuông cửa, nhắc việc…)
+
+Gửi thông báo tới màn hình bằng một `rest_command`. Thêm vào `configuration.yaml` rồi khởi động lại Home Assistant:
+
+```yaml
+rest_command:
+  panel_notify:
+    url: http://127.0.0.1:18080/notify      # 18080 = health_port của addon
+    method: POST
+    content_type: application/json
+    payload: >-
+      {{ {"title": title | default(""), "message": message | default(""),
+          "priority": priority | default("normal"), "device": device | default("all"),
+          "camera": camera | default(""), "app": app | default(""), "url": url | default("")} | tojson }}
+```
+
+Gọi từ tự động hoá:
+
+```yaml
+# Chuông cửa: bật sáng màn hình, kêu chuông, kèm ảnh camera cổng (tên luồng go2rtc), chạm để mở Camera
+- action: rest_command.panel_notify
+  data:
+    title: Chuông cửa
+    message: Có người ở cổng
+    priority: critical
+    camera: cong
+    app: cams
+
+# Nhắc việc thường, chỉ gửi tới một màn hình
+- action: rest_command.panel_notify
+  data:
+    title: Máy giặt
+    message: Đã giặt xong
+    device: esp32-80f1b2d35fb5
+```
+
+| Trường | Ý nghĩa |
+|---|---|
+| `title`, `message` | Tiêu đề (≤ 80 ký tự) và nội dung (≤ 300). Cần ít nhất một trong hai. |
+| `priority` | `normal`: thẻ nổi tự ẩn sau 8 s. `high`: bật sáng màn hình + chuông ngắn, thẻ giữ 20 s. `critical` (chuông cửa, báo cháy): bật sáng + chuông, thẻ giữ tới khi được chạm, **hiện cả khi Không làm phiền**. |
+| `device` | `all` (mặc định) hoặc id màn hình (`esp32-…`, xem log addon). |
+| `camera` | Tên luồng go2rtc — thẻ kèm ảnh chụp camera đó. Hoặc `image`: URL ảnh http(s). |
+| `app` / `url` | Chạm vào thẻ thì mở ứng dụng trong menu (vd `cams`, `weather`) hoặc URL này. |
+
+Thông báo được giữ trong **thanh kéo xuống** (mục *Thông báo*: chạm để mở, ✕ để xoá, *Xoá hết*); đồng hồ ở mép trên có
+chấm cam khi còn thông báo. Ô **Không làm phiền** trong thanh kéo xuống: thông báo `normal`/`high` chỉ vào danh sách,
+không nổi, không kêu, không bật màn hình; `critical` vẫn báo. Trạng thái này được nhớ qua khởi động lại addon.
+
 ## Cấu hình addon
 
 Phần lớn người dùng **không cần đổi gì**. Các tuỳ chọn khung hình chỉ là giá trị *dự phòng*: firmware `remote_webview`

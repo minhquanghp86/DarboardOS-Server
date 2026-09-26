@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url';
 import { WebSocketServer } from "ws"
 import env from "env-var";
 import { makeConfigFromParams, setConfigFor, logDeviceConfig } from "./config.js";
-import { broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick, refreshDisplaysTick, markInteraction, screensaverTick, onDeviceStatePacket } from './deviceManager.js';
+import { broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick, refreshDisplaysTick, markInteraction, screensaverTick, postNotify, onDeviceStatePacket } from './deviceManager.js';
 import type { DeviceSession } from './deviceManager.js';
 import { InputRouter } from "./inputRouter.js";
 import { bootstrapAsync } from './browser.js';
@@ -162,6 +162,18 @@ http.createServer((req, res) => {
     return;
   }
 
+  // (26/09/2026 OS-5) Thong bao tu Home Assistant (rest_command) — xem DOCS.md "Thong bao".
+  if (pathname === '/notify' && req.method === 'POST') {
+    let body = '';
+    req.on('data', (c) => { body += c; if (body.length > 8192) req.destroy(); });
+    req.on('end', () => {
+      let r: ReturnType<typeof postNotify>;
+      try { r = postNotify(JSON.parse(body || '{}')); } catch { r = { ok: false, error: 'JSON khong hop le' }; }
+      res.writeHead(r.ok ? 200 : 400, { 'content-type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(r));
+    });
+    return;
+  }
   if (handleAppApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
   if (handleLauncherApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
 
