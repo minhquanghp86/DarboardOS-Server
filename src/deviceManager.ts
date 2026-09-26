@@ -28,6 +28,7 @@ import { SAVER_PHOTO_MS, SCREENSAVER_IDLE_S, SCREENSAVER_PHOTOS, deviceHour, isN
 import { listPhotos } from "./homeApi.js";
 import { deviceClock, parseWindow, shouldGreet } from "./today.js";
 import { getToday, speakOnPanel } from "./todayData.js";
+import { parseDoorbell, unlockCall } from "./doorbell.js";
 import { Notice, NoticeStore, NotifyRequest, parseNotify, shouldPopup, shouldWake } from "./notifications.js";
 import { callService, getSettingsView } from "./haSettings.js";
 import { planSet } from "./settingsModel.js";
@@ -159,6 +160,8 @@ export type DeviceSession = {
   presence?: { on: boolean; at: number };
   /** (27/09/2026) Ngay (gio thiet bi) da chao buoi sang — moi ngay mot lan. */
   morningDate?: string;
+  /** (27/09/2026) Chuong cua dang hien: id lan bam, URL trang, tab dang dung truoc do, hen gio tu dong. */
+  doorbell?: { id: string; url: string; prevKey: string; timer: NodeJS.Timeout; unlock: string | null };
   /**
    * (26/09/2026) Ton dong socket LON NHAT tai cac lan PHAI BO KHUNG vi nghen, ke tu tick dieu tiet truoc. Vong dieu
    * tiet chi doc ton dong DUNG luc tick (5 s/lan) — do that tren P4 (2.9.52, YouTube): bo khung ~5 s/lan lien tuc ma
@@ -1436,6 +1439,7 @@ const MAX_APP_TABS = Math.max(0, parseInt(process.env.MAX_APP_TABS ?? '2', 10) |
 function resolveAppSpec(dev: DeviceSession, key: string): { kind: string; label: string; url: string; pinned: boolean } | null {
   if (key === '__system') return { kind: 'system', label: 'Màn hình chính', url: LAUNCHER_OS_HOME_URL, pinned: true };
   if (key === 'home') return dev.cfg.homeUrl ? { kind: 'ha', label: 'Home Assistant', url: dev.cfg.homeUrl, pinned: true } : null;
+  if (key === '__doorbell') return dev.doorbell ? { kind: 'doorbell', label: 'Chuông cửa', url: dev.doorbell.url, pinned: false } : null;
   const app = listAllApps(dev.cfg.homeUrl).find((a) => a.id === key && !a.hidden);
   if (!app || !app.url) return null;
   // baseKind, KHONG phai kind: nguoi dung doi bieu tuong o "Menu panel" thi kind thanh 'mdi' -> Radio/Nhac mat phat
@@ -1531,6 +1535,61 @@ export function onDeviceEvent(dev: DeviceSession, kind: number, value: number, t
     pushDeviceStateToPage(dev);
     if (on) maybeMorning(dev);
   }
+}
+
+// ── (27/09/2026) CHUONG CUA: sang man hinh, camera cong toan man hinh, Mo cong / Dong, het gio quay ve ─────────────
+export function postDoorbell(body: unknown): { ok: boolean; error?: string; id?: string; devices?: string[] } {
+  const p = parseDoorbell(body);
+  if (!p.ok) return { ok: false, error: p.error };
+  const b = p.bell;
+  const id = Date.now().toString(36);
+  const targets = b.device === 'all' ? [...devices.values()] : [devices.get(b.device)].filter((d): d is DeviceSession => !!d);
+  for (const dev of targets) {
+    const url = `${LOCAL_ORIGIN}/doorbell.html?cam=${encodeURIComponent(b.camera)}&title=${encodeURIComponent(b.title)}` +
+      `&id=${id}&u=${b.unlock ? 1 : 0}&t=${b.timeoutS}`;
+    const prevKey = dev.doorbell?.prevKey ?? (dev.activeTabKey === '__doorbell' ? 'home' : dev.activeTabKey);
+    if (dev.doorbell) clearTimeout(dev.doorbell.timer);
+    dev.doorbell = { id, url, prevKey, unlock: b.unlock, timer: setTimeout(() => endDoorbell(dev, id, 'het gio'), b.timeoutS * 1000) };
+    // Sang man hinh (nhu thong bao khan) roi mo trang chuong; da co tab chuong (bam lien tiep) thi tai lai trang moi.
+    if (dev.cfg.devControl) broadcaster.sendDeviceControl(dev.deviceId, ControlField.Brightness, dev.devState?.brightness ?? 100);
+    noteActivity(dev, 'chuong cua');
+    dev.tabOps.run(async () => {
+      const t = dev.tabs.get('__doorbell');
+      if (t) { await activateTab(dev, '__doorbell'); await navigateTab(dev, t, url); }
+      else await openAppNow(dev, '__doorbell');
+    }).catch((e) => console.warn(`[doorbell] ${dev.deviceId}:`, (e as Error).message));
+    console.log(`[doorbell] ${dev.deviceId}: chuong cua (${b.camera}${b.unlock ? ', mo cong = ' + b.unlock : ''}), ${b.timeoutS} s`);
+  }
+  return { ok: true, id, devices: targets.map((d) => d.deviceId) };
+}
+
+/** Dong man hinh chuong (id lan bam do) tren MOT man hinh: quay ve ung dung truoc, dong tab chuong. */
+function endDoorbell(dev: DeviceSession, id: string, why: string): void {
+  const d = dev.doorbell;
+  if (!d || d.id !== id) return;
+  clearTimeout(d.timer);
+  dev.doorbell = undefined;
+  dev.tabOps.run(async () => {
+    if (dev.activeTabKey === '__doorbell') await openAppNow(dev, dev.tabs.has(d.prevKey) || d.prevKey === 'home' || d.prevKey === '__system' ? d.prevKey : '__system');
+    closeTab(dev, '__doorbell', why);
+  }).catch(() => { });
+}
+
+/** Trang chuong: nguoi dung bam Dong (hoac da mo cong) -> dong tren MOI man hinh cung lan bam (da co nguoi tra loi). */
+export function closeDoorbell(id: string): boolean {
+  let n = 0;
+  for (const dev of devices.values()) if (dev.doorbell?.id === id) { endDoorbell(dev, id, 'nguoi dung dong'); n++; }
+  return n > 0;
+}
+
+/** Trang chuong: nut Mo cong -> chay dung thuc the HA da khai trong POST /doorbell (khong nhan thuc the tu trang). */
+export async function unlockDoorbell(id: string): Promise<{ ok: boolean; error?: string }> {
+  const dev = [...devices.values()].find((d) => d.doorbell?.id === id);
+  const entity = dev?.doorbell?.unlock;
+  if (!entity) return { ok: false, error: 'Không có lệnh mở cổng.' };
+  const ok = await callService(unlockCall(entity)).catch(() => false);
+  console.log(`[doorbell] mo cong ${entity}: ${ok ? 'OK' : 'LOI'}`);
+  return ok ? { ok } : { ok, error: 'Home Assistant không thực hiện được.' };
 }
 
 // ── (27/09/2026) CHAO BUOI SANG: lan dau camera thay nguoi trong khung gio sang (moi ngay, moi man hinh mot lan) -> mo

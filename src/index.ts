@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url';
 import { WebSocketServer } from "ws"
 import env from "env-var";
 import { makeConfigFromParams, setConfigFor, logDeviceConfig } from "./config.js";
-import { broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick, refreshDisplaysTick, markInteraction, screensaverTick, postNotify, repaintRect, onDeviceStatePacket, onDeviceEvent, anyTzOffset } from './deviceManager.js';
+import { broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick, refreshDisplaysTick, markInteraction, screensaverTick, postNotify, repaintRect, onDeviceStatePacket, onDeviceEvent, anyTzOffset, postDoorbell, closeDoorbell, unlockDoorbell } from './deviceManager.js';
 import type { DeviceSession } from './deviceManager.js';
 import { InputRouter } from "./inputRouter.js";
 import { bootstrapAsync } from './browser.js';
@@ -154,7 +154,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // (25/09/2026) Them weather.html (ung dung "Thoi tiet" cua launcher) — cung nguyen tac: chi LAN, khong qua HA.
 // (25/09/2026) + cac ung dung launcher: camera nha, canh, lich am duong, radio, hen gio; lunar.js dung chung.
 const STATIC_PAGES = ['cam.html', 'weather.html', 'cams.html', 'scenes.html', 'calendar.html', 'radio.html', 'timer.html', 'lunar.js',
-  'launcher-config.html', 'os-home.html', 'ui.css', 'ui.js', 'settings.html', 'rooms.html', 'todo.html', 'remote.html', 'photos.html', 'today.html', 'board.html'];
+  'launcher-config.html', 'os-home.html', 'ui.css', 'ui.js', 'settings.html', 'rooms.html', 'todo.html', 'remote.html', 'photos.html', 'today.html', 'board.html', 'doorbell.html'];
 const staticCache = new Map<string, Buffer>();
 for (const name of STATIC_PAGES) {
   const p = path.join(__dirname, '..', 'public', name);
@@ -185,6 +185,28 @@ http.createServer((req, res) => {
       res.writeHead(r.ok ? 200 : 400, { 'content-type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify(r));
     });
+    return;
+  }
+  // (27/09/2026) Chuong cua: HA goi POST /doorbell (LAN, nhu /notify); trang chuong goi /doorbell/unlock|close (chi
+  // tu chinh panel). Mo cong chi chay thuc the HA da khai trong POST /doorbell.
+  if (pathname === '/doorbell' || pathname.startsWith('/doorbell/')) {
+    const local = /^(::ffff:)?127\.0\.0\.1$|^::1$/.test(req.socket.remoteAddress || '');
+    const send = (code: number, b: unknown) => { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }); res.end(JSON.stringify(b)); };
+    if (pathname === '/doorbell' && req.method === 'POST') {
+      let body = '';
+      req.on('data', (c) => { body += c; if (body.length > 4096) req.destroy(); });
+      req.on('end', () => {
+        let r: ReturnType<typeof postDoorbell>;
+        try { r = postDoorbell(JSON.parse(body || '{}')); } catch { r = { ok: false, error: 'JSON khong hop le' }; }
+        send(r.ok ? 200 : 400, r);
+      });
+      return;
+    }
+    if (!local || req.method !== 'POST') { send(403, { error: 'Chỉ dùng được từ màn hình.' }); return; }
+    const id = new URL(req.url || '/', 'http://x').searchParams.get('id') || '';
+    if (pathname === '/doorbell/close') { send(200, { ok: closeDoorbell(id) }); return; }
+    if (pathname === '/doorbell/unlock') { unlockDoorbell(id).then((r) => send(200, r)).catch(() => send(200, { ok: false })); return; }
+    send(404, { error: 'khong co' });
     return;
   }
   // (27/09/2026) Trang "Hom nay" + Bang tin gia dinh. Them ghi chu: tu bat ky dau trong LAN (HA rest_command, dien
