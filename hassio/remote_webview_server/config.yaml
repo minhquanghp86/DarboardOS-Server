@@ -53,7 +53,7 @@ options:
   screensaver_photos: true
   morning_briefing: true
   morning_window: "06:00-09:30"
-  morning_tts: true
+  morning_tts: false
   # (23/09/2026) /pw-data KHONG nam trong volume ben cua addon — mat het khi
   # container tao lai (moi lan update). /data la thu muc rieng cua addon nay
   # do Supervisor tu cap, LUON ben qua update/restart.

@@ -29,7 +29,7 @@ beforeEach(async () => {
   });
   srv = await TestServer.start({
     SUPERVISOR_TOKEN: 'test', HA_API_URL: `http://127.0.0.1:${ha.port}/api`, HA_WS_URL: `ws://127.0.0.1:${ha.port}/websocket`,
-    SCREENSAVER_IDLE_S: '0', BOARD_FILE: boardFile,
+    SCREENSAVER_IDLE_S: '0', BOARD_FILE: boardFile, MORNING_TTS: 'true',
   });
 });
 afterEach(async (ctx) => {
@@ -83,4 +83,21 @@ it('ghi chu tu HA + chao buoi sang (mo Hom nay, doc qua loa panel) mot lan moi n
   for (let i = 0; i < 30 && !(await srv.evaluate(bp, '(window.__rwvBoard||[]).length')); i++) await sleep(200);
   expect(await srv.evaluate(bp, '(window.__rwvBoard||[]).map(n=>n.text)')).toEqual(['Con nhớ mang áo mưa']);
   await shot(bp, 'app-board-1024x600');
+});
+
+it('mac dinh (morning_tts tat): chao buoi sang chi mo "Hom nay", KHONG doc qua loa', async () => {
+  await srv.stop();
+  srv = await TestServer.start({
+    SUPERVISOR_TOKEN: 'test', HA_API_URL: `http://127.0.0.1:${ha.port}/api`, HA_WS_URL: `ws://127.0.0.1:${ha.port}/websocket`,
+    SCREENSAVER_IDLE_S: '0', BOARD_FILE: boardFile,
+  });
+  const home = srv.local('/ha');
+  dev = await FakeDevice.connect(srv, DEV_ID, { home });
+  await dev.waitFor(() => dev!.currentUrls().includes(home), 20_000, 'ket noi');
+  dev.deviceState({ backlightOn: true, tzMin: tzFor(7) });
+  await srv.waitPage((u) => u === home);
+  dev.event(2, 1);
+  await srv.waitPage((u) => u.includes('/today.html'));
+  await sleep(2000);
+  expect(ha.calls.some((c) => c.path === 'tts.speak')).toBe(false);
 });

@@ -19,7 +19,7 @@
   góc; ban đêm (22h–6h) chỉ đồng hồ tông tối. Tuỳ chọn `screensaver_photos`.
 - **Chào buổi sáng**: lần đầu trong ngày camera thấy người (06:00–09:30, tuỳ chọn `morning_window`) → mở ứng dụng
   mới **Hôm nay** (thời tiết, lịch hôm nay từ mọi calendar của HA, việc cần làm, ghi chú) và đọc tóm tắt qua loa của
-  chính màn hình (`tts.speak`, ưu tiên Piper; tắt bằng `morning_tts`).
+  chính màn hình (`tts.speak`, ưu tiên Piper) — đọc **tắt mặc định**, chỉ hiện chữ; bật bằng `morning_tts: true`.
 - **Bảng tin gia đình**: ghi chú dạng giấy nhớ dùng chung mọi màn hình; viết trên panel hoặc gửi từ HA / điện thoại
   (`POST /board`), có thẻ thông báo "Ghi chú mới"; ghim / xoá.
 - **Chuông cửa**: HA gọi `POST /doorbell {camera, unlock?}` → mọi màn hình sáng lên, camera cổng toàn màn hình, chuông
