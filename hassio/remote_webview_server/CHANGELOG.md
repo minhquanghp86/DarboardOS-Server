@@ -5,6 +5,11 @@
   dùng nhất trước). **Chạm** một thẻ để chuyển sang ứng dụng đó (tức thì, không tải lại); **✕** hoặc **vuốt thẻ lên**
   để đóng ứng dụng; **Đóng tất cả** đóng mọi ứng dụng phụ (Home Assistant luôn giữ). Chạm vùng trống để thoát.
 - Ảnh thu nhỏ được chụp lúc rời mỗi ứng dụng (~10 KB/ảnh, không tốn băng thông khi không mở Gần đây).
+- **URL từ Home Assistant mở vào đúng ứng dụng**: đặt "URL hiển thị" (hoặc tự động hoá) thành một link YouTube /
+  TikTok / trang của ứng dụng trong menu thì nó mở trong đúng ứng dụng đó (tự dừng khi rời đi, hiện đúng tên trong Gần
+  đây) thay vì tab "Trình duyệt" chung.
+- Sửa log bị spam `[Self test] Frame render time: 0ms` mỗi 5 giây khi không chạy self-test, và lỗi sau một lần
+  self-test thì trang kết quả bị tải lại mỗi 5 giây.
 
 ## V2.9.50
 ### Sửa hai lỗi OS-2 do bộ thử tích hợp phát hiện + CI

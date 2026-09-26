@@ -23,7 +23,7 @@ import { fileURLToPath } from "node:url";
 import { buildLauncherApps, listAllApps, GROUP_TITLES, LAUNCHER_CAMS_URL, LAUNCHER_OS_HOME_URL, LAUNCHER_SCENES_URL, LAUNCHER_TIMER_URL, LAUNCHER_WEATHER_URL } from "./launcherApps.js";
 import { createRequire } from "node:module";
 import { getWeatherMini, onWeatherMiniUpdate } from "./weatherMini.js";
-import { SerialQueue, nowPlaying, pickEvictions, recentsList } from "./tabPolicy.js";
+import { SerialQueue, appKeyForUrl, nowPlaying, pickEvictions, recentsList } from "./tabPolicy.js";
 import { ControlField, DeviceStateInfo, Encoding, FRAME_HEADER_BYTES, TILE_HEADER_BYTES, parseDeviceStatePacket } from "./protocol.js";
 
 // ── Type-safe interface cho CDP root (thay thế cast `any`) ────────────────────
@@ -961,12 +961,18 @@ export function navigateToUrl(dev: DeviceSession, url: string): Promise<void> {
 
 async function navigateToUrlNow(dev: DeviceSession, url: string): Promise<void> {
   if (devices.get(dev.deviceId) !== dev) return;  // phien da bi xoa trong luc lenh nay xep hang
-  const key = isHaUrl(dev, url) ? 'home' : 'browser';
+  // (26/09/2026) URL thuoc mot ung dung trong menu (vd youtu.be -> YouTube) vao DUNG tab ung dung do.
+  // Thu tu: ung dung khop (ke ca ung dung nam tren HA nhu Nang luong) -> cung goc HA (tab 'home') -> Trinh duyet.
+  const appKey = appKeyForUrl(url, listAllApps(dev.cfg.homeUrl).filter((a) => !a.hidden && a.id !== 'home'))
+    ?? (isHaUrl(dev, url) ? 'home' : null);
+  const spec = appKey && appKey !== 'home' ? resolveAppSpec(dev, appKey) : null;
+  const key = appKey === 'home' ? 'home' : spec ? appKey! : 'browser';
   let tab = dev.tabs.get(key);
   let navigated = false;
   if (!tab) {
-    tab = await createTab(dev, key, key === 'home' ? 'ha' : 'browser', key === 'home',
-      key === 'home' ? 'Home Assistant' : 'Trình duyệt');
+    tab = key === 'home' ? await createTab(dev, key, 'ha', true, 'Home Assistant')
+      : spec ? await createTab(dev, key, spec.kind, false, spec.label)
+      : await createTab(dev, key, 'browser', false, 'Trình duyệt');
     if (devices.get(dev.deviceId) !== dev) { closeTab(dev, key, 'phien thiet bi da bi xoa'); return; }
     // Bat screencast TRUOC (tren trang trang, an toan) roi moi dieu huong cheo nguon — xem createTab().
     await activateTab(dev, key);
@@ -984,6 +990,7 @@ async function navigateToUrlNow(dev: DeviceSession, url: string): Promise<void> 
   // can nudge them.
   if (!navigated) await nudgeRepaintAsync(dev.cdp).catch(() => { });
   requestFullFrameFor(dev);
+  evictIfNeeded(dev);
 }
 
 // (25/09/2026) Thanh truot trong menu goi window.__rwvControl(JSON). Chi nhan dung hai truong, gia tri 0..100 (trang

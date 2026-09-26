@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SerialQueue, TabPolicyView, nowPlaying, pickEvictions, recentsList } from "./tabPolicy.js";
+import { SerialQueue, TabPolicyView, appKeyForUrl, nowPlaying, pickEvictions, recentsList } from "./tabPolicy.js";
 
 const tab = (key: string, o: Partial<TabPolicyView> = {}): TabPolicyView => ({
   key, label: key, pinned: false, backgroundAudio: false, mediaPlaying: false, mediaKnown: false, lastUsed: 0, ...o,
@@ -84,5 +84,22 @@ describe("man hinh Gan day", () => {
       { k: "home", l: "Home Assistant", t: null, p: true, a: false },
       { k: "cams", l: "Camera", t: null, p: false, a: false },
     ]);
+  });
+});
+
+describe("URL -> ung dung", () => {
+  const apps = [
+    { id: "youtube", url: "https://m.youtube.com" }, { id: "music", url: "https://music.youtube.com" },
+    { id: "tiktok", url: "https://www.tiktok.com" }, { id: "browser" },
+  ];
+  it("khop theo trang web, ke ca ten mien bi danh", () => {
+    expect(appKeyForUrl("https://youtu.be/J4BAH7NE8cs", apps)).toBe("youtube");
+    expect(appKeyForUrl("https://www.youtube.com/watch?v=1", apps)).toBe("youtube");
+    expect(appKeyForUrl("https://music.youtube.com/watch?v=1", apps)).toBe("music");
+    expect(appKeyForUrl("https://vnexpress.net/", apps)).toBeNull();
+    expect(appKeyForUrl("khong-phai-url", apps)).toBeNull();
+    const local = [{ id: "weather", url: "http://127.0.0.1:18080/weather.html" }, { id: "timer", url: "http://127.0.0.1:18080/timer.html" }];
+    expect(appKeyForUrl("http://127.0.0.1:18080/timer.html?x=1", local)).toBe("timer");
+    expect(appKeyForUrl("http://127.0.0.1:18080/cam.html", local)).toBeNull();
   });
 });
