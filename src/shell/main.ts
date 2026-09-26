@@ -8,12 +8,14 @@
 import { CSS } from './styles';
 import { el, mdi, pad2, setText, svgEl } from './dom';
 import { App, appIcon, weatherIcon } from './icons';
+import { HomeApi, mountHome } from './home';
+import type { HomeLayout } from '../homeLayout';
 
 declare global { interface Window { [k: string]: any } }
 
 type Motion = 'full' | 'reduced' | 'minimal';
 interface Cfg {
-  apps: App[]; groups: [string, string][]; motion: Motion;
+  apps: App[]; home?: HomeLayout; groups: [string, string][]; motion: Motion;
   urls: { osHome: string; ha: string; weather: string; timer: string; cams: string; scenes: string };
   bindings: { url: string; control: string };
 }
@@ -27,6 +29,8 @@ interface DevState {
   /** (26/09/2026 OS-5) Thong bao moi nhat truoc + Khong lam phien. Server < 2.9.53 khong gui. */
   nt?: Notice[];
   dnd?: boolean;
+  /** (27/09/2026) Firmware co tro ly giong noi (nut "Tro ly"). */
+  va?: boolean;
 }
 interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'critical'; ts: number; img: string | null; act: boolean }
 
@@ -155,6 +159,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
 
   // Hang bieu tuong mo trang toan man hinh (chi hien muc DA CO — khong de nut chet)
   const shortcuts = el('div', 'shortcuts');
+  let vaBtn: HTMLElement | null = null;
   const SC: [string, string, string | null, () => void][] = [
     ['apps', 'Ứng dụng', null, () => openApp('__system')],
     ['ha', 'Home Assistant', 'home', () => openApp('home')],
@@ -162,11 +167,13 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     ['scenes', 'Cảnh', 'scenes', () => openApp('scenes')],
     ['recents', 'Gần đây', null, openRecents],
     ['settings', 'Cài đặt', 'settings', () => openApp('settings')],
+    ['mic', 'Trợ lý', '__va', () => { closeShade(false); sendControl({ assist: 1 }); }],
   ];
   for (const [icon, label, appId, fn] of SC) {
     // Chi hien khi ung dung THAT SU co (chua bi an o Menu panel, hoac chua co Home URL) — khong de nut chet.
-    if (appId && !hasApp(appId)) continue;
-    const b = el('button', 'sc'); const c = el('span', 'b'); c.appendChild(mdi(icon)); b.append(c, el('span', 'l', label));
+    if (appId && appId !== '__va' && !hasApp(appId)) continue;
+    const b = el('button', 'sc');
+    if (appId === '__va') { b.style.display = 'none'; vaBtn = b; } const c = el('span', 'b'); c.appendChild(mdi(icon)); b.append(c, el('span', 'l', label));
     if (icon === 'ha') c.style.background = '#1a8fd6';
     b.addEventListener('click', (e) => { e.stopPropagation(); fn(); });
     shortcuts.appendChild(b);
@@ -261,87 +268,20 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
 
   // ── Man hinh chinh cua OS ───────────────────────────────────────────
   let homeWx: HTMLElement | null = null, homeWxIco: HTMLElement | null = null, homeWxT: HTMLElement | null = null, homeWxS: HTMLElement | null = null;
+  let homeApi: HomeApi | null = null;
   function launch(app: App) {
     if (app.action === 'url') { closeShade(false); openUrlBox(); return; }
     openApp(app.id);
   }
-  function appButton(app: App): HTMLElement {
-    const b = el('button', 'app'); b.setAttribute('data-app', app.kind);
-    b.append(appIcon(app), el('span', 'l', app.label));
-    b.addEventListener('click', (e) => { e.stopPropagation(); if (!swiped) launch(app); });
-    return b;
-  }
-  let swiped = false;
-  function mountHome() {
-    const home = el('div', 'home');
-    // Tien ich: dong ho lon + thoi tiet
-    const widgets = el('div', 'widgets');
-    const wc = el('div', 'w-clock'); const hc = el('div', 'clock'); const hd = el('div', 'date');
-    wc.append(hc, hd); clockEls.push(hc); dateEls.push(hd);
-    homeWx = el('button', 'w-wx'); homeWxIco = el('span'); const col = el('div'); homeWxT = el('div', 't'); homeWxS = el('div', 's');
-    col.append(homeWxT, homeWxS); homeWx.append(homeWxIco, col);
-    homeWx.addEventListener('click', () => openApp('weather'));
-    widgets.append(wc, el('div', 'spacer'), homeWx);
-    // Dock: Home Assistant truoc, roi toi da 4 ung dung hay dung
-    const DOCK_KINDS = ['cams', 'youtube', 'weather', 'radio'];
-    const ha = CFG.apps.find((a) => a.id === 'home');
-    const dockApps = [...(ha ? [ha] : []), ...DOCK_KINDS.map((k) => CFG.apps.find((a) => a.id === k)).filter((a): a is App => !!a)];
-    const gridApps = CFG.apps.filter((a) => !dockApps.includes(a));
-    // Luoi chia trang: so cot/hang theo kich thuoc man hinh
-    const W = window.innerWidth, H = window.innerHeight;
-    const cols = W >= 900 ? 7 : W >= 600 ? 5 : 4;
-    const rows = H >= 560 ? 2 : H >= 420 ? 2 : 1;
-    const per = cols * rows;
-    const pager = el('div', 'pager'); const pages = el('div', 'pages');
-    pager.style.setProperty('--cols', String(cols));
-    const nPages = Math.max(1, Math.ceil(gridApps.length / per));
-    for (let p = 0; p < nPages; p++) {
-      const page = el('div', 'page');
-      page.style.setProperty('--cols', String(cols));
-      gridApps.slice(p * per, (p + 1) * per).forEach((a) => page.appendChild(appButton(a)));
-      pages.appendChild(page);
-    }
-    pager.appendChild(pages);
-    const dots = el('div', 'dots');
-    for (let p = 0; p < nPages && nPages > 1; p++) dots.appendChild(el('i'));
-    let cur = 0;
-    const showPage = (i: number, animate: boolean) => {
-      cur = Math.max(0, Math.min(nPages - 1, i));
-      pages.classList.toggle('anim', animate && CFG.motion !== 'minimal');
-      pages.style.transform = `translateX(${-cur * 100}%)`;
-      Array.from(dots.children).forEach((d, k) => d.classList.toggle('on', k === cur));
-    };
-    // Vuot ngang doi trang (P4 keo theo ngon)
-    let sx = 0, sy = 0, dragging = false;
-    pager.addEventListener('pointerdown', (e) => { sx = e.clientX; sy = e.clientY; dragging = true; swiped = false; });
-    pager.addEventListener('pointermove', (e) => {
-      if (!dragging) return;
-      const dx = e.clientX - sx;
-      if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(e.clientY - sy)) {
-        swiped = true;
-        if (CFG.motion === 'full') { pages.classList.remove('anim'); pages.style.transform = `translateX(calc(${-cur * 100}% + ${dx}px))`; }
-      }
+  function startHome() {
+    homeApi = mountHome({
+      apps: CFG.apps, home: CFG.home, groups: CFG.groups, motion: CFG.motion, root, shadow,
+      launch, openApp, openRecents, send: sendControl, clockEls, dateEls,
     });
-    const end = (e: PointerEvent) => {
-      if (!dragging) return; dragging = false;
-      const dx = e.clientX - sx;
-      if (swiped) showPage(cur + (dx < -50 ? 1 : dx > 50 ? -1 : 0), true);
-      setTimeout(() => { swiped = false; }, 50);
-    };
-    pager.addEventListener('pointerup', end); pager.addEventListener('pointercancel', end);
-    showPage(0, false);
-    const dock = el('div', 'dock'); dockApps.forEach((a) => dock.appendChild(appButton(a)));
-    // Nut "Gan day" cuoi dock (quyet dinh 25/09: Gan day la MOT NUT, khong phai cu chi)
-    const rb = el('button', 'app recents-btn'); rb.setAttribute('aria-label', 'Gần đây');
-    const rbi = el('div', 'app-ic'); rbi.appendChild(mdi('recents')); rb.append(rbi, el('span', 'l', 'Gần đây'));
-    rb.addEventListener('click', (e) => { e.stopPropagation(); openRecents(); });
-    dock.appendChild(rb);
-    home.append(widgets, pager, dots, dock);
-    root.insertBefore(home, root.firstChild);
-    document.title = 'Ứng dụng';
+    ({ box: homeWx, ico: homeWxIco, t: homeWxT, s: homeWxS } = homeApi.wx);
   }
   const isHome = (() => { try { return new URL(CFG.urls.osHome).pathname === location.pathname && location.port === new URL(CFG.urls.osHome).port; } catch { return false; } })();
-  if (isHome) mountHome();
+  if (isHome) startHome();
   root.append(scrim, shade, pill);
 
   // ── O nhap dia chi (ung dung Trinh duyet) — DOM THUONG (khong Shadow) de ban phim ao nhan focus ──
@@ -617,6 +557,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
 
   function applyState(s: DevState) {
     st = s;
+    if (vaBtn) vaBtn.style.display = s.va ? '' : 'none';
     window.__rwvLastState = s;
     // Khong lam phien la cua server -> hang o nhanh luon hien; o/thanh truot cua THIET BI chi khi firmware ho tro.
     sliders.style.display = s.ctl ? '' : 'none';
@@ -642,6 +583,46 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     try { window.dispatchEvent(new CustomEvent('rwv-state', { detail: s })); } catch { /* */ }
   }
 
+  // ── (27/09/2026) The TRO LY GIONG NOI: firmware bao trang thai (remote_webview.voice_state) -> server -> day.
+  //    Dang nghe / dang xu ly (kem cau ban vua noi) / tra loi (kem cau tra loi) / loi. Cham the: dung (dang nghe)
+  //    hoac dong. Xong: an sau vai giay (du doc cau tra loi).
+  const VOICE_LABEL = ['Trợ lý', 'Đang nghe…', 'Đang xử lý…', 'Trợ lý', 'Không thực hiện được'];
+  let vcEl: HTMLElement | null = null, vcIc: HTMLElement, vcL: HTMLElement, vcQ: HTMLElement, vcA: HTMLElement;
+  let vcTimer: number | undefined, vcState = 0, vcAsked = '';
+  function voiceHide() { clearTimeout(vcTimer); vcEl?.remove(); vcEl = null; vcAsked = ''; }
+  function voice(v: { s: number; t: string }): void {
+    clearTimeout(vcTimer);
+    if (v.s === 0) {  // xong: giu cau tra loi mot luc roi an
+      if (vcEl) vcTimer = window.setTimeout(voiceHide, vcA?.textContent ? 6000 : 1200);
+      return;
+    }
+    if (!vcEl) {
+      screensaver(false);
+      vcEl = el('div', 'vc' + (CFG.motion === 'full' ? ' anim' : ''));
+      vcIc = el('div', 'vc-ic'); vcIc.appendChild(mdi('mic'));
+      const col = el('div', 'vc-t');
+      vcL = el('div', 'vc-l'); vcQ = el('div', 'vc-q'); vcA = el('div', 'vc-a');
+      col.append(vcL, vcQ, vcA);
+      vcEl.append(vcIc, col);
+      vcEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (vcState === 1 || vcState === 2) sendControl({ assist: 0 });
+        voiceHide();
+      });
+      root.appendChild(vcEl);
+    }
+    vcState = v.s;
+    vcEl.dataset.s = String(v.s);
+    setText(vcL, VOICE_LABEL[v.s] || '');
+    if (v.s === 1) { vcAsked = ''; setText(vcQ, ''); setText(vcA, ''); }
+    if (v.s === 2 && v.t) vcAsked = v.t;
+    setText(vcQ, vcAsked ? '“' + vcAsked + '”' : '');
+    if (v.s === 3 || v.s === 4) setText(vcA, v.t || '');
+    // Loi: tu an sau 8 s neu firmware khong bao "xong"
+    if (v.s === 4) vcTimer = window.setTimeout(voiceHide, 8000);
+    window.__rwvLastVoice = { s: v.s, l: vcL.textContent, q: vcQ.textContent, a: vcA.textContent };
+  }
+
   // ── API cho server ──────────────────────────────────────────────────
   let gStartVisible = 0, gLastY = 0;
   window.__rwvShell = {
@@ -664,6 +645,10 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     close() { closeShade(true); },
     isOpen() { return shadeVisible > 0; },
     alarm,
+    voice,
+    /** (27/09/2026 OS-3) Bo cuc man hinh chinh vua doi (tu panel khac). */
+    layout(l: HomeLayout) { homeApi?.setLayout(l); },
+    homeInfo() { return homeApi?.info() ?? null; },
   };
   window.__rwvDeviceState = applyState;   // ten cu (server < 2.9.45 goi ten nay)
   window.__rwvAlarm = alarm;

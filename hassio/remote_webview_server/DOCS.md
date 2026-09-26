@@ -122,6 +122,24 @@ Giọt nước ở giữa mép trên mọi trang hiện **giờ của chính mà
 | | Hẹn giờ | Hẹn nhanh 1–60 phút. **Vẫn reo khi bạn đã chuyển trang**: hết giờ màn hình tự sáng, hiện báo thức toàn màn hình kèm chuông |
 | | Trình duyệt | Ô nhập địa chỉ web; địa chỉ nhập vào được ghi vào thực thể *URL hiển thị* của màn hình |
 
+### Sắp xếp màn hình chính, thư mục
+
+- **Chạm giữ** một ứng dụng khoảng nửa giây → vào chế độ sắp xếp và ứng dụng dính theo ngón tay.
+- Kéo sang **cạnh** ứng dụng khác để đổi chỗ; thả vào **giữa** ứng dụng khác để tạo **thư mục** (thả vào thư mục có
+  sẵn để thêm). Kéo xuống **dock** (tối đa 5) hoặc kéo ra khỏi dock. Giữ sát mép trái/phải để sang trang.
+- Chạm thư mục để mở. Trong chế độ sắp xếp: chạm một chip để đổi tên thư mục, kéo ứng dụng ra ngoài khung để lấy ra.
+- **Xong** hoặc chạm chỗ trống để thoát. **Đặt lại** (chạm 2 lần) trở về bố cục mặc định.
+- Bố cục dùng chung cho mọi màn hình. Ứng dụng mới thêm ở trang *Menu panel* xuất hiện ở cuối.
+
+### Trợ lý giọng nói (cần firmware có `voice_assistant`)
+
+- Nói từ đánh thức (chọn trong thực thể **Từ đánh thức** của màn hình: Tắt / Okay Nabu / Hey Jarvis), hoặc chạm nút
+  **Trợ lý** trong thanh kéo xuống.
+- Thẻ ở cuối màn hình hiện *Đang nghe…*, rồi câu bạn vừa nói, rồi câu trả lời; chạm thẻ để dừng hoặc đóng.
+- Cần một **Assist pipeline** trên Home Assistant: STT (vd addon *Whisper*) + TTS (vd *Piper* giọng tiếng Việt), chọn
+  pipeline cho thiết bị ESPHome ở trang thiết bị.
+- Đang xem video thì từ đánh thức tạm dừng (giữ máy ổn định); nút Trợ lý vẫn dùng được.
+
 ### Bàn phím ảo
 
 Tự hiện khi chạm vào ô nhập chữ trên bất kỳ trang nào; có chế độ tiếng Việt (Telex), số và ký hiệu. Phím ▼ để ẩn.
