@@ -53,7 +53,7 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   // (27/09/2026) Ung dung Nha: dieu khien theo khu vuc, TV/loa (src/homeApi.ts).
   add('nha', 'Phòng', 'rooms', '#0284c7', `${LOCAL}/rooms.html`);
   add('nha', 'Điều khiển', 'remote', '#7c3aed', `${LOCAL}/remote.html`);
-  if (haOrigin) add('nha', 'Năng lượng', 'energy', '#ca8a04', `${haOrigin}/energy`);
+  // (27/09/2026) Bo ung dung "Nang luong" (trang Energy cua HA) theo yeu cau nguoi dung — thay bang Solar.
   // (27/09/2026) Trang Solar rieng cua nguoi dung (khong doc cam bien nao — chi mo trang).
   add('nha', 'Solar', 'solar', '#eab308', 'http://solar.mqsmarthome.io.vn');
 

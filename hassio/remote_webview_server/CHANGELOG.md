@@ -24,7 +24,7 @@
   (`POST /board`), có thẻ thông báo "Ghi chú mới"; ghim / xoá.
 - **Chuông cửa**: HA gọi `POST /doorbell {camera, unlock?}` → mọi màn hình sáng lên, camera cổng toàn màn hình, chuông
   kêu, nút **Mở cổng** (chạy đúng script/button/lock đã khai) và **Đóng**; hết giờ tự quay về ứng dụng trước.
-- **Solar**: ứng dụng mở trang solar.mqsmarthome.io.vn.
+- **Solar**: ứng dụng mở trang solar.mqsmarthome.io.vn, **thay cho** ứng dụng *Năng lượng* (trang Energy của HA) — đã bỏ.
 - Sửa: Shell không còn chạy trong iframe của trang (thẻ iframe trên dashboard HA từng có thêm nút/thanh thừa bên trong).
 
 ## V2.9.58
