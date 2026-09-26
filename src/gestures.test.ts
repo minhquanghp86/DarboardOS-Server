@@ -37,3 +37,32 @@ describe("cu chi mep man hinh (Shell)", () => {
     expect(a.map(x => x.type === "pass" && x.events.length)).toEqual([1, 1, 1]);
   });
 });
+
+describe("cu chi Quay lai (mep trai/phai)", () => {
+  const W = 1024;
+  function runW(g: EdgeGestures, seq: [TouchKind, number, number][]) {
+    return seq.flatMap(([k, x, y]) => g.feed(t(k, x, y), x, y, H, W));
+  }
+  it("keo tu mep trai vao du xa -> Quay lai", () => {
+    const a = runW(new EdgeGestures(), [[TouchKind.Down, 4, 300], [TouchKind.Move, 40, 302], [TouchKind.Move, 120, 305], [TouchKind.Up, 130, 305]]);
+    expect(a.map((x) => x.type)).toEqual(["back", "back", "back"]);
+    expect(a[2]).toEqual({ type: "back", phase: "end", side: "left", d: 126, y: 305, commit: true });
+  });
+  it("keo tu mep phai vao chua du xa -> huy (commit=false), khong gui gi cho trang", () => {
+    const a = runW(new EdgeGestures(), [[TouchKind.Down, 1020, 300], [TouchKind.Move, 990, 300], [TouchKind.Up, 970, 300]]);
+    expect(a.every((x) => x.type === "back")).toBe(true);
+    expect(a[a.length - 1]).toMatchObject({ phase: "end", side: "right", commit: false });
+  });
+  it("cham nhanh sat mep -> van la cham cua trang", () => {
+    expect(runW(new EdgeGestures(), [[TouchKind.Down, 5, 300], [TouchKind.Up, 5, 300]]))
+      .toEqual([{ type: "pass", events: [t(TouchKind.Down, 5, 300), t(TouchKind.Up, 5, 300)] }]);
+  });
+  it("keo DOC sat mep -> tra lai cho trang (cuon)", () => {
+    const a = runW(new EdgeGestures(), [[TouchKind.Down, 6, 300], [TouchKind.Move, 8, 340], [TouchKind.Up, 8, 380]]);
+    expect(a.every((x) => x.type === "pass")).toBe(true);
+  });
+  it("khong truyen chieu ngang (pageW=0) -> tat cu chi Quay lai nhu truoc", () => {
+    const a = run(new EdgeGestures(), [[TouchKind.Down, 4, 300], [TouchKind.Move, 120, 300], [TouchKind.Up, 120, 300]]);
+    expect(a.every((x) => x.type === "pass")).toBe(true);
+  });
+});

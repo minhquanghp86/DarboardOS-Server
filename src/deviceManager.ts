@@ -1213,6 +1213,28 @@ export function goOsHome(dev: DeviceSession): void {
   openApp(dev, '__system').catch((e: unknown) => console.warn(`[shell] ${dev.deviceId}: ve Home that bai:`, e));
 }
 
+/**
+ * (26/09/2026 OS-3) "Quay lai" (cu chi vuot tu mep trai/phai): ve muc truoc trong lich su cua TAB dang hien — gom ca
+ * chuyen trang trong dashboard HA (history.pushState). Het lich su (dang o trang dau cua ung dung) -> ve man hinh chinh,
+ * nhu Android. O chinh man hinh chinh thi khong lam gi.
+ */
+export function goBack(dev: DeviceSession): void {
+  dev.tabOps.run(async () => {
+    if (devices.get(dev.deviceId) !== dev) return;
+    const tab = dev.tabs.get(dev.activeTabKey);
+    if (!tab || tab.key === '__system') return;
+    const h = await tab.session.send('Page.getNavigationHistory') as { currentIndex: number; entries: { id: number; url: string }[] };
+    const prev = h.currentIndex > 0 ? h.entries[h.currentIndex - 1] : undefined;
+    // Muc 'about:blank' dau lich su la trang trang luc tao tab (createTab), khong phai trang nguoi dung da xem.
+    if (prev && prev.url && prev.url !== 'about:blank') {
+      await tab.session.send('Page.navigateToHistoryEntry', { entryId: prev.id });
+      console.log(`[app] ${dev.deviceId}: quay lai ${prev.url} (tab "${tab.key}")`);
+    } else {
+      await openAppNow(dev, '__system');
+    }
+  }).catch((e: unknown) => console.warn(`[app] ${dev.deviceId}: quay lai that bai:`, e));
+}
+
 // (26/09/2026 OS-2) So tab KHONG GHIM toi da moi thiet bi (Home Assistant + man hinh chinh luon duoc GHIM, khong
 // tinh vao day). Tab dang active hoac dang phat am thanh nen (radio/nhac) khong bao gio bi don. Moi tab la mot tien
 // trinh renderer Chromium song rieng — RAM addon da do thuc te ~1,1 GB/3 man hinh o che do MOT tab; gia tri nay giu

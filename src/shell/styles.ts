@@ -149,6 +149,15 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .recents-btn .app-ic { background: rgba(255,255,255,0.14); }
 .recents-btn .app-ic .ic { width: 55%; height: 55%; }
 
+/* ── Quay lai (OS-3) ─────────────────────────────────────────────────── */
+.backbub { position: absolute; left: -10px; top: 50%; width: 52px; height: 52px; border-radius: 50%; pointer-events: none; opacity: 0;
+  display: flex; align-items: center; justify-content: center; background: rgba(35,40,52,0.94); color: #fff;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.45); transition: opacity 120ms linear, background-color 120ms linear; }
+.backbub.right { left: auto; right: -10px; }
+.backbub .ic { width: 26px; height: 26px; }
+.backbub.on { opacity: 1; }
+.backbub.armed { background: var(--accent); }
+
 /* ── Bao thuc ────────────────────────────────────────────────────────── */
 .alarm { position: absolute; inset: 0; pointer-events: auto; background: rgba(10,12,18,0.95); display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 3vmin; cursor: pointer; }
