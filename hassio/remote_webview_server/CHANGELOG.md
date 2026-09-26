@@ -1,3 +1,12 @@
+## V2.9.55
+### Sửa: màn hình chờ che mất video / dashboard khi mở từ Home Assistant
+
+- Lỗi từ 2.9.52: màn hình chờ chỉ coi **cú chạm** là "đang dùng". Mở video / "URL hiển thị" / Go Home từ HA thì tab mới
+  bị phủ màn hình chờ sau vài giây (video chưa kịp phát), Go Home về đúng trang cũ thì màn hình chờ nằm nguyên.
+- Nay mọi thao tác chủ động đều tính là hoạt động và **tắt màn hình chờ ngay** (cả ở tab cũ): mở URL, Go Home, mở /
+  chuyển ứng dụng, đèn nền vừa bật lại, trang bắt đầu phát video/âm thanh, trang tự điều hướng. Log ghi
+  `[saver] …: tat man hinh cho (<lý do>)`.
+
 ## V2.9.54
 ### Hỗ trợ phản hồi chạm tức thì trên thiết bị
 
