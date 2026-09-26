@@ -146,7 +146,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // (25/09/2026) Them weather.html (ung dung "Thoi tiet" cua launcher) — cung nguyen tac: chi LAN, khong qua HA.
 // (25/09/2026) + cac ung dung launcher: camera nha, canh, lich am duong, radio, hen gio; lunar.js dung chung.
 const STATIC_PAGES = ['cam.html', 'weather.html', 'cams.html', 'scenes.html', 'calendar.html', 'radio.html', 'timer.html', 'lunar.js',
-  'launcher-config.html', 'os-home.html', 'ui.css', 'ui.js'];
+  'launcher-config.html', 'os-home.html', 'ui.css', 'ui.js', 'settings.html'];
 const staticCache = new Map<string, Buffer>();
 for (const name of STATIC_PAGES) {
   const p = path.join(__dirname, '..', 'public', name);

@@ -161,6 +161,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     ['cams', 'Camera', 'cams', () => openApp('cams')],
     ['scenes', 'Cảnh', 'scenes', () => openApp('scenes')],
     ['recents', 'Gần đây', null, openRecents],
+    ['settings', 'Cài đặt', 'settings', () => openApp('settings')],
   ];
   for (const [icon, label, appId, fn] of SC) {
     // Chi hien khi ung dung THAT SU co (chua bi an o Menu panel, hoac chua co Home URL) — khong de nut chet.

@@ -26,6 +26,8 @@ import { getWeatherMini, onWeatherMiniUpdate } from "./weatherMini.js";
 import { SerialQueue, appKeyForUrl, nowPlaying, pickEvictions, recentsList } from "./tabPolicy.js";
 import { SCREENSAVER_IDLE_S, shouldShowSaver } from "./screensaver.js";
 import { Notice, NoticeStore, NotifyRequest, parseNotify, shouldPopup, shouldWake } from "./notifications.js";
+import { callService, getSettingsView } from "./haSettings.js";
+import { planSet } from "./settingsModel.js";
 import { ControlField, DeviceStateInfo, Encoding, FRAME_HEADER_BYTES, TILE_HEADER_BYTES, parseDeviceStatePacket } from "./protocol.js";
 
 // ── Type-safe interface cho CDP root (thay thế cast `any`) ────────────────────
@@ -1010,12 +1012,20 @@ async function navigateToUrlNow(dev: DeviceSession, url: string): Promise<void> 
 const CONTROL_BINDING = '__rwvControl';
 
 function handleMenuControl(id: string, payload: unknown, from?: Tab): void {
-  if (typeof payload !== 'string' || payload.length > 200) return;
+  // Trang Cai dat gui duoc gia tri dai hon (o nhap URL toi 255 ky tu); moi trang khac van gioi han 200.
+  if (typeof payload !== 'string' || payload.length > (from?.kind === 'settings' ? 2000 : 200)) return;
   let msg: any;
   try { msg = JSON.parse(payload); } catch { return; }
   const dev = devices.get(id);
   if (!dev) return;
   if (msg?.hello) { pushDeviceStateToPage(dev); return; }
+  // (26/09/2026 OS-4) Trang Cai dat. CHI nhan tu tab ung dung Cai dat (trang web bat ky cung goi duoc binding nay).
+  if (msg?.settings != null) {
+    if (from && from.kind === 'settings' && dev.tabs.get(from.key) === from) {
+      handleSettings(dev, from, msg).catch((e: unknown) => console.warn(`[settings] ${id}:`, e));
+    }
+    return;
+  }
   // (26/09/2026 OS-5) Thong bao: mo (cham the), xoa mot, xoa het; bat/tat Khong lam phien.
   if (msg?.ntOpen != null) { openNotice(dev, Number(msg.ntOpen)); return; }
   if (msg?.ntDel != null) { noticesOf(id).remove(Number(msg.ntDel)); pushDeviceStateToPage(dev); return; }
@@ -1149,6 +1159,42 @@ export function postNotify(body: NotifyRequest): { ok: boolean; error?: string; 
     if (wake && screenOff) setTimeout(show, 1500); else show();
   }
   return { ok: true, devices: targets };
+}
+
+// ── (26/09/2026 OS-4) CAI DAT TREN PANEL ─────────────────────────────────────────────────────────────────────────────
+const SERVER_VERSION = (() => {
+  try { return JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'package.json'), 'utf8')).version as string; }
+  catch { return '?'; }
+})();
+
+async function pushSettings(dev: DeviceSession, tab: Tab, note?: { ok: boolean; msg: string }): Promise<void> {
+  const r = await getSettingsView(dev.deviceId);
+  const m = metrics.snapshot().devices.find((d: any) => d.id === dev.deviceId) as any;
+  const server = {
+    version: SERVER_VERSION, screens: devices.size, id: dev.deviceId, w: dev.cfg.width, h: dev.cfg.height,
+    rotation: dev.cfg.rotation ?? 0, tabs: dev.tabs.size,
+    decodeMs: m?.recentMedianDecodeMs ?? null, kbps: m?.recentBytesPerSec != null ? Math.round(m.recentBytesPerSec / 1024) : null,
+    heap: m?.deviceHeapFree ?? null,
+  };
+  await tab.session.send('Runtime.evaluate', {
+    expression: `window.__rwvSettings && window.__rwvSettings(${JSON.stringify({ ...r, server, note: note ?? null })})`,
+  }).catch(() => { });
+}
+
+async function handleSettings(dev: DeviceSession, tab: Tab, msg: any): Promise<void> {
+  if (msg.settings === 'get') return pushSettings(dev, tab);
+  if (msg.settings !== 'set' || typeof msg.id !== 'string') return;
+  const r = await getSettingsView(dev.deviceId);
+  if (!r.ok) return pushSettings(dev, tab);
+  const plan = planSet(r.view, msg.id, msg.v);
+  if (typeof plan === 'string') {
+    console.warn(`[settings] ${dev.deviceId}: tu choi ${msg.id}: ${plan}`);
+    return pushSettings(dev, tab, { ok: false, msg: 'Không đổi được cài đặt này.' });
+  }
+  const ok = await callService(plan).catch(() => false);
+  console.log(`[settings] ${dev.deviceId}: ${plan.domain}.${plan.service} ${msg.id} -> ${ok ? 'OK' : 'LOI'}`);
+  // Doi thiet bi ESPHome ap dung + HA cap nhat trang thai roi moi doc lai.
+  setTimeout(() => { pushSettings(dev, tab, ok ? undefined : { ok: false, msg: 'Home Assistant không nhận thay đổi.' }).catch(() => { }); }, 600);
 }
 
 /** Cham the thong bao: mo ung dung / URL kem theo, bo khoi lich su. */

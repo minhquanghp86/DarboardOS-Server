@@ -1,0 +1,85 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+// (26/09/2026 OS-4) Ket noi Home Assistant cho trang Cai dat tren panel: so dang ky thiet bi/thuc the (WebSocket API,
+// REST khong co), trang thai va goi dich vu (REST). Quyen: `homeassistant_api: true` cua addon -> SUPERVISOR_TOKEN
+// (khong can token nguoi dung). Duong dan doi duoc qua bien moi truong de thu tich hop voi HA gia.
+import WebSocket from 'ws';
+import { HaDevice, HaEntity, HaState, ServiceCall, SettingsView, buildSettingsView, findDeviceByMac, macFromDeviceId } from './settingsModel.js';
+
+const API = () => process.env.HA_API_URL || 'http://supervisor/core/api';
+const WS = () => process.env.HA_WS_URL || 'ws://supervisor/core/websocket';
+const token = () => process.env.SUPERVISOR_TOKEN || '';
+
+/** Mot phien WebSocket ngan: xac thuc, gui cac lenh, nhan ket qua, dong. */
+async function wsCalls(types: string[]): Promise<unknown[]> {
+  const t = token();
+  if (!t) throw new Error('khong co SUPERVISOR_TOKEN');
+  return new Promise((resolve, reject) => {
+    const ws = new WebSocket(WS());
+    const out: unknown[] = new Array(types.length);
+    let got = 0;
+    const timer = setTimeout(() => { ws.terminate(); reject(new Error('HA WebSocket het gio')); }, 10_000);
+    const fail = (e: Error) => { clearTimeout(timer); ws.terminate(); reject(e); };
+    ws.on('error', fail);
+    ws.on('message', (raw) => {
+      let m: any;
+      try { m = JSON.parse(String(raw)); } catch { return; }
+      if (m.type === 'auth_required') ws.send(JSON.stringify({ type: 'auth', access_token: t }));
+      else if (m.type === 'auth_invalid') fail(new Error('HA tu choi xac thuc'));
+      else if (m.type === 'auth_ok') types.forEach((type, i) => ws.send(JSON.stringify({ id: i + 1, type })));
+      else if (m.type === 'result' && typeof m.id === 'number') {
+        if (!m.success) return fail(new Error(`HA ${types[m.id - 1]}: ${m.error?.message ?? 'loi'}`));
+        out[m.id - 1] = m.result;
+        if (++got === types.length) { clearTimeout(timer); ws.close(); resolve(out); }
+      }
+    });
+  });
+}
+
+// So dang ky it doi: giu 5 phut (tao/xoa thuc the trong HA -> toi da 5 phut sau panel moi thay).
+let registry: { at: number; devices: HaDevice[]; entities: HaEntity[] } | null = null;
+async function getRegistry(): Promise<{ devices: HaDevice[]; entities: HaEntity[] }> {
+  if (registry && Date.now() - registry.at < 5 * 60_000) return registry;
+  const [devices, entities] = await wsCalls(['config/device_registry/list', 'config/entity_registry/list']);
+  registry = { at: Date.now(), devices: devices as HaDevice[], entities: entities as HaEntity[] };
+  return registry;
+}
+
+async function haFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  return fetch(`${API()}${path}`, {
+    ...init,
+    headers: { Authorization: `Bearer ${token()}`, 'content-type': 'application/json' },
+    signal: AbortSignal.timeout(8000),
+  });
+}
+
+export type SettingsResult = { ok: true; view: SettingsView } | { ok: false; error: string };
+
+/** Danh sach cai dat hien tai cua man hinh `deviceId` (id firmware "esp32-<mac>"). */
+export async function getSettingsView(deviceId: string): Promise<SettingsResult> {
+  if (!token()) return { ok: false, error: 'Addon không có quyền đọc Home Assistant.' };
+  const mac = macFromDeviceId(deviceId);
+  if (!mac) return { ok: false, error: `Không nhận ra màn hình "${deviceId}".` };
+  try {
+    const reg = await getRegistry();
+    const dev = findDeviceByMac(reg.devices, mac);
+    if (!dev) return { ok: false, error: 'Không tìm thấy màn hình này trong Home Assistant (đã thêm thiết bị ESPHome chưa?).' };
+    const r = await haFetch('/states');
+    if (!r.ok) return { ok: false, error: `Home Assistant trả lỗi ${r.status}.` };
+    const states = new Map<string, HaState>((await r.json() as HaState[]).map((s) => [s.entity_id, s]));
+    return { ok: true, view: buildSettingsView(dev, reg.entities, states) };
+  } catch (e) {
+    return { ok: false, error: `Không kết nối được Home Assistant (${(e as Error).message}).` };
+  }
+}
+
+export async function callService(c: ServiceCall): Promise<boolean> {
+  const r = await haFetch(`/services/${c.domain}/${c.service}`, { method: 'POST', body: JSON.stringify(c.data) });
+  return r.ok;
+}
+
+/** Chi dung cho thu nghiem: bo cache so dang ky. */
+export function _resetRegistryCache(): void { registry = null; }

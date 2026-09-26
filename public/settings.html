@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cài đặt</title>
+<!-- (26/09/2026 OS-4) Cai dat CUA CHINH MAN HINH NAY: thuc the ESPHome cua thiet bi (tim theo MAC trong HA) + so lieu
+     server. Du lieu/ghi qua binding __rwvControl cua tab (server chi nhan tu tab ung dung Cai dat), khong goi HTTP.
+     KHONG dung <select> goc: popup cua Chrome headless khong nam trong anh truyen xuong panel. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/ui.css">
+<script src="/ui.js"></script>
+<style>
+  :root { --accent: #64748b; --on: #3b82f6; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { overflow-y: auto; font-size: clamp(12px, 2.6vmin, 16px); }
+  main { max-width: 1100px; margin: 0 auto; padding: calc(var(--pad) + 22px) calc(var(--pad) * 1.4) calc(var(--pad) * 2); }
+  header { display: flex; align-items: flex-end; gap: var(--gap); margin-bottom: calc(var(--gap) * 1.4); }
+  h1 { margin: 0; font-size: clamp(20px, 5.4vmin, 34px); font-weight: 700; }
+  .sub { color: var(--muted); font-size: 0.92em; margin-top: 3px; }
+  /* Cot bao (masonry): muc dai (Dieu khien) mot cot, cac muc ngan xep chong cot kia — khong de trong mot nua man hinh. */
+  .grid { columns: 2 400px; column-gap: var(--gap); }
+  section { break-inside: avoid; margin-bottom: var(--gap); background: var(--surface); border-radius: var(--r-lg); padding: calc(var(--pad) * 0.7) var(--pad); }
+  section h2 { margin: 2px 0 6px; font-size: 0.82em; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .row { display: flex; align-items: center; gap: var(--gap); min-height: clamp(44px, 9.5vmin, 58px); padding: 4px 0; border-top: 1px solid var(--line); }
+  .row:first-of-type { border-top: none; }
+  .row.col { flex-direction: column; align-items: stretch; gap: 8px; padding: 10px 0; }
+  .lab { flex: 1; min-width: 0; }
+  .lab .n { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lab .v { color: var(--muted); font-size: 0.88em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .val { color: #cfd6e4; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .off { opacity: 0.45; pointer-events: none; }
+  /* cong tac */
+  .tg { flex: none; width: clamp(46px, 11vmin, 58px); height: clamp(26px, 6.2vmin, 32px); border-radius: 999px; background: var(--surface-3);
+    position: relative; cursor: pointer; transition: background-color 120ms; }
+  .tg::after { content: ''; position: absolute; top: 3px; left: 3px; width: calc(clamp(26px, 6.2vmin, 32px) - 6px); aspect-ratio: 1; border-radius: 50%;
+    background: #fff; transition: transform 120ms; }
+  .tg.on { background: var(--on); }
+  .tg.on::after { transform: translateX(calc(clamp(46px, 11vmin, 58px) - clamp(26px, 6.2vmin, 32px))); }
+  /* thanh truot */
+  .sl { position: relative; height: clamp(34px, 8vmin, 44px); border-radius: 12px; background: var(--surface-2); overflow: hidden; touch-action: none; cursor: pointer; }
+  .sl .f { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--on) 75%, transparent); }
+  .sl .t { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-weight: 600; font-variant-numeric: tabular-nums; }
+  /* chon doan */
+  .seg { display: flex; flex-wrap: wrap; gap: 6px; }
+  .seg button { font: inherit; color: var(--text); border: none; cursor: pointer; padding: 8px 14px; border-radius: 10px; background: var(--surface-2); font-weight: 600; }
+  .seg button.sel { background: var(--on); }
+  /* nhap chu */
+  .txt { display: flex; gap: 8px; }
+  .txt input { flex: 1; min-width: 0; height: clamp(36px, 8vmin, 44px); border: none; border-radius: 10px; padding: 0 12px; font: inherit; color: #111; background: #fff; }
+  .btn { flex: none; font: inherit; font-weight: 600; color: var(--text); border: none; cursor: pointer; height: clamp(34px, 8vmin, 42px); padding: 0 16px;
+    border-radius: 999px; background: var(--surface-2); }
+  .btn.pri { background: var(--on); color: #fff; }
+  .btn.warn { background: #b45309; }
+  .diag { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
+  .kv { background: var(--surface-2); border-radius: 12px; padding: 8px 12px; min-width: 0; }
+  .kv .k { color: var(--muted); font-size: 0.82em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kv .v2 { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #note { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); padding: 8px 16px; border-radius: 999px; background: #7f1d1d;
+    color: #fee2e2; display: none; }
+</style>
+</head>
+<body class="rwv-app">
+<main id="main"></main>
+<div id="note"></div>
+<script>
+(function () {
+  var main = document.getElementById('main');
+  var ctl = function (o) { try { window.__rwvControl(JSON.stringify(o)); } catch (e) {} };
+  var editing = null;       // id o nhap chu dang sua — khong ve lai de khong mat chu dang go
+  var touching = false;     // ngon tay dang tren man hinh (keo thanh truot...) — khong ve lai giua chung
+  var pendingRender = false;
+  document.addEventListener('pointerdown', function () { touching = true; }, true);
+  var up = function () { touching = false; if (pendingRender) { pendingRender = false; render(last); } };
+  document.addEventListener('pointerup', up, true); document.addEventListener('pointercancel', up, true);
+  var last = null;
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function set(id, v) { ctl({ settings: 'set', id: id, v: v }); }
+  function label(it, sub) { var l = el('div', 'lab'); l.append(el('div', 'n', it.label)); if (sub) l.append(el('div', 'v', sub)); return l; }
+  function fmt(it) { return it.value + (it.unit ? ' ' + it.unit : ''); }
+
+  function slider(value, min, max, step, unit, onDone) {
+    var s = el('div', 'sl'), f = el('div', 'f'), t = el('div', 't');
+    s.append(f, t);
+    var v = value;
+    function show() { var p = max > min ? (v - min) / (max - min) : 0; f.style.width = (p * 100) + '%'; t.textContent = v + (unit ? ' ' + unit : ''); }
+    function at(x) { var r = s.getBoundingClientRect(); var p = Math.max(0, Math.min(1, (x - r.left) / r.width));
+      v = Math.round((min + p * (max - min)) / step) * step; v = +Math.max(min, Math.min(max, v)).toFixed(4); show(); }
+    var drag = false;
+    s.addEventListener('pointerdown', function (e) { drag = true; try { s.setPointerCapture(e.pointerId); } catch (x) {} at(e.clientX); });
+    s.addEventListener('pointermove', function (e) { if (drag) at(e.clientX); });
+    var end = function () { if (!drag) return; drag = false; onDone(v); };
+    s.addEventListener('pointerup', end); s.addEventListener('pointercancel', end);
+    show();
+    return s;
+  }
+
+  function row(it) {
+    var r = el('div', 'row');
+    if (it.unavailable) r.classList.add('off');
+    if (it.kind === 'switch') {
+      var tg = el('div', 'tg' + (it.on ? ' on' : '')); tg.setAttribute('role', 'switch');
+      tg.addEventListener('click', function () { tg.classList.toggle('on'); set(it.id, tg.classList.contains('on')); });
+      r.append(label(it, it.unavailable ? 'Không khả dụng' : ''), tg);
+    } else if (it.kind === 'light') {
+      r.classList.add('col');
+      var top = el('div', 'row'); top.style.border = 'none'; top.style.padding = '0'; top.style.minHeight = '0';
+      var tg2 = el('div', 'tg' + (it.on ? ' on' : ''));
+      tg2.addEventListener('click', function () { tg2.classList.toggle('on'); set(it.id, tg2.classList.contains('on')); });
+      top.append(label(it), tg2);
+      r.append(top, slider(it.bri || 0, 1, 100, 1, '%', function (v) { set(it.id, v); }));
+    } else if (it.kind === 'number') {
+      r.classList.add('col');
+      r.append(label(it), slider(Number(it.value) || 0, it.min, it.max, it.step, it.unit, function (v) { set(it.id, v); }));
+    } else if (it.kind === 'select') {
+      r.classList.add('col');
+      var seg = el('div', 'seg');
+      (it.options || []).forEach(function (o) {
+        var b = el('button', o === it.value ? 'sel' : '', o);
+        b.addEventListener('click', function () { seg.querySelectorAll('button').forEach(function (x) { x.classList.remove('sel'); }); b.classList.add('sel'); set(it.id, o); });
+        seg.append(b);
+      });
+      r.append(label(it), seg);
+    } else if (it.kind === 'text') {
+      if (editing === it.id) {
+        r.classList.add('col');
+        var box = el('div', 'txt'), inp = document.createElement('input');
+        inp.value = it.value; inp.maxLength = it.maxLength || 255; inp.spellcheck = false;
+        var save = el('button', 'btn pri', 'Lưu'), cancel = el('button', 'btn', 'Huỷ');
+        save.addEventListener('click', function () { editing = null; set(it.id, inp.value); render(last); });
+        cancel.addEventListener('click', function () { editing = null; render(last); });
+        inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') save.click(); });
+        box.append(inp, save, cancel);
+        r.append(label(it), box);
+        setTimeout(function () { inp.focus(); }, 30);
+      } else {
+        var ed = el('button', 'btn', 'Sửa');
+        ed.addEventListener('click', function () { editing = it.id; render(last); });
+        r.append(label(it, it.value), ed);
+      }
+    } else if (it.kind === 'button') {
+      var b2 = el('button', 'btn' + (it.confirm ? ' warn' : ''), it.confirm ? 'Thực hiện' : 'Bấm');
+      var armed = 0;
+      b2.addEventListener('click', function () {
+        if (it.confirm && Date.now() - armed > 3000) { armed = Date.now(); b2.textContent = 'Chạm lần nữa để xác nhận'; return; }
+        b2.textContent = 'Đã gửi'; set(it.id, null);
+      });
+      r.append(label(it), b2);
+    } else {
+      r.append(label(it), el('div', 'val', fmt(it)));
+    }
+    return r;
+  }
+
+  function section(title, items) {
+    if (!items.length) return null;
+    var s = el('section'); s.append(el('h2', '', title));
+    items.forEach(function (it) { s.append(row(it)); });
+    return s;
+  }
+
+  function diag(items, srv) {
+    var s = el('section'); s.append(el('h2', '', 'Chẩn đoán'));
+    var g = el('div', 'diag');
+    var kv = function (k, v) { var c = el('div', 'kv'); c.append(el('div', 'k', k), el('div', 'v2', v)); g.append(c); };
+    if (srv) {
+      kv('Máy chủ (addon)', srv.version);
+      kv('Màn hình này', srv.w + '×' + srv.h + (srv.rotation ? ' · xoay ' + srv.rotation + '°' : ''));
+      if (srv.decodeMs != null) kv('Giải mã một khung', srv.decodeMs + ' ms');
+      if (srv.kbps != null) kv('Băng thông', srv.kbps + ' KB/s');
+      kv('Ứng dụng đang mở', String(srv.tabs));
+      kv('Màn hình đang kết nối', String(srv.screens));
+    }
+    items.forEach(function (it) { kv(it.label, fmt(it)); });
+    s.append(g);
+    return s;
+  }
+
+  function render(d) {
+    if (!d) return;
+    last = d;
+    if (editing) return;   // dang go chu: giu nguyen (render lai sau khi Luu/Huy)
+    if (touching) { pendingRender = true; return; }
+    var head = el('header'), t = el('div');
+    t.append(el('h1', '', 'Cài đặt'));
+    if (d.ok) t.append(el('div', 'sub', d.view.device.name + (d.view.device.version ? ' · ESPHome ' + d.view.device.version : '')));
+    head.append(t);
+    if (!d.ok) {
+      var box = el('div');
+      main.replaceChildren(head, box);
+      RwvUI.state(box, { kind: 'err', title: 'Chưa đọc được cài đặt', text: d.error, retry: function () { ctl({ settings: 'get' }); } });
+      var g0 = el('div', 'grid'); g0.append(diag([], d.server)); main.append(g0);
+      return;
+    }
+    var items = d.view.items;
+    var by = function (g) { return items.filter(function (i) { return i.group === g; }); };
+    var grid = el('div', 'grid');
+    [section('Điều khiển', by('control')), section('Cấu hình', by('config')), diag(by('diag'), d.server)]
+      .forEach(function (s) { if (s) grid.append(s); });
+    main.replaceChildren(head, grid);
+    if (d.note && !d.note.ok) { var n = document.getElementById('note'); n.textContent = d.note.msg; n.style.display = 'block'; setTimeout(function () { n.style.display = 'none'; }, 3500); }
+  }
+
+  window.__rwvSettings = function (d) { window.__rwvLastSettings = d; render(d); };
+  RwvUI.state(main, { kind: 'loading', title: 'Đang đọc cài đặt…' });
+  ctl({ settings: 'get' });
+  // Cap nhat so lieu 5 s/lan khi trang dang hien (khong dang go chu).
+  setInterval(function () { if (document.visibilityState === 'visible' && !editing) ctl({ settings: 'get' }); }, 5000);
+})();
+</script>
+</body>
+</html>

@@ -15,13 +15,13 @@ export interface LauncherAppInfo extends LauncherApp { hidden: boolean; builtin:
 export const BUILTIN_PREVIEW: Record<string, string> = {
   home: 'home-assistant', ha: 'home-assistant', camera: 'camera', cams: 'view-grid-outline', scenes: 'star-outline', energy: 'lightning-bolt',
   youtube: 'youtube', tiktok: 'music-note', music: 'play-circle-outline', radio: 'radio', news: 'newspaper-variant-outline',
-  media: 'music', weather: 'weather-partly-cloudy', calendar: 'calendar-month-outline', timer: 'timer-outline', browser: 'web',
+  media: 'music', weather: 'weather-partly-cloudy', calendar: 'calendar-month-outline', timer: 'timer-outline', browser: 'web', settings: 'cog-outline',
 };
 
 export const GROUP_TITLES: Record<AppGroup, string> = { nha: 'Nhà', giai_tri: 'Giải trí', tien_ich: 'Tiện ích' };
 /** Ten bieu tuong ve tay co san trong launcher. */
 export const KNOWN_ICONS = ['ha', 'home', 'camera', 'cams', 'scenes', 'energy', 'youtube', 'tiktok', 'music', 'radio', 'news',
-  'media', 'weather', 'calendar', 'timer', 'browser'];
+  'media', 'weather', 'calendar', 'timer', 'browser', 'settings'];
 
 const PORT = process.env.HEALTH_PORT || '18080';
 const LOCAL = `http://127.0.0.1:${PORT}`;
@@ -59,6 +59,8 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   add('tien_ich', 'Lịch', 'calendar', '#dc2626', `${LOCAL}/calendar.html`);
   add('tien_ich', 'Hẹn giờ', 'timer', '#f97316', LAUNCHER_TIMER_URL);
   add('tien_ich', 'Trình duyệt', 'browser', '#0891b2', undefined, 'url');
+  // (26/09/2026 OS-4) Cai dat cua CHINH man hinh nay (thuc the ESPHome qua HA API) — public/settings.html.
+  add('tien_ich', 'Cài đặt', 'settings', '#475569', `${LOCAL}/settings.html`);
 
   const builtinIds = new Set(apps.map(a => a.id));
   const conf = getLauncherConfig();
