@@ -1201,6 +1201,8 @@ const SERVER_VERSION = (() => {
   catch { return '?'; }
 })();
 
+function panelDefaults() { return { saverPhotos: SCREENSAVER_PHOTOS, morning: MORNING_DEFAULT, saverIdleS: SCREENSAVER_IDLE_S }; }
+
 async function pushSettings(dev: DeviceSession, tab: Tab, note?: { ok: boolean; msg: string }): Promise<void> {
   const r = await getSettingsView(dev.deviceId);
   const m = metrics.snapshot().devices.find((d: any) => d.id === dev.deviceId) as any;
@@ -1211,7 +1213,7 @@ async function pushSettings(dev: DeviceSession, tab: Tab, note?: { ok: boolean; 
     heap: m?.deviceHeapFree ?? null,
   };
   await tab.session.send('Runtime.evaluate', {
-    expression: `window.__rwvSettings && window.__rwvSettings(${JSON.stringify({ ...r, server, panel: panelPrefs.items(dev.deviceId, SCREENSAVER_PHOTOS), note: note ?? null })})`,
+    expression: `window.__rwvSettings && window.__rwvSettings(${JSON.stringify({ ...r, server, panel: panelPrefs.items(dev.deviceId, panelDefaults()), note: note ?? null })})`,
   }).catch(() => { });
 }
 
@@ -1603,13 +1605,16 @@ export async function unlockDoorbell(id: string): Promise<{ ok: boolean; error?:
 // ── (27/09/2026) CHAO BUOI SANG: lan dau camera thay nguoi trong khung gio sang (moi ngay, moi man hinh mot lan) -> mo
 // ung dung "Hom nay" (thoi tiet, lich, viec, ghi chu) va doc tom tat qua loa cua panel (tts.speak, neu HA co TTS).
 const off = (v: string | undefined) => v === '0' || v === 'false';
-const MORNING_WINDOW = off(process.env.MORNING_BRIEFING) ? null : parseWindow(process.env.MORNING_WINDOW || '06:00-09:30');
+const MORNING_WINDOW = parseWindow(process.env.MORNING_WINDOW || '06:00-09:30');
+/** Tuy chon addon morning_briefing — mac dinh cho man hinh chua chinh o Cai dat. */
+const MORNING_DEFAULT = !off(process.env.MORNING_BRIEFING);
 // (27/09/2026) Nguoi dung: chua muon loi chao bang am thanh -> mac dinh TAT, chi hien chu (bat: morning_tts: true).
 const MORNING_TTS = process.env.MORNING_TTS === 'true' || process.env.MORNING_TTS === '1';
 
 function maybeMorning(dev: DeviceSession): void {
   const tz = dev.devState?.tzOffsetMin ?? 420;
   const c = deviceClock(Date.now(), tz);
+  if (!panelPrefs.morning(dev.deviceId, MORNING_DEFAULT)) return;
   if (!shouldGreet({ ...c, window: MORNING_WINDOW, lastDate: dev.morningDate ?? null })) return;
   dev.morningDate = c.date;
   console.log(`[morning] ${dev.deviceId}: chao buoi sang (${c.date})`);
@@ -2436,7 +2441,7 @@ export function screensaverTick(): void {
     if (!tab || broadcaster.getClientCount(d.deviceId) === 0) continue;
     if (!shouldShowSaver({
       // (27/09/2026) Khung anh da la man hinh cho — khong phu dong ho len.
-      now, lastTouchMs: d.lastTouchMs, idleMs: SCREENSAVER_IDLE_S * 1000, mediaPlaying: tab.mediaPlaying || tab.kind === 'photos',
+      now, lastTouchMs: d.lastTouchMs, idleMs: panelPrefs.saverIdleS(d.deviceId, SCREENSAVER_IDLE_S) * 1000, mediaPlaying: tab.mediaPlaying || tab.kind === 'photos',
       backlightOn: d.devState ? d.devState.backlightOn : null, shown: d.saverOn,
     })) continue;
     d.saverOn = true;
