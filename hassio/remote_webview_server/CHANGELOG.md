@@ -1,3 +1,15 @@
+## V2.9.50
+### Sửa hai lỗi OS-2 do bộ thử tích hợp phát hiện + CI
+
+- **Sửa "URL hiện tại" không cập nhật khi mở đúng Home URL** (lỗi từ 2.9.47): lúc kết nối hoặc khi bấm Go Home,
+  nếu trang mở ra đúng URL đã xin, server không báo URL về thiết bị (cảm biến "URL hiện tại" trên HA giữ giá trị cũ),
+  và bước khẳng định lại quyền phát tiếng sau khi điều hướng cũng bị bỏ qua.
+- **Sửa "Frame error" liên tiếp khi mở ứng dụng mới**: khung hình đổi kích thước giữa chừng (tab vừa bật truyền hình)
+  làm bộ chia ô tính ra cạnh âm và bỏ khung. Nay tự tạo lại lưới ô và gửi cả khung; log ghi
+  `[frame] kich thuoc khung doi AxB -> CxD` mỗi lần như vậy.
+- **Bộ thử tích hợp + CI**: server thật + Chromium thật + panel giả chạy trên GitHub Actions cho mỗi PR — hai lỗi
+  ngay trên được chính bộ thử này phát hiện.
+
 ## V2.9.49
 ### Thẻ "Đang phát" + sửa hai lỗi của OS-2
 
@@ -10,14 +22,6 @@
   lại nhanh) có thể tạo HAI tab cho cùng ứng dụng; tab thừa không bao giờ bị đóng, mỗi lần tốn thêm một tiến trình
   Chrome (100–250 MB). Đã tái hiện: 3 cử chỉ về Home sát nhau → 3 tab màn hình chính; nay luôn đúng 1. Các lệnh
   mở/chuyển ứng dụng của một màn hình giờ chạy lần lượt.
-- **Sửa "URL hiện tại" không cập nhật khi mở đúng Home URL** (lỗi từ 2.9.47): lúc kết nối hoặc khi bấm Go Home,
-  nếu trang mở ra đúng URL đã xin, server không báo URL về thiết bị (cảm biến "URL hiện tại" trên HA giữ giá trị cũ),
-  và bước khẳng định lại quyền phát tiếng sau khi điều hướng cũng bị bỏ qua.
-- **Sửa "Frame error" liên tiếp khi mở ứng dụng mới**: khung hình đổi kích thước giữa chừng (tab vừa bật truyền hình)
-  làm bộ chia ô tính ra cạnh âm và bỏ khung. Nay tự tạo lại lưới ô và gửi cả khung; log ghi
-  `[frame] kich thuoc khung doi AxB -> CxD` mỗi lần như vậy.
-- **Bộ thử tích hợp + CI**: server thật + Chromium thật + panel giả chạy trên GitHub Actions cho mỗi PR — hai lỗi
-  ngay trên được chính bộ thử này phát hiện.
 - **Sửa ứng dụng bị đổi biểu tượng mất hành vi riêng**: đổi biểu tượng Radio/Nhạc ở trang "Menu panel" làm chúng mất
   khả năng phát nền, đổi biểu tượng YouTube/TikTok làm chúng không tự dừng khi rời ứng dụng.
 

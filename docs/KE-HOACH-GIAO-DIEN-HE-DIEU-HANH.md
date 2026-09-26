@@ -64,7 +64,7 @@ Ngày lập: 25/09/2026. Mốc quay về: **Bản Ổn định 25/09 đêm** (ta
     lệnh, bố cục ở 1024×600, 480×480, 480×272 (màn thấp xếp thẻ thành hàng ngang, bảng không vượt chiều cao màn).
   - **Thử tích hợp + CI** (`src/integration/`, `.github/workflows/test.yml`, `npm run test:integration`): 6 kịch bản
     OS-2 với server thật + Chromium + panel giả. Đã chứng minh bắt được lỗi: gỡ hàng đợi tuần tự → 2 kịch bản race
-    đỏ. Bộ thử phát hiện thêm 2 lỗi có sẵn từ 2.9.47, đã sửa trong 2.9.49:
+    đỏ. Bộ thử phát hiện thêm 2 lỗi có sẵn từ 2.9.47, đã sửa trong **2.9.50**:
     - `handleTabNavigation` bỏ qua điều hướng tới đúng URL đã xin (vì `navigateTab` gán `tab.url` lạc quan) → không
       gửi CurrentURL, không khẳng định lại quyền âm thanh. Nay chống lặp theo `dev.url`.
     - `FrameProcessor` tạo lưới ô một lần theo khung đầu → khung đổi kích thước (tab mới) cho cạnh ô âm, "Frame error".
