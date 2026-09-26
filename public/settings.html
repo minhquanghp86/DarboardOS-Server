@@ -102,7 +102,7 @@
     if (it.kind === 'switch') {
       var tg = el('div', 'tg' + (it.on ? ' on' : '')); tg.setAttribute('role', 'switch');
       tg.addEventListener('click', function () { tg.classList.toggle('on'); set(it.id, tg.classList.contains('on')); });
-      r.append(label(it, it.unavailable ? 'Không khả dụng' : ''), tg);
+      r.append(label(it, it.unavailable ? 'Không khả dụng' : (it.hint || '')), tg);
     } else if (it.kind === 'light') {
       r.classList.add('col');
       var top = el('div', 'row'); top.style.border = 'none'; top.style.padding = '0'; top.style.minHeight = '0';
@@ -190,13 +190,14 @@
       var box = el('div');
       main.replaceChildren(head, box);
       RwvUI.state(box, { kind: 'err', title: 'Chưa đọc được cài đặt', text: d.error, retry: function () { ctl({ settings: 'get' }); } });
-      var g0 = el('div', 'grid'); g0.append(diag([], d.server)); main.append(g0);
+      var g0 = el('div', 'grid'); var sp = section('Màn hình', d.panel || []); if (sp) g0.append(sp); g0.append(diag([], d.server)); main.append(g0);
       return;
     }
     var items = d.view.items;
     var by = function (g) { return items.filter(function (i) { return i.group === g; }); };
     var grid = el('div', 'grid');
-    [section('Điều khiển', by('control')), section('Cấu hình', by('config')), diag(by('diag'), d.server)]
+    // (27/09/2026) "Màn hình": cai dat cua addon cho rieng man hinh nay (server luu), vd man hinh cho hien anh.
+    [section('Điều khiển', by('control')), section('Màn hình', d.panel || []), section('Cấu hình', by('config')), diag(by('diag'), d.server)]
       .forEach(function (s) { if (s) grid.append(s); });
     main.replaceChildren(head, grid);
     if (d.note && !d.note.ok) { var n = document.getElementById('note'); n.textContent = d.note.msg; n.style.display = 'block'; setTimeout(function () { n.style.display = 'none'; }, 3500); }

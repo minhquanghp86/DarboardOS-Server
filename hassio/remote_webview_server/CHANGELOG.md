@@ -4,6 +4,9 @@
 - Chưa có thư mục **media/photos** thì 2.9.59 lùi về quét **cả /media** — trúng ảnh chụp phát hiện người của Frigate
   (/media/frigate) và trình chiếu lên màn hình chờ. Nay **chỉ đọc đúng media/photos**; chưa có thư mục thì chỉ hiện
   đồng hồ. Kể cả trong media/photos, các thư mục `frigate`, `clips`, `recordings`, `snapshots`… luôn bị bỏ qua.
+- **Cài đặt trên màn hình → nhóm "Màn hình"**: công tắc **Màn hình chờ hiện ảnh** cho **riêng từng màn hình** (server lưu
+  `/data/rwv-panel-prefs.json`). Chưa chỉnh thì theo tuỳ chọn addon `screensaver_photos`. Tắt thì ảnh biến mất ngay.
+- Sửa: mục *Máy chủ (addon)* ở Chẩn đoán hiện sai phiên bản (package.json không được tăng theo addon) — thêm test giữ khớp.
 
 ## V2.9.59
 ### Bốn ứng dụng mới cho ngôi nhà: Phòng, Điều khiển, Việc cần làm, Khung ảnh

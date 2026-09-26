@@ -1,6 +1,9 @@
 // (26/09/2026 OS-4) Thu tich hop trang Cai dat voi mot Home Assistant GIA (REST + WebSocket): tim thiet bi theo MAC,
 // doc thuc the, doi cai dat -> HA nhan dung dich vu; trang khong phai Cai dat thi bi tu choi.
+import fs from 'node:fs';
 import http from 'node:http';
+import os from 'node:os';
+import path from 'node:path';
 import net from 'node:net';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { WebSocketServer } from 'ws';
@@ -66,11 +69,13 @@ async function startFakeHa(): Promise<FakeHa> {
   return { port, calls, close: () => new Promise((r) => { wss.close(); server.close(() => r()); }) };
 }
 
+let prefsFile = '';
 beforeEach(async () => {
+  prefsFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'rwv-prefs-')), 'p.json');
   ha = await startFakeHa();
   srv = await TestServer.start({
     SUPERVISOR_TOKEN: 'test', HA_API_URL: `http://127.0.0.1:${ha.port}/api`, HA_WS_URL: `ws://127.0.0.1:${ha.port}/websocket`,
-    SCREENSAVER_IDLE_S: '0',
+    SCREENSAVER_IDLE_S: '0', PANEL_PREFS_FILE: prefsFile,
   });
 });
 afterEach(async (ctx) => {
@@ -113,4 +118,14 @@ it('Cai dat: doc thuc the cua DUNG man hinh (theo MAC), doi cai dat -> HA nhan d
   // Trang tu doc lai trang thai moi sau khi doi
   d = await srv.evaluate(sp, 'window.__rwvLastSettings');
   expect(d.view.items.find((x: any) => x.id === 'switch.p4_man_hinh_cho').on).toBe(true);
+
+  // Muc cua addon "Man hinh cho hien anh": server luu rieng man hinh nay, khong goi HA
+  expect(d.panel).toEqual([expect.objectContaining({ id: 'rwv.saver_photos', on: true })]);
+  const before = ha.calls.length;
+  await srv.evaluate(sp, `window.__rwvControl(JSON.stringify({ settings: 'set', id: 'rwv.saver_photos', v: false }))`);
+  for (let i = 0; i < 20 && (await srv.evaluate<any>(sp, 'window.__rwvLastSettings.panel[0].on')); i++) await sleep(150);
+  expect(await srv.evaluate(sp, 'window.__rwvLastSettings.panel[0].on')).toBe(false);
+  expect(JSON.parse(fs.readFileSync(prefsFile, 'utf8'))).toEqual({ [DEV_ID]: { saverPhotos: false } });
+  expect(ha.calls.length).toBe(before);
+  if (process.env.ITEST_SHOTS) { await sleep(300); fs.writeFileSync(path.join(process.env.ITEST_SHOTS, 'settings-1024x600.png'), await srv.screenshot(sp)); }
 });
