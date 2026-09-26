@@ -110,20 +110,32 @@ export class TestServer {
     return waitUntil(async () => (await this.pages()).find((p) => match(p.url)), timeoutMs, 'tab xuat hien');
   }
 
-  /** Runtime.evaluate trong MOT tab qua ket noi DevTools rieng (khong dung chung phien CDP cua server). */
-  async evaluate<T = unknown>(target: PageTarget, expression: string): Promise<T> {
+  /** Goi MOT lenh CDP trong MOT tab qua ket noi DevTools rieng (khong dung chung phien CDP cua server). */
+  async cdp<T = any>(target: PageTarget, method: string, params: Record<string, unknown> = {}): Promise<T> {
     const ws = new WebSocket(target.webSocketDebuggerUrl);
     try {
       await new Promise<void>((res, rej) => { ws.once('open', () => res()); ws.once('error', rej); });
-      ws.send(JSON.stringify({ id: 1, method: 'Runtime.evaluate', params: { expression, returnByValue: true, awaitPromise: true } }));
+      ws.send(JSON.stringify({ id: 1, method, params }));
       const msg: any = await new Promise((res, rej) => {
-        const t = setTimeout(() => rej(new Error('Runtime.evaluate het gio')), 10_000);
+        const t = setTimeout(() => rej(new Error(`${method} het gio`)), 10_000);
         ws.on('message', (d) => { const m = JSON.parse(String(d)); if (m.id === 1) { clearTimeout(t); res(m); } });
       });
       if (msg.error) throw new Error(msg.error.message);
-      if (msg.result?.exceptionDetails) throw new Error(msg.result.exceptionDetails.exception?.description ?? 'loi JS');
-      return msg.result?.result?.value as T;
+      return msg.result as T;
     } finally { ws.close(); }
+  }
+
+  /** Runtime.evaluate trong MOT tab, tra ve gia tri (JSON). */
+  async evaluate<T = unknown>(target: PageTarget, expression: string): Promise<T> {
+    const r = await this.cdp(target, 'Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
+    if (r?.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description ?? 'loi JS');
+    return r?.result?.value as T;
+  }
+
+  /** Anh PNG cua tab (de xem giao dien khi phat trien — ITEST_SHOTS=<thu muc>). */
+  async screenshot(target: PageTarget): Promise<Buffer> {
+    const r = await this.cdp<{ data: string }>(target, 'Page.captureScreenshot', { format: 'png' });
+    return Buffer.from(r.data, 'base64');
   }
 
   async stop(): Promise<void> {

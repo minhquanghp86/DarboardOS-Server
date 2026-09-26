@@ -73,3 +73,19 @@ export class SerialQueue {
     return p;
   }
 }
+
+/** Mot the trong man hinh "Gan day": k = khoa tab, l = ten, t = anh thu nho (data URL) hoac null, p = ghim (khong dong). */
+export interface RecentCard { k: string; l: string; t: string | null; p: boolean; a: boolean }
+
+/**
+ * (26/09/2026 OS-3) Danh sach "Gan day": moi tab dang mo tru man hinh chinh (no la noi ta DANG dung khi mo Gan day tu
+ * Home), moi dung gan nhat truoc. Tab ghim (Home Assistant) hien nhung khong co nut dong.
+ */
+export function recentsList(
+  tabs: Iterable<{ key: string; label: string; pinned: boolean; lastUsed: number; thumb?: string }>, activeKey: string,
+): RecentCard[] {
+  return [...tabs]
+    .filter((t) => t.key !== '__system')
+    .sort((a, b) => b.lastUsed - a.lastUsed)
+    .map((t) => ({ k: t.key, l: t.label, t: t.thumb ?? null, p: t.pinned, a: t.key === activeKey }));
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SerialQueue, TabPolicyView, nowPlaying, pickEvictions } from "./tabPolicy.js";
+import { SerialQueue, TabPolicyView, nowPlaying, pickEvictions, recentsList } from "./tabPolicy.js";
 
 const tab = (key: string, o: Partial<TabPolicyView> = {}): TabPolicyView => ({
   key, label: key, pinned: false, backgroundAudio: false, mediaPlaying: false, mediaKnown: false, lastUsed: 0, ...o,
@@ -68,5 +68,21 @@ describe("SerialQueue", () => {
     const q = new SerialQueue();
     await expect(q.run(async () => { throw new Error("x"); })).rejects.toThrow("x");
     await expect(q.run(async () => 42)).resolves.toBe(42);
+  });
+});
+
+describe("man hinh Gan day", () => {
+  it("moi dung gan nhat truoc, bo man hinh chinh, danh dau ghim/active", () => {
+    const tabs = [
+      { key: "home", label: "Home Assistant", pinned: true, lastUsed: 5 },
+      { key: "__system", label: "Màn hình chính", pinned: true, lastUsed: 9 },
+      { key: "radio", label: "Radio", pinned: false, lastUsed: 7, thumb: "data:image/jpeg;base64,AA" },
+      { key: "cams", label: "Camera", pinned: false, lastUsed: 1 },
+    ];
+    expect(recentsList(tabs, "radio")).toEqual([
+      { k: "radio", l: "Radio", t: "data:image/jpeg;base64,AA", p: false, a: true },
+      { k: "home", l: "Home Assistant", t: null, p: true, a: false },
+      { k: "cams", l: "Camera", t: null, p: false, a: false },
+    ]);
   });
 });

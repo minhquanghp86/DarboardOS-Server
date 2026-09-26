@@ -1,3 +1,11 @@
+## V2.9.51
+### OS-3 bước 1 — màn hình "Gần đây" (đa nhiệm)
+
+- Nút **Gần đây** trong thanh kéo xuống và ở cuối dock của màn hình chính: hiện ảnh chụp từng ứng dụng đang mở (mới
+  dùng nhất trước). **Chạm** một thẻ để chuyển sang ứng dụng đó (tức thì, không tải lại); **✕** hoặc **vuốt thẻ lên**
+  để đóng ứng dụng; **Đóng tất cả** đóng mọi ứng dụng phụ (Home Assistant luôn giữ). Chạm vùng trống để thoát.
+- Ảnh thu nhỏ được chụp lúc rời mỗi ứng dụng (~10 KB/ảnh, không tốn băng thông khi không mở Gần đây).
+
 ## V2.9.50
 ### Sửa hai lỗi OS-2 do bộ thử tích hợp phát hiện + CI
 
