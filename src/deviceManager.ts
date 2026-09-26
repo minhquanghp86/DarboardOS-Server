@@ -24,9 +24,12 @@ import { buildLauncherApps, listAllApps, GROUP_TITLES, LOCAL_ORIGIN, LAUNCHER_CA
 import { createRequire } from "node:module";
 import { getWeatherMini, onWeatherMiniUpdate } from "./weatherMini.js";
 import { SerialQueue, appKeyForUrl, nowPlaying, pickEvictions, recentsList } from "./tabPolicy.js";
-import { SAVER_PHOTO_MS, SCREENSAVER_IDLE_S, SCREENSAVER_PHOTOS, deviceHour, isNightHour, nextSaverPhoto, shouldShowSaver } from "./screensaver.js";
+import { SCREENSAVER_IDLE_S, SCREENSAVER_PHOTOS, deviceHour, isNightHour, shouldShowSaver } from "./screensaver.js";
 import { listPhotos } from "./homeApi.js";
 import { panelPrefs } from "./panelPrefs.js";
+import { Nav, albumItems, caption, photoUrl, refKey, sourceList, step } from "./photoSource.js";
+/** Tuy chon addon gphotos_album — mac dinh khi chua dan link o Cai dat. */
+const GPHOTOS_ALBUM = process.env.GPHOTOS_ALBUM || '';
 import { deviceClock, parseWindow, shouldGreet } from "./today.js";
 import { getToday, speakOnPanel } from "./todayData.js";
 import { parseDoorbell, unlockCall } from "./doorbell.js";
@@ -155,6 +158,8 @@ export type DeviceSession = {
   /** (27/09/2026) Man hinh cho dang khung anh: anh dang hien + luc doi. */
   saverPhoto?: string | null;
   saverPhotoAt?: number;
+  /** (27/09/2026) Lich su anh da xem (vuot trai/phai). */
+  saverNav?: Nav;
   /** (27/09/2026) Tro ly giong noi: trang thai cuoi (s = VoiceState) + chu. */
   voice?: { s: number; t: string; at: number };
   /** (27/09/2026) Co nguoi truoc man hinh (camera cua panel). */
@@ -1046,6 +1051,12 @@ function handleMenuControl(id: string, payload: unknown, from?: Tab): void {
     }
     return;
   }
+  // (27/09/2026) Vuot trai/phai tren man hinh cho dang hien anh -> anh sau/truoc (hen lai gio doi anh tu dau).
+  if (msg?.saver === 'next' || msg?.saver === 'prev') {
+    dev.saverPhotoAt = Date.now();
+    saverPhotoStep(dev, msg.saver === 'next' ? 1 : -1, true).catch(() => { });
+    return;
+  }
   // (27/09/2026) Nut / the "Tro ly": bat dau (hoac dung neu dang nghe) / dung.
   if (msg?.assist != null) {
     if (dev.cfg.voice && dev.cfg.devControl) broadcaster.sendDeviceControl(id, ControlField.Assist, Number(msg.assist) ? 1 : 0);
@@ -1201,6 +1212,8 @@ const SERVER_VERSION = (() => {
   catch { return '?'; }
 })();
 
+function panelDefaults() { return { saverPhotos: SCREENSAVER_PHOTOS, morning: MORNING_DEFAULT, saverIdleS: SCREENSAVER_IDLE_S }; }
+
 async function pushSettings(dev: DeviceSession, tab: Tab, note?: { ok: boolean; msg: string }): Promise<void> {
   const r = await getSettingsView(dev.deviceId);
   const m = metrics.snapshot().devices.find((d: any) => d.id === dev.deviceId) as any;
@@ -1211,7 +1224,7 @@ async function pushSettings(dev: DeviceSession, tab: Tab, note?: { ok: boolean; 
     heap: m?.deviceHeapFree ?? null,
   };
   await tab.session.send('Runtime.evaluate', {
-    expression: `window.__rwvSettings && window.__rwvSettings(${JSON.stringify({ ...r, server, panel: panelPrefs.items(dev.deviceId, SCREENSAVER_PHOTOS), note: note ?? null })})`,
+    expression: `window.__rwvSettings && window.__rwvSettings(${JSON.stringify({ ...r, server, panel: panelPrefs.items(dev.deviceId, panelDefaults(), GPHOTOS_ALBUM), note: note ?? null })})`,
   }).catch(() => { });
 }
 
@@ -1223,6 +1236,11 @@ async function handleSettings(dev: DeviceSession, tab: Tab, msg: any): Promise<v
     const ok = panelPrefs.set(dev.deviceId, msg.id, msg.v);
     console.log(`[settings] ${dev.deviceId}: ${msg.id} = ${JSON.stringify(msg.v)} ${ok ? 'OK' : 'TU CHOI'}`);
     if (ok && msg.id === 'rwv.saver_photos') { dev.saverPhotoAt = 0; if (!msg.v) { dev.saverPhoto = null; showSaverPhoto(dev, null); } }
+    // Doi nguon / album / kieu hien thi: ap dung ngay o lan doi anh ke tiep; album moi -> tai danh sach ngay.
+    if (ok && (msg.id === 'rwv.gphotos_url' || msg.id === 'rwv.photo_source')) {
+      dev.saverNav = undefined;
+      albumItems(panelPrefs.albumUrl(GPHOTOS_ALBUM)).then((l) => console.log(`[photos] album Google Photos: ${l.length} anh`)).catch(() => { });
+    }
     return pushSettings(dev, tab, ok ? undefined : { ok: false, msg: 'Không đổi được cài đặt này.' });
   }
   const r = await getSettingsView(dev.deviceId);
@@ -1603,13 +1621,16 @@ export async function unlockDoorbell(id: string): Promise<{ ok: boolean; error?:
 // ── (27/09/2026) CHAO BUOI SANG: lan dau camera thay nguoi trong khung gio sang (moi ngay, moi man hinh mot lan) -> mo
 // ung dung "Hom nay" (thoi tiet, lich, viec, ghi chu) va doc tom tat qua loa cua panel (tts.speak, neu HA co TTS).
 const off = (v: string | undefined) => v === '0' || v === 'false';
-const MORNING_WINDOW = off(process.env.MORNING_BRIEFING) ? null : parseWindow(process.env.MORNING_WINDOW || '06:00-09:30');
+const MORNING_WINDOW = parseWindow(process.env.MORNING_WINDOW || '06:00-09:30');
+/** Tuy chon addon morning_briefing — mac dinh cho man hinh chua chinh o Cai dat. */
+const MORNING_DEFAULT = !off(process.env.MORNING_BRIEFING);
 // (27/09/2026) Nguoi dung: chua muon loi chao bang am thanh -> mac dinh TAT, chi hien chu (bat: morning_tts: true).
 const MORNING_TTS = process.env.MORNING_TTS === 'true' || process.env.MORNING_TTS === '1';
 
 function maybeMorning(dev: DeviceSession): void {
   const tz = dev.devState?.tzOffsetMin ?? 420;
   const c = deviceClock(Date.now(), tz);
+  if (!panelPrefs.morning(dev.deviceId, MORNING_DEFAULT)) return;
   if (!shouldGreet({ ...c, window: MORNING_WINDOW, lastDate: dev.morningDate ?? null })) return;
   dev.morningDate = c.date;
   console.log(`[morning] ${dev.deviceId}: chao buoi sang (${c.date})`);
@@ -2436,7 +2457,7 @@ export function screensaverTick(): void {
     if (!tab || broadcaster.getClientCount(d.deviceId) === 0) continue;
     if (!shouldShowSaver({
       // (27/09/2026) Khung anh da la man hinh cho — khong phu dong ho len.
-      now, lastTouchMs: d.lastTouchMs, idleMs: SCREENSAVER_IDLE_S * 1000, mediaPlaying: tab.mediaPlaying || tab.kind === 'photos',
+      now, lastTouchMs: d.lastTouchMs, idleMs: panelPrefs.saverIdleS(d.deviceId, SCREENSAVER_IDLE_S) * 1000, mediaPlaying: tab.mediaPlaying || tab.kind === 'photos',
       backlightOn: d.devState ? d.devState.backlightOn : null, shown: d.saverOn,
     })) continue;
     d.saverOn = true;
@@ -2454,19 +2475,34 @@ export function screensaverTick(): void {
  * ho de len goc. Ban dem (22h-6h theo gio thiet bi): khong anh — chi dong ho tong am toi.
  */
 function saverPhotoTick(d: DeviceSession, now: number): void {
-  if (!panelPrefs.saverPhotos(d.deviceId, SCREENSAVER_PHOTOS) || now - (d.saverPhotoAt ?? 0) < SAVER_PHOTO_MS) return;
+  const fs_ = panelPrefs.frame(d.deviceId, GPHOTOS_ALBUM);
+  if (!panelPrefs.saverPhotos(d.deviceId, SCREENSAVER_PHOTOS) || now - (d.saverPhotoAt ?? 0) < fs_.intervalS * 1000) return;
   d.saverPhotoAt = now;
-  const night = isNightHour(deviceHour(now, d.devState?.tzOffsetMin ?? 420));
-  const files = night ? [] : listPhotos().files;
-  const f = nextSaverPhoto(files, d.saverPhoto ?? null);
-  if (f === (d.saverPhoto ?? null) && f === null) return;
-  d.saverPhoto = f;
-  showSaverPhoto(d, f ? `${LOCAL_ORIGIN}/photos/img?f=${encodeURIComponent(f)}&w=${d.cfg.width}&h=${d.cfg.height}` : null);
+  saverPhotoStep(d, 1, false).catch(() => { });
 }
 
-function showSaverPhoto(d: DeviceSession, url: string | null): void {
+/**
+ * (27/09/2026) KHUNG ANH SO: anh ke tiep / truoc (vuot trai/phai tren man hinh cho) theo cai dat cua man hinh nay
+ * (nguon, thu tu, hieu ung, kieu hien thi, dong ho, chu thich — ung dung Cai dat, nhom "Khung ảnh").
+ */
+async function saverPhotoStep(d: DeviceSession, dir: 1 | -1, manual: boolean): Promise<void> {
+  const f = panelPrefs.frame(d.deviceId, GPHOTOS_ALBUM);
+  const night = isNightHour(deviceHour(Date.now(), d.devState?.tzOffsetMin ?? 420));
+  if (night && !manual) { if (d.saverPhoto) { d.saverPhoto = null; showSaverPhoto(d, null); } return; }
+  const album = f.source === 'folder' ? [] : await albumItems(f.album);
+  const list = sourceList(listPhotos().files, album, f.source);
+  const nav = (d.saverNav ??= { hist: [], idx: -1 });
+  const r = step(nav, list, dir, f.order);
+  if (!r) { if (d.saverPhoto) { d.saverPhoto = null; showSaverPhoto(d, null); } return; }
+  d.saverPhoto = refKey(r);
+  const cap = f.info ? await caption(listPhotos().dir, r) : '';
+  showSaverPhoto(d, { url: photoUrl(LOCAL_ORIGIN, r, d.cfg.width, d.cfg.height, f.fit), cap, fx: f.effect, dir, clock: f.clock });
+}
+
+type SaverPhotoMsg = { url: string; cap: string; fx: string; dir: number; clock: boolean };
+function showSaverPhoto(d: DeviceSession, o: SaverPhotoMsg | null): void {
   d.cdp.send('Runtime.evaluate', {
-    expression: `window.__rwvShell && window.__rwvShell.saverPhoto && window.__rwvShell.saverPhoto(${JSON.stringify(url)})`,
+    expression: `window.__rwvShell && window.__rwvShell.saverPhoto && window.__rwvShell.saverPhoto(${JSON.stringify(o)})`,
   }).catch(() => { });
 }
 

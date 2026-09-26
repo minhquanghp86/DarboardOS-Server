@@ -101,3 +101,22 @@ it('mac dinh (morning_tts tat): chao buoi sang chi mo "Hom nay", KHONG doc qua l
   await sleep(2000);
   expect(ha.calls.some((c) => c.path === 'tts.speak')).toBe(false);
 });
+
+it('man hinh da tat "Chao buoi sang" o Cai dat: khong mo "Hom nay"', async () => {
+  await srv.stop();
+  const prefs = path.join(path.dirname(boardFile), 'prefs.json');
+  fs.writeFileSync(prefs, JSON.stringify({ [DEV_ID]: { morning: false } }));
+  srv = await TestServer.start({
+    SUPERVISOR_TOKEN: 'test', HA_API_URL: `http://127.0.0.1:${ha.port}/api`, HA_WS_URL: `ws://127.0.0.1:${ha.port}/websocket`,
+    SCREENSAVER_IDLE_S: '0', BOARD_FILE: boardFile, PANEL_PREFS_FILE: prefs,
+  });
+  const home = srv.local('/ha');
+  dev = await FakeDevice.connect(srv, DEV_ID, { home });
+  await dev.waitFor(() => dev!.currentUrls().includes(home), 20_000, 'ket noi');
+  dev.deviceState({ backlightOn: true, tzMin: tzFor(7) });
+  await srv.waitPage((u) => u === home);
+  dev.event(2, 1);
+  await sleep(2500);
+  expect((await srv.pageUrls()).some((u) => u.includes('/today.html'))).toBe(false);
+  expect(srv.log()).not.toContain('[morning]');
+});

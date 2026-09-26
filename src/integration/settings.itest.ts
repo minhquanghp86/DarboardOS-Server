@@ -120,12 +120,25 @@ it('Cai dat: doc thuc the cua DUNG man hinh (theo MAC), doi cai dat -> HA nhan d
   expect(d.view.items.find((x: any) => x.id === 'switch.p4_man_hinh_cho').on).toBe(true);
 
   // Muc cua addon "Man hinh cho hien anh": server luu rieng man hinh nay, khong goi HA
-  expect(d.panel).toEqual([expect.objectContaining({ id: 'rwv.saver_photos', on: true })]);
+  expect(d.panel.filter((x: any) => x.sec === 'screen').map((x: any) => x.id)).toEqual(['rwv.saver_idle', 'rwv.saver_photos', 'rwv.morning']);
+  expect(d.panel.filter((x: any) => x.sec === 'frame').map((x: any) => x.id)).toEqual(['rwv.photo_interval', 'rwv.photo_effect', 'rwv.photo_fit',
+    'rwv.photo_order', 'rwv.photo_source', 'rwv.photo_clock', 'rwv.photo_info', 'rwv.gphotos_url']);
   const before = ha.calls.length;
   await srv.evaluate(sp, `window.__rwvControl(JSON.stringify({ settings: 'set', id: 'rwv.saver_photos', v: false }))`);
-  for (let i = 0; i < 20 && (await srv.evaluate<any>(sp, 'window.__rwvLastSettings.panel[0].on')); i++) await sleep(150);
-  expect(await srv.evaluate(sp, 'window.__rwvLastSettings.panel[0].on')).toBe(false);
-  expect(JSON.parse(fs.readFileSync(prefsFile, 'utf8'))).toEqual({ [DEV_ID]: { saverPhotos: false } });
+  for (let i = 0; i < 20 && (await srv.evaluate<any>(sp, 'window.__rwvLastSettings.panel[1].on')); i++) await sleep(150);
+  expect(await srv.evaluate(sp, 'window.__rwvLastSettings.panel[1].on')).toBe(false);
+  await srv.evaluate(sp, `window.__rwvControl(JSON.stringify({ settings: 'set', id: 'rwv.saver_idle', v: '5 phút' }))`);
+  await srv.evaluate(sp, `window.__rwvControl(JSON.stringify({ settings: 'set', id: 'rwv.morning', v: false }))`);
+  for (let i = 0; i < 20 && (await srv.evaluate<any>(sp, 'window.__rwvLastSettings.panel[0].value')) !== '5 phút'; i++) await sleep(150);
+  await srv.evaluate(sp, `window.__rwvControl(JSON.stringify({ settings: 'set', id: 'rwv.photo_effect', v: 'Trượt' }))`);
+  await srv.evaluate(sp, `window.__rwvControl(JSON.stringify({ settings: 'set', id: 'rwv.gphotos_url', v: 'https://photos.app.goo.gl/AbCd1234' }))`);
+  await srv.evaluate(sp, `window.__rwvControl(JSON.stringify({ settings: 'set', id: 'rwv.gphotos_url', v: 'http://may-la/x' }))`);   // tu choi
+  for (let i = 0; i < 20 && (await srv.evaluate<any>(sp, 'window.__rwvLastSettings.panel[0].value')) !== '5 phút'; i++) await sleep(150);
+  await sleep(600);
+  expect(JSON.parse(fs.readFileSync(prefsFile, 'utf8'))).toEqual({
+    [DEV_ID]: { saverPhotos: false, saverIdleS: 300, morning: false, photoEffect: 'slide' },
+    __global: { gphotosUrl: 'https://photos.app.goo.gl/AbCd1234' },
+  });
   expect(ha.calls.length).toBe(before);
   if (process.env.ITEST_SHOTS) { await sleep(300); fs.writeFileSync(path.join(process.env.ITEST_SHOTS, 'settings-1024x600.png'), await srv.screenshot(sp)); }
 });
