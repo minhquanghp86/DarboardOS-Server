@@ -13,8 +13,12 @@ const API = () => process.env.HA_API_URL || 'http://supervisor/core/api';
 const WS = () => process.env.HA_WS_URL || 'ws://supervisor/core/websocket';
 const token = () => process.env.SUPERVISOR_TOKEN || '';
 
+/** Mot lenh WebSocket: chi ten ("config/area_registry/list") hoac kem tham so ({type, entity_id...}). */
+export type WsCommand = string | ({ type: string } & Record<string, unknown>);
+
 /** Mot phien WebSocket ngan: xac thuc, gui cac lenh, nhan ket qua, dong. */
-async function wsCalls(types: string[]): Promise<unknown[]> {
+export async function wsCalls(cmds: WsCommand[]): Promise<unknown[]> {
+  const types = cmds.map((c) => (typeof c === 'string' ? c : c.type));
   const t = token();
   if (!t) throw new Error('khong co SUPERVISOR_TOKEN');
   return new Promise((resolve, reject) => {
@@ -29,7 +33,7 @@ async function wsCalls(types: string[]): Promise<unknown[]> {
       try { m = JSON.parse(String(raw)); } catch { return; }
       if (m.type === 'auth_required') ws.send(JSON.stringify({ type: 'auth', access_token: t }));
       else if (m.type === 'auth_invalid') fail(new Error('HA tu choi xac thuc'));
-      else if (m.type === 'auth_ok') types.forEach((type, i) => ws.send(JSON.stringify({ id: i + 1, type })));
+      else if (m.type === 'auth_ok') cmds.forEach((c, i) => ws.send(JSON.stringify({ ...(typeof c === 'string' ? { type: c } : c), id: i + 1 })));
       else if (m.type === 'result' && typeof m.id === 'number') {
         if (!m.success) return fail(new Error(`HA ${types[m.id - 1]}: ${m.error?.message ?? 'loi'}`));
         out[m.id - 1] = m.result;
@@ -40,15 +44,31 @@ async function wsCalls(types: string[]): Promise<unknown[]> {
 }
 
 // So dang ky it doi: giu 5 phut (tao/xoa thuc the trong HA -> toi da 5 phut sau panel moi thay).
-let registry: { at: number; devices: HaDevice[]; entities: HaEntity[] } | null = null;
-async function getRegistry(): Promise<{ devices: HaDevice[]; entities: HaEntity[] }> {
+export interface HaArea { area_id: string; name: string; floor_id?: string | null; icon?: string | null }
+let registry: { at: number; devices: HaDevice[]; entities: HaEntity[]; areas: HaArea[] } | null = null;
+export async function getRegistry(): Promise<{ devices: HaDevice[]; entities: HaEntity[]; areas: HaArea[] }> {
   if (registry && Date.now() - registry.at < 5 * 60_000) return registry;
-  const [devices, entities] = await wsCalls(['config/device_registry/list', 'config/entity_registry/list']);
-  registry = { at: Date.now(), devices: devices as HaDevice[], entities: entities as HaEntity[] };
+  const [devices, entities, areas] = await wsCalls(['config/device_registry/list', 'config/entity_registry/list', 'config/area_registry/list']);
+  registry = { at: Date.now(), devices: devices as HaDevice[], entities: entities as HaEntity[], areas: (areas as HaArea[]) ?? [] };
   return registry;
 }
 
-async function haFetch(path: string, init: RequestInit = {}): Promise<Response> {
+/** Moi trang thai hien tai (REST /states). */
+export async function getStates(): Promise<HaState[]> {
+  const r = await haFetch('/states');
+  if (!r.ok) throw new Error(`Home Assistant trả lỗi ${r.status}`);
+  return await r.json() as HaState[];
+}
+
+export const haReady = () => !!token();
+
+/** Tai mot duong dan cua HA (vd anh bia media_player /api/media_player_proxy/...), co xac thuc. */
+export async function haGetRaw(path: string): Promise<Response> {
+  const base = API().replace(/\/api$/, '');
+  return fetch(`${base}${path}`, { headers: { Authorization: `Bearer ${token()}` }, signal: AbortSignal.timeout(8000) });
+}
+
+export async function haFetch(path: string, init: RequestInit = {}): Promise<Response> {
   return fetch(`${API()}${path}`, {
     ...init,
     headers: { Authorization: `Bearer ${token()}`, 'content-type': 'application/json' },

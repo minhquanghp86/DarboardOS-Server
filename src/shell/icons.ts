@@ -52,6 +52,31 @@ export function appIcon(app: App, cls = 'app-ic'): HTMLElement {
       line('path', { d: 'M12 13.5a2.5 2.5 0 11-1.2 4.7' });
       break;
     case 'settings': fillPath(MDI.settings); break;
+    // (27/09/2026) Ung dung Nha / tien ich moi
+    case 'rooms':
+      line('path', { d: 'M3 11l9-7 9 7' }); line('path', { d: 'M5 9.5V20h14V9.5' }); line('path', { d: 'M12 20v-6M5 14h7' });
+      break;
+    case 'remote':
+      line('rect', { x: '7', y: '2.5', width: '10', height: '19', rx: '3' }); line('circle', { cx: '12', cy: '8', r: '2' });
+      line('path', { d: 'M10 13h.01M14 13h.01M10 16.5h.01M14 16.5h.01' });
+      break;
+    case 'todo':
+      line('path', { d: 'M4 6l1.5 1.5L8 5M4 12l1.5 1.5L8 11M4 18l1.5 1.5L8 17' }); line('path', { d: 'M11 6.5h9M11 12.5h9M11 18.5h9' });
+      break;
+    case 'solar':
+      line('path', { d: 'M4 20l2.5-9h11l2.5 9z' }); line('path', { d: 'M5.4 15.5h13.2M9.7 11l-1 9M14.3 11l1 9' });
+      line('circle', { cx: '12', cy: '5', r: '2' }); line('path', { d: 'M12 1.5v.8M16 5h-.8M8.8 5H8M14.7 2.3l-.6.6M9.9 2.9l-.6-.6' });
+      break;
+    case 'today':
+      line('path', { d: 'M3 18h18M6 18a6 6 0 0112 0' }); line('path', { d: 'M12 5v3M4.9 9.9l2.1 2.1M19.1 9.9L17 12' }); line('path', { d: 'M8 21h8' });
+      break;
+    case 'board':
+      line('path', { d: 'M5 3h11l4 4v14H5z' }); line('path', { d: 'M15 3v5h5' }); line('path', { d: 'M8 12h8M8 16h6' });
+      break;
+    case 'photos':
+      line('rect', { x: '3', y: '4', width: '18', height: '16', rx: '2' }); line('circle', { cx: '9', cy: '9.5', r: '1.8' });
+      line('path', { d: 'M3.5 17l5-5 4 4 3-3 5 5' });
+      break;
     case 'timer': line('circle', { cx: '12', cy: '13.5', r: '7.5' }); line('path', { d: 'M12 9.5v4l2.5 2M9.5 2.5h5M19 6l1.5-1.5' }); break;
     case 'browser':
       line('circle', { cx: '12', cy: '12', r: '9' });

@@ -1,0 +1,102 @@
+<!doctype html>
+<!--
+  (27/09/2026) Ung dung "Hom nay": loi chao theo gio, ngay duong + am, thoi tiet, lich hom nay (moi calendar cua HA),
+  viec chua xong (todo cua HA), ghi chu bang tin gia dinh. Tu mo luc chao buoi sang (camera thay nguoi lan dau trong
+  khung gio sang). Du lieu: /ha/today (src/todayData.ts). Cham mot khoi -> mo ung dung tuong ung.
+-->
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hôm nay</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap">
+<link rel="stylesheet" href="/ui.css">
+<script src="/ui.js"></script>
+<script src="/lunar.js"></script>
+<style>
+  :root { --accent: #f59e0b; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  main { height: 100%; overflow-y: auto; padding: calc(var(--pad) + 18px) calc(var(--pad) * 1.4) var(--pad); display: flex; flex-direction: column; gap: var(--gap); }
+  .top { display: flex; align-items: flex-end; gap: var(--gap); flex-wrap: wrap; }
+  .hi { margin-right: auto; }
+  .hi .g { font-size: clamp(22px, 7vmin, 46px); font-weight: 600; line-height: 1.1; }
+  .hi .d { color: var(--muted); font-size: clamp(12px, 3vmin, 18px); margin-top: 4px; }
+  .wx { display: flex; align-items: center; gap: 12px; background: var(--surface); border-radius: var(--r-lg); padding: clamp(8px, 2vmin, 14px) clamp(12px, 3vmin, 20px); }
+  .wx .t { font-size: clamp(24px, 7vmin, 44px); font-weight: 600; line-height: 1; }
+  .wx .s { color: var(--muted); font-size: clamp(11px, 2.6vmin, 15px); }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: var(--gap); flex: 1; min-height: 0; }
+  .card { background: var(--surface); border-radius: var(--r-lg); padding: clamp(10px, 2.4vmin, 16px); display: flex; flex-direction: column; gap: 8px; cursor: pointer; min-height: 0; overflow: hidden; }
+  .card h2 { margin: 0; font-size: clamp(11px, 2.6vmin, 14px); color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; display: flex; gap: 8px; }
+  .card h2 .n { margin-left: auto; color: var(--accent); }
+  .li { display: flex; gap: 10px; align-items: baseline; font-size: clamp(13px, 3.2vmin, 18px); line-height: 1.3; }
+  .li .tm { flex: none; color: var(--accent); font-variant-numeric: tabular-nums; min-width: 3.2em; font-size: 0.9em; }
+  .li .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); transform: translateY(-2px); }
+  .note { background: #fef08a; color: #1c1917; border-radius: 10px; padding: 8px 10px; font-size: clamp(12px, 3vmin, 17px); line-height: 1.35; }
+  .empty { color: var(--muted); font-size: clamp(12px, 2.9vmin, 16px); }
+  @media (max-height: 320px) { main { padding-top: 22px; } .cols { grid-template-columns: 1fr 1fr 1fr; } }
+</style>
+</head>
+<body class="rwv-app">
+<main id="main">
+  <div class="top"><div class="hi"><div class="g" id="g">&nbsp;</div><div class="d" id="d"></div></div><div class="wx" id="wx" style="display:none"></div></div>
+  <div class="cols">
+    <section class="card" data-app="calendar"><h2>Lịch hôm nay <span class="n" id="nEv"></span></h2><div id="ev"></div></section>
+    <section class="card" data-app="todo"><h2>Việc cần làm <span class="n" id="nTd"></span></h2><div id="td"></div></section>
+    <section class="card" data-app="board"><h2>Bảng tin <span class="n" id="nNt"></span></h2><div id="nt" style="display:flex;flex-direction:column;gap:6px"></div></section>
+  </div>
+</main>
+<script>
+(function () {
+  'use strict';
+  var WD = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'];
+  var WX = { 0: 'Trời quang', 1: 'Ít mây', 2: 'Ít mây', 3: 'Nhiều mây', 45: 'Sương mù', 48: 'Sương mù', 61: 'Mưa', 63: 'Mưa', 65: 'Mưa to', 80: 'Mưa rào', 81: 'Mưa rào', 82: 'Mưa rào', 95: 'Dông' };
+  function $(id) { return document.getElementById(id); }
+  function line(box, time, text, dot) {
+    var r = document.createElement('div'); r.className = 'li';
+    var a = document.createElement('span'); a.className = dot ? 'dot' : 'tm'; if (!dot) a.textContent = time;
+    var b = document.createElement('span'); b.textContent = text;
+    r.append(a, b); box.appendChild(r);
+  }
+  function empty(box, t) { var e = document.createElement('div'); e.className = 'empty'; e.textContent = t; box.replaceChildren(e); }
+  document.querySelectorAll('.card').forEach(function (c) {
+    c.addEventListener('click', function () { try { window.__rwvControl(JSON.stringify({ app: c.dataset.app })); } catch (e) {} });
+  });
+  var last = '';
+  function load() {
+    fetch('/ha/today', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (v) {
+      if (!v.ok) return;
+      var sig = JSON.stringify(v); if (sig === last) return; last = sig;
+      window.__rwvToday = v;
+      $('g').textContent = v.greet;
+      var d = new Date(v.date + 'T12:00:00'), s = WD[d.getDay()] + ', ' + d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear();
+      try { var L = window.RwvLunar; if (L) { var l = L.solar2lunar(d.getDate(), d.getMonth() + 1, d.getFullYear(), 7); s += ' · ' + l.day + '/' + l.month + ' âm lịch'; } } catch (e) {}
+      $('d').textContent = s;
+      var wx = $('wx');
+      if (v.wx) {
+        wx.style.display = '';
+        wx.innerHTML = '<div class="t"></div><div><div></div><div class="s"></div></div>';
+        wx.querySelector('.t').textContent = Math.round(v.wx.t) + '°';
+        wx.children[1].firstChild.textContent = WX[v.wx.code] || 'Thời tiết';
+        wx.querySelector('.s').textContent = v.wx.name + (v.wx.pp != null ? ' · mưa ' + v.wx.pp + '%' : '');
+      } else wx.style.display = 'none';
+      var ev = $('ev'); ev.replaceChildren();
+      $('nEv').textContent = v.events.length || '';
+      if (!v.events.length) empty(ev, 'Không có sự kiện nào.');
+      v.events.forEach(function (e) { var m = /T(\d{2}:\d{2})/.exec(e.start); line(ev, e.allDay ? 'Cả ngày' : (m ? m[1] : ''), e.title); });
+      var td = $('td'); td.replaceChildren();
+      $('nTd').textContent = v.todos.length || '';
+      if (!v.todos.length) empty(td, 'Không còn việc nào. 🎉');
+      v.todos.slice(0, 8).forEach(function (t) { line(td, '', t, true); });
+      var nt = $('nt'); nt.replaceChildren();
+      $('nNt').textContent = v.notes.length || '';
+      if (!v.notes.length) empty(nt, 'Chưa có ghi chú.');
+      v.notes.slice(0, 4).forEach(function (t) { var n = document.createElement('div'); n.className = 'note'; n.textContent = t; nt.appendChild(n); });
+    }).catch(function () {});
+  }
+  load();
+  setInterval(function () { if (!document.hidden) load(); }, 30000);
+})();
+</script>
+</body>
+</html>

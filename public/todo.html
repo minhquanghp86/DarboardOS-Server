@@ -1,0 +1,169 @@
+<!doctype html>
+<!--
+  (27/09/2026) Ung dung "Viec can lam": danh sach viec / danh sach mua sam cua Home Assistant (thuc the todo.*: tich hop
+  "Danh sach mua sam", "Local To-do", Google Tasks...). Ca nha cung thay mot danh sach: them tren panel, dien thoai
+  (app HA) thay ngay va nguoc lai. Them nhanh bang chip (do hay mua) hoac go (ban phim ao tu hien).
+  Du lieu: /ha/todo, /ha/todo/items; thao tac: POST /ha/todo (src/homeApi.ts).
+-->
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Việc cần làm</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/ui.css">
+<script src="/ui.js"></script>
+<style>
+  :root { --accent: #16a34a; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  main { height: 100%; display: flex; flex-direction: column; gap: var(--gap); padding: calc(var(--pad) + 18px) var(--pad) var(--pad); }
+  header { display: flex; align-items: center; gap: var(--gap); flex-wrap: wrap; }
+  h1 { margin: 0; font-size: clamp(16px, 4.4vmin, 28px); font-weight: 600; margin-right: auto; }
+  .chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+  .chip { flex: none; padding: clamp(5px, 1.4vmin, 9px) clamp(10px, 2.6vmin, 16px); border-radius: 999px; background: var(--surface-2);
+    font-size: clamp(11px, 2.7vmin, 15px); cursor: pointer; white-space: nowrap; }
+  .chip.on { background: var(--accent); color: #fff; }
+  .chip .c { opacity: 0.7; margin-left: 6px; }
+  .add { display: flex; gap: 8px; }
+  .add input { flex: 1; min-width: 0; height: clamp(40px, 9vmin, 52px); border-radius: var(--r-md); border: none; outline: none;
+    background: var(--surface-2); color: var(--text); padding: 0 14px; font: inherit; font-size: clamp(13px, 3.2vmin, 18px); }
+  .quick { display: flex; gap: 6px; flex-wrap: wrap; }
+  .quick .chip { background: var(--surface); }
+  .list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+  .it { display: flex; align-items: center; gap: clamp(10px, 2.4vmin, 14px); background: var(--surface); border-radius: var(--r-md);
+    padding: clamp(10px, 2.4vmin, 14px); cursor: pointer; font-size: clamp(13px, 3.2vmin, 18px); }
+  .it .bx { flex: none; width: clamp(24px, 5.6vmin, 32px); height: clamp(24px, 5.6vmin, 32px); border-radius: 50%; border: 2px solid var(--muted);
+    display: flex; align-items: center; justify-content: center; }
+  .it.done { color: var(--muted); }
+  .it.done .t { text-decoration: line-through; }
+  .it.done .bx { background: var(--accent); border-color: var(--accent); }
+  .it.done .bx::after { content: ''; width: 35%; height: 60%; border: solid #fff; border-width: 0 3px 3px 0; transform: rotate(45deg) translate(-1px, -1px); }
+  .it .due { margin-left: auto; color: var(--muted); font-size: 0.8em; }
+  .sec { color: var(--muted); font-size: clamp(11px, 2.6vmin, 14px); display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+  .sec .rwv-btn { height: auto; padding: 6px 12px; font-size: 0.95em; }
+  @media (max-height: 320px) { main { padding-top: 22px; } .quick { display: none; } }
+</style>
+</head>
+<body class="rwv-app">
+<main id="main">
+  <header><h1>Việc cần làm</h1><div class="chips" id="lists"></div></header>
+  <div id="body" style="flex:1;min-height:0;display:flex;flex-direction:column;gap:var(--gap)"></div>
+</main>
+<script>
+(function () {
+  'use strict';
+  var listsEl = document.getElementById('lists'), body = document.getElementById('body');
+  var QUICK = ['Sữa', 'Trứng', 'Gạo', 'Rau', 'Thịt', 'Cá', 'Trái cây', 'Nước mắm', 'Dầu ăn', 'Bánh mì', 'Giấy vệ sinh', 'Nước rửa bát'];
+  var lists = [], cur = localStorage.getItem('todo.list') || '', items = [], clearArmed = 0, typing = false;
+
+  function post(o) {
+    return fetch('/ha/todo', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(o) }).then(function (r) { return r.json(); });
+  }
+  function renderLists() {
+    listsEl.replaceChildren();
+    if (lists.length < 2) return;
+    lists.forEach(function (l) {
+      var b = document.createElement('div'); b.className = 'chip' + (l.id === cur ? ' on' : '');
+      b.textContent = l.name;
+      if (l.open) { var c = document.createElement('span'); c.className = 'c'; c.textContent = l.open; b.appendChild(c); }
+      b.addEventListener('click', function () { cur = l.id; try { localStorage.setItem('todo.list', cur); } catch (e) {} renderLists(); loadItems(true); });
+      listsEl.appendChild(b);
+    });
+  }
+  var input, listBox;
+  function mountBody() {
+    body.replaceChildren();
+    var add = document.createElement('div'); add.className = 'add';
+    input = document.createElement('input'); input.placeholder = 'Thêm việc hoặc món cần mua…'; input.maxLength = 200; input.autocomplete = 'off';
+    var go = document.createElement('button'); go.className = 'rwv-btn primary'; go.textContent = 'Thêm';
+    function submit() { var v = input.value.trim(); if (!v) return; input.value = ''; addItem(v); }
+    go.addEventListener('click', submit);
+    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
+    input.addEventListener('focus', function () { typing = true; });
+    input.addEventListener('blur', function () { typing = false; });
+    add.append(input, go);
+    var q = document.createElement('div'); q.className = 'quick';
+    QUICK.forEach(function (name) {
+      var c = document.createElement('div'); c.className = 'chip'; c.textContent = '+ ' + name;
+      c.addEventListener('click', function () { addItem(name); });
+      q.appendChild(c);
+    });
+    listBox = document.createElement('div'); listBox.className = 'list';
+    body.append(add, q, listBox);
+  }
+  function addItem(v) {
+    var l = lists.find(function (x) { return x.id === cur; });
+    // Trung voi muc CHUA xong -> khong them lan nua
+    if (items.some(function (i) { return !i.done && i.summary.toLowerCase() === v.toLowerCase(); })) return;
+    items.unshift({ uid: 'tmp' + Date.now(), summary: v, done: false }); renderItems();
+    post({ l: cur, a: 'add', v: v }).then(function () { loadItems(); }).catch(function () { loadItems(); });
+    void l;
+  }
+  function renderItems() {
+    listBox.replaceChildren();
+    var open = items.filter(function (i) { return !i.done; }), done = items.filter(function (i) { return i.done; });
+    function row(i) {
+      var r = document.createElement('div'); r.className = 'it' + (i.done ? ' done' : '');
+      var bx = document.createElement('div'); bx.className = 'bx';
+      var t = document.createElement('div'); t.className = 't'; t.textContent = i.summary;
+      r.append(bx, t);
+      if (i.due) { var d = document.createElement('div'); d.className = 'due'; d.textContent = i.due.slice(5, 10).split('-').reverse().join('/'); r.appendChild(d); }
+      r.addEventListener('click', function () {
+        i.done = !i.done; renderItems();
+        post({ l: cur, a: 'set', v: i.uid, d: i.done }).then(function () { loadItems(); });
+      });
+      return r;
+    }
+    if (!open.length && !done.length) {
+      var e = document.createElement('div'); e.className = 'sec'; e.textContent = 'Danh sách trống — chạm một món ở trên hoặc gõ để thêm.';
+      listBox.appendChild(e);
+    }
+    open.forEach(function (i) { listBox.appendChild(row(i)); });
+    if (done.length) {
+      var s = document.createElement('div'); s.className = 'sec';
+      var lb = document.createElement('span'); lb.textContent = 'Đã xong (' + done.length + ')';
+      var clr = document.createElement('button'); clr.className = 'rwv-btn'; clr.textContent = Date.now() - clearArmed < 3000 ? 'Chạm lần nữa để xoá' : 'Xoá mục đã xong';
+      clr.addEventListener('click', function () {
+        if (Date.now() - clearArmed > 3000) { clearArmed = Date.now(); renderItems(); return; }
+        clearArmed = 0; items = items.filter(function (i) { return !i.done; }); renderItems();
+        post({ l: cur, a: 'clear' }).then(function () { loadItems(); });
+      });
+      s.append(lb, clr);
+      listBox.appendChild(s);
+      done.forEach(function (i) { listBox.appendChild(row(i)); });
+    }
+  }
+  function loadItems(show) {
+    if (!cur) return;
+    if (show) RwvUI.state(listBox, { kind: 'loading', title: 'Đang tải…' });
+    fetch('/ha/todo/items?l=' + encodeURIComponent(cur), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.ok) { RwvUI.state(listBox, { kind: 'err', title: 'Không đọc được danh sách', text: d.error, retry: function () { loadItems(true); } }); return; }
+      items = d.items || [];
+      renderItems();
+    }).catch(function () {});
+  }
+  function load() {
+    fetch('/ha/todo', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.ok) { RwvUI.state(body, { kind: 'err', title: 'Không kết nối được Home Assistant', text: d.error, retry: load }); return; }
+      lists = d.lists || [];
+      if (!lists.length) {
+        RwvUI.state(body, { kind: 'empty', title: 'Chưa có danh sách việc nào',
+          text: 'Trong Home Assistant: Cài đặt → Thiết bị & dịch vụ → Thêm tích hợp → “Danh sách mua sắm” hoặc “Local To-do” (hoặc Google Tasks). Danh sách sẽ tự hiện ở đây, dùng chung với app HA trên điện thoại.',
+          retry: load, retryLabel: 'Tải lại' });
+        return;
+      }
+      if (!lists.some(function (l) { return l.id === cur; })) cur = lists[0].id;
+      renderLists();
+      if (!listBox || !listBox.isConnected) mountBody();
+      loadItems(!items.length);
+    }).catch(function () { RwvUI.state(body, { kind: 'err', title: 'Không kết nối được máy chủ', retry: load }); });
+  }
+  load();
+  // Dong bo voi dien thoai: doc lai moi 6 s (khong khi dang go)
+  setInterval(function () { if (!document.hidden && !typing && lists.length) { loadItems(); fetch('/ha/todo', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) { if (d.ok) { lists = d.lists; renderLists(); } }).catch(function () {}); } }, 6000);
+  window.__rwvTodo = function () { return { cur: cur, items: items }; };
+})();
+</script>
+</body>
+</html>

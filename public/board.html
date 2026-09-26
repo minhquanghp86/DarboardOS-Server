@@ -1,0 +1,118 @@
+<!doctype html>
+<!--
+  (27/09/2026) Ung dung "Bang tin": ghi chu gia dinh dang giay nho, dung chung moi man hinh. Viet ngay tren panel (ban
+  phim ao) hoac gui tu Home Assistant / dien thoai: POST http://<may HA>:18080/board {"text": "...", "by": "Mẹ"}.
+  Cham mot ghi chu -> Ghim / Xoa (cham 2 lan). Du lieu: /board/list (src/board.ts).
+-->
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bảng tin</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/ui.css">
+<script src="/ui.js"></script>
+<style>
+  :root { --accent: #ca8a04; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  main { height: 100%; overflow-y: auto; padding: calc(var(--pad) + 18px) var(--pad) var(--pad); display: flex; flex-direction: column; gap: var(--gap); }
+  h1 { margin: 0; font-size: clamp(16px, 4.4vmin, 28px); font-weight: 600; }
+  .add { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .add input { flex: 1 1 260px; min-width: 0; height: clamp(40px, 9vmin, 52px); border-radius: var(--r-md); border: none; outline: none;
+    background: var(--surface-2); color: var(--text); padding: 0 14px; font: inherit; font-size: clamp(13px, 3.2vmin, 18px); }
+  .opts { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .sw { width: clamp(26px, 6vmin, 34px); height: clamp(26px, 6vmin, 34px); border-radius: 50%; cursor: pointer; border: 3px solid transparent; }
+  .sw.on { border-color: #fff; }
+  .who { padding: 5px 12px; border-radius: 999px; background: var(--surface-2); cursor: pointer; font-size: clamp(11px, 2.7vmin, 15px); }
+  .who.on { background: var(--accent); color: #fff; }
+  .notes { display: grid; grid-template-columns: repeat(auto-fill, minmax(clamp(150px, 30vmin, 230px), 1fr)); gap: var(--gap); align-items: start; }
+  .n { position: relative; border-radius: 12px; padding: clamp(10px, 2.4vmin, 14px); color: #1c1917; min-height: clamp(90px, 20vmin, 130px);
+    display: flex; flex-direction: column; gap: 8px; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.35); }
+  .n .tx { font-size: clamp(13px, 3.3vmin, 19px); line-height: 1.35; white-space: pre-wrap; word-break: break-word; flex: 1; }
+  .n .ft { font-size: clamp(10px, 2.3vmin, 13px); opacity: 0.7; display: flex; gap: 6px; }
+  .n .pin { position: absolute; top: 6px; right: 8px; font-size: 14px; }
+  .n .acts { display: flex; gap: 6px; }
+  .n .acts button { border: none; border-radius: 999px; padding: 6px 12px; font: inherit; font-weight: 600; background: rgba(0,0,0,0.12); color: #1c1917; cursor: pointer; }
+  .n .acts button.del { background: #dc2626; color: #fff; }
+  .c-yellow { background: #fef08a; } .c-green { background: #bbf7d0; } .c-blue { background: #bfdbfe; } .c-pink { background: #fbcfe8; } .c-orange { background: #fed7aa; }
+  @media (max-height: 320px) { main { padding-top: 22px; } }
+</style>
+</head>
+<body class="rwv-app">
+<main>
+  <h1>Bảng tin gia đình</h1>
+  <div class="add"><input id="in" placeholder="Viết ghi chú cho cả nhà…" maxlength="280" autocomplete="off"><button class="rwv-btn primary" id="go">Dán lên</button></div>
+  <div class="opts" id="opts"></div>
+  <div class="notes" id="notes"></div>
+</main>
+<script>
+(function () {
+  'use strict';
+  var COLORS = { yellow: '#fef08a', green: '#bbf7d0', blue: '#bfdbfe', pink: '#fbcfe8', orange: '#fed7aa' };
+  var WHO = ['Bố', 'Mẹ', 'Con', 'Ông', 'Bà'];
+  var color = 'yellow', by = '', open = 0, delArmed = 0, notes = [], last = '';
+  var box = document.getElementById('notes'), input = document.getElementById('in');
+  function opts() {
+    var o = document.getElementById('opts'); o.replaceChildren();
+    Object.keys(COLORS).forEach(function (c) {
+      var s = document.createElement('div'); s.className = 'sw' + (c === color ? ' on' : ''); s.style.background = COLORS[c];
+      s.addEventListener('click', function () { color = c; opts(); }); o.appendChild(s);
+    });
+    WHO.forEach(function (w) {
+      var b = document.createElement('div'); b.className = 'who' + (w === by ? ' on' : ''); b.textContent = w;
+      b.addEventListener('click', function () { by = by === w ? '' : w; opts(); }); o.appendChild(b);
+    });
+  }
+  function ago(ts) {
+    var s = (Date.now() - ts) / 1000;
+    if (s < 60) return 'vừa xong'; if (s < 3600) return Math.floor(s / 60) + ' phút trước';
+    if (s < 86400) return Math.floor(s / 3600) + ' giờ trước';
+    var d = new Date(ts); return d.getDate() + '/' + (d.getMonth() + 1);
+  }
+  function post(u, b) { return fetch(u, { method: 'POST', headers: { 'content-type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(function (r) { return r.json(); }); }
+  function render() {
+    box.replaceChildren();
+    if (!notes.length) { RwvUI.state(box, { kind: 'empty', title: 'Chưa có ghi chú nào', text: 'Viết ở ô phía trên, hoặc gửi từ Home Assistant / điện thoại (xem hướng dẫn addon).' }); return; }
+    notes.forEach(function (n) {
+      var c = document.createElement('div'); c.className = 'n c-' + n.color;
+      var tx = document.createElement('div'); tx.className = 'tx'; tx.textContent = n.text;
+      var ft = document.createElement('div'); ft.className = 'ft'; ft.textContent = (n.by ? n.by + ' · ' : '') + ago(n.ts);
+      c.append(tx, ft);
+      if (n.pin) { var p = document.createElement('div'); p.className = 'pin'; p.textContent = '📌'; c.appendChild(p); }
+      if (open === n.id) {
+        var a = document.createElement('div'); a.className = 'acts';
+        var bp = document.createElement('button'); bp.textContent = n.pin ? 'Bỏ ghim' : 'Ghim';
+        bp.addEventListener('click', function (e) { e.stopPropagation(); post('/board/pin?id=' + n.id + '&on=' + (n.pin ? 0 : 1)).then(load); });
+        var bd = document.createElement('button'); bd.className = 'del'; bd.textContent = Date.now() - delArmed < 3000 ? 'Chạm để xoá' : 'Xoá';
+        bd.addEventListener('click', function (e) {
+          e.stopPropagation();
+          if (Date.now() - delArmed > 3000) { delArmed = Date.now(); render(); return; }
+          delArmed = 0; open = 0; post('/board/del?id=' + n.id).then(load);
+        });
+        a.append(bp, bd); c.appendChild(a);
+      }
+      c.addEventListener('click', function () { open = open === n.id ? 0 : n.id; delArmed = 0; render(); });
+      box.appendChild(c);
+    });
+  }
+  function submit() {
+    var t = input.value.trim(); if (!t) return;
+    input.value = '';
+    post('/board', { text: t, by: by, color: color }).then(load);
+  }
+  document.getElementById('go').addEventListener('click', submit);
+  input.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
+  function load() {
+    fetch('/board/list', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+      notes = d.notes || []; window.__rwvBoard = notes;
+      var sig = JSON.stringify(notes) + open + delArmed; if (sig === last) return; last = sig;
+      render();
+    }).catch(function () {});
+  }
+  opts(); load();
+  setInterval(function () { if (!document.hidden && document.activeElement !== input) load(); }, 8000);
+})();
+</script>
+</body>
+</html>

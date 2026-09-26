@@ -111,7 +111,7 @@ Giọt nước ở giữa mép trên mọi trang hiện **giờ của chính mà
 | | Camera P4 | Xem trực tiếp camera của màn hình P4 (go2rtc) |
 | | Camera nhà | Lưới ảnh tất cả camera trong go2rtc, cập nhật lần lượt vài giây/lần; chạm để xem trực tiếp |
 | | Cảnh | Nút chạy **cảnh (scene)** và **kịch bản (script)** của Home Assistant |
-| | Năng lượng | Trang *Năng lượng* của Home Assistant |
+| | Solar | Trang giám sát điện mặt trời (solar.mqsmarthome.io.vn) |
 | Giải trí | YouTube, TikTok | Xem video có tiếng |
 | | Nhạc | YouTube Music |
 | | Radio | VOV1, VOV2, VOV3, VOV5 trực tiếp (cần ~10 giây để bắt đầu — máy chủ VOV giới hạn tốc độ tải) |
@@ -130,6 +130,43 @@ Giọt nước ở giữa mép trên mọi trang hiện **giờ của chính mà
 - Chạm thư mục để mở. Trong chế độ sắp xếp: chạm một chip để đổi tên thư mục, kéo ứng dụng ra ngoài khung để lấy ra.
 - **Xong** hoặc chạm chỗ trống để thoát. **Đặt lại** (chạm 2 lần) trở về bố cục mặc định.
 - Bố cục dùng chung cho mọi màn hình. Ứng dụng mới thêm ở trang *Menu panel* xuất hiện ở cuối.
+
+### Ứng dụng cho ngôi nhà
+
+| Ứng dụng | Cần chuẩn bị trong Home Assistant |
+|---|---|
+| **Phòng** | Cài đặt → Khu vực: tạo phòng và gán thiết bị (đèn, công tắc, quạt, rèm, điều hoà, TV). Nhiệt độ/độ ẩm/cửa/chuyển động của phòng lấy từ cảm biến gán cùng phòng. |
+| **Điều khiển** | Có ít nhất một `media_player` (Android TV, Samsung/LG, Google Cast, Sonos…). |
+| **Việc cần làm** | Thêm tích hợp *Danh sách mua sắm* hoặc *Local To-do* (hoặc Google Tasks). |
+| **Khung ảnh** | Media → Local media → tạo thư mục `photos` → tải ảnh lên (JPG/PNG/WebP). Không có `photos` thì dùng cả thư mục media. |
+
+Chạm = bật/tắt; **chạm giữ** một ô trong *Phòng* để mở bảng chi tiết (độ sáng, rèm, nhiệt độ). Các ứng dụng này chỉ
+nhận lệnh từ chính màn hình, và chỉ các thao tác kể trên (không mở khoá cửa, không tắt báo động).
+
+**Ảnh riêng tư:** thư mục ảnh là `media/photos` của Home Assistant (HA → Media → Local media, hoặc Samba `\\<máy HA>\media\photos`).
+Khác thư mục `www` (ai có địa chỉ cũng xem được qua `/local/…`, không cần đăng nhập), thư mục media **chỉ xem được khi đã
+đăng nhập HA**. Addon chỉ **đọc** thư mục này và chỉ trả ảnh cho **trình duyệt của chính addon** (127.0.0.1): máy khác
+trong LAN, trang ingress hay Internet gọi `/photos/…` đều bị từ chối (403).
+
+### Bảng tin, chuông cửa (gọi từ Home Assistant)
+
+```yaml
+rest_command:
+  ghi_chu_panel:
+    url: "http://127.0.0.1:18080/board"      # hoặc http://<IP máy HA>:18080/board
+    method: post
+    content_type: "application/json"
+    payload: '{"text": "{{ text }}", "by": "{{ by | default(\'\') }}", "color": "pink"}'
+  chuong_cua_panel:
+    url: "http://127.0.0.1:18080/doorbell"
+    method: post
+    content_type: "application/json"
+    payload: '{"camera": "cong_truoc", "title": "Cổng trước", "unlock": "script.mo_cong", "timeout": 60}'
+```
+
+- `camera`: tên luồng trong go2rtc. `unlock` (tuỳ chọn): `script.*`, `button.*` hoặc `lock.*` — nút **Mở cổng** chỉ
+  chạy đúng thực thể này. `timeout`: 10–300 giây rồi tự quay về ứng dụng trước.
+- Automation mẫu: khi nút chuông (binary_sensor/event) bật → `rest_command.chuong_cua_panel`.
 
 ### Trợ lý giọng nói (cần firmware có `voice_assistant`)
 

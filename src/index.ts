@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url';
 import { WebSocketServer } from "ws"
 import env from "env-var";
 import { makeConfigFromParams, setConfigFor, logDeviceConfig } from "./config.js";
-import { broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick, refreshDisplaysTick, markInteraction, screensaverTick, postNotify, repaintRect, onDeviceStatePacket, onDeviceEvent } from './deviceManager.js';
+import { broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick, refreshDisplaysTick, markInteraction, screensaverTick, postNotify, repaintRect, onDeviceStatePacket, onDeviceEvent, anyTzOffset, postDoorbell, closeDoorbell, unlockDoorbell } from './deviceManager.js';
 import type { DeviceSession } from './deviceManager.js';
 import { InputRouter } from "./inputRouter.js";
 import { bootstrapAsync } from './browser.js';
@@ -21,6 +21,9 @@ import { MsgType, parseDeviceEventPacket, parseRepaintRectPacket } from './proto
 import { metrics } from './metrics.js';
 import { getHaLocation } from './haLocation.js';
 import { handleAppApi } from './haApps.js';
+import { handleHomeApi } from './homeApi.js';
+import { board, parseNote } from './board.js';
+import { getToday } from './todayData.js';
 import { handleLauncherApi } from './launcherApi.js';
 import { ensureMdiIcons } from './launcherConfig.js';
 import { startDebugProxy } from './debugProxy.js';
@@ -151,7 +154,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // (25/09/2026) Them weather.html (ung dung "Thoi tiet" cua launcher) — cung nguyen tac: chi LAN, khong qua HA.
 // (25/09/2026) + cac ung dung launcher: camera nha, canh, lich am duong, radio, hen gio; lunar.js dung chung.
 const STATIC_PAGES = ['cam.html', 'weather.html', 'cams.html', 'scenes.html', 'calendar.html', 'radio.html', 'timer.html', 'lunar.js',
-  'launcher-config.html', 'os-home.html', 'ui.css', 'ui.js', 'settings.html'];
+  'launcher-config.html', 'os-home.html', 'ui.css', 'ui.js', 'settings.html', 'rooms.html', 'todo.html', 'remote.html', 'photos.html', 'today.html', 'board.html', 'doorbell.html'];
 const staticCache = new Map<string, Buffer>();
 for (const name of STATIC_PAGES) {
   const p = path.join(__dirname, '..', 'public', name);
@@ -184,7 +187,61 @@ http.createServer((req, res) => {
     });
     return;
   }
+  // (27/09/2026) Chuong cua: HA goi POST /doorbell (LAN, nhu /notify); trang chuong goi /doorbell/unlock|close (chi
+  // tu chinh panel). Mo cong chi chay thuc the HA da khai trong POST /doorbell.
+  if (pathname === '/doorbell' || pathname.startsWith('/doorbell/')) {
+    const local = /^(::ffff:)?127\.0\.0\.1$|^::1$/.test(req.socket.remoteAddress || '');
+    const send = (code: number, b: unknown) => { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }); res.end(JSON.stringify(b)); };
+    if (pathname === '/doorbell' && req.method === 'POST') {
+      let body = '';
+      req.on('data', (c) => { body += c; if (body.length > 4096) req.destroy(); });
+      req.on('end', () => {
+        let r: ReturnType<typeof postDoorbell>;
+        try { r = postDoorbell(JSON.parse(body || '{}')); } catch { r = { ok: false, error: 'JSON khong hop le' }; }
+        send(r.ok ? 200 : 400, r);
+      });
+      return;
+    }
+    if (!local || req.method !== 'POST') { send(403, { error: 'Chỉ dùng được từ màn hình.' }); return; }
+    const id = new URL(req.url || '/', 'http://x').searchParams.get('id') || '';
+    if (pathname === '/doorbell/close') { send(200, { ok: closeDoorbell(id) }); return; }
+    if (pathname === '/doorbell/unlock') { unlockDoorbell(id).then((r) => send(200, r)).catch(() => send(200, { ok: false })); return; }
+    send(404, { error: 'khong co' });
+    return;
+  }
+  // (27/09/2026) Trang "Hom nay" + Bang tin gia dinh. Them ghi chu: tu bat ky dau trong LAN (HA rest_command, dien
+  // thoai) nhu /notify; doc / xoa / ghim: chi tu chinh panel (127.0.0.1).
+  if (pathname === '/ha/today' || pathname === '/board' || pathname.startsWith('/board/')) {
+    const local = /^(::ffff:)?127\.0\.0\.1$|^::1$/.test(req.socket.remoteAddress || '');
+    const send = (code: number, b: unknown) => { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }); res.end(JSON.stringify(b)); };
+    if (pathname === '/board' && req.method === 'POST') {
+      let body = '';
+      req.on('data', (c) => { body += c; if (body.length > 4096) req.destroy(); });
+      req.on('end', () => {
+        let p: ReturnType<typeof parseNote>;
+        try { p = parseNote(JSON.parse(body || '{}')); } catch { p = { ok: false, error: 'JSON khong hop le' }; }
+        if (!p.ok) { send(400, p); return; }
+        const n = board.add(p.note);
+        console.log(`[board] ghi chu moi #${n.id}${n.by ? ' (' + n.by + ')' : ''}`);
+        postNotify({ title: 'Ghi chú mới' + (n.by ? ' · ' + n.by : ''), message: n.text, app: 'board' });
+        send(200, { ok: true, note: n });
+      });
+      return;
+    }
+    if (!local) { send(403, { error: 'Chỉ dùng được từ màn hình.' }); return; }
+    if (pathname === '/ha/today') { getToday(anyTzOffset()).then((v) => send(200, { ok: true, ...v })).catch((e) => send(200, { ok: false, error: (e as Error).message })); return; }
+    if (pathname === '/board/list') { send(200, { ok: true, notes: board.list() }); return; }
+    const id = Number(new URL(req.url || '/', 'http://x').searchParams.get('id'));
+    if (pathname === '/board/del' && req.method === 'POST') { send(200, { ok: board.remove(id) }); return; }
+    if (pathname === '/board/pin' && req.method === 'POST') {
+      const on = new URL(req.url || '/', 'http://x').searchParams.get('on') === '1';
+      send(200, { ok: board.pin(id, on) }); return;
+    }
+    send(404, { error: 'khong co' });
+    return;
+  }
   if (handleAppApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
+  if (handleHomeApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
   if (handleLauncherApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
 
   // (25/09/2026) Vi tri nha trong Home Assistant cho weather.html (cung nguon goc 127.0.0.1:HEALTH_PORT).
