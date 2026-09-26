@@ -894,15 +894,68 @@ export function buildAudioGuardScript(alwaysMuted: boolean, passthrough = false)
   return `(function(){
   window.__rwvAudioGuard = true;
   window.__rwvAudioAllowed = false;
-  var ALWAYS_MUTED = ${alwaysMuted};
-  if (${passthrough} && !ALWAYS_MUTED) {} else try {
+  var ALWAYS_MUTED = ${alwaysMuted}, PASS = ${passthrough} && !${alwaysMuted};
+  // (27/09/2026) TAT TIENG THAT. Ban cu chi "noi doi" qua getter muted/volume — am thanh van ra sink PulseAudio
+  // chung, nen video tren S3 (khong loa) keu ra loa P4. Nay tab bi khoa thi dat muted GOC cua trinh duyet (setter
+  // native) cho moi <audio>/<video> (luc play + khi server doi co), va tam dung AudioContext; mo khoa thi chi go
+  // nhung gi CHINH lop nay da tat (trang tu dat muted thi giu nguyen). iframe khac nguon khong doc duoc co cua trang
+  // chinh -> chi khoa khi ALWAYS_MUTED (nhu truoc).
+  var isTop = window === window.top;
+  function blocked(){
+    if (ALWAYS_MUTED) return true;
+    if (isTop) return !window.__rwvAudioAllowed;
+    try { return window.top.__rwvAudioAllowed === false; } catch (e) { return false; }
+  }
+  try {
     var proto = HTMLMediaElement.prototype;
-    Object.defineProperty(proto, 'muted', {
-      get: function(){ return ALWAYS_MUTED || !window.__rwvAudioAllowed; }, set: function(){}, configurable: true
-    });
-    Object.defineProperty(proto, 'volume', {
-      get: function(){ return (ALWAYS_MUTED || !window.__rwvAudioAllowed) ? 0 : 1; }, set: function(){}, configurable: true
-    });
+    var nm = Object.getOwnPropertyDescriptor(proto, 'muted');
+    var forced = new WeakSet(), want = new WeakMap(), seen = new Set();
+    var apply = function(el){
+      try {
+        if (blocked()) { if (!nm.get.call(el)) { nm.set.call(el, true); forced.add(el); } }
+        else if (PASS && want.has(el)) { nm.set.call(el, want.get(el)); forced.delete(el); }
+        else if (forced.has(el)) { nm.set.call(el, false); forced.delete(el); }
+      } catch (e) {}
+    };
+    if (PASS) {
+      // Tab YouTube TV (xem tren): trang thay va tu dat muted/volume that (dien thoai chinh am luong duoc).
+      Object.defineProperty(proto, 'muted', {
+        get: function(){ return want.has(this) ? want.get(this) : (forced.has(this) ? false : nm.get.call(this)); },
+        set: function(v){ want.set(this, !!v); apply(this); }, configurable: true
+      });
+    } else {
+      Object.defineProperty(proto, 'muted', {
+        get: function(){ return ALWAYS_MUTED || !window.__rwvAudioAllowed; }, set: function(){}, configurable: true
+      });
+      Object.defineProperty(proto, 'volume', {
+        get: function(){ return (ALWAYS_MUTED || !window.__rwvAudioAllowed) ? 0 : 1; }, set: function(){}, configurable: true
+      });
+    }
+    var nplay = proto.play;
+    proto.play = function(){ seen.add(this); apply(this); return nplay.apply(this, arguments); };
+    document.addEventListener('play', function(e){
+      var t = e.target; if (t instanceof HTMLMediaElement) { seen.add(t); apply(t); }
+    }, true);
+    // Web Audio (chuong cua, tieng bip...): tam dung khi bi khoa.
+    var ctxs = [], ctxForced = new WeakSet(), NA = window.AudioContext;
+    if (NA) {
+      var nresume = NA.prototype.resume;
+      var W = function(o){ var c = o === undefined ? new NA() : new NA(o); ctxs.push(c); if (blocked()) { ctxForced.add(c); c.suspend().catch(function(){}); } return c; };
+      W.prototype = NA.prototype;
+      window.AudioContext = W;
+      NA.prototype.resume = function(){ if (blocked()) { ctxForced.add(this); return Promise.resolve(); } return nresume.apply(this, arguments); };
+    }
+    window.__rwvAudioApply = function(){
+      var b = blocked();
+      try { document.querySelectorAll('audio,video').forEach(function(m){ seen.add(m); }); } catch (e) {}
+      seen.forEach(function(m){ apply(m); if (!m.isConnected && m.paused) seen.delete(m); });
+      ctxs.forEach(function(c){
+        try {
+          if (b && c.state === 'running') { ctxForced.add(c); c.suspend(); }
+          else if (!b && ctxForced.has(c)) { ctxForced.delete(c); nresume.call(c); }
+        } catch (e) {}
+      });
+    };
   } catch (e) {}
   // (26/09/2026) Bao server trang nay CO dang phat <audio>/<video> khong — de the "Dang phat" chi hien khi that su
   // phat, va tab Radio/Nhac da dung duoc don nhu tab thuong. Su kien media khong noi bot nhung BAT duoc o pha capture
@@ -941,7 +994,7 @@ export function buildAudioGuardScript(alwaysMuted: boolean, passthrough = false)
 function setTabAudioAllowed(tab: Tab, allowed: boolean): void {
   tab.audioAllowed = allowed;
   tab.session.send('Runtime.evaluate', {
-    expression: `window.__rwvAudioGuard && (window.__rwvAudioAllowed = ${allowed});`,
+    expression: `window.__rwvAudioGuard && (window.__rwvAudioAllowed = ${allowed}, window.__rwvAudioApply && window.__rwvAudioApply());`,
   }).catch(() => { });
 }
 
@@ -1636,6 +1689,45 @@ const YT_TV_UA = process.env.YT_TV_UA ||
   'Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleWebKit/537.36 (KHTML, like Gecko) 85.0.4183.93/6.0 TV Safari/537.36';
 const CAST_DEFAULT = !['0', 'false'].includes(process.env.CAST_ENABLED ?? '');
 
+/**
+ * (27/09/2026) GIOI HAN VIDEO CHO TAB YOUTUBE TV. Giao dien TV chon chat luong cho TV (VP9/AV1, 1080p+, 60 hinh/giay)
+ * — Chrome cua addon giai ma bang CPU nen rat nang, panel bi giat. Chi bao ho tro H.264 (nhu tien ich h264ify), cao
+ * toi da `maxH` va `maxFps` hinh/giay: qua MediaSource.isTypeSupported, canPlayType va navigator.mediaCapabilities
+ * (YouTube hoi ca ba; kieu Cobalt gan them width/height/framerate vao chuoi type).
+ */
+export function buildTvCodecScript(maxH: number, maxFps: number): string {
+  return `(function(){
+  var MAXH = ${maxH}, MAXF = ${maxFps};
+  function bad(t, h, f){
+    t = String(t || '').toLowerCase();
+    if (/vp0?9|vp8|av01|av1|hev1|hvc1/.test(t)) return true;
+    var mh = /height=(\\d+)/.exec(t), mf = /framerate=([\\d.]+)/.exec(t);
+    if (mh) h = Number(mh[1]); if (mf) f = Number(mf[1]);
+    return (h && h > MAXH) || (f && f > MAXF + 1);
+  }
+  try {
+    ['MediaSource', 'ManagedMediaSource', 'WebKitMediaSource'].forEach(function(n){
+      var M = window[n]; if (!M || !M.isTypeSupported) return;
+      var o = M.isTypeSupported.bind(M);
+      M.isTypeSupported = function(t){ return bad(t) ? false : o(t); };
+    });
+    var cp = HTMLMediaElement.prototype.canPlayType;
+    HTMLMediaElement.prototype.canPlayType = function(t){ return bad(t) ? '' : cp.call(this, t); };
+    var mc = navigator.mediaCapabilities;
+    if (mc && mc.decodingInfo) {
+      var od = mc.decodingInfo.bind(mc);
+      mc.decodingInfo = function(c){
+        var v = c && c.video;
+        if (v && bad(v.contentType, v.height, v.framerate)) return Promise.resolve({ supported: false, smooth: false, powerEfficient: false });
+        return od(c);
+      };
+    }
+  } catch (e) {}
+})();`;
+}
+const YT_TV_MAX_H = Number(process.env.YT_TV_MAX_HEIGHT) || 720;
+const YT_TV_MAX_FPS = Number(process.env.YT_TV_MAX_FPS) || 30;
+
 export const dialHooks: DialHooks = {
   devices: () => [...devices.values()]
     .filter((d) => broadcaster.getClientCount(d.deviceId) > 0 && panelPrefs.cast(d.deviceId, CAST_DEFAULT))
@@ -1764,6 +1856,7 @@ async function createTab(dev: DeviceSession, key: string, kind: string, pinned: 
 
   // (23/09/2026, xem buildAudioGuardScript) Tiem TRUOC bat ky script nao khac va truoc lan dieu huong dau tien.
   await session.send('Page.addScriptToEvaluateOnNewDocument', { source: buildAudioGuardScript(!dev.cfg.audioEnabled, kind === 'yttv') });
+  if (kind === 'yttv') await session.send('Page.addScriptToEvaluateOnNewDocument', { source: buildTvCodecScript(YT_TV_MAX_H, YT_TV_MAX_FPS) });
   await session.send('Page.addScriptToEvaluateOnNewDocument', { source: KIOSK_KEYBOARD_SCRIPT });
   const { identifier: launcherScriptId } = await session.send(
     'Page.addScriptToEvaluateOnNewDocument', { source: buildLauncherScript(dev.cfg.homeUrl, dev.cfg) }
@@ -1879,7 +1972,7 @@ function handleTabNavigation(dev: DeviceSession, tab: Tab, url: string | undefin
   // Khang dinh lai trang thai am thanh MOI LAN tab nay thuc su vao mot tai lieu moi — xem buildAudioGuardScript:
   // day la cho tu sua neu lenh setTabAudioAllowed() luc kich hoat da "thua" chinh navigation nay.
   tab.session.send('Runtime.evaluate', {
-    expression: `window.__rwvAudioGuard && (window.__rwvAudioAllowed = ${tab.audioAllowed});`,
+    expression: `window.__rwvAudioGuard && (window.__rwvAudioAllowed = ${tab.audioAllowed}, window.__rwvAudioApply && window.__rwvAudioApply());`,
   }).catch(() => { });
   if (dev.activeTabKey !== tab.key || dev.url === url) return;
   noteActivity(dev, 'trang dieu huong');

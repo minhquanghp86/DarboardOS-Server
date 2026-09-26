@@ -71,6 +71,25 @@ it('dien thoai tim thay panel, truyen YouTube -> YouTube TV tren panel, ngat -> 
   expect(await srv.evaluate<string>(yt, 'navigator.userAgent')).toContain('SMART-TV');
   // Tab YouTube TV: khong ghi de muted/volume (giao dien TV phai thay am thanh that, dien thoai chinh am luong duoc)
   expect(await srv.evaluate<string>(yt, "String(Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'volume').set)")).toContain('native code');
+  // Chi H.264, <= 720p, <= 30 hinh/giay (giai ma CPU nhe hon nhieu -> panel khong giat)
+  expect(await srv.evaluate<boolean>(yt, `MediaSource.isTypeSupported('video/webm; codecs="vp9"')`)).toBe(false);
+  expect(await srv.evaluate<boolean>(yt, `MediaSource.isTypeSupported('video/mp4; codecs="av01.0.05M.08"')`)).toBe(false);
+  expect(await srv.evaluate<boolean>(yt, `MediaSource.isTypeSupported('video/mp4; codecs="avc1.4d401f"; height=1080')`)).toBe(false);
+  expect(await srv.evaluate<boolean>(yt, `MediaSource.isTypeSupported('video/mp4; codecs="avc1.4d401f"; framerate=60')`)).toBe(false);
+  expect(await srv.evaluate<string>(yt, `document.createElement('video').canPlayType('video/webm; codecs="vp9"')`)).toBe('');
+  // Khoa am thanh TAT TIENG THAT (muted goc): tab bi khoa -> volumechange; mo lai -> go ra; trang van thay "khong tat"
+  const mute = await srv.evaluate<string>(yt, `new Promise(function (res) {
+    var a = document.createElement('audio'), n = 0; a.addEventListener('volumechange', function () { n++; });
+    document.body.appendChild(a); a.play().catch(function () {});
+    setTimeout(function () {
+      var n0 = n; window.__rwvAudioAllowed = false; window.__rwvAudioApply();
+      setTimeout(function () {
+        var n1 = n, seen = a.muted; window.__rwvAudioAllowed = true; window.__rwvAudioApply();
+        setTimeout(function () { res(n0 + ',' + n1 + ',' + n + ',' + seen); }, 100);
+      }, 100);
+    }, 300);
+  })`);
+  expect(mute).toBe("0,1,2,false");
   await dev.waitFor(() => dev!.currentUrls().slice(-1)[0].includes('pairingCode=ab12-cd34'), 8000, 'panel hien YouTube TV');
   expect(dev.msgs.slice(before).some((m) => m[0] === 9 && m[2] === 1)).toBe(true);        // bat den nen
   expect(await (await fetch(appUrl + 'YouTube')).text()).toContain('<state>running</state>');
