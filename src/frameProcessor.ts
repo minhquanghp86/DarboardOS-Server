@@ -55,6 +55,9 @@ export class FrameProcessor {
   private _cfg: FrameProcessorCfg;
   private _cols = 0;
   private _rows = 0;
+  /** Kich thuoc khung ma luoi o hien tai duoc tao theo. */
+  private _gridW = 0;
+  private _gridH = 0;
   private _prev?: Uint32Array;
   private _iter = 0;
   private _fullFrameRequested = false;
@@ -119,6 +122,14 @@ export class FrameProcessor {
   }
 
   public async processFrameAsync(rgba: RGBA): Promise<FrameOut> {
+    // (26/09/2026, bat duoc boi thu tich hop) Luoi o chi duoc tao theo khung DAU TIEN. Tu OS-2, khung co the doi kich
+    // thuoc giua chung (tab ung dung moi vua bat screencast) -> o bien tinh ra canh AM (Buffer.allocUnsafe(-1920)),
+    // "Frame error" lien tiep. Kich thuoc doi = tao lai luoi + gui ca khung (bang bam o cu khong con y nghia).
+    if (this._prev && (rgba.width !== this._gridW || rgba.height !== this._gridH)) {
+      console.log(`[frame] kich thuoc khung doi ${this._gridW}x${this._gridH} -> ${rgba.width}x${rgba.height}: tao lai luoi o`);
+      this._prev = undefined;
+      this._fullFrameRequested = true;
+    }
     if (!this._prev) this._initGrid(rgba.width, rgba.height);
     const t0 = Date.now();
 
@@ -386,6 +397,8 @@ export class FrameProcessor {
   }
 
   private _initGrid(w: number, h: number) {
+    this._gridW = w;
+    this._gridH = h;
     this._cols = Math.ceil(w / this._cfg.tileSize);
     this._rows = Math.ceil(h / this._cfg.tileSize);
     this._prev = new Uint32Array(this._cols * this._rows);

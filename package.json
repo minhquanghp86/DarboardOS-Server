@@ -1,6 +1,6 @@
 {
   "name": "remotewebviewserver",
-  "version": "2.9.49",
+  "version": "2.9.50",
   "type": "module",
   "scripts": {
     "dev": "tsx src/index.ts",
@@ -9,7 +9,9 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:watch": "vitest --watch",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
     "devtools-protocol": "^0.0.1510116",

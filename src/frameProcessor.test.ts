@@ -214,3 +214,21 @@ describe("chia dải ngang cho giải mã thẳng vào framebuffer (25/09/2026)"
     expect(splitBands(480, 480, 3).map((r) => r.h)).toEqual([160, 160, 160]);
   });
 });
+
+describe("khung doi kich thuoc giua chung (OS-2: tab moi bat screencast)", () => {
+  it("tao lai luoi o va gui ca khung, khong loi canh o am", async () => {
+    const p = mkProc({ fullFrameEvery: 1000 });
+    await p.processFrameAsync(makeFrame(480, 480, "ui"));
+    await p.processFrameAsync(makeFrame(480, 480, "ui"));
+    const out = await p.processFrameAsync(makeFrame(400, 300, "ui"));   // truoc day: Buffer.allocUnsafe(so am)
+    expect(out.isFullFrame).toBe(true);
+    for (const r of out.rects) {
+      expect(r.w).toBeGreaterThan(0);
+      expect(r.h).toBeGreaterThan(0);
+      expect(r.x + r.w).toBeLessThanOrEqual(400);
+      expect(r.y + r.h).toBeLessThanOrEqual(300);
+    }
+    const back = await p.processFrameAsync(makeFrame(480, 480, "ui"));
+    expect(back.isFullFrame).toBe(true);
+  });
+});
