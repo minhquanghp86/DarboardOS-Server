@@ -1,3 +1,20 @@
+## V2.9.63
+### Truyền YouTube: hết giật, không lọt tiếng sang màn hình khác, chỉnh âm lượng từ điện thoại
+
+- **Hết giật**: giao diện TV của YouTube chọn video cho TV (VP9/AV1, 1080p+, 60 hình/giây) mà Chrome của addon giải
+  mã bằng CPU. Tab YouTube TV nay chỉ nhận **H.264, tối đa 720p, 30 hình/giây** (như tiện ích h264ify) — nhẹ hơn
+  nhiều, vẫn nét trên màn hình 1024×600. Đổi được bằng biến môi trường `YT_TV_MAX_HEIGHT` / `YT_TV_MAX_FPS`.
+- **Tắt tiếng THẬT theo tab** (mọi ứng dụng): lớp khoá âm thanh trước đây chỉ *báo* với trang là đang tắt tiếng, âm
+  thanh vẫn ra đường tiếng chung của Chrome → truyền lên **S3 (không loa) thì tiếng lọt ra loa P4**. Nay tab bị khoá
+  (màn hình không loa, tab chạy nền không phải Radio/Nhạc) bị tắt tiếng ở mức trình duyệt, kể cả tiếng Web Audio
+  (chuông cửa, bíp hẹn giờ). Mở lại tab thì chỉ gỡ đúng phần lớp này đã tắt.
+- **Tiêu điểm âm thanh** (như điện thoại): một ứng dụng của màn hình bắt đầu phát thì ứng dụng khác đang phát trên
+  cùng màn hình tự dừng — vd Radio/Nhạc đang phát nền rồi truyền YouTube không còn hai tiếng chồng nhau. Ngắt truyền
+  thì quay về ứng dụng trước (Radio), bấm phát lại nếu muốn.
+- **Âm lượng trên điện thoại** chỉnh được âm lượng của YouTube TV (tab này không còn bị giả trạng thái muted/volume).
+- Rời tab YouTube TV (mở ứng dụng khác khi đang truyền) thì video tự tạm dừng, như ứng dụng YouTube.
+- Log addon ghi trạng thái âm thanh của trình phát khi bắt đầu truyền (`[cast] … dang phat — VIDEO muted=… vol=…`).
+
 ## V2.9.62
 ### Truyền YouTube từ điện thoại lên màn hình (như Smart TV)
 
