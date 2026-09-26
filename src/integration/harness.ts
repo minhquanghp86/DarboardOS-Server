@@ -171,6 +171,15 @@ export class FakeDevice {
     this.ws.send(b);
   }
 
+  /** Goi DeviceState nhu firmware (den nen, gio thiet bi): [10][1][bri][vol][flags][epoch u32][giay-trong-ngay u32]. */
+  deviceState(o: { backlightOn?: boolean; tzMin?: number } = {}): void {
+    const epoch = Math.floor(Date.now() / 1000), tz = (o.tzMin ?? 420) * 60;
+    const b = Buffer.alloc(13);
+    b[0] = 10; b[1] = 1; b[2] = 80; b[3] = 50; b[4] = (o.backlightOn === false ? 0 : 1) | 2;
+    b.writeUInt32LE(epoch, 5); b.writeUInt32LE(((epoch + tz) % 86400 + 86400) % 86400, 9);
+    this.ws.send(b);
+  }
+
   /** Goi OpenURL nhu firmware (Go Home / thuc the "URL hien thi"): [4][1][flags u16][len u32][url utf8]. */
   openUrl(url: string): void {
     const u = Buffer.from(url, 'utf8'); const b = Buffer.alloc(8 + u.length);

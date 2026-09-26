@@ -149,6 +149,39 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .recents-btn .app-ic { background: rgba(255,255,255,0.14); }
 .recents-btn .app-ic .ic { width: 55%; height: 55%; }
 
+/* ── Quay lai (OS-3) ─────────────────────────────────────────────────── */
+.backbub { position: absolute; left: -10px; top: 50%; width: 52px; height: 52px; border-radius: 50%; pointer-events: none; opacity: 0;
+  display: flex; align-items: center; justify-content: center; background: rgba(35,40,52,0.94); color: #fff;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.45); transition: opacity 120ms linear, background-color 120ms linear; }
+.backbub.right { left: auto; right: -10px; }
+.backbub .ic { width: 26px; height: 26px; }
+.backbub.on { opacity: 1; }
+.backbub.armed { background: var(--accent); }
+
+/* ── Vuot len tu mep duoi (Home / giu = Gan day) ─────────────────────── */
+.homebar { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center;
+  gap: 8px; pointer-events: none; opacity: 0; transition: opacity 120ms linear; }
+.homebar.on { opacity: 1; }
+.hb-pill { width: clamp(90px, 22vmin, 150px); height: 6px; border-radius: 3px; background: rgba(255,255,255,0.9);
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.25), 0 2px 10px rgba(0,0,0,0.4); }
+.homebar.armed .hb-pill { background: var(--accent); }
+.hb-t { font-weight: 600; font-size: 0.95em; white-space: nowrap; padding: 5px 12px; border-radius: 999px; background: rgba(20,22,30,0.88); }
+.hb-t:empty { display: none; }
+
+/* ── Man hinh cho (OS-5) ──────────────────────────────────────────────── */
+.saver { position: absolute; inset: 0; pointer-events: auto; background: #000; display: flex; align-items: center; justify-content: center; }
+.saver.anim { animation: sv-in 500ms ease-out; }
+@keyframes sv-in { from { opacity: 0; } }
+.sv-box { display: flex; flex-direction: column; align-items: center; gap: clamp(4px, 1.6vmin, 14px); }
+.sv-clock { font-size: min(30vmin, 21vw); font-weight: 300; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: #f2f4f8; }
+.sv-date { font-size: clamp(13px, 3.8vmin, 28px); color: var(--muted); }
+.sv-wx { display: flex; align-items: center; gap: clamp(6px, 1.4vmin, 12px); font-size: clamp(13px, 3.6vmin, 26px); color: #cfd6e4; }
+.sv-wx:empty { display: none; }
+.sv-wx .wx-ic { width: 1.4em; height: 1.4em; }
+.saver.night .sv-clock { color: #9a6a58; }
+.saver.night .sv-date, .saver.night .sv-wx { color: #5e463d; }
+.saver.night .sv-wx .wx-ic { opacity: 0.4; filter: sepia(1); }
+
 /* ── Bao thuc ────────────────────────────────────────────────────────── */
 .alarm { position: absolute; inset: 0; pointer-events: auto; background: rgba(10,12,18,0.95); display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 3vmin; cursor: pointer; }

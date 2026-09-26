@@ -44,6 +44,9 @@ configuration:
   prefers_reduced_motion:
     name: 'Giảm hiệu ứng chuyển động'
     description: 'Yêu cầu các trang tắt hiệu ứng động — ít khung hình phải truyền hơn, màn hình mượt hơn.'
+  screensaver_idle_s:
+    name: 'Màn hình chờ sau (giây)'
+    description: 'Không chạm bao lâu thì hiện màn hình chờ (đồng hồ lớn, ngày âm dương, thời tiết; tông tối ban đêm). Không hiện khi đang phát video/camera hoặc màn hình đã tắt. 0 = tắt.'
   user_data_dir:
     name: 'Thư mục hồ sơ trình duyệt'
     description: 'Nơi lưu cookie/đăng nhập của trình duyệt. Để trong /data (mặc định /data/pw-data) để không phải đăng nhập lại sau mỗi lần cập nhật addon.'
