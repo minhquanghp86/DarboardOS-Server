@@ -29,6 +29,8 @@ interface DevState {
   /** (26/09/2026 OS-5) Thong bao moi nhat truoc + Khong lam phien. Server < 2.9.53 khong gui. */
   nt?: Notice[];
   dnd?: boolean;
+  /** (27/09/2026) Firmware co tro ly giong noi (nut "Tro ly"). */
+  va?: boolean;
 }
 interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'critical'; ts: number; img: string | null; act: boolean }
 
@@ -157,6 +159,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
 
   // Hang bieu tuong mo trang toan man hinh (chi hien muc DA CO — khong de nut chet)
   const shortcuts = el('div', 'shortcuts');
+  let vaBtn: HTMLElement | null = null;
   const SC: [string, string, string | null, () => void][] = [
     ['apps', 'Ứng dụng', null, () => openApp('__system')],
     ['ha', 'Home Assistant', 'home', () => openApp('home')],
@@ -164,11 +167,13 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     ['scenes', 'Cảnh', 'scenes', () => openApp('scenes')],
     ['recents', 'Gần đây', null, openRecents],
     ['settings', 'Cài đặt', 'settings', () => openApp('settings')],
+    ['mic', 'Trợ lý', '__va', () => { closeShade(false); sendControl({ assist: 1 }); }],
   ];
   for (const [icon, label, appId, fn] of SC) {
     // Chi hien khi ung dung THAT SU co (chua bi an o Menu panel, hoac chua co Home URL) — khong de nut chet.
-    if (appId && !hasApp(appId)) continue;
-    const b = el('button', 'sc'); const c = el('span', 'b'); c.appendChild(mdi(icon)); b.append(c, el('span', 'l', label));
+    if (appId && appId !== '__va' && !hasApp(appId)) continue;
+    const b = el('button', 'sc');
+    if (appId === '__va') { b.style.display = 'none'; vaBtn = b; } const c = el('span', 'b'); c.appendChild(mdi(icon)); b.append(c, el('span', 'l', label));
     if (icon === 'ha') c.style.background = '#1a8fd6';
     b.addEventListener('click', (e) => { e.stopPropagation(); fn(); });
     shortcuts.appendChild(b);
@@ -552,6 +557,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
 
   function applyState(s: DevState) {
     st = s;
+    if (vaBtn) vaBtn.style.display = s.va ? '' : 'none';
     window.__rwvLastState = s;
     // Khong lam phien la cua server -> hang o nhanh luon hien; o/thanh truot cua THIET BI chi khi firmware ho tro.
     sliders.style.display = s.ctl ? '' : 'none';
@@ -577,6 +583,46 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     try { window.dispatchEvent(new CustomEvent('rwv-state', { detail: s })); } catch { /* */ }
   }
 
+  // ── (27/09/2026) The TRO LY GIONG NOI: firmware bao trang thai (remote_webview.voice_state) -> server -> day.
+  //    Dang nghe / dang xu ly (kem cau ban vua noi) / tra loi (kem cau tra loi) / loi. Cham the: dung (dang nghe)
+  //    hoac dong. Xong: an sau vai giay (du doc cau tra loi).
+  const VOICE_LABEL = ['Trợ lý', 'Đang nghe…', 'Đang xử lý…', 'Trợ lý', 'Không thực hiện được'];
+  let vcEl: HTMLElement | null = null, vcIc: HTMLElement, vcL: HTMLElement, vcQ: HTMLElement, vcA: HTMLElement;
+  let vcTimer: number | undefined, vcState = 0, vcAsked = '';
+  function voiceHide() { clearTimeout(vcTimer); vcEl?.remove(); vcEl = null; vcAsked = ''; }
+  function voice(v: { s: number; t: string }): void {
+    clearTimeout(vcTimer);
+    if (v.s === 0) {  // xong: giu cau tra loi mot luc roi an
+      if (vcEl) vcTimer = window.setTimeout(voiceHide, vcA?.textContent ? 6000 : 1200);
+      return;
+    }
+    if (!vcEl) {
+      screensaver(false);
+      vcEl = el('div', 'vc' + (CFG.motion === 'full' ? ' anim' : ''));
+      vcIc = el('div', 'vc-ic'); vcIc.appendChild(mdi('mic'));
+      const col = el('div', 'vc-t');
+      vcL = el('div', 'vc-l'); vcQ = el('div', 'vc-q'); vcA = el('div', 'vc-a');
+      col.append(vcL, vcQ, vcA);
+      vcEl.append(vcIc, col);
+      vcEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (vcState === 1 || vcState === 2) sendControl({ assist: 0 });
+        voiceHide();
+      });
+      root.appendChild(vcEl);
+    }
+    vcState = v.s;
+    vcEl.dataset.s = String(v.s);
+    setText(vcL, VOICE_LABEL[v.s] || '');
+    if (v.s === 1) { vcAsked = ''; setText(vcQ, ''); setText(vcA, ''); }
+    if (v.s === 2 && v.t) vcAsked = v.t;
+    setText(vcQ, vcAsked ? '“' + vcAsked + '”' : '');
+    if (v.s === 3 || v.s === 4) setText(vcA, v.t || '');
+    // Loi: tu an sau 8 s neu firmware khong bao "xong"
+    if (v.s === 4) vcTimer = window.setTimeout(voiceHide, 8000);
+    window.__rwvLastVoice = { s: v.s, l: vcL.textContent, q: vcQ.textContent, a: vcA.textContent };
+  }
+
   // ── API cho server ──────────────────────────────────────────────────
   let gStartVisible = 0, gLastY = 0;
   window.__rwvShell = {
@@ -599,6 +645,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     close() { closeShade(true); },
     isOpen() { return shadeVisible > 0; },
     alarm,
+    voice,
     /** (27/09/2026 OS-3) Bo cuc man hinh chinh vua doi (tu panel khac). */
     layout(l: HomeLayout) { homeApi?.setLayout(l); },
     homeInfo() { return homeApi?.info() ?? null; },

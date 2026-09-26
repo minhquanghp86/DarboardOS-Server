@@ -12,12 +12,12 @@ import { fileURLToPath } from 'url';
 import { WebSocketServer } from "ws"
 import env from "env-var";
 import { makeConfigFromParams, setConfigFor, logDeviceConfig } from "./config.js";
-import { broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick, refreshDisplaysTick, markInteraction, screensaverTick, postNotify, repaintRect, onDeviceStatePacket } from './deviceManager.js';
+import { broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick, refreshDisplaysTick, markInteraction, screensaverTick, postNotify, repaintRect, onDeviceStatePacket, onDeviceEvent } from './deviceManager.js';
 import type { DeviceSession } from './deviceManager.js';
 import { InputRouter } from "./inputRouter.js";
 import { bootstrapAsync } from './browser.js';
 import { subscribeDeviceAudio, unsubscribeDeviceAudio } from './audioCapture.js';
-import { MsgType, parseRepaintRectPacket } from './protocol.js';
+import { MsgType, parseDeviceEventPacket, parseRepaintRectPacket } from './protocol.js';
 import { metrics } from './metrics.js';
 import { getHaLocation } from './haLocation.js';
 import { handleAppApi } from './haApps.js';
@@ -54,6 +54,11 @@ function routeMessage(dev: DeviceSession, buf: Buffer): void {
     case MsgType.RepaintRect: {
       const r = parseRepaintRectPacket(buf);
       if (r) repaintRect(dev, r.x, r.y, r.w, r.h);
+      break;
+    }
+    case MsgType.DeviceEvent: {
+      const e = parseDeviceEventPacket(buf);
+      if (e) onDeviceEvent(dev, e.kind, e.value, e.text);
       break;
     }
     case MsgType.DeviceState:
