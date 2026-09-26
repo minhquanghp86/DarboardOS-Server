@@ -20,11 +20,14 @@ import { nudgeRepaintAsync } from "./browser.js";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildLauncherApps, listAllApps, GROUP_TITLES, LAUNCHER_CAMS_URL, LAUNCHER_OS_HOME_URL, LAUNCHER_SCENES_URL, LAUNCHER_TIMER_URL, LAUNCHER_WEATHER_URL } from "./launcherApps.js";
+import { buildLauncherApps, listAllApps, GROUP_TITLES, LOCAL_ORIGIN, LAUNCHER_CAMS_URL, LAUNCHER_OS_HOME_URL, LAUNCHER_SCENES_URL, LAUNCHER_TIMER_URL, LAUNCHER_WEATHER_URL } from "./launcherApps.js";
 import { createRequire } from "node:module";
 import { getWeatherMini, onWeatherMiniUpdate } from "./weatherMini.js";
 import { SerialQueue, appKeyForUrl, nowPlaying, pickEvictions, recentsList } from "./tabPolicy.js";
-import { SCREENSAVER_IDLE_S, shouldShowSaver } from "./screensaver.js";
+import { SAVER_PHOTO_MS, SCREENSAVER_IDLE_S, SCREENSAVER_PHOTOS, deviceHour, isNightHour, nextSaverPhoto, shouldShowSaver } from "./screensaver.js";
+import { listPhotos } from "./homeApi.js";
+import { deviceClock, parseWindow, shouldGreet } from "./today.js";
+import { getToday, speakOnPanel } from "./todayData.js";
 import { Notice, NoticeStore, NotifyRequest, parseNotify, shouldPopup, shouldWake } from "./notifications.js";
 import { callService, getSettingsView } from "./haSettings.js";
 import { planSet } from "./settingsModel.js";
@@ -147,10 +150,15 @@ export type DeviceSession = {
   /** (26/09/2026 OS-5) Lan cham cuoi (moc cho man hinh cho) va man hinh cho dang hien tren tab active hay khong. */
   lastTouchMs: number;
   saverOn: boolean;
+  /** (27/09/2026) Man hinh cho dang khung anh: anh dang hien + luc doi. */
+  saverPhoto?: string | null;
+  saverPhotoAt?: number;
   /** (27/09/2026) Tro ly giong noi: trang thai cuoi (s = VoiceState) + chu. */
   voice?: { s: number; t: string; at: number };
   /** (27/09/2026) Co nguoi truoc man hinh (camera cua panel). */
   presence?: { on: boolean; at: number };
+  /** (27/09/2026) Ngay (gio thiet bi) da chao buoi sang — moi ngay mot lan. */
+  morningDate?: string;
   /**
    * (26/09/2026) Ton dong socket LON NHAT tai cac lan PHAI BO KHUNG vi nghen, ke tu tick dieu tiet truoc. Vong dieu
    * tiet chi doc ton dong DUNG luc tick (5 s/lan) — do that tren P4 (2.9.52, YouTube): bo khung ~5 s/lan lien tuc ma
@@ -1521,7 +1529,32 @@ export function onDeviceEvent(dev: DeviceSession, kind: number, value: number, t
     dev.presence = { on, at: Date.now() };
     console.log(`[presence] ${dev.deviceId}: ${on ? 'CO nguoi' : 'khong con nguoi'}`);
     pushDeviceStateToPage(dev);
+    if (on) maybeMorning(dev);
   }
+}
+
+// ── (27/09/2026) CHAO BUOI SANG: lan dau camera thay nguoi trong khung gio sang (moi ngay, moi man hinh mot lan) -> mo
+// ung dung "Hom nay" (thoi tiet, lich, viec, ghi chu) va doc tom tat qua loa cua panel (tts.speak, neu HA co TTS).
+const MORNING_WINDOW = process.env.MORNING_BRIEFING === '0' ? null : parseWindow(process.env.MORNING_WINDOW || '06:00-09:30');
+const MORNING_TTS = process.env.MORNING_TTS !== '0';
+
+function maybeMorning(dev: DeviceSession): void {
+  const tz = dev.devState?.tzOffsetMin ?? 420;
+  const c = deviceClock(Date.now(), tz);
+  if (!shouldGreet({ ...c, window: MORNING_WINDOW, lastDate: dev.morningDate ?? null })) return;
+  dev.morningDate = c.date;
+  console.log(`[morning] ${dev.deviceId}: chao buoi sang (${c.date})`);
+  openApp(dev, 'today').catch(() => { });
+  if (!MORNING_TTS) return;
+  getToday(tz).then((v) => speakOnPanel(dev.deviceId, v.briefing)).then((err) => {
+    console.log(`[morning] ${dev.deviceId}: ${err ? 'khong doc duoc: ' + err : 'da doc loi chao'}`);
+  }).catch((e) => console.warn(`[morning] ${dev.deviceId}:`, (e as Error).message));
+}
+
+/** Mui gio cua mot man hinh dang ket noi (trang "Hom nay" khong biet minh o thiet bi nao). Mac dinh +7. */
+export function anyTzOffset(): number {
+  for (const d of devices.values()) if (d.devState) return d.devState.tzOffsetMin;
+  return 420;
 }
 
 /** (26/09/2026) Mo man hinh "Gan day" — tu cu chi vuot-len-roi-giu o mep duoi (inputRouter.ts). */
@@ -2338,11 +2371,31 @@ export function screensaverTick(): void {
       backlightOn: d.devState ? d.devState.backlightOn : null, shown: d.saverOn,
     })) continue;
     d.saverOn = true;
+    d.saverPhotoAt = 0;
     d.cdp.send('Runtime.evaluate', {
       expression: 'window.__rwvShell && window.__rwvShell.screensaver && window.__rwvShell.screensaver(true)',
     }).catch(() => { });
     console.log(`[saver] ${d.deviceId}: hien man hinh cho (tab "${tab.key}")`);
   }
+  for (const d of devices.values()) if (d.saverOn) saverPhotoTick(d, now);
+}
+
+/**
+ * (27/09/2026) Man hinh cho dang khung anh: moi phut mot anh gia dinh (thu nho dung kich thuoc man hinh o server), dong
+ * ho de len goc. Ban dem (22h-6h theo gio thiet bi): khong anh — chi dong ho tong am toi.
+ */
+function saverPhotoTick(d: DeviceSession, now: number): void {
+  if (!SCREENSAVER_PHOTOS || now - (d.saverPhotoAt ?? 0) < SAVER_PHOTO_MS) return;
+  d.saverPhotoAt = now;
+  const night = isNightHour(deviceHour(now, d.devState?.tzOffsetMin ?? 420));
+  const files = night ? [] : listPhotos().files;
+  const f = nextSaverPhoto(files, d.saverPhoto ?? null);
+  if (f === (d.saverPhoto ?? null) && f === null) return;
+  d.saverPhoto = f;
+  const url = f ? `${LOCAL_ORIGIN}/photos/img?f=${encodeURIComponent(f)}&w=${d.cfg.width}&h=${d.cfg.height}` : null;
+  d.cdp.send('Runtime.evaluate', {
+    expression: `window.__rwvShell && window.__rwvShell.saverPhoto && window.__rwvShell.saverPhoto(${JSON.stringify(url)})`,
+  }).catch(() => { });
 }
 
 export function runAdaptiveTick(): void {

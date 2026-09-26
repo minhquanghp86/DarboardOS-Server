@@ -63,6 +63,12 @@ export function appIcon(app: App, cls = 'app-ic'): HTMLElement {
     case 'todo':
       line('path', { d: 'M4 6l1.5 1.5L8 5M4 12l1.5 1.5L8 11M4 18l1.5 1.5L8 17' }); line('path', { d: 'M11 6.5h9M11 12.5h9M11 18.5h9' });
       break;
+    case 'today':
+      line('path', { d: 'M3 18h18M6 18a6 6 0 0112 0' }); line('path', { d: 'M12 5v3M4.9 9.9l2.1 2.1M19.1 9.9L17 12' }); line('path', { d: 'M8 21h8' });
+      break;
+    case 'board':
+      line('path', { d: 'M5 3h11l4 4v14H5z' }); line('path', { d: 'M15 3v5h5' }); line('path', { d: 'M8 12h8M8 16h6' });
+      break;
     case 'photos':
       line('rect', { x: '3', y: '4', width: '18', height: '16', rx: '2' }); line('circle', { cx: '9', cy: '9.5', r: '1.8' });
       line('path', { d: 'M3.5 17l5-5 4 4 3-3 5 5' });

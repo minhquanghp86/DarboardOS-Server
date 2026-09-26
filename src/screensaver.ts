@@ -29,3 +29,26 @@ export function shouldShowSaver(s: SaverInput): boolean {
   if (s.backlightOn === false) return false;     // man hinh da tat: ve cung khong ai thay, ton bang thong
   return s.now - s.lastTouchMs >= s.idleMs;
 }
+
+// ── (27/09/2026) Man hinh cho dang KHUNG ANH + theo gio trong ngay ─────────────────────────────────────────────────
+/** Addon: screensaver_photos (mac dinh bat). Co anh trong thu muc anh thi man hinh cho hien anh, doi moi phut. */
+export const SCREENSAVER_PHOTOS = process.env.SCREENSAVER_PHOTOS !== '0';
+export const SAVER_PHOTO_MS = 60_000;
+
+/** Gio (0..23) tai noi dat thiet bi: gio UTC + mui gio thiet bi bao (phut). */
+export function deviceHour(nowMs: number, tzOffsetMin: number): number {
+  return new Date(nowMs + tzOffsetMin * 60_000).getUTCHours();
+}
+/** Ban dem (22h-6h): man hinh cho chi dong ho tong am toi, khong anh (it anh sang trong phong ngu). */
+export const isNightHour = (h: number) => h >= 22 || h < 6;
+
+/** Anh ke tiep cho man hinh cho: ngau nhien, khong lap lai anh vua hien. */
+export function nextSaverPhoto(files: string[], prev: string | null, rand: () => number = Math.random): string | null {
+  if (!files.length) return null;
+  if (files.length === 1) return files[0];
+  for (let i = 0; i < 4; i++) {
+    const f = files[Math.floor(rand() * files.length)];
+    if (f !== prev) return f;
+  }
+  return files.find((f) => f !== prev) ?? files[0];
+}
