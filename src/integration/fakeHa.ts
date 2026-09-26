@@ -6,7 +6,7 @@ import { WebSocketServer } from 'ws';
 
 export interface FakeHa { port: number; calls: { path: string; body: any }[]; st: Record<string, any>; todo: Record<string, any[]>; close(): Promise<void> }
 
-export async function startFakeHa(o: { states: Record<string, any>; areas?: any[]; devices?: any[]; entities?: any[]; todo?: Record<string, any[]> }): Promise<FakeHa> {
+export async function startFakeHa(o: { states: Record<string, any>; areas?: any[]; devices?: any[]; entities?: any[]; todo?: Record<string, any[]>; calendars?: Record<string, any[]> }): Promise<FakeHa> {
   const port = await new Promise<number>((res) => { const s = net.createServer(); s.listen(0, '127.0.0.1', () => { const p = (s.address() as net.AddressInfo).port; s.close(() => res(p)); }); });
   const calls: { path: string; body: any }[] = [];
   const st = o.states;
@@ -21,6 +21,13 @@ export async function startFakeHa(o: { states: Record<string, any>; areas?: any[
         res.end(JSON.stringify(Object.entries(st).map(([entity_id, s]) => ({ entity_id, ...s }))));
         return;
       }
+      if (req.url === '/api/calendars') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify(Object.keys(o.calendars ?? {}).map((entity_id) => ({ entity_id, name: entity_id }))));
+        return;
+      }
+      const cm = /^\/api\/calendars\/([\w.]+)\?/.exec(req.url || '');
+      if (cm) { res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify(o.calendars?.[cm[1]] ?? [])); return; }
       const m = /^\/api\/services\/(\w+)\/(\w+)$/.exec(req.url || '');
       if (m && req.method === 'POST') {
         const b = JSON.parse(body || '{}');

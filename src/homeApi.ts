@@ -71,7 +71,7 @@ function photosDir(): string {
   return fs.existsSync('/media/photos') ? '/media/photos' : '/media';
 }
 let photoCache: { at: number; dir: string; files: string[] } | null = null;
-function listPhotos(): { dir: string; files: string[] } {
+export function listPhotos(): { dir: string; files: string[] } {
   const dir = photosDir();
   if (photoCache && photoCache.dir === dir && Date.now() - photoCache.at < 60_000) return photoCache;
   const files: string[] = [];
