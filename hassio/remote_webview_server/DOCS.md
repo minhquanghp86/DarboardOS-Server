@@ -131,6 +131,18 @@ Giọt nước ở giữa mép trên mọi trang hiện **giờ của chính mà
 - **Xong** hoặc chạm chỗ trống để thoát. **Đặt lại** (chạm 2 lần) trở về bố cục mặc định.
 - Bố cục dùng chung cho mọi màn hình. Ứng dụng mới thêm ở trang *Menu panel* xuất hiện ở cuối.
 
+### Ứng dụng cho ngôi nhà
+
+| Ứng dụng | Cần chuẩn bị trong Home Assistant |
+|---|---|
+| **Phòng** | Cài đặt → Khu vực: tạo phòng và gán thiết bị (đèn, công tắc, quạt, rèm, điều hoà, TV). Nhiệt độ/độ ẩm/cửa/chuyển động của phòng lấy từ cảm biến gán cùng phòng. |
+| **Điều khiển** | Có ít nhất một `media_player` (Android TV, Samsung/LG, Google Cast, Sonos…). |
+| **Việc cần làm** | Thêm tích hợp *Danh sách mua sắm* hoặc *Local To-do* (hoặc Google Tasks). |
+| **Khung ảnh** | Media → Local media → tạo thư mục `photos` → tải ảnh lên (JPG/PNG/WebP). Không có `photos` thì dùng cả thư mục media. |
+
+Chạm = bật/tắt; **chạm giữ** một ô trong *Phòng* để mở bảng chi tiết (độ sáng, rèm, nhiệt độ). Các ứng dụng này chỉ
+nhận lệnh từ chính màn hình, và chỉ các thao tác kể trên (không mở khoá cửa, không tắt báo động).
+
 ### Trợ lý giọng nói (cần firmware có `voice_assistant`)
 
 - Nói từ đánh thức (chọn trong thực thể **Từ đánh thức** của màn hình: Tắt / Okay Nabu / Hey Jarvis), hoặc chạm nút
