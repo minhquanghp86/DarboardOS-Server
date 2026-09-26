@@ -1,3 +1,18 @@
+## V2.9.49
+### Thẻ "Đang phát" + sửa hai lỗi của OS-2
+
+- **Thẻ "Đang phát" trong thanh kéo xuống**: khi Radio/Nhạc đang phát nền (bạn đã mở ứng dụng khác), thanh kéo xuống
+  hiện một thẻ với nút **Mở** (quay lại ứng dụng đó) và nút **■** (dừng ngay). Trước đây chỉ dừng được bằng cách mở lại
+  đúng ứng dụng rồi bấm dừng trong trang. Màn hình thấp (480×272) xếp các thẻ thành một hàng ngang cho vừa màn hình.
+- Server nay biết trang **thật sự đang phát** hay không (thay vì coi Radio/Nhạc luôn phát kể từ lúc mở). Radio đã dừng
+  được đóng như ứng dụng thường khi vượt `MAX_APP_TABS`, không còn chiếm chỗ mãi.
+- **Sửa rò tab Chromium**: hai lệnh mở cùng một ứng dụng sát nhau (chạm đúp biểu tượng, vuốt về màn hình chính lặp
+  lại nhanh) có thể tạo HAI tab cho cùng ứng dụng; tab thừa không bao giờ bị đóng, mỗi lần tốn thêm một tiến trình
+  Chrome (100–250 MB). Đã tái hiện: 3 cử chỉ về Home sát nhau → 3 tab màn hình chính; nay luôn đúng 1. Các lệnh
+  mở/chuyển ứng dụng của một màn hình giờ chạy lần lượt.
+- **Sửa ứng dụng bị đổi biểu tượng mất hành vi riêng**: đổi biểu tượng Radio/Nhạc ở trang "Menu panel" làm chúng mất
+  khả năng phát nền, đổi biểu tượng YouTube/TikTok làm chúng không tự dừng khi rời ứng dụng.
+
 ## V2.9.48
 ### Sửa lỗi "Not attached to an active page" khi mở/chuyển ứng dụng (OS-2)
 

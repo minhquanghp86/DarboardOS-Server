@@ -251,7 +251,8 @@ luôn gửi giá trị riêng của từng màn hình (trong YAML ESPHome) khi k
 - **Self-test**: đặt `url: "self-test"` trong YAML để đo thời gian dựng hình của màn hình.
 - **`MAX_APP_TABS`** (mặc định `2`): số ứng dụng "phụ" tối đa được giữ mở cùng lúc mỗi màn hình, không kể Home
   Assistant và màn hình chính (hai cái đó luôn giữ). Mỗi ứng dụng mở là một tiến trình renderer Chrome riêng — tăng
-  giá trị này cho quay lại ứng dụng gần đây nhanh hơn, đổi lại tốn thêm RAM (xem mục Giới hạn đã biết).
+  giá trị này cho quay lại ứng dụng gần đây nhanh hơn, đổi lại tốn thêm RAM (xem mục Giới hạn đã biết). Radio/Nhạc
+  **đang phát** không bị đóng; đã dừng phát thì được đóng như ứng dụng thường.
 
 ## Giới hạn đã biết
 
@@ -262,7 +263,8 @@ luôn gửi giá trị riêng của từng màn hình (trong YAML ESPHome) khi k
 - Hẹn giờ lưu trong bộ nhớ addon: khởi động lại addon thì hẹn giờ đang chạy bị huỷ.
 - **RAM tăng theo số tab mở**: mỗi ứng dụng đang mở (kể cả chạy nền) là một tiến trình Chrome renderer riêng. Với
   `MAX_APP_TABS` mặc định (2) cộng Home Assistant + màn hình chính, một màn hình có thể giữ tới 4 tab cùng lúc.
-  Chưa có nút "đóng ứng dụng" thủ công trong bản này — ứng dụng cũ nhất tự đóng khi vượt hạn mức.
+  Chưa có nút "đóng ứng dụng" thủ công trong bản này — ứng dụng cũ nhất tự đóng khi vượt hạn mức. Radio/Nhạc đang
+  phát nền dừng được ngay từ thẻ **Đang phát** trong thanh kéo xuống (từ 2.9.49).
 
 ## Mã nguồn, ghi công, giấy phép
 
