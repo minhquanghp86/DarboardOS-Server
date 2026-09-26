@@ -66,10 +66,13 @@ const errMsg = (e: unknown) => ({ ok: false, error: `Không kết nối được
 
 // ── Khung anh ────────────────────────────────────────────────────────────────────────────────────────────────
 const IMG_RE = /\.(jpe?g|png|webp)$/i;
+// (27/09/2026) CHI thu muc anh rieng (/media/photos). Truoc day thieu thu muc nay thi lui ve ca /media -> quet trung
+// anh chup cua Frigate (/media/frigate: nguoi truoc camera) va hien len man hinh cho — sai va lo rieng tu.
 function photosDir(): string {
-  if (process.env.PHOTOS_DIR) return process.env.PHOTOS_DIR;
-  return fs.existsSync('/media/photos') ? '/media/photos' : '/media';
+  return process.env.PHOTOS_DIR || '/media/photos';
 }
+// Du thu muc anh chua gi: khong bao gio lay anh cua camera / ghi hinh.
+const SKIP_DIRS = /^(frigate|clips|recordings|snapshots|exports|cctv|camera|cameras)$/i;
 let photoCache: { at: number; dir: string; files: string[] } | null = null;
 export function listPhotos(): { dir: string; files: string[] } {
   const dir = photosDir();
@@ -82,7 +85,7 @@ export function listPhotos(): { dir: string; files: string[] } {
     for (const e of ents) {
       if (e.name.startsWith('.')) continue;
       const p = path.join(d, e.name);
-      if (e.isDirectory()) walk(p, depth + 1);
+      if (e.isDirectory()) { if (!SKIP_DIRS.test(e.name)) walk(p, depth + 1); }
       else if (IMG_RE.test(e.name)) files.push(path.relative(dir, p));
       if (files.length >= 5000) return;
     }
