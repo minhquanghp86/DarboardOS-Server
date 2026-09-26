@@ -53,6 +53,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   border-radius: var(--r-md); background: var(--surface-2); font-weight: 600; white-space: nowrap; }
 .tile .ic { width: 1.45em; height: 1.45em; }
 .tile.on { color: #0f1117; }
+/* Man hep (S3 480): o nhanh chi con bieu tuong (mau nen khi bat van cho biet trang thai) — vua mot hang */
+@media (max-width: 560px) { .tile > span { display: none; } .tile { padding: 0 clamp(10px, 3vmin, 16px); } .tiles { flex: 1; justify-content: space-between; } }
 .sliders { flex: 1 1 320px; display: flex; gap: var(--gap); min-width: 0; }
 .slider { position: relative; flex: 1; min-width: 0; height: clamp(40px, 10vmin, 58px); border-radius: var(--r-md); background: var(--surface-2);
   overflow: hidden; touch-action: none; cursor: pointer; }
@@ -181,6 +183,38 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .saver.night .sv-clock { color: #9a6a58; }
 .saver.night .sv-date, .saver.night .sv-wx { color: #5e463d; }
 .saver.night .sv-wx .wx-ic { opacity: 0.4; filter: sepia(1); }
+
+/* ── Thong bao (OS-5) ────────────────────────────────────────────────── */
+.pill.unread::after { content: ''; position: absolute; top: 6px; right: 26px; width: 7px; height: 7px; border-radius: 50%; background: #f59e0b; }
+.nt { display: flex; flex-direction: column; gap: calc(var(--gap) * 0.6); }
+.nt-head { display: flex; align-items: center; gap: var(--gap); }
+.nt-h { font-weight: 600; color: var(--muted); font-size: 0.9em; letter-spacing: 0.04em; text-transform: uppercase; }
+.nt-clr { font-size: 0.9em; color: var(--muted); padding: 4px 8px; }
+.nt-row { display: flex; align-items: center; gap: var(--gap); padding: clamp(6px, 1.5vmin, 10px) clamp(8px, 2vmin, 14px); border-radius: var(--r-md);
+  background: var(--surface-2); cursor: pointer; }
+.nt-ic, .to-ic { flex: none; width: clamp(30px, 7.5vmin, 44px); height: clamp(30px, 7.5vmin, 44px); border-radius: 30%; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; background: rgba(59,130,246,0.22); color: #93c5fd; }
+.nt-ic.high, .to-ic.high { background: rgba(245,158,11,0.22); color: #fcd34d; }
+.nt-ic.critical, .to-ic.critical { background: rgba(239,68,68,0.25); color: #fca5a5; }
+.nt-ic img, .to-ic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.nt-ic .ic, .to-ic .ic { width: 55%; height: 55%; }
+.nt-txt, .to-txt { flex: 1; min-width: 0; }
+.nt-top { display: flex; align-items: baseline; gap: 8px; }
+.nt-t { flex: 1; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nt-ago { flex: none; color: var(--muted); font-size: 0.82em; }
+.nt-m { color: var(--muted); font-size: 0.92em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nt-x, .to-x { flex: none; width: clamp(24px, 6vmin, 32px); height: clamp(24px, 6vmin, 32px); border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; color: var(--muted); }
+.toast { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: min(620px, calc(100vw - 20px)); box-sizing: border-box;
+  display: flex; align-items: center; gap: clamp(8px, 2vmin, 14px); padding: clamp(8px, 2vmin, 14px); border-radius: var(--r-lg);
+  background: rgba(23,26,34,0.97); box-shadow: 0 10px 34px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.08); pointer-events: auto; cursor: pointer; }
+.toast.anim { animation: to-in 200ms cubic-bezier(.2,.8,.2,1); }
+@keyframes to-in { from { transform: translate(-50%, -130%); } }
+.toast.critical { box-shadow: 0 10px 34px rgba(0,0,0,0.5), inset 0 0 0 2px rgba(239,68,68,0.8); }
+.toast .to-ic { width: clamp(44px, 12vmin, 76px); height: clamp(44px, 12vmin, 76px); }
+.toast.critical .to-ic { width: clamp(64px, 20vmin, 132px); height: clamp(48px, 15vmin, 100px); border-radius: var(--r-md); }
+.to-t { font-weight: 700; font-size: 1.08em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.to-m { color: #cfd6e4; margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* ── Bao thuc ────────────────────────────────────────────────────────── */
 .alarm { position: absolute; inset: 0; pointer-events: auto; background: rgba(10,12,18,0.95); display: flex; flex-direction: column;

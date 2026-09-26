@@ -25,6 +25,7 @@ import { createRequire } from "node:module";
 import { getWeatherMini, onWeatherMiniUpdate } from "./weatherMini.js";
 import { SerialQueue, appKeyForUrl, nowPlaying, pickEvictions, recentsList } from "./tabPolicy.js";
 import { SCREENSAVER_IDLE_S, shouldShowSaver } from "./screensaver.js";
+import { Notice, NoticeStore, NotifyRequest, parseNotify, shouldPopup, shouldWake } from "./notifications.js";
 import { ControlField, DeviceStateInfo, Encoding, FRAME_HEADER_BYTES, TILE_HEADER_BYTES, parseDeviceStatePacket } from "./protocol.js";
 
 // ── Type-safe interface cho CDP root (thay thế cast `any`) ────────────────────
@@ -142,6 +143,12 @@ export type DeviceSession = {
   /** (26/09/2026 OS-5) Lan cham cuoi (moc cho man hinh cho) va man hinh cho dang hien tren tab active hay khong. */
   lastTouchMs: number;
   saverOn: boolean;
+  /**
+   * (26/09/2026) Ton dong socket LON NHAT tai cac lan PHAI BO KHUNG vi nghen, ke tu tick dieu tiet truoc. Vong dieu
+   * tiet chi doc ton dong DUNG luc tick (5 s/lan) — do that tren P4 (2.9.52, YouTube): bo khung ~5 s/lan lien tuc ma
+   * nhip van ket 33 ms, vi luc tick socket vua xa bot. Dua dinh nay vao quyet dinh de no thay nghen that.
+   */
+  backlogSkipPeak?: number;
 };
 
 /** (26/09/2026 OS-2) Mot "ung dung" = mot Chromium target/session rieng cua MOT thiet bi. */
@@ -1008,6 +1015,11 @@ function handleMenuControl(id: string, payload: unknown, from?: Tab): void {
   const dev = devices.get(id);
   if (!dev) return;
   if (msg?.hello) { pushDeviceStateToPage(dev); return; }
+  // (26/09/2026 OS-5) Thong bao: mo (cham the), xoa mot, xoa het; bat/tat Khong lam phien.
+  if (msg?.ntOpen != null) { openNotice(dev, Number(msg.ntOpen)); return; }
+  if (msg?.ntDel != null) { noticesOf(id).remove(Number(msg.ntDel)); pushDeviceStateToPage(dev); return; }
+  if (msg?.ntClear) { noticesOf(id).clear(); pushDeviceStateToPage(dev); return; }
+  if (msg?.f === 'dnd') { setDnd(id, Number(msg?.v) === 1); for (const d of devices.values()) if (d.deviceId === id) pushDeviceStateToPage(d); return; }
   // (26/09/2026 OS-5) Nguoi dung cham tat man hinh cho.
   if (msg?.wake) { dev.saverOn = false; dev.lastTouchMs = Date.now(); return; }
   // (26/09/2026) Trang cua MOT tab bao dang phat / da dung (buildAudioGuardScript). Chi tin tab con thuoc thiet bi.
@@ -1084,6 +1096,70 @@ function fireTimer(dev: DeviceSession): void {
   }, 1500);
 }
 
+// ── (26/09/2026 OS-5) THONG BAO + KHONG LAM PHIEN ─────────────────────────────────────────────────────────────────
+// Lich su va Khong lam phien giu theo deviceId (khong theo phien) — thiet bi noi lai / bi don khi ranh van con.
+const noticeStores = new Map<string, NoticeStore>();
+function noticesOf(id: string): NoticeStore {
+  let s = noticeStores.get(id);
+  if (!s) { s = new NoticeStore(); noticeStores.set(id, s); }
+  return s;
+}
+const GO2RTC_FOR_PAGES = process.env.GO2RTC_URL || 'http://127.0.0.1:1984';
+// Khong lam phien: ghi ra /data (ben qua cap nhat addon). Loi ghi chi mat tinh ben, khong anh huong chay.
+const DND_FILE = process.env.DND_FILE || (fs.existsSync('/data') ? '/data/rwv-dnd.json' : '');
+const dnd: Record<string, boolean> = (() => {
+  try { return DND_FILE ? JSON.parse(fs.readFileSync(DND_FILE, 'utf8')) : {}; } catch { return {}; }
+})();
+function dndOf(id: string): boolean { return dnd[id] === true; }
+function setDnd(id: string, on: boolean): void {
+  dnd[id] = on;
+  console.log(`[notify] ${id}: Khong lam phien ${on ? 'BAT' : 'TAT'}`);
+  if (DND_FILE) fs.promises.writeFile(DND_FILE, JSON.stringify(dnd)).catch(() => { });
+}
+/** Gon cho Shell: id, tieu de, noi dung, uu tien, thoi diem, anh, co hanh dong khi cham khong. */
+function noticeForShell(n: Notice) {
+  return { id: n.id, t: n.title, m: n.message, p: n.priority, ts: n.ts, img: n.image ?? null, act: !!(n.app || n.url) };
+}
+
+/**
+ * POST /notify (index.ts). Tra ve danh sach man hinh da nhan. `device` = 'all' (moi man hinh dang ket noi) hoac mot
+ * deviceId cu the (van luu vao lich su du man hinh do chua ket noi).
+ */
+export function postNotify(body: NotifyRequest): { ok: boolean; error?: string; devices?: string[] } {
+  const r = parseNotify(body, GO2RTC_FOR_PAGES);
+  if (!r.ok) return { ok: false, error: r.error };
+  const targets = r.device === 'all' ? [...devices.keys()] : [r.device];
+  for (const id of targets) {
+    const n = noticesOf(id).add(r.notice);
+    const dev = devices.get(id);
+    console.log(`[notify] ${id}: "${n.title || n.message}" (${n.priority})`);
+    if (!dev) continue;
+    const quiet = dndOf(id);
+    pushDeviceStateToPage(dev);
+    if (!shouldPopup(n, quiet)) continue;
+    const wake = shouldWake(n, quiet);
+    const screenOff = dev.devState ? !dev.devState.backlightOn : false;
+    if (wake && dev.cfg.devControl) broadcaster.sendDeviceControl(id, ControlField.Brightness, dev.devState?.brightness ?? 100);
+    if (wake) { dev.lastTouchMs = Date.now(); dev.saverOn = false; }
+    // Man hinh dang tat: doi den nen bat + remote_webview resume (~0,5 s) roi moi hien, de khung do toi duoc man hinh.
+    const show = () => dev.cdp.send('Runtime.evaluate', {
+      expression: `window.__rwvShell && window.__rwvShell.notify && window.__rwvShell.notify(${JSON.stringify(noticeForShell(n))}, ${wake && !quiet})`,
+    }).catch(() => { });
+    if (wake && screenOff) setTimeout(show, 1500); else show();
+  }
+  return { ok: true, devices: targets };
+}
+
+/** Cham the thong bao: mo ung dung / URL kem theo, bo khoi lich su. */
+function openNotice(dev: DeviceSession, id: number): void {
+  const n = noticesOf(dev.deviceId).get(id);
+  if (!n) return;
+  noticesOf(dev.deviceId).remove(id);
+  pushDeviceStateToPage(dev);
+  if (n.app) openApp(dev, n.app).catch(() => { });
+  else if (n.url) navigateToUrl(dev, n.url).catch(() => { });
+}
+
 onWeatherMiniUpdate(() => { for (const d of devices.values()) pushDeviceStateToPage(d); });
 
 /** Thiet bi bao DeviceState -> luu lai, dua vao trang dang mo. */
@@ -1107,6 +1183,8 @@ function pushDeviceStateToPage(dev: DeviceSession): void {
     wx: getWeatherMini(),
     tm: dev.timer ? { endsAt: dev.timer.endsAt, label: dev.timer.label } : null,
     np: nowPlaying(dev.tabs.values(), dev.activeTabKey),
+    nt: noticesOf(dev.deviceId).list(8).map(noticeForShell),
+    dnd: dndOf(dev.deviceId),
   };
   dev.cdp.send('Runtime.evaluate', {
     expression: `(window.__rwvShell ? window.__rwvShell.state : window.__rwvDeviceState || function(){})(${JSON.stringify(payload)})`,
@@ -1793,6 +1871,7 @@ async function flushPending(dev: DeviceSession): Promise<void> {
       const highWater = tuning().wsHighWaterBytes ?? WS_HIGH_WATER_BYTES;
       if (backlog > highWater) {
         metrics.onFrameSkipped(dev.deviceId);
+        dev.backlogSkipPeak = Math.max(dev.backlogSkipPeak ?? 0, backlog);
         dev.lastProcessedMs = Date.now();
         if (Date.now() - (dev.lastBacklogLogMs ?? 0) > 5000) {
           dev.lastBacklogLogMs = Date.now();
@@ -2181,7 +2260,8 @@ export function runAdaptiveTick(): void {
         bytesPerSec,
         frameErrors: m.frameErrors,
         heapFree: m.deviceHeapFree ?? null,
-        backlogBytes: broadcaster.backlogBytes(m.id),
+        // Ton dong hien tai HOAC dinh ton dong luc phai bo khung giua hai tick (lay gia tri lon hon), roi dat lai.
+        backlogBytes: Math.max(broadcaster.backlogBytes(m.id), device.backlogSkipPeak ?? 0),
         capacityBytesPerSec: link?.capacityBytesPerSec ?? null,
         recentBytesPerSec: link?.recentBytesPerSec ?? null,
         recentFrameBytes: link?.recentFrameBytes ?? null,
@@ -2190,6 +2270,7 @@ export function runAdaptiveTick(): void {
       cfgA,
       now
     );
+    device.backlogSkipPeak = 0;
     adaptiveStates.set(m.id, res.state);
     if (!res.changed) continue;
     device.processor.setTuning({ jpegQuality: res.state.quality });
