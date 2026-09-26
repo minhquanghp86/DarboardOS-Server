@@ -1,3 +1,15 @@
+## V2.9.57
+### Ứng dụng "Cài đặt" ngay trên màn hình (OS-4)
+
+- Ứng dụng mới **Cài đặt** (menu *Tiện ích*, và lối tắt trong thanh kéo xuống): chỉnh mọi thiết lập của **chính màn hình
+  đang cầm** mà không cần mở Home Assistant — đèn nền, Màn hình chờ, Sleep time, âm lượng, xoay màn hình, Home URL,
+  địa chỉ server, khởi động lại (chạm hai lần để xác nhận)… cùng mục **Chẩn đoán** (WiFi, tải CPU, bộ nhớ, thời gian
+  giải mã, băng thông, phiên bản addon).
+- Không cần cấu hình gì: server tìm thiết bị ESPHome trong Home Assistant theo **địa chỉ MAC** của màn hình và lấy mọi
+  thực thể của nó — dùng chung cho cả 3 màn hình. Nhóm theo phân loại của HA (Điều khiển / Cấu hình / Chẩn đoán).
+- An toàn: chỉ trang Cài đặt mới ghi được, chỉ vào thực thể của chính màn hình đó; nút *Factory reset* không bao giờ
+  hiện. Thực thể bị ẩn/tắt trong HA cũng không hiện.
+
 ## V2.9.56
 ### Nút "Luôn sáng" đổi thành "Màn hình chờ"
 
