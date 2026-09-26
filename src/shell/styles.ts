@@ -90,7 +90,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .sc .l { font-size: 0.86em; color: var(--muted); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 
 /* ── Man hinh chinh cua OS (/os/home) ────────────────────────────────── */
-.home { position: absolute; inset: 0; pointer-events: auto; overflow: hidden;
+.home { position: absolute; inset: 0; pointer-events: auto; overflow: hidden; touch-action: none;
   background: radial-gradient(120% 90% at 15% 0%, #1d2a4a 0%, rgba(29,42,74,0) 55%),
               radial-gradient(90% 80% at 100% 100%, #2a1d44 0%, rgba(42,29,68,0) 60%), var(--bg);
   display: flex; flex-direction: column; padding: calc(var(--pad) + 26px) calc(var(--pad) * 1.6) var(--pad); gap: var(--gap); }
@@ -103,7 +103,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .w-wx .wx-ic { width: clamp(30px, 8vmin, 50px); height: clamp(30px, 8vmin, 50px); }
 .w-wx .t { font-size: clamp(18px, 5.5vmin, 34px); font-weight: 600; line-height: 1; }
 .w-wx .s { color: var(--muted); font-size: 0.9em; margin-top: 3px; white-space: nowrap; }
-.pager { flex: 1; min-height: 0; overflow: hidden; position: relative; touch-action: pan-y; }
+.pager { flex: 1; min-height: 0; overflow: hidden; position: relative; }
 .pages { display: flex; height: 100%; }
 .pages.anim { transition: transform 200ms cubic-bezier(.2,.8,.2,1); }
 .page { flex: none; width: 100%; height: 100%; display: grid; align-content: start;
@@ -118,7 +118,35 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .dock { flex: none; align-self: center; display: flex; gap: clamp(10px, 3vmin, 24px); padding: clamp(8px, 2vmin, 12px) clamp(14px, 3.4vmin, 24px);
   border-radius: calc(var(--r-lg) + 6px); background: rgba(255,255,255,0.08); }
 .dock .app .l { display: none; }
-.dock .app:first-child .app-ic { box-shadow: 0 0 0 2px rgba(65,189,245,0.65), 0 3px 10px rgba(0,0,0,0.35); }
+.dock .app[data-app="ha"] .app-ic { box-shadow: 0 0 0 2px rgba(65,189,245,0.65), 0 3px 10px rgba(0,0,0,0.35); }
+
+/* (27/09/2026 OS-3) Che do sap xep + thu muc. Khong co hieu ung chay lien tuc (bang thong WiFi). */
+.widgets { position: relative; }
+.editbar { display: none; position: absolute; inset: 0; align-items: center; gap: var(--gap); min-width: 0; }
+.eb-t { flex: 1; min-width: 0; color: var(--muted); font-size: 0.95em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eb-b { flex: none; padding: clamp(6px, 1.6vmin, 10px) clamp(12px, 3vmin, 20px); border-radius: 999px; background: var(--surface-3); font-weight: 600; }
+.eb-b.pri { background: var(--accent); }
+.home.editing .editbar { display: flex; }
+.home.editing .w-clock, .home.editing .w-wx { visibility: hidden; }
+.home.editing .page { outline: 1px dashed rgba(255,255,255,0.14); outline-offset: -2px; border-radius: var(--r-md); }
+.home.editing .app .app-ic { transform: scale(0.92); }
+.app.ghost { opacity: 0.25; }
+.app.merge .app-ic { transform: scale(1.12); box-shadow: 0 0 0 3px rgba(255,255,255,0.75), 0 3px 10px rgba(0,0,0,0.35); }
+.app.drag { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 5; transform-origin: 30% 30%; }
+.app.drag .app-ic { box-shadow: 0 10px 26px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.2); }
+.app.drag .l { display: none; }
+/* padding/gap % tinh theo o CHA (khong phai chinh no) -> dung vmin */
+.app-ic.fold { background: rgba(255,255,255,0.16); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start;
+  justify-content: stretch; align-items: start; gap: clamp(3px, 0.9vmin, 5px); padding: clamp(5px, 1.5vmin, 9px); }
+.app-ic .mini { aspect-ratio: 1; border-radius: 26%; display: flex; align-items: center; justify-content: center; }
+.fpop { position: absolute; inset: 0; z-index: 4; background: rgba(8,10,16,0.72); display: flex; align-items: center; justify-content: center; }
+.fpanel { width: min(92%, 640px); max-height: 86%; overflow: hidden; border-radius: calc(var(--r-lg) + 4px); background: rgba(40,46,60,0.96);
+  padding: var(--pad); display: flex; flex-direction: column; gap: var(--gap); }
+.f-name { font-size: 1.25em; font-weight: 600; text-align: center; }
+.f-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.fchip { padding: 5px 12px; border-radius: 999px; background: var(--surface-3); font-size: 0.9em; }
+.fchip.on { background: var(--accent); }
+.f-grid { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: clamp(8px, 2.4vmin, 18px) clamp(4px, 1vmin, 10px); }
 
 /* ── Gan day (OS-3) ────────────────────────────────────────────────── */
 .recents { position: absolute; inset: 0; pointer-events: auto; background: rgba(12,14,20,0.97); display: flex; flex-direction: column;

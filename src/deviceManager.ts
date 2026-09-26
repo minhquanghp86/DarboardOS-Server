@@ -28,6 +28,8 @@ import { SCREENSAVER_IDLE_S, shouldShowSaver } from "./screensaver.js";
 import { Notice, NoticeStore, NotifyRequest, parseNotify, shouldPopup, shouldWake } from "./notifications.js";
 import { callService, getSettingsView } from "./haSettings.js";
 import { planSet } from "./settingsModel.js";
+import { getLauncherConfig, saveHomeLayout } from "./launcherConfig.js";
+import { HomeLayout, resolveLayout } from "./homeLayout.js";
 import { ControlField, DeviceStateInfo, Encoding, FRAME_HEADER_BYTES, TILE_HEADER_BYTES, parseDeviceStatePacket } from "./protocol.js";
 
 // ── Type-safe interface cho CDP root (thay thế cast `any`) ────────────────────
@@ -1013,7 +1015,9 @@ const CONTROL_BINDING = '__rwvControl';
 
 function handleMenuControl(id: string, payload: unknown, from?: Tab): void {
   // Trang Cai dat gui duoc gia tri dai hon (o nhap URL toi 255 ky tu); moi trang khac van gioi han 200.
-  if (typeof payload !== 'string' || payload.length > (from?.kind === 'settings' ? 2000 : 200)) return;
+  // Man hinh chinh gui ca bo cuc (keo tha, thu muc) -> 8000.
+  const maxLen = from?.kind === 'settings' ? 2000 : from?.kind === 'system' ? 8000 : 200;
+  if (typeof payload !== 'string' || payload.length > maxLen) return;
   let msg: any;
   try { msg = JSON.parse(payload); } catch { return; }
   const dev = devices.get(id);
@@ -1023,6 +1027,15 @@ function handleMenuControl(id: string, payload: unknown, from?: Tab): void {
   if (msg?.settings != null) {
     if (from && from.kind === 'settings' && dev.tabs.get(from.key) === from) {
       handleSettings(dev, from, msg).catch((e: unknown) => console.warn(`[settings] ${id}:`, e));
+    }
+    return;
+  }
+  // (27/09/2026 OS-3) Bo cuc man hinh chinh sau khi keo tha. CHI tu tab he thong dang o /os/home.
+  if (msg?.home !== undefined) {
+    if (from && from.kind === 'system' && dev.tabs.get(from.key) === from) {
+      saveHomeLayout(msg.home);
+      console.log(`[home] ${id}: luu bo cuc man hinh chinh${msg.home == null ? ' (dat lai mac dinh)' : ''}`);
+      applyHomeLayout(dev).catch(() => { });
     }
     return;
   }
@@ -1269,6 +1282,31 @@ async function reloadLauncherTab(device: DeviceSession, tab: Tab): Promise<boole
   }
 }
 
+function homeLayoutFor(homeUrl: string | undefined): HomeLayout {
+  return resolveLayout(getLauncherConfig().home, buildLauncherApps(homeUrl).map((a) => a.id));
+}
+
+/**
+ * (27/09/2026 OS-3) Bo cuc vua doi: ap cho MOI man hinh. Tab he thong (man hinh chinh) ve lai ngay; moi tab thay
+ * script tiem (trong do co __RWV_CFG) de lan tai trang sau khong quay ve bo cuc cu. `except` = man hinh vua keo tha
+ * (no da tu ve dung), van thay script nhung khong ve lai.
+ */
+async function applyHomeLayout(except?: DeviceSession): Promise<void> {
+  for (const dev of devices.values()) {
+    const src = buildLauncherScript(dev.cfg.homeUrl, dev.cfg);
+    const layout = JSON.stringify(homeLayoutFor(dev.cfg.homeUrl));
+    for (const tab of dev.tabs.values()) {
+      try {
+        if (tab.launcherScriptId) await tab.session.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: tab.launcherScriptId });
+        tab.launcherScriptId = (await tab.session.send('Page.addScriptToEvaluateOnNewDocument', { source: src })).identifier;
+        if (tab.kind === 'system' && dev !== except) {
+          await tab.session.send('Runtime.evaluate', { expression: `window.__rwvShell && window.__rwvShell.layout && window.__rwvShell.layout(${layout})` });
+        }
+      } catch { /* tab dang dong */ }
+    }
+  }
+}
+
 async function reloadLauncher(device: DeviceSession): Promise<boolean> {
   let ok = true;
   for (const tab of device.tabs.values()) {
@@ -1308,6 +1346,7 @@ function shellMotion(cfg: DeviceConfig | undefined): 'full' | 'reduced' | 'minim
 export function buildLauncherScript(homeUrl: string | undefined, devCfg?: DeviceConfig): string {
   const cfg = {
     apps: buildLauncherApps(homeUrl),
+    home: homeLayoutFor(homeUrl),
     groups: Object.entries(GROUP_TITLES),
     motion: shellMotion(devCfg),
     urls: {
