@@ -61,6 +61,13 @@ it('dien thoai tim thay panel, truyen YouTube -> YouTube TV tren panel, ngat -> 
   expect(await (await fetch(appUrl + 'YouTube')).text()).toContain('<state>stopped</state>');
   expect((await fetch(appUrl + 'Netflix')).status).toBe(404);
 
+  // Radio dang phat nen truoc khi truyen (kiem tra "tieu diem am thanh" ben duoi)
+  const hp0 = await srv.waitPage((u) => u === home);
+  await srv.evaluate(hp0, `window.__rwvControl('{"app":"radio"}')`);
+  const radio = await srv.waitPage((u) => u.includes('/radio.html'));
+  await srv.evaluate(radio, `window.__rwvControl('{"media":1}')`);
+  await sleep(300);
+
   // 3) Truyen
   const before = dev.msgs.length;
   const post = await fetch(appUrl + 'YouTube', { method: 'POST', headers: { 'content-type': 'text/plain' }, body: 'pairingCode=ab12-cd34&theme=cl' });
@@ -90,13 +97,23 @@ it('dien thoai tim thay panel, truyen YouTube -> YouTube TV tren panel, ngat -> 
     }, 300);
   })`);
   expect(mute).toBe("0,1,2,false");
+  // YouTube TV bat dau phat -> Radio dang phat nen bi dung (khong chong tieng)
+  await srv.evaluate(yt, `window.__rwvControl('{"media":1}')`);
+  // (radio.html dung that -> tu bao media 0 -> the "Dang phat" khong con Radio)
+  let np: unknown[] | null = null;
+  for (let i = 0; i < 25; i++) {
+    await sleep(200);
+    np = await srv.evaluate<unknown[]>(yt, 'window.__rwvLastState && window.__rwvLastState.np');
+    if (Array.isArray(np) && !np.some((x) => (x as { k: string }).k === 'radio')) break;
+  }
+  expect((np ?? []).some((x) => (x as { k: string }).k === 'radio')).toBe(false);
   await dev.waitFor(() => dev!.currentUrls().slice(-1)[0].includes('pairingCode=ab12-cd34'), 8000, 'panel hien YouTube TV');
   expect(dev.msgs.slice(before).some((m) => m[0] === 9 && m[2] === 1)).toBe(true);        // bat den nen
   expect(await (await fetch(appUrl + 'YouTube')).text()).toContain('<state>running</state>');
 
   // 4) Ngat
   expect((await fetch(appUrl + 'YouTube/run', { method: 'DELETE' })).status).toBe(200);
-  await dev.waitFor(() => dev!.currentUrls().slice(-1)[0] === home, 8000, 've HA');
+  await dev.waitFor(() => dev!.currentUrls().slice(-1)[0].includes('/radio.html'), 8000, 've ung dung truoc (Radio)');
   for (let i = 0; i < 20 && (await srv.pageUrls()).some((u) => u.includes('pairingCode')); i++) await sleep(200);
   expect((await srv.pageUrls()).some((u) => u.includes('pairingCode'))).toBe(false);
 
