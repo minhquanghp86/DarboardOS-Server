@@ -1810,6 +1810,15 @@ function onTabMedia(dev: DeviceSession, tab: Tab, playing: boolean): void {
   if (!changed) return;
   if (tab.backgroundAudio) console.log(`[app] ${dev.deviceId}: tab "${tab.key}" ${playing ? 'dang phat' : 'da dung phat'}`);
   if (playing && dev.activeTabKey === tab.key) noteActivity(dev, 'bat dau phat video/am thanh');
+  // (27/09/2026) "Tieu diem am thanh" nhu dien thoai: mot tab cua man hinh bat dau phat -> dung moi tab KHAC dang phat
+  // (vd Radio phat nen roi truyen YouTube -> truoc day hai tieng chong nhau).
+  if (playing) {
+    for (const other of dev.tabs.values()) {
+      if (other === tab || !other.mediaPlaying) continue;
+      other.session.send('Runtime.evaluate', { expression: 'window.__rwvMediaStop && window.__rwvMediaStop();' }).catch(() => { });
+      console.log(`[app] ${dev.deviceId}: tab "${tab.key}" phat -> dung tab "${other.key}" (tranh chong tieng)`);
+    }
+  }
   // (27/09/2026) Chan doan truyen YouTube: trang thai am thanh THAT cua trinh phat (log addon).
   if (playing && tab.kind === 'yttv') {
     tab.session.send('Runtime.evaluate', { returnByValue: true, expression:
