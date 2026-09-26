@@ -186,6 +186,18 @@ rest_command:
   pipeline cho thiết bị ESPHome ở trang thiết bị.
 - Đang xem video thì từ đánh thức tạm dừng (giữ máy ổn định); nút Trợ lý vẫn dùng được.
 
+### Truyền YouTube từ điện thoại (như Smart TV)
+
+- Điện thoại và màn hình **cùng mạng WiFi/LAN** (cùng dải với máy chạy HA). Mở app **YouTube** (hoặc YouTube Music) →
+  bấm nút **Truyền** → chọn **Darboard XXXX** (4 ký tự cuối mã màn hình). Màn hình tự sáng, mở *YouTube TV* và phát;
+  điện thoại thành điều khiển (phát/dừng/tua/âm lượng/danh sách chờ). Ngắt truyền → màn hình quay về ứng dụng trước.
+- Đổi tên / tắt riêng từng màn hình: **Cài đặt → Màn hình → Nhận truyền YouTube / Tên khi truyền**. Tắt cho mọi màn
+  hình: tuỳ chọn addon `cast_enabled`.
+- Đây là giao thức **DIAL** (như TV Samsung/LG), **không phải Chromecast**: chỉ YouTube / YouTube Music hiện màn hình
+  trong danh sách; Netflix, Chrome "Truyền tab", Google Photos… cần Chromecast thật (Google khoá bằng chứng chỉ phần cứng).
+- Không thấy màn hình trong nút truyền: mở ứng dụng **YouTube TV** trên màn hình → Cài đặt → *Liên kết với mã TV*,
+  rồi trên điện thoại: YouTube → Cài đặt → *Xem trên TV* → *Nhập mã TV*.
+
 ### Bàn phím ảo
 
 Tự hiện khi chạm vào ô nhập chữ trên bất kỳ trang nào; có chế độ tiếng Việt (Telex), số và ký hiệu. Phím ▼ để ẩn.
@@ -304,6 +316,8 @@ luôn gửi giá trị riêng của từng màn hình (trong YAML ESPHome) khi k
 | Mở DevTools ra mạng LAN (`expose_debug_proxy`) | tắt | Xem mục *Nâng cao* — chỉ bật khi cần |
 | Cổng DevTools ra LAN (`debug_proxy_port`) | `9222` | |
 | Cổng DevTools nội bộ (`debug_port`) | `9221` | Thường không cần đổi |
+| Nhận truyền YouTube (`cast_enabled`) | bật | Màn hình hiện trong nút Truyền của app YouTube |
+| Cổng DIAL (`dial_port`) | `56790` | HTTP cho điện thoại khi truyền (SSDP luôn UDP 1900) |
 | Cỡ ô, chất lượng JPEG, nhịp khung… | — | Dự phòng, xem trên |
 
 ## Cổng và địa chỉ
@@ -313,6 +327,7 @@ luôn gửi giá trị riêng của từng màn hình (trong YAML ESPHome) khi k
 | 8081 | WebSocket ảnh/tiếng/cảm ứng | Màn hình ESP32 |
 | 18080 | `/metrics`, trang ứng dụng (`/weather.html`, `/calendar.html`, `/cams.html`, `/scenes.html`, `/radio.html`, `/timer.html`, `/cam.html`), Menu panel | Trình duyệt của addon, mạng LAN, ingress HA |
 | 9222 | Chrome DevTools (chỉ khi bật) | Máy tính quản trị |
+| UDP 1900 + 56790 | Truyền YouTube (SSDP tìm thiết bị + DIAL) | Điện thoại trong mạng nhà |
 
 ## Hiệu năng đo thực tế (ESP32-P4 1024×600, WiFi)
 
@@ -371,6 +386,8 @@ luôn gửi giá trị riêng của từng màn hình (trong YAML ESPHome) khi k
 
 ## Giới hạn đã biết
 
+- Truyền YouTube dùng DIAL: chỉ app YouTube/YouTube Music. Nếu HA hoặc addon khác đã giữ UDP 1900 không chia sẻ,
+  điện thoại có thể không tự thấy màn hình (log addon báo `[cast] SSDP loi`) — dùng cách *Liên kết với mã TV*.
 - Một trình duyệt dùng chung cho mọi màn hình: nếu **nhiều màn hình cùng có loa**, âm thanh của chúng có thể lẫn nhau
   — tại một thời điểm chỉ một tab của một màn hình được phép phát tiếng (server tự khoá/mở, xem mục "Menu ứng dụng").
 - ESP32-S3 giải mã JPEG bằng phần mềm nên chậm hơn P4 nhiều — hợp với dashboard hơn video.

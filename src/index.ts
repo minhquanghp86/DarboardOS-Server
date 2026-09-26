@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url';
 import { WebSocketServer } from "ws"
 import env from "env-var";
 import { makeConfigFromParams, setConfigFor, logDeviceConfig } from "./config.js";
-import { broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick, refreshDisplaysTick, markInteraction, screensaverTick, postNotify, repaintRect, onDeviceStatePacket, onDeviceEvent, anyTzOffset, postDoorbell, closeDoorbell, unlockDoorbell } from './deviceManager.js';
+import { broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick, refreshDisplaysTick, markInteraction, screensaverTick, postNotify, repaintRect, onDeviceStatePacket, onDeviceEvent, anyTzOffset, postDoorbell, closeDoorbell, unlockDoorbell, dialHooks, YT_TV_URL } from './deviceManager.js';
 import type { DeviceSession } from './deviceManager.js';
 import { InputRouter } from "./inputRouter.js";
 import { bootstrapAsync } from './browser.js';
@@ -24,6 +24,7 @@ import { handleAppApi } from './haApps.js';
 import { handleHomeApi } from './homeApi.js';
 import { board, parseNote } from './board.js';
 import { getToday } from './todayData.js';
+import { startDial } from './dial.js';
 import { handleLauncherApi } from './launcherApi.js';
 import { ensureMdiIcons } from './launcherConfig.js';
 import { startDebugProxy } from './debugProxy.js';
@@ -270,6 +271,14 @@ http.createServer((req, res) => {
 
 setInterval(() => cleanupIdleAsync(), 60_000);
 startWeatherMini();
+// (27/09/2026) Truyen YouTube tu dien thoai: panel hien nhu mot TV trong nut truyen (DIAL). Tat: tuy chon cast_enabled.
+if (!['0', 'false'].includes(process.env.CAST_ENABLED ?? '')) {
+  startDial(dialHooks, {
+    httpPort: Number(process.env.DIAL_PORT) || 56790,
+    ssdpPort: Number(process.env.DIAL_SSDP_PORT) || 1900,
+    ytUrl: YT_TV_URL,
+  });
+}
 startDebugProxy();
 ensureMdiIcons().catch(() => { });  // bieu tuong MDI cua cau hinh cu (neu bo dem bi mat)
 // (14/09/2026) GD2: 30s/lan xin so lieu decode tu cac thiet bi -> /metrics

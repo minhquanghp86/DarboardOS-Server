@@ -120,7 +120,7 @@ it('Cai dat: doc thuc the cua DUNG man hinh (theo MAC), doi cai dat -> HA nhan d
   expect(d.view.items.find((x: any) => x.id === 'switch.p4_man_hinh_cho').on).toBe(true);
 
   // Muc cua addon "Man hinh cho hien anh": server luu rieng man hinh nay, khong goi HA
-  expect(d.panel.filter((x: any) => x.sec === 'screen').map((x: any) => x.id)).toEqual(['rwv.saver_idle', 'rwv.saver_photos', 'rwv.morning']);
+  expect(d.panel.filter((x: any) => x.sec === 'screen').map((x: any) => x.id)).toEqual(['rwv.saver_idle', 'rwv.saver_photos', 'rwv.morning', 'rwv.cast', 'rwv.cast_name']);
   expect(d.panel.filter((x: any) => x.sec === 'frame').map((x: any) => x.id)).toEqual(['rwv.photo_interval', 'rwv.photo_effect', 'rwv.photo_fit',
     'rwv.photo_order', 'rwv.photo_source', 'rwv.photo_clock', 'rwv.photo_info', 'rwv.gphotos_url']);
   const before = ha.calls.length;

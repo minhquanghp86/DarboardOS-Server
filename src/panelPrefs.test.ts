@@ -14,8 +14,9 @@ describe("cai dat addon theo tung man hinh", () => {
   });
   it("chao buoi sang + thoi gian cho", () => {
     const p = new PanelPrefsStore(null);
-    expect(p.items("a", D).filter((i) => i.sec === "screen").map((i) => [i.id, i.on, i.value])).toEqual([
-      ["rwv.saver_idle", true, "2 phút"], ["rwv.saver_photos", true, ""], ["rwv.morning", true, ""]]);
+    expect(p.items("esp32-0a0b0c0d0002", D).filter((i) => i.sec === "screen").map((i) => [i.id, i.on, i.value])).toEqual([
+      ["rwv.saver_idle", true, "2 phút"], ["rwv.saver_photos", true, ""], ["rwv.morning", true, ""],
+      ["rwv.cast", true, ""], ["rwv.cast_name", true, "Darboard 0218"]]);
     expect(p.set("a", "rwv.morning", false)).toBe(true);
     expect(p.morning("a", true)).toBe(false);
     expect(p.set("a", "rwv.saver_idle", "Tắt")).toBe(true);
@@ -44,5 +45,18 @@ describe("cai dat khung anh so", () => {
     expect(p.frame("b").album).toBe("https://photos.app.goo.gl/AbC123");   // album dung chung
     expect(p.frame("b").intervalS).toBe(60);                                // con lai rieng tung man hinh
     expect(p.items("a", D).find((i) => i.id === "rwv.photo_effect")?.value).toBe("Trượt");
+  });
+});
+
+describe("truyen YouTube", () => {
+  it("bat mac dinh, tat rieng tung man hinh, doi ten (loc ky tu la)", () => {
+    const p = new PanelPrefsStore(null);
+    expect(p.cast("a", true)).toBe(true);
+    expect(p.set("a", "rwv.cast", false)).toBe(true);
+    expect(p.cast("a", true)).toBe(false);
+    expect(p.castName("esp32-0a0b0c0d0002")).toBe("Darboard 0218");
+    expect(p.set("a", "rwv.cast_name", "Phòng <khách>")).toBe(true);
+    expect(p.castName("a")).toBe("Phòng khách");
+    expect(p.set("a", "rwv.cast_name", "x".repeat(41))).toBe(false);
   });
 });
