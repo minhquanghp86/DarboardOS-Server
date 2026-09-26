@@ -121,8 +121,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .dock .app[data-app="ha"] .app-ic { box-shadow: 0 0 0 2px rgba(65,189,245,0.65), 0 3px 10px rgba(0,0,0,0.35); }
 
 /* (27/09/2026 OS-3) Che do sap xep + thu muc. Khong co hieu ung chay lien tuc (bang thong WiFi). */
-.widgets { position: relative; }
-.editbar { display: none; position: absolute; inset: 0; align-items: center; gap: var(--gap); min-width: 0; }
+.editbar { display: none; position: absolute; left: calc(var(--pad) * 1.6); right: calc(var(--pad) * 1.6); top: calc(var(--pad) + 22px);
+  align-items: center; gap: var(--gap); min-width: 0; z-index: 3; }
 .eb-t { flex: 1; min-width: 0; color: var(--muted); font-size: 0.95em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .eb-b { flex: none; padding: clamp(6px, 1.6vmin, 10px) clamp(12px, 3vmin, 20px); border-radius: 999px; background: var(--surface-3); font-weight: 600; }
 .eb-b.pri { background: var(--accent); }
@@ -251,4 +251,21 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .alarm .t1 { font-size: 8vmin; font-weight: 700; }
 .alarm .t2 { font-size: 4vmin; color: var(--muted); }
 .alarm .btn { margin-top: 3vmin; padding: 2vmin 7vmin; border-radius: 999px; background: #f97316; font-size: 4.5vmin; font-weight: 600; }
+
+/* (27/09/2026 OS-6) Man hinh thap (S3 480x272): bo hang tien ich (dong ho da co o thanh keo xuong) de luoi duoc 2 hang;
+   thanh sap xep thu gon, de len vung dem tren cung. */
+@media (max-height: 320px) {
+  .home { padding-top: calc(var(--pad) + 12px); }
+  .home .widgets { display: none; }
+  .editbar { top: 4px; }
+  .eb-t { display: none; }
+  .editbar { justify-content: flex-end; }
+  .eb-b { padding: 4px 12px; }
+}
+/* S3 480x480: dong ho nho lai mot chut de luoi du 3 hang (12 ung dung/trang thay vi 8). */
+@media (max-width: 600px) and (min-height: 321px) {
+  .w-clock .clock { font-size: 46px; line-height: 1.05; }
+  .page { padding-top: 4px; row-gap: 8px; }
+  .page .app-ic { width: 48px; height: 48px; }
+}
 `;
