@@ -1392,14 +1392,18 @@ async function navigateTab(dev: DeviceSession, tab: Tab, url: string): Promise<v
  * "URL hien tai" nhay sang thu nguoi dung khong he thay tren man hinh.
  */
 function handleTabNavigation(dev: DeviceSession, tab: Tab, url: string | undefined): void {
-  if (!url || url === 'about:blank' || tab.url === url) return;
+  if (!url || url === 'about:blank') return;
+  // (26/09/2026, bat duoc boi thu tich hop) KHONG thoat som khi `tab.url === url`: navigateTab() da gan tab.url LAC
+  // QUAN truoc khi Chromium bao dieu huong xong, nen dieu huong toi DUNG URL da xin (truong hop thuong gap nhat — vd
+  // luc ket noi, Go Home) truoc day bi bo qua o day -> thiet bi khong nhan CurrentURL, va lenh khang dinh am thanh ben
+  // duoi cung khong chay. Chong lap dua vao `dev.url` (nhu ban goc mot-tab), khong dua vao `tab.url`.
   tab.url = url;
   // Khang dinh lai trang thai am thanh MOI LAN tab nay thuc su vao mot tai lieu moi — xem buildAudioGuardScript:
   // day la cho tu sua neu lenh setTabAudioAllowed() luc kich hoat da "thua" chinh navigation nay.
   tab.session.send('Runtime.evaluate', {
     expression: `window.__rwvAudioGuard && (window.__rwvAudioAllowed = ${tab.audioAllowed});`,
   }).catch(() => { });
-  if (dev.activeTabKey !== tab.key) return;
+  if (dev.activeTabKey !== tab.key || dev.url === url) return;
   dev.url = url;
   broadcaster.sendCurrentURL(dev.deviceId, url);
   metrics.onNavigate(dev.deviceId, url);
