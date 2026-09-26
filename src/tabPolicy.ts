@@ -89,3 +89,33 @@ export function recentsList(
     .sort((a, b) => b.lastUsed - a.lastUsed)
     .map((t) => ({ k: t.key, l: t.label, t: t.thumb ?? null, p: t.pinned, a: t.key === activeKey }));
 }
+
+/** Ten mien "goc" de so khop ung dung: bo www./m., gom cac ten mien bi danh (youtu.be = youtube.com). */
+function siteOf(url: string): string | null {
+  let h: string;
+  try { h = new URL(url).hostname.toLowerCase(); } catch { return null; }
+  h = h.replace(/^(www|m|mobile)\./, '');
+  const ALIAS: Record<string, string> = { 'youtu.be': 'youtube.com', 'vt.tiktok.com': 'tiktok.com' };
+  return ALIAS[h] ?? h;
+}
+
+/**
+ * (26/09/2026) URL mo tu thuc the "URL hien thi" / tu dong hoa HA thuoc ung dung nao trong menu (cung trang web) — vd
+ * https://youtu.be/xyz -> 'youtube'. Nho vay no vao DUNG tab ung dung do (tu dung khi roi di, co trong Gan day voi
+ * dung ten/bieu tuong) thay vi tab "Trinh duyet" chung. Khong khop -> null.
+ */
+export function appKeyForUrl(url: string, apps: { id: string; url?: string }[]): string | null {
+  const site = siteOf(url);
+  if (!site) return null;
+  const path = new URL(url).pathname;
+  // Cung trang web VA duong dan cua ung dung la tien to (ung dung noi bo cung host 127.0.0.1 khac nhau o duong dan:
+  // /weather.html, /timer.html...). Nhieu ung dung khop -> duong dan dai nhat (cu the nhat).
+  let best: { id: string; len: number } | null = null;
+  for (const a of apps) {
+    if (!a.url || siteOf(a.url) !== site) continue;
+    const p = new URL(a.url).pathname.replace(/\/$/, '');
+    if (p && path !== p && !path.startsWith(p + '/')) continue;
+    if (!best || p.length > best.len) best = { id: a.id, len: p.length };
+  }
+  return best ? best.id : null;
+}

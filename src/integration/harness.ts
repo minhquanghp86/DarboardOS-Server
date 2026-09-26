@@ -171,6 +171,13 @@ export class FakeDevice {
     this.ws.send(b);
   }
 
+  /** Goi OpenURL nhu firmware (Go Home / thuc the "URL hien thi"): [4][1][flags u16][len u32][url utf8]. */
+  openUrl(url: string): void {
+    const u = Buffer.from(url, 'utf8'); const b = Buffer.alloc(8 + u.length);
+    b[0] = 4; b[1] = 1; b.writeUInt16LE(0, 2); b.writeUInt32LE(u.length, 4); u.copy(b, 8);
+    this.ws.send(b);
+  }
+
   /** Cac URL server da bao qua goi CurrentURL (type 6: [6][1][len u32][utf8]). */
   currentUrls(): string[] {
     return this.msgs.filter((m) => m[0] === 6 && m.length >= 6).map((m) => m.subarray(6, 6 + m.readUInt32LE(2)).toString('utf8'));
