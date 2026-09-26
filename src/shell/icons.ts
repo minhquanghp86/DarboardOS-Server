@@ -51,6 +51,7 @@ export function appIcon(app: App, cls = 'app-ic'): HTMLElement {
       line('rect', { x: '3', y: '5', width: '18', height: '16', rx: '2' }); line('path', { d: 'M3 10h18M8 3v4M16 3v4' });
       line('path', { d: 'M12 13.5a2.5 2.5 0 11-1.2 4.7' });
       break;
+    case 'settings': fillPath(MDI.settings); break;
     case 'timer': line('circle', { cx: '12', cy: '13.5', r: '7.5' }); line('path', { d: 'M12 9.5v4l2.5 2M9.5 2.5h5M19 6l1.5-1.5' }); break;
     case 'browser':
       line('circle', { cx: '12', cy: '12', r: '9' });
