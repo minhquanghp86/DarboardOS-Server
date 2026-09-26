@@ -17,13 +17,13 @@ export const BUILTIN_PREVIEW: Record<string, string> = {
   youtube: 'youtube', tiktok: 'music-note', music: 'play-circle-outline', radio: 'radio', news: 'newspaper-variant-outline',
   media: 'music', weather: 'weather-partly-cloudy', calendar: 'calendar-month-outline', timer: 'timer-outline', browser: 'web', settings: 'cog-outline',
   rooms: 'home-floor-1', remote: 'remote-tv', todo: 'format-list-checks', photos: 'image-multiple-outline',
-  today: 'weather-sunset-up', board: 'note-multiple-outline', solar: 'solar-power-variant-outline',
+  today: 'weather-sunset-up', board: 'note-multiple-outline', solar: 'solar-power-variant-outline', yttv: 'youtube-tv',
 };
 
 export const GROUP_TITLES: Record<AppGroup, string> = { nha: 'Nhà', giai_tri: 'Giải trí', tien_ich: 'Tiện ích' };
 /** Ten bieu tuong ve tay co san trong launcher. */
 export const KNOWN_ICONS = ['ha', 'home', 'camera', 'cams', 'scenes', 'energy', 'youtube', 'tiktok', 'music', 'radio', 'news',
-  'media', 'weather', 'calendar', 'timer', 'browser', 'settings', 'rooms', 'remote', 'todo', 'photos', 'today', 'board', 'solar'];
+  'media', 'weather', 'calendar', 'timer', 'browser', 'settings', 'rooms', 'remote', 'todo', 'photos', 'today', 'board', 'solar', 'yttv'];
 
 const PORT = process.env.HEALTH_PORT || '18080';
 const LOCAL = `http://127.0.0.1:${PORT}`;
@@ -59,6 +59,8 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
 
   add('giai_tri', 'YouTube', 'youtube', '#ff0033', 'https://m.youtube.com');
   add('giai_tri', 'TikTok', 'tiktok', '#161616', 'https://www.tiktok.com');
+  // (27/09/2026) Giao dien YouTube cho TV (tab UA Smart TV) — dien thoai truyen toi day; mo tay de lien ket bang ma TV.
+  add('giai_tri', 'YouTube TV', 'yttv', '#cc0000', process.env.YT_TV_URL || 'https://www.youtube.com/tv');
   add('giai_tri', 'Nhạc', 'music', '#e11d48', 'https://music.youtube.com');
   add('giai_tri', 'Radio', 'radio', '#ea580c', `${LOCAL}/radio.html`);
   add('giai_tri', 'Tin tức', 'news', '#b91c1c', 'https://vnexpress.net');

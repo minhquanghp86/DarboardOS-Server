@@ -14,10 +14,12 @@ export interface PanelPrefs {
   saverPhotos?: boolean; morning?: boolean; saverIdleS?: number;
   photoIntervalS?: number; photoEffect?: PhotoEffect; photoFit?: 'cover' | 'frame'; photoOrder?: 'random' | 'name';
   photoClock?: boolean; photoInfo?: boolean; photoSource?: 'folder' | 'google' | 'both'; gphotosUrl?: string;
+  /** (27/09/2026) Nhan truyen YouTube tu dien thoai (DIAL) + ten hien tren dien thoai. */
+  cast?: boolean; castName?: string;
 }
 export type PhotoEffect = 'fade' | 'slide' | 'zoom' | 'none';
 /** Gia tri mac dinh = tuy chon addon (dung khi man hinh chua chinh). */
-export interface PanelDefaults { saverPhotos: boolean; morning: boolean; saverIdleS: number }
+export interface PanelDefaults { saverPhotos: boolean; morning: boolean; saverIdleS: number; cast?: boolean }
 /** Muc hien tren trang Cai dat: id bat dau "rwv." de phan biet voi thuc the HA. sec: nhom tren trang. */
 export interface PanelPrefItem {
   id: string; kind: 'switch' | 'select' | 'text'; label: string; hint: string; on: boolean; value: string;
@@ -59,6 +61,10 @@ export class PanelPrefsStore {
       case 'rwv.morning': if (typeof v === 'boolean') patch = { morning: v }; break;
       case 'rwv.photo_clock': if (typeof v === 'boolean') patch = { photoClock: v }; break;
       case 'rwv.photo_info': if (typeof v === 'boolean') patch = { photoInfo: v }; break;
+      case 'rwv.cast': if (typeof v === 'boolean') patch = { cast: v }; break;
+      case 'rwv.cast_name':
+        if (typeof v === 'string' && v.trim().length <= 40) patch = { castName: v.replace(/[\u0000-\u001f<>&]/g, '').trim() };
+        break;
       case 'rwv.saver_idle': pick(IDLE_CHOICES, (x) => ({ saverIdleS: x })); break;
       case 'rwv.photo_interval': pick(INTERVAL_CHOICES, (x) => ({ photoIntervalS: x })); break;
       case 'rwv.photo_effect': pick(EFFECT_CHOICES, (x) => ({ photoEffect: x })); break;
@@ -80,6 +86,9 @@ export class PanelPrefsStore {
   morning(dev: string, addonDefault: boolean): boolean { return this.get(dev).morning ?? addonDefault; }
   saverIdleS(dev: string, addonDefault: number): number { return this.get(dev).saverIdleS ?? addonDefault; }
   albumUrl(envDefault = ''): string { return this.global().gphotosUrl ?? envDefault; }
+  cast(dev: string, addonDefault: boolean): boolean { return this.get(dev).cast ?? addonDefault; }
+  /** Ten panel hien trong nut truyen cua dien thoai. */
+  castName(dev: string): string { return this.get(dev).castName || `Darboard ${dev.replace(/^esp32-/, '').slice(-4).toUpperCase()}`; }
   frame(dev: string, envAlbum = ''): FrameSettings {
     const p = this.get(dev);
     return {
@@ -101,6 +110,9 @@ export class PanelPrefsStore {
       sel('rwv.saver_idle', 'screen', 'Hiện màn hình chờ sau', IDLE_CHOICES, idle, `${Math.round(idle / 60)} phút`),
       sw('rwv.saver_photos', 'screen', 'Màn hình chờ hiện ảnh', this.saverPhotos(dev, d.saverPhotos), 'Khung ảnh số · đêm chỉ đồng hồ'),
       sw('rwv.morning', 'screen', 'Chào buổi sáng', this.morning(dev, d.morning), 'Camera thấy người buổi sáng → mở “Hôm nay”'),
+      sw('rwv.cast', 'screen', 'Nhận truyền YouTube', this.cast(dev, d.cast ?? true), 'Hiện trong nút truyền của app YouTube (cùng WiFi)'),
+      { id: 'rwv.cast_name', kind: 'text', group: 'panel', sec: 'screen', label: 'Tên khi truyền', maxLength: 40, on: true,
+        value: this.castName(dev), hint: '' },
       sel('rwv.photo_interval', 'frame', 'Đổi ảnh sau', INTERVAL_CHOICES, f.intervalS, `${f.intervalS} giây`),
       sel('rwv.photo_effect', 'frame', 'Hiệu ứng chuyển', EFFECT_CHOICES, f.effect, 'Mờ dần'),
       sel('rwv.photo_fit', 'frame', 'Kiểu hiển thị', FIT_CHOICES, f.fit, 'Lấp đầy', 'Vừa khung: giữ trọn ảnh, nền mờ'),

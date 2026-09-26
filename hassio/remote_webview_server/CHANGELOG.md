@@ -1,3 +1,17 @@
+## V2.9.62
+### Truyền YouTube từ điện thoại lên màn hình (như Smart TV)
+
+- Mỗi màn hình hiện như **một TV** trong nút **Truyền** của app YouTube / YouTube Music (điện thoại cùng WiFi). Chọn
+  → màn hình tự sáng, mở **YouTube TV** (giao diện TV, điều khiển bằng điện thoại: phát/dừng/tua/âm lượng/danh sách
+  chờ). Ngắt truyền → đóng YouTube TV, quay về ứng dụng trước.
+- Giao thức **DIAL** (SSDP UDP 1900 + HTTP cổng `dial_port`, mặc định 56790) — không phải Chromecast (Google khoá bằng
+  chứng chỉ phần cứng), nên chỉ YouTube dùng được.
+- **Cài đặt → Màn hình**: **Nhận truyền YouTube** (bật/tắt riêng từng màn hình) và **Tên khi truyền** (mặc định
+  "Darboard" + 4 ký tự cuối mã màn hình).
+- Ứng dụng mới **YouTube TV** (nhóm Giải trí): mở tay để *Liên kết với mã TV* khi điện thoại không tự thấy màn hình.
+- Tuỳ chọn addon mới: `cast_enabled`, `dial_port`. Server chỉ nhận các tham số an toàn từ điện thoại (mã ghép nối…),
+  không cho máy lạ trong LAN điều hướng màn hình tới trang tuỳ ý.
+
 ## V2.9.61
 ### Màn hình chờ thành khung ảnh số: vuốt xem ảnh, hiệu ứng, album Google Photos, cài đặt trên màn hình
 

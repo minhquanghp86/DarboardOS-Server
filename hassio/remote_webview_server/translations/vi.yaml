@@ -62,6 +62,12 @@ configuration:
   gphotos_album:
     name: 'Album Google Photos'
     description: 'Link chia sẻ album (https://photos.app.goo.gl/…) cho khung ảnh / màn hình chờ. Ai có link đều xem được album. Có thể dán ngay trên màn hình: Cài đặt → Khung ảnh.'
+  cast_enabled:
+    name: 'Nhận truyền YouTube từ điện thoại'
+    description: 'Màn hình hiện như một TV trong nút truyền của app YouTube (điện thoại cùng mạng WiFi). Tắt/bật và đổi tên riêng từng màn hình ở Cài đặt → Màn hình.'
+  dial_port:
+    name: 'Cổng DIAL (HTTP)'
+    description: 'Cổng HTTP để điện thoại đọc thông tin panel khi truyền. Đổi nếu trùng với dịch vụ khác. SSDP luôn dùng UDP 1900.'
   user_data_dir:
     name: 'Thư mục hồ sơ trình duyệt'
     description: 'Nơi lưu cookie/đăng nhập của trình duyệt. Để trong /data (mặc định /data/pw-data) để không phải đăng nhập lại sau mỗi lần cập nhật addon.'

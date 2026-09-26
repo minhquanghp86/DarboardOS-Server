@@ -33,6 +33,7 @@ const GPHOTOS_ALBUM = process.env.GPHOTOS_ALBUM || '';
 import { deviceClock, parseWindow, shouldGreet } from "./today.js";
 import { getToday, speakOnPanel } from "./todayData.js";
 import { parseDoorbell, unlockCall } from "./doorbell.js";
+import type { DialHooks } from "./dial.js";
 import { Notice, NoticeStore, NotifyRequest, parseNotify, shouldPopup, shouldWake } from "./notifications.js";
 import { callService, getSettingsView } from "./haSettings.js";
 import { planSet } from "./settingsModel.js";
@@ -168,6 +169,9 @@ export type DeviceSession = {
   morningDate?: string;
   /** (27/09/2026) Chuong cua dang hien: id lan bam, URL trang, tab dang dung truoc do, hen gio tu dong. */
   doorbell?: { id: string; url: string; prevKey: string; timer: NodeJS.Timeout; unlock: string | null };
+  /** (27/09/2026) Dien thoai dang truyen YouTube: URL youtube.com/tv (kem pairingCode) + ung dung dang dung truoc do. */
+  castUrl?: string;
+  castPrev?: string;
   /**
    * (26/09/2026) Ton dong socket LON NHAT tai cac lan PHAI BO KHUNG vi nghen, ke tu tick dieu tiet truoc. Vong dieu
    * tiet chi doc ton dong DUNG luc tick (5 s/lan) — do that tren P4 (2.9.52, YouTube): bo khung ~5 s/lan lien tuc ma
@@ -1212,7 +1216,7 @@ const SERVER_VERSION = (() => {
   catch { return '?'; }
 })();
 
-function panelDefaults() { return { saverPhotos: SCREENSAVER_PHOTOS, morning: MORNING_DEFAULT, saverIdleS: SCREENSAVER_IDLE_S }; }
+function panelDefaults() { return { saverPhotos: SCREENSAVER_PHOTOS, morning: MORNING_DEFAULT, saverIdleS: SCREENSAVER_IDLE_S, cast: CAST_DEFAULT }; }
 
 async function pushSettings(dev: DeviceSession, tab: Tab, note?: { ok: boolean; msg: string }): Promise<void> {
   const r = await getSettingsView(dev.deviceId);
@@ -1466,6 +1470,7 @@ function resolveAppSpec(dev: DeviceSession, key: string): { kind: string; label:
   if (key === '__system') return { kind: 'system', label: 'Màn hình chính', url: LAUNCHER_OS_HOME_URL, pinned: true };
   if (key === 'home') return dev.cfg.homeUrl ? { kind: 'ha', label: 'Home Assistant', url: dev.cfg.homeUrl, pinned: true } : null;
   if (key === '__doorbell') return dev.doorbell ? { kind: 'doorbell', label: 'Chuông cửa', url: dev.doorbell.url, pinned: false } : null;
+  if (key === 'yttv') return { kind: 'yttv', label: 'YouTube TV', url: dev.castUrl ?? YT_TV_URL, pinned: false };
   const app = listAllApps(dev.cfg.homeUrl).find((a) => a.id === key && !a.hidden);
   if (!app || !app.url) return null;
   // baseKind, KHONG phai kind: nguoi dung doi bieu tuong o "Menu panel" thi kind thanh 'mdi' -> Radio/Nhac mat phat
@@ -1618,6 +1623,44 @@ export async function unlockDoorbell(id: string): Promise<{ ok: boolean; error?:
   return ok ? { ok } : { ok, error: 'Home Assistant không thực hiện được.' };
 }
 
+// ── (27/09/2026) TRUYEN YOUTUBE TU DIEN THOAI (DIAL, src/dial.ts): moi panel bat "Nhan truyen YouTube" la mot "TV"
+// trong nut truyen cua app YouTube. Truyen -> sang man hinh, mo youtube.com/tv?pairingCode=... (UA Smart TV); ngat ->
+// quay ve ung dung truoc.
+export const YT_TV_URL = process.env.YT_TV_URL || 'https://www.youtube.com/tv';
+const YT_TV_UA = process.env.YT_TV_UA ||
+  'Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleWebKit/537.36 (KHTML, like Gecko) 85.0.4183.93/6.0 TV Safari/537.36';
+const CAST_DEFAULT = !['0', 'false'].includes(process.env.CAST_ENABLED ?? '');
+
+export const dialHooks: DialHooks = {
+  devices: () => [...devices.values()]
+    .filter((d) => broadcaster.getClientCount(d.deviceId) > 0 && panelPrefs.cast(d.deviceId, CAST_DEFAULT))
+    .map((d) => ({ id: d.deviceId, name: panelPrefs.castName(d.deviceId) })),
+  running: (id) => !!devices.get(id)?.tabs.has('yttv'),
+  launch(id, url) {
+    const dev = devices.get(id);
+    if (!dev) return;
+    if (dev.activeTabKey !== 'yttv') dev.castPrev = dev.activeTabKey;
+    dev.castUrl = url;
+    if (dev.cfg.devControl) broadcaster.sendDeviceControl(id, ControlField.Brightness, dev.devState?.brightness ?? 100);
+    noteActivity(dev, 'truyen YouTube');
+    dev.tabOps.run(async () => {
+      const t = dev.tabs.get('yttv');
+      if (t) { await activateTab(dev, 'yttv'); t.url = ''; await navigateTab(dev, t, url); }
+      else await openAppNow(dev, 'yttv');
+    }).catch((e) => console.warn(`[cast] ${id}:`, (e as Error).message));
+  },
+  stop(id) {
+    const dev = devices.get(id);
+    if (!dev || !dev.tabs.has('yttv')) return;
+    const prev = dev.castPrev && dev.castPrev !== 'yttv' ? dev.castPrev : 'home';
+    dev.castUrl = undefined;
+    dev.tabOps.run(async () => {
+      if (dev.activeTabKey === 'yttv') await openAppNow(dev, dev.tabs.has(prev) || prev === 'home' || prev === '__system' ? prev : '__system');
+      closeTab(dev, 'yttv', 'dien thoai ngat truyen');
+    }).catch(() => { });
+  },
+};
+
 // ── (27/09/2026) CHAO BUOI SANG: lan dau camera thay nguoi trong khung gio sang (moi ngay, moi man hinh mot lan) -> mo
 // ung dung "Hom nay" (thoi tiet, lich, viec, ghi chu) va doc tom tat qua loa cua panel (tts.speak, neu HA co TTS).
 const off = (v: string | undefined) => v === '0' || v === 'false';
@@ -1746,7 +1789,8 @@ async function createTab(dev: DeviceSession, key: string, kind: string, pinned: 
   await verifyCodecSupport(session);
 
   try {
-    const realUA = await getRealChromeUserAgentAsync(session);
+    // (27/09/2026) Tab YouTube TV: User-Agent Smart TV (khong co thi youtube.com/tv chuyen ve trang may tinh).
+    const realUA = kind === 'yttv' ? YT_TV_UA : await getRealChromeUserAgentAsync(session);
     if (realUA) {
       await session.send('Emulation.setUserAgentOverride', { userAgent: realUA, platform: 'Linux x86_64' });
     }
