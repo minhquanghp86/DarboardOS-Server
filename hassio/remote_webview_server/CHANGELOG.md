@@ -1,3 +1,20 @@
+## V2.9.53
+### Thông báo từ Home Assistant + Không làm phiền (OS-5)
+
+- **Thông báo lên màn hình**: tự động hoá HA gọi `rest_command` (hướng dẫn trong mục *Thông báo từ Home Assistant*
+  của tài liệu addon) → thẻ nổi trượt xuống từ mép trên. Ba mức: thường (tự ẩn), **cao** (bật sáng màn hình + chuông
+  ngắn), **khẩn cấp** — chuông cửa, báo cháy (bật sáng + chuông, giữ tới khi chạm). Kèm được **ảnh camera** (tên luồng
+  go2rtc); chạm vào thẻ mở ứng dụng/URL kèm theo (vd mở Camera nhà).
+- **Danh sách thông báo** trong thanh kéo xuống (chạm để mở, ✕ để xoá, Xoá hết); chấm cam cạnh đồng hồ khi còn
+  thông báo.
+- **Không làm phiền**: ô mới trong thanh kéo xuống, có trên cả 3 màn hình. Bật thì thông báo thường/cao chỉ vào danh
+  sách; khẩn cấp vẫn báo. Nhớ qua khởi động lại addon.
+- Màn hình hẹp (480): hàng ô nhanh chỉ còn biểu tượng để vừa một hàng.
+- **Sửa bộ điều tiết không lùi nhịp khi WiFi nghẽn** (thấy trong log 2.9.52 trên P4 xem YouTube: "bo khung, ton dong
+  socket" liên tục mà nhịp vẫn giữ 33 ms): trước đây nó chỉ đọc lượng tồn đọng đúng lúc kiểm tra (5 s/lần), lúc socket
+  vừa xả bớt. Nay nó nhớ mức tồn đọng cao nhất ở các lần phải bỏ khung giữa hai lần kiểm tra → thấy nghẽn thật, giãn
+  nhịp cho vừa đường truyền (ít khung bị bỏ, hình đều hơn).
+
 ## V2.9.52
 ### Cử chỉ kiểu điện thoại (Quay lại, giữ để mở Gần đây) + Màn hình chờ
 
