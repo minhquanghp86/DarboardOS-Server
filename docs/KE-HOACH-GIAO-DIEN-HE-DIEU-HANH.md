@@ -80,7 +80,12 @@ Ngày lập: 25/09/2026. Mốc quay về: **Bản Ổn định 25/09 đêm** (ta
     `recentsList()` (tabPolicy.ts) sắp mới dùng nhất trước, bỏ `__system`.
   - Shell: nút Gần đây trong thanh kéo xuống + cuối dock; lớp phủ thẻ ảnh, chạm để chuyển, ✕ / vuốt lên để đóng.
   - Thử tích hợp `recents.itest.ts`: 3 ứng dụng → 3 thẻ đúng thứ tự, đủ ảnh; đóng một / đóng tất cả; chạm chuyển.
-  - Còn lại của OS-3: thanh điều hướng Quay lại/Home/Gần đây trên ứng dụng "trần" (YouTube, HA), hoàn thiện Home.
+  - 2.9.51 thêm: URL từ HA mở vào đúng tab ứng dụng (`appKeyForUrl`), bộ giao diện chung `public/ui.css`/`ui.js`.
+- **OS-3 bước 2 — server 2.9.52**: cử chỉ **Quay lại** = vuốt từ mép trái/phải (`gestures.ts`, dải mép 1,8% chiều
+  ngang, ngưỡng thả 8% / ≥ 60 px), bong bóng mũi tên trong Shell, `goBack()` dùng `Page.getNavigationHistory` +
+  `navigateToHistoryEntry` (bỏ mục `about:blank` lúc tạo tab); hết lịch sử → màn hình chính. Thay cho thanh 3 nút
+  đề xuất ở mục 3.3: Home = vuốt lên từ mép dưới (quyết định 25/09), Gần đây = nút, Quay lại = vuốt mép.
+  - Còn lại của OS-3: hoàn thiện màn hình chính (thư mục, sắp xếp bằng chạm giữ).
 
 ## 1. Ý tưởng của người dùng (tóm lại để thống nhất)
 

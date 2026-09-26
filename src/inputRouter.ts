@@ -6,7 +6,7 @@
 // Derived from strange-v/RemoteWebViewServer. THIS FILE HAS BEEN MODIFIED.
 
 import type { DeviceSession } from "./deviceManager.js";
-import { goOsHome, navigateToUrl } from "./deviceManager.js";
+import { goBack, goOsHome, navigateToUrl } from "./deviceManager.js";
 import { EdgeGestures } from "./gestures.js";
 import { TouchKind, parseFrameStats, parseOpenURLPacket, parseTouchPacket } from "./protocol.js";
 import { metrics } from "./metrics.js";
@@ -34,7 +34,7 @@ export class InputRouter {
     let g = this._gestures.get(dev.deviceId);
     if (!g) { g = new EdgeGestures(); this._gestures.set(dev.deviceId, g); }
     const p = mapPointForRotation(pkt.x, pkt.y, dev.cfg.width, dev.cfg.height, dev.cfg.rotation);
-    for (const a of g.feed({ kind: pkt.kind, x: pkt.x, y: pkt.y }, p.x, p.y, dev.cfg.height)) {
+    for (const a of g.feed({ kind: pkt.kind, x: pkt.x, y: pkt.y }, p.x, p.y, dev.cfg.height, dev.cfg.width)) {
       if (a.type === 'pass') {
         for (const ev of a.events) await this._dispatchTouchAsync(dev, ev.kind, ev.x, ev.y);
       } else if (a.type === 'shade') {
@@ -43,6 +43,12 @@ export class InputRouter {
         }).catch(() => { });
       } else if (a.type === 'home') {
         goOsHome(dev);
+      } else if (a.type === 'back') {
+        // (26/09/2026 OS-3) Bong bong mui ten theo ngon tay (Shell), tha qua nguong -> Quay lai.
+        dev.cdp.send('Runtime.evaluate', {
+          expression: `window.__rwvShell && window.__rwvShell.back && window.__rwvShell.back(${JSON.stringify(a.phase)}, ${JSON.stringify(a.side)}, ${Math.round(a.d)}, ${Math.round(a.y)}, ${!!a.commit})`,
+        }).catch(() => { });
+        if (a.phase === 'end' && a.commit) goBack(dev);
       }
     }
   }

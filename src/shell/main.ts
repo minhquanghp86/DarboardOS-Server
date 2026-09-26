@@ -418,6 +418,24 @@ interface DevState {
     }
   }
 
+  // ── Quay lai (OS-3): bong bong mui ten o mep khi vuot tu mep trai/phai (server nhan dien, src/gestures.ts) ──
+  // Doi mau nhan khi da qua nguong = tha tay la Quay lai. Muc 'full' (P4) bong bong chay theo ngon tay; S3 chi ve lai
+  // khi trang thai "da qua nguong" doi (moi khung ve lai la bang thong WiFi).
+  const backEl = el('div', 'backbub'); backEl.appendChild(mdi('back'));
+  root.appendChild(backEl);
+  function backGesture(phase: 'start' | 'move' | 'end', side: 'left' | 'right', d: number, y: number): void {
+    if (phase === 'end') { backEl.classList.remove('on', 'armed'); backEl.style.transform = ''; return; }
+    const thr = Math.max(60, Math.round(window.innerWidth * 0.08));
+    const armed = d >= thr;
+    if (phase === 'move' && CFG.motion !== 'full' && armed === backEl.classList.contains('armed')) return;
+    backEl.classList.add('on');
+    backEl.classList.toggle('armed', armed);
+    backEl.classList.toggle('right', side === 'right');
+    backEl.style.top = Math.max(8, Math.min(window.innerHeight - 60, y - 26)) + 'px';
+    const off = (CFG.motion === 'full' ? Math.min(d, thr) : thr) * 0.5;
+    backEl.style.transform = `translateX(${side === 'left' ? off : -off}px)`;
+  }
+
   // ── Bao thuc (het hen gio) ──────────────────────────────────────────
   function alarm(label: string) {
     shadow.querySelector('.alarm')?.remove();
@@ -500,6 +518,7 @@ interface DevState {
     },
     open() { openShade(true); },
     recents: renderRecents,
+    back: backGesture,
     close() { closeShade(true); },
     isOpen() { return shadeVisible > 0; },
     alarm,

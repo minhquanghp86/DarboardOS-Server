@@ -1,3 +1,12 @@
+## V2.9.52
+### Cử chỉ "Quay lại" (OS-3)
+
+- **Vuốt từ mép trái hoặc mép phải vào trong** = Quay lại trang trước trong ứng dụng đang mở (kể cả chuyển trang trong
+  dashboard Home Assistant, YouTube, tin tức…), như Android. Đang ở trang đầu của ứng dụng thì về màn hình chính.
+- Khi vuốt, một bong bóng mũi tên hiện ở mép theo ngón tay (P4) và **đổi màu khi đã đủ xa** — thả tay lúc đó là quay
+  lại, thả sớm hơn là huỷ. Chạm nhanh sát mép hoặc kéo dọc sát mép vẫn là thao tác bình thường của trang.
+- Dải nhận cử chỉ ở mép rất mỏng (18 px trên màn 1024, 12 px trên màn 480) để không vướng thao tác của trang.
+
 ## V2.9.51
 ### OS-3 bước 1 — màn hình "Gần đây" (đa nhiệm)
 
