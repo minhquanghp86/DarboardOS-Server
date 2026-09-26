@@ -111,7 +111,7 @@ Giọt nước ở giữa mép trên mọi trang hiện **giờ của chính mà
 | | Camera P4 | Xem trực tiếp camera của màn hình P4 (go2rtc) |
 | | Camera nhà | Lưới ảnh tất cả camera trong go2rtc, cập nhật lần lượt vài giây/lần; chạm để xem trực tiếp |
 | | Cảnh | Nút chạy **cảnh (scene)** và **kịch bản (script)** của Home Assistant |
-| | Năng lượng | Trang *Năng lượng* của Home Assistant |
+| | Solar | Trang giám sát điện mặt trời (solar.example.com) |
 | Giải trí | YouTube, TikTok | Xem video có tiếng |
 | | Nhạc | YouTube Music |
 | | Radio | VOV1, VOV2, VOV3, VOV5 trực tiếp (cần ~10 giây để bắt đầu — máy chủ VOV giới hạn tốc độ tải) |
