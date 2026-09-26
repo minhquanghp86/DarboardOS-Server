@@ -40,7 +40,7 @@ hiện ở tab *Tài liệu* của addon trong Home Assistant.
 - Âm thanh trang web (YouTube, radio…) được bắt qua PulseAudio và gửi PCM tới màn hình có khai báo loa.
 
 **Menu ứng dụng** (vuốt từ mép trên xuống, trên mọi trang)
-- Giờ, ngày dương/âm lịch, thời tiết thu gọn; thanh trượt độ sáng/âm lượng; nút Luôn sáng / Tắt tiếng / Khử vọng mic.
+- Giờ, ngày dương/âm lịch, thời tiết thu gọn; thanh trượt độ sáng/âm lượng; nút Màn hình chờ / Tắt tiếng / Khử vọng mic / Không làm phiền.
 - Ứng dụng theo nhóm: Home Assistant, Camera P4, Camera nhà (lưới camera go2rtc), Cảnh (scene/script HA), Năng lượng,
   YouTube, TikTok, Nhạc, Radio VOV, Tin tức, Media, Thời tiết (Open-Meteo, 34 tỉnh/thành), Lịch âm dương, Hẹn giờ
   (báo thức toàn màn hình, vẫn reo khi đã chuyển trang), Trình duyệt.
@@ -118,7 +118,7 @@ Gói nhị phân, byte đầu là loại (khớp `src/protocol.ts` và `componen
 | 6 `CurrentURL` | server → màn hình | Trang đang hiện thực tế |
 | 7 `AudioFrame` | server → màn hình | PCM 16 kHz mono của trang |
 | 8 `SetDisplayURL` | server → màn hình | Người dùng nhập URL ở menu → thực thể *URL hiển thị* |
-| 9 `DeviceControl` | server → màn hình | Thanh trượt / nút trong menu (độ sáng, âm lượng, luôn sáng, tắt tiếng, khử vọng) |
+| 9 `DeviceControl` | server → màn hình | Thanh trượt / nút trong menu (độ sáng, âm lượng, màn hình chờ, tắt tiếng, khử vọng) |
 | 10 `DeviceState` | màn hình → server | Độ sáng, âm lượng, trạng thái nút, **giờ của màn hình** |
 
 Tham số kết nối (`?id=&w=&h=&ts=&q=…&home=&audio=1&fb=1&urlset=1&ctl=1`) khai báo khả năng của màn hình.

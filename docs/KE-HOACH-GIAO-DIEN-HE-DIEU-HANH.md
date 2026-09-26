@@ -209,7 +209,7 @@ thông báo, hẹn giờ) — chỉ hiện khi có, để không che trang.
 **Nấc 1** (kéo ngắn, ~1/3 màn hình): giờ + ngày dương/âm + thời tiết · hàng 6 ô cài đặt nhanh · thanh độ sáng.
 
 **Nấc 2** (kéo tiếp / chạm mở rộng, toàn bảng):
-- Lưới **ô cài đặt nhanh** (bật/tắt, chạm giữ → mở trang cài đặt tương ứng): Luôn sáng, Tắt tiếng, Khử vọng, Không làm
+- Lưới **ô cài đặt nhanh** (bật/tắt, chạm giữ → mở trang cài đặt tương ứng): Màn hình chờ (trước là Luôn sáng), Tắt tiếng, Khử vọng, Không làm
   phiền, Chế độ đêm, Màn hình chờ, Khoá trẻ em, Xoay màn hình.
 - Thanh **độ sáng** + **âm lượng**.
 - Thẻ **Đang phát** (Radio / Nhạc / YouTube nền): tên, nút phát/dừng, tiếp.

@@ -102,7 +102,7 @@ Giọt nước ở giữa mép trên mọi trang hiện **giờ của chính mà
 - **Hàng thông tin**: giờ lớn, thứ, ngày dương lịch và **âm lịch**; ô **thời tiết** thu gọn (vị trí nhà trong HA,
   cập nhật 15 phút/lần — chạm để mở ứng dụng Thời tiết); ô **hẹn giờ** đang chạy (nếu có).
 - **Hàng điều khiển**: thanh trượt **độ sáng** (thấp nhất 5%, kéo về 0 không tắt hẳn màn hình) và **âm lượng** âm thanh
-  trang web; ba nút tròn **Luôn sáng** (không tự tắt màn hình), **Tắt tiếng**, **Khử vọng mic**.
+  trang web; ba nút tròn **Màn hình chờ** (bật: không tự tắt màn hình, rảnh thì hiện đồng hồ lớn; tắt: tắt màn hình sau *Sleep time*), **Tắt tiếng**, **Khử vọng mic**.
 - **Ứng dụng** chia ba nhóm:
 
 | Nhóm | Ứng dụng | Làm gì |
@@ -149,7 +149,7 @@ Mỗi màn hình là một thiết bị ESPHome với các thực thể (tên th
 | Home URL | text | Trang của nút "Trang chủ" |
 | LCD Backlight | light | Bật/tắt, độ sáng màn hình |
 | Sleep time | number | Số giây không chạm thì tắt màn hình (0 = không tắt) |
-| No Sleep | switch | Giữ màn hình luôn sáng |
+| Màn hình chờ (trước đây *No Sleep*) | switch | Bật: không tắt đèn nền, rảnh thì hiện màn hình chờ. Tắt: tắt đèn nền sau *Sleep time* |
 | Video đang chạy | binary_sensor | Đang phát video/camera (không tự tắt màn hình lúc này) |
 | Âm lượng Video Web | number | Âm lượng âm thanh trang web |
 | Speaker Media Player | media_player | Phát TTS / thông báo ra loa màn hình |
