@@ -44,6 +44,9 @@ configuration:
   prefers_reduced_motion:
     name: 'Reduce motion'
     description: 'Asks pages to disable animations — fewer frames to send, smoother displays.'
+  screensaver_idle_s:
+    name: 'Screensaver after (seconds)'
+    description: 'Idle time before the screensaver (large clock, date, weather; dim at night) appears. Not shown while video/camera plays or the backlight is off. 0 = off.'
   user_data_dir:
     name: 'Browser profile directory'
     description: 'Where the browser keeps cookies/logins. Keep it under /data (default /data/pw-data) so logins survive add-on updates.'

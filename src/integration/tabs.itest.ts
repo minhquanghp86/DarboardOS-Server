@@ -122,4 +122,33 @@ describe('OS-2: moi ung dung mot tab (server + Chromium that)', () => {
     await sleep(1_500);
     expect((await srv.pageUrls()).sort()).toEqual([home, url].sort());
   });
+
+  it('vuot tu mep trai: Quay lai trang truoc trong ung dung; het lich su thi ve man hinh chinh', async () => {
+    const { home } = await connectPanel('it-back');
+    const ha = await srv.waitPage((u) => u === home);
+    await srv.evaluate(ha, `history.pushState({}, '', '/ha/phong-khach')`);   // nhu dashboard HA chuyen tab
+    const sub = srv.local('/ha/phong-khach');
+    await dev!.waitFor(() => dev!.currentUrls().slice(-1)[0] === sub, 10_000, 'URL trang con');
+    const swipeBack = async () => {   // Move cach nhau >= 12 ms (InputRouter bo bot Move qua day)
+      dev!.touch(1, 4, 300); await sleep(15); dev!.touch(2, 40, 302); await sleep(15);
+      dev!.touch(2, 150, 305); await sleep(15); dev!.touch(3, 150, 305);
+    };
+    await swipeBack();
+    await dev!.waitFor(() => dev!.currentUrls().slice(-1)[0] === home, 10_000, 'quay lai trang dau');
+    await swipeBack();
+    const osHome = srv.local('/os/home');
+    await dev!.waitFor(() => dev!.currentUrls().slice(-1)[0] === osHome, 10_000, 've man hinh chinh');
+  });
+
+  it('vuot len tu mep duoi roi GIU -> mo Gan day (khong ve Home khi tha tay)', async () => {
+    const { home } = await connectPanel('it-hold');
+    const ha = await srv.waitPage((u) => u === home);
+    dev!.touch(1, 500, 596); await sleep(15); dev!.touch(2, 500, 560); await sleep(15); dev!.touch(2, 500, 470);
+    await sleep(700);                                  // giu yen > 350 ms, khong gui su kien nao
+    const l = await srv.evaluate<{ k: string }[] | null>(ha, 'window.__rwvLastRecents || null');
+    expect(l?.map((c) => c.k)).toEqual(['home']);
+    dev!.touch(3, 500, 470); await sleep(1_000);
+    expect(dev!.currentUrls().slice(-1)[0]).toBe(home);   // khong ve man hinh chinh
+    expect((await srv.pageUrls()).some((u) => u.includes('/os/home'))).toBe(false);
+  });
 });

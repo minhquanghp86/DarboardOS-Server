@@ -24,6 +24,7 @@ import { buildLauncherApps, listAllApps, GROUP_TITLES, LAUNCHER_CAMS_URL, LAUNCH
 import { createRequire } from "node:module";
 import { getWeatherMini, onWeatherMiniUpdate } from "./weatherMini.js";
 import { SerialQueue, appKeyForUrl, nowPlaying, pickEvictions, recentsList } from "./tabPolicy.js";
+import { SCREENSAVER_IDLE_S, shouldShowSaver } from "./screensaver.js";
 import { ControlField, DeviceStateInfo, Encoding, FRAME_HEADER_BYTES, TILE_HEADER_BYTES, parseDeviceStatePacket } from "./protocol.js";
 
 // ── Type-safe interface cho CDP root (thay thế cast `any`) ────────────────────
@@ -138,6 +139,9 @@ export type DeviceSession = {
   activeTabKey: string;
   /** (26/09/2026) Moi thao tac mo/chuyen tab (openApp, navigateToUrl) chay TUAN TU — xem SerialQueue (tabPolicy.ts). */
   tabOps: SerialQueue;
+  /** (26/09/2026 OS-5) Lan cham cuoi (moc cho man hinh cho) va man hinh cho dang hien tren tab active hay khong. */
+  lastTouchMs: number;
+  saverOn: boolean;
 };
 
 /** (26/09/2026 OS-2) Mot "ung dung" = mot Chromium target/session rieng cua MOT thiet bi. */
@@ -1004,6 +1008,8 @@ function handleMenuControl(id: string, payload: unknown, from?: Tab): void {
   const dev = devices.get(id);
   if (!dev) return;
   if (msg?.hello) { pushDeviceStateToPage(dev); return; }
+  // (26/09/2026 OS-5) Nguoi dung cham tat man hinh cho.
+  if (msg?.wake) { dev.saverOn = false; dev.lastTouchMs = Date.now(); return; }
   // (26/09/2026) Trang cua MOT tab bao dang phat / da dung (buildAudioGuardScript). Chi tin tab con thuoc thiet bi.
   if (msg?.media != null) {
     if (from && dev.tabs.get(from.key) === from) onTabMedia(dev, from, !!msg.media);
@@ -1213,6 +1219,28 @@ export function goOsHome(dev: DeviceSession): void {
   openApp(dev, '__system').catch((e: unknown) => console.warn(`[shell] ${dev.deviceId}: ve Home that bai:`, e));
 }
 
+/**
+ * (26/09/2026 OS-3) "Quay lai" (cu chi vuot tu mep trai/phai): ve muc truoc trong lich su cua TAB dang hien — gom ca
+ * chuyen trang trong dashboard HA (history.pushState). Het lich su (dang o trang dau cua ung dung) -> ve man hinh chinh,
+ * nhu Android. O chinh man hinh chinh thi khong lam gi.
+ */
+export function goBack(dev: DeviceSession): void {
+  dev.tabOps.run(async () => {
+    if (devices.get(dev.deviceId) !== dev) return;
+    const tab = dev.tabs.get(dev.activeTabKey);
+    if (!tab || tab.key === '__system') return;
+    const h = await tab.session.send('Page.getNavigationHistory') as { currentIndex: number; entries: { id: number; url: string }[] };
+    const prev = h.currentIndex > 0 ? h.entries[h.currentIndex - 1] : undefined;
+    // Muc 'about:blank' dau lich su la trang trang luc tao tab (createTab), khong phai trang nguoi dung da xem.
+    if (prev && prev.url && prev.url !== 'about:blank') {
+      await tab.session.send('Page.navigateToHistoryEntry', { entryId: prev.id });
+      console.log(`[app] ${dev.deviceId}: quay lai ${prev.url} (tab "${tab.key}")`);
+    } else {
+      await openAppNow(dev, '__system');
+    }
+  }).catch((e: unknown) => console.warn(`[app] ${dev.deviceId}: quay lai that bai:`, e));
+}
+
 // (26/09/2026 OS-2) So tab KHONG GHIM toi da moi thiet bi (Home Assistant + man hinh chinh luon duoc GHIM, khong
 // tinh vao day). Tab dang active hoac dang phat am thanh nen (radio/nhac) khong bao gio bi don. Moi tab la mot tien
 // trinh renderer Chromium song rieng — RAM addon da do thuc te ~1,1 GB/3 man hinh o che do MOT tab; gia tri nay giu
@@ -1280,6 +1308,11 @@ async function captureThumb(dev: DeviceSession, tab: Tab): Promise<void> {
     ]);
     if (r?.data) tab.thumb = 'data:image/jpeg;base64,' + r.data;
   } catch { /* giu anh cu (neu co) */ }
+}
+
+/** (26/09/2026) Mo man hinh "Gan day" — tu cu chi vuot-len-roi-giu o mep duoi (inputRouter.ts). */
+export function openRecents(dev: DeviceSession): void {
+  showRecents(dev, true).catch(() => { });
 }
 
 /** Dua danh sach "Gan day" vao Shell cua tab dang hien. open=false: chi cap nhat neu man hinh Gan day DANG mo. */
@@ -1407,6 +1440,7 @@ async function createTab(dev: DeviceSession, key: string, kind: string, pinned: 
     if (evt?.frame?.parentId) return;
     // Tai lieu moi: moi <audio>/<video> cua trang cu da mat -> khong con phat, trang moi se tu bao lai neu phat.
     if (tab.mediaKnown && tab.mediaPlaying) onTabMedia(dev, tab, false);
+    if (dev.activeTabKey === key) dev.saverOn = false;  // tai lieu moi: Shell moi, khong con man hinh cho
     tab.mediaKnown = false;
     handleTabNavigation(dev, tab, evt?.frame?.url);
   });
@@ -1490,6 +1524,7 @@ async function activateTab(dev: DeviceSession, key: string): Promise<void> {
 
   dev.activeTabKey = key;
   dev.cdp = next.session;
+  dev.saverOn = false;  // man hinh cho nam trong Shell cua tab CU
   next.lastUsed = Date.now();
   setTabAudioAllowed(next, true);
 
@@ -1687,6 +1722,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     recentFrameMs: [], passthroughFrames: 0, passthroughOn: false,
     halfOn: false, halfFrames: 0, forceSharp: false,
     tabs: new Map<string, Tab>(), activeTabKey: '', tabOps: new SerialQueue(),
+    lastTouchMs: Date.now(), saverOn: false,
   };
 
   const initialKey = cfg.homeUrl ? 'home' : 'browser';
@@ -2047,8 +2083,31 @@ export function markInteraction(deviceId: string): void {
   const d = devices.get(deviceId);
   if (!d) return;
   d.lastInputMs = Date.now();
+  d.lastTouchMs = d.lastInputMs;
+  d.saverOn = false;  // Shell tu go man hinh cho khi duoc cham (cham do bi "nuot", khong toi trang)
   // (24/09/2026) Cham luc man hinh dang o nua do phan giai: lam net NGAY, khong doi khung moi / hen gio 0,7 s.
   if (d.halfOn && d.sharpenNow) d.sharpenNow();
+}
+
+/**
+ * (26/09/2026 OS-5) Goi moi 5 s (index.ts): thiet bi nao khong cham du lau (SCREENSAVER_IDLE_S), tab dang hien khong
+ * phat video/camera va den nen dang sang -> hien man hinh cho tren Shell cua tab do.
+ */
+export function screensaverTick(): void {
+  const now = Date.now();
+  for (const d of devices.values()) {
+    const tab = d.tabs.get(d.activeTabKey);
+    if (!tab || broadcaster.getClientCount(d.deviceId) === 0) continue;
+    if (!shouldShowSaver({
+      now, lastTouchMs: d.lastTouchMs, idleMs: SCREENSAVER_IDLE_S * 1000, mediaPlaying: tab.mediaPlaying,
+      backlightOn: d.devState ? d.devState.backlightOn : null, shown: d.saverOn,
+    })) continue;
+    d.saverOn = true;
+    d.cdp.send('Runtime.evaluate', {
+      expression: 'window.__rwvShell && window.__rwvShell.screensaver && window.__rwvShell.screensaver(true)',
+    }).catch(() => { });
+    console.log(`[saver] ${d.deviceId}: hien man hinh cho (tab "${tab.key}")`);
+  }
 }
 
 export function runAdaptiveTick(): void {

@@ -1,3 +1,27 @@
+## V2.9.52
+### Cử chỉ kiểu điện thoại (Quay lại, giữ để mở Gần đây) + Màn hình chờ
+
+**Màn hình chờ (mới)**
+- Không chạm một lúc (mặc định **2 phút**, tuỳ chọn *Màn hình chờ sau (giây)*, 0 = tắt) thì hiện màn hình chờ: đồng
+  hồ lớn, ngày dương/âm, thời tiết trên nền đen. Nội dung **dịch chỗ mỗi phút** để chống lưu ảnh; **từ 22h đến 6h
+  chuyển tông ấm tối** cho dễ chịu trong phòng ngủ. Chạm vào là tắt (cú chạm đó không bấm nhầm vào trang bên dưới).
+- Không hiện khi đang phát video/camera (YouTube, Camera nhà…) hoặc khi màn hình đã tắt đèn nền. Hợp nhất khi bật
+  "Luôn sáng": panel thành đồng hồ để bàn thay vì đứng im một trang dashboard.
+
+**Vuốt lên từ mép dưới rồi giữ = Gần đây**
+- Vuốt lên qua ngưỡng rồi **giữ yên ~0,35 giây** → mở Gần đây (như điện thoại); vuốt lên rồi thả ngay → Màn hình
+  chính như cũ. Khi vuốt có thanh chỉ báo ở mép dưới đi theo ngón tay với gợi ý "Thả: Màn hình chính · Giữ: Gần đây".
+- Sửa: chống dội sự kiện di chuyển ngón tay trước đây dùng chung cho mọi màn hình — hai panel được chạm cùng lúc thì
+  cử chỉ trên panel này có thể bị giật do panel kia. Nay tách riêng từng màn hình.
+
+**Quay lại**
+
+- **Vuốt từ mép trái hoặc mép phải vào trong** = Quay lại trang trước trong ứng dụng đang mở (kể cả chuyển trang trong
+  dashboard Home Assistant, YouTube, tin tức…), như Android. Đang ở trang đầu của ứng dụng thì về màn hình chính.
+- Khi vuốt, một bong bóng mũi tên hiện ở mép theo ngón tay (P4) và **đổi màu khi đã đủ xa** — thả tay lúc đó là quay
+  lại, thả sớm hơn là huỷ. Chạm nhanh sát mép hoặc kéo dọc sát mép vẫn là thao tác bình thường của trang.
+- Dải nhận cử chỉ ở mép rất mỏng (18 px trên màn 1024, 12 px trên màn 480) để không vướng thao tác của trang.
+
 ## V2.9.51
 ### OS-3 bước 1 — màn hình "Gần đây" (đa nhiệm)
 
