@@ -36,6 +36,9 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
 
 (function () {
   if (window.__rwvShell) return;
+  // (27/09/2026) Chi khung CHINH: script tiem chay ca trong iframe (the iframe tren dashboard HA, camera trong trang
+  // chuong cua) — truoc day moi iframe mang them mot Shell thua (nut mo rong, thanh keo xuong trong khung).
+  try { if (window.top !== window) return; } catch { return; }
   const CFG: Cfg = window.__RWV_CFG;
   if (!CFG) return;
   const Z = '2147483647';
