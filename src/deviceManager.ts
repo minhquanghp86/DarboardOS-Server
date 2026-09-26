@@ -972,6 +972,7 @@ export function navigateToUrl(dev: DeviceSession, url: string): Promise<void> {
 
 async function navigateToUrlNow(dev: DeviceSession, url: string): Promise<void> {
   if (devices.get(dev.deviceId) !== dev) return;  // phien da bi xoa trong luc lenh nay xep hang
+  noteActivity(dev, 'mo URL');
   // (26/09/2026) URL thuoc mot ung dung trong menu (vd youtu.be -> YouTube) vao DUNG tab ung dung do.
   // Thu tu: ung dung khop (ke ca ung dung nam tren HA nhu Nang luong) -> cung goc HA (tab 'home') -> Trinh duyet.
   const appKey = appKeyForUrl(url, listAllApps(dev.cfg.homeUrl).filter((a) => !a.hidden && a.id !== 'home'))
@@ -1166,7 +1167,9 @@ onWeatherMiniUpdate(() => { for (const d of devices.values()) pushDeviceStateToP
 export function onDeviceStatePacket(dev: DeviceSession, buf: Buffer): void {
   const st = parseDeviceStatePacket(buf);
   if (!st) return;
+  const wasOff = dev.devState ? !dev.devState.backlightOn : false;
   dev.devState = { ...st, receivedAt: Date.now() };
+  if (wasOff && st.backlightOn) noteActivity(dev, 'den nen vua bat');
   pushDeviceStateToPage(dev);
 }
 
@@ -1347,6 +1350,7 @@ function openApp(dev: DeviceSession, key: string): Promise<void> {
 
 async function openAppNow(dev: DeviceSession, key: string): Promise<void> {
   if (devices.get(dev.deviceId) !== dev) return;  // phien da bi xoa trong luc lenh nay xep hang
+  noteActivity(dev, `mo ung dung ${key}`);
   let tab = dev.tabs.get(key);
   if (!tab) {
     const spec = resolveAppSpec(dev, key);
@@ -1420,6 +1424,7 @@ function onTabMedia(dev: DeviceSession, tab: Tab, playing: boolean): void {
   tab.mediaKnown = true;
   if (!changed) return;
   if (tab.backgroundAudio) console.log(`[app] ${dev.deviceId}: tab "${tab.key}" ${playing ? 'dang phat' : 'da dung phat'}`);
+  if (playing && dev.activeTabKey === tab.key) noteActivity(dev, 'bat dau phat video/am thanh');
   pushDeviceStateToPage(dev);
 }
 
@@ -1576,6 +1581,7 @@ function handleTabNavigation(dev: DeviceSession, tab: Tab, url: string | undefin
     expression: `window.__rwvAudioGuard && (window.__rwvAudioAllowed = ${tab.audioAllowed});`,
   }).catch(() => { });
   if (dev.activeTabKey !== tab.key || dev.url === url) return;
+  noteActivity(dev, 'trang dieu huong');
   dev.url = url;
   broadcaster.sendCurrentURL(dev.deviceId, url);
   metrics.onNavigate(dev.deviceId, url);
@@ -1603,6 +1609,7 @@ async function activateTab(dev: DeviceSession, key: string): Promise<void> {
       }).catch(() => { });
     }
     setTabAudioAllowed(prev, prev.backgroundAudio);
+    noteActivity(dev, 'chuyen tab', prev);  // go man hinh cho khoi tab CU (quay lai sau khong con thay no)
     void captureThumb(dev, prev);  // anh cho "Gan day" — truoc khi tat screencast, khong cho
     if (prev.screencastOn) {
       prev.session.send('Page.stopScreencast').catch(() => { });
@@ -2176,6 +2183,22 @@ export function markInteraction(deviceId: string): void {
   d.saverOn = false;  // Shell tu go man hinh cho khi duoc cham (cham do bi "nuot", khong toi trang)
   // (24/09/2026) Cham luc man hinh dang o nua do phan giai: lam net NGAY, khong doi khung moi / hen gio 0,7 s.
   if (d.halfOn && d.sharpenNow) d.sharpenNow();
+}
+
+/**
+ * (26/09/2026, sua loi 2.9.52) HOAT DONG KHONG QUA CHAM cung dat lai moc man hinh cho va go no ngay: mo URL tu HA /
+ * nut Go Home, mo-chuyen ung dung, den nen vua bat lai, trang bat dau phat video, trang tu dieu huong. Truoc day chi
+ * cu cham moi tinh -> mo video tu HA thi 5 s sau man hinh cho phu len tab moi (video chua kip phat), Go Home toi
+ * dung URL cu (khong tai lai) thi man hinh cho cu nam nguyen. Go o CA tab dang hien lan (neu co) tab `alsoTab`.
+ */
+function noteActivity(dev: DeviceSession, why: string, alsoTab?: Tab): void {
+  dev.lastTouchMs = Date.now();
+  const expr = 'window.__rwvShell && window.__rwvShell.screensaver && window.__rwvShell.screensaver(false)';
+  if (alsoTab && alsoTab.session !== dev.cdp) alsoTab.session.send('Runtime.evaluate', { expression: expr }).catch(() => { });
+  if (!dev.saverOn) return;
+  dev.saverOn = false;
+  dev.cdp.send('Runtime.evaluate', { expression: expr }).catch(() => { });
+  console.log(`[saver] ${dev.deviceId}: tat man hinh cho (${why})`);
 }
 
 /**
