@@ -6,10 +6,9 @@
 // Derived from strange-v/RemoteWebViewServer. THIS FILE HAS BEEN MODIFIED.
 
 import type { DeviceSession } from "./deviceManager.js";
-import { goOsHome, requestFullFrameFor } from "./deviceManager.js";
+import { goOsHome, navigateToUrl } from "./deviceManager.js";
 import { EdgeGestures } from "./gestures.js";
 import { TouchKind, parseFrameStats, parseOpenURLPacket, parseTouchPacket } from "./protocol.js";
-import { nudgeRepaintAsync } from "./browser.js";
 import { metrics } from "./metrics.js";
 import { mapPointForRotation } from "./util.js";
 export class InputRouter {
@@ -70,34 +69,14 @@ export class InputRouter {
 
     dev.selfTestRunner.stop();
 
-    const prevUrl = dev.url ?? "";
-    const sameUrl = prevUrl === pkt.url;
-
-    if (!sameUrl) {
-      // URL thay đổi → navigate bình thường
-      console.log(`[inputRouter] navigate → ${pkt.url}`);
-      await dev.cdp.send('Page.navigate', { url: pkt.url });
-    } else {
-      // URL giống nhau (ESP reboot/reconnect) → không navigate để tránh flicker,
-      // nhưng PHẢI force full frame để ESP nhận lại toàn bộ nội dung hiện tại.
-      // (15/09/2026) Và phải ÉP VẼ LẠI: trang tĩnh thì requestFullFrame() một mình không
-      // sinh frame nào -> thiết bị kẹt ảnh cũ (màn hình trắng chỉ sáng đèn nền).
-      // (23/09/2026) VẪN CHƯA ĐỦ: khung "nudge" (một <div> 2x2px, opacity 0.004
-      // đổi màu) sau khi Chrome nén JPEG có xác suất cao trùng BYTE TUYỆT ĐỐI
-      // với khung tĩnh trước lúc ngủ — bị flushPending() vứt bỏ ngay ở bước
-      // khử trùng lặp (so hash32) TRƯỚC KHI kịp chạm tới cờ requestFullFrame().
-      // Thiết bị kẹt "đèn sáng, không hiển thị gì" cho tới khi người dùng tự
-      // chạm thật (đổi điểm ảnh đủ lớn để không thể trùng hash). Dùng
-      // requestFullFrameFor() thay vì gọi thẳng processor: nó VÔ HIỆU HOÁ LUÔN
-      // prevFrameHash nên khung kế tiếp không bao giờ bị vứt vì lý do này nữa.
-      console.log(`[inputRouter] same URL reconnect, requesting full frame: ${pkt.url}`);
-      await nudgeRepaintAsync(dev.cdp);
-      requestFullFrameFor(dev);
-    }
-    // (25/09/2026) KHONG gan dev.url = pkt.url o day nua. Page.frameNavigated thuong den SAU khi await
-    // Page.navigate tra ve -> handleNavigation (deviceManager) thay dev.url "da bang" URL moi nen bo qua, KHONG gui
-    // CurrentURL -> cam bien "URL hien tai" tren thiet bi ket o URL cu (do that: van la anh SVG luc khoi dong sau khi
-    // da mo dashboard roi vnexpress). handleNavigation tu cap nhat dev.url (ca URL sau chuyen huong).
+    // (26/09/2026 OS-2) DINH TUYEN THEO TAB — thay vi navigate thang tab dang active: "Go Home" va "URL hien thi"
+    // deu di qua CUNG mot goi tin nay o tang firmware (khong the phan biet — xem docs/KE-HOACH-GIAO-DIEN-HE-
+    // DIEU-HANH.md muc 4), nen server tu phan loai theo GOC cua URL: cung goc Home URL -> tab 'home' (ghim, "Go
+    // Home" luon dua no VE DUNG home_url ke ca dang o trang con khac); khac goc -> tab 'browser'. Xu ly "URL
+    // giong nhau" / nudge / requestFullFrame nam trong navigateToUrl() (deviceManager.ts), dung chung voi duong
+    // nguoi dung tu nhap URL o Shell.
+    console.log(`[inputRouter] OpenURL → ${pkt.url}`);
+    await navigateToUrl(dev, pkt.url);
   }
 
   private async _dispatchTouchAsync(dev: DeviceSession, kind: TouchKind, x: number, y: number): Promise<void> {

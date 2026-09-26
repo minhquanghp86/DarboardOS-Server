@@ -39,12 +39,18 @@ hiện ở tab *Tài liệu* của addon trong Home Assistant.
 **Âm thanh**
 - Âm thanh trang web (YouTube, radio…) được bắt qua PulseAudio và gửi PCM tới màn hình có khai báo loa.
 
-**Menu ứng dụng** (nút ở giữa mép trên mọi trang, hiện giờ của màn hình)
+**Menu ứng dụng** (vuốt từ mép trên xuống, trên mọi trang)
 - Giờ, ngày dương/âm lịch, thời tiết thu gọn; thanh trượt độ sáng/âm lượng; nút Luôn sáng / Tắt tiếng / Khử vọng mic.
-- Ứng dụng theo nhóm: Trang chủ, Camera P4, Camera nhà (lưới camera go2rtc), Cảnh (scene/script HA), Năng lượng,
+- Ứng dụng theo nhóm: Home Assistant, Camera P4, Camera nhà (lưới camera go2rtc), Cảnh (scene/script HA), Năng lượng,
   YouTube, TikTok, Nhạc, Radio VOV, Tin tức, Media, Thời tiết (Open-Meteo, 34 tỉnh/thành), Lịch âm dương, Hẹn giờ
   (báo thức toàn màn hình, vẫn reo khi đã chuyển trang), Trình duyệt.
 - Trang **Menu panel** trên thanh bên Home Assistant (ingress): ẩn/hiện, sắp xếp, biểu tượng MDI, màu, thêm ứng dụng.
+
+**Giao diện kiểu hệ điều hành** (OS-1/OS-2 — xem `docs/KE-HOACH-GIAO-DIEN-HE-DIEU-HANH.md`)
+- Vuốt lên từ mép dưới: về màn hình chính (đồng hồ, thời tiết, lưới ứng dụng, dock).
+- **Mỗi ứng dụng một tab Chromium riêng**: mở Home Assistant/Camera/Radio… không tải lại — tab được giữ "ấm" ở nền,
+  quay lại gần như tức thì. Chỉ tab đang hiện mới được mã hoá/truyền hình; các tab khác vẫn chạy JS (radio/nhạc phát
+  nền được). Tối đa `MAX_APP_TABS` ứng dụng phụ mở song song, cũ nhất tự đóng khi vượt hạn mức.
 
 **Vận hành**
 - `/metrics` (JSON số liệu từng màn hình), tinh chỉnh nóng qua `/data/rwv-tuning.json`, self-test đo thời gian dựng
@@ -94,6 +100,7 @@ Addon tự đặt các biến này từ phần *Cấu hình*; khi chạy Docker 
 | `GO2RTC_URL` | `http://127.0.0.1:1984` | go2rtc cho ứng dụng Camera nhà |
 | `LAUNCHER_CAMERA_URL`, `LAUNCHER_WEATHER_URL` | trang nội bộ | Đổi đích của ứng dụng Camera P4 / Thời tiết |
 | `LAUNCHER_CONFIG_OPEN` | — | `1` = cho lưu cấu hình menu không qua ingress (Docker) |
+| `MAX_APP_TABS` | `2` | Số ứng dụng phụ tối đa giữ mở song song mỗi màn hình (OS-2 — mỗi ứng dụng một tab), không kể Home Assistant/màn hình chính |
 | `CCR_ADAPTIVE`, `CCR_REFRESH_MS`, `HALF_SCALE_VIDEO`, … | xem mã | Tinh chỉnh bộ điều tiết (nâng cao) |
 
 ## Giao thức WebSocket (tóm tắt)
