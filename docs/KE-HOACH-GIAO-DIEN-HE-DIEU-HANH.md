@@ -97,6 +97,12 @@ Ngày lập: 25/09/2026. Mốc quay về: **Bản Ổn định 25/09 đêm** (ta
   `shouldWake`; `postNotify`/`openNotice` trong deviceManager), thẻ nổi + danh sách + chấm chưa đọc trong Shell, ô
   Không làm phiền (lưu `/data/rwv-dnd.json`). Thử tích hợp `notify.itest.ts`. **OS-5 hoàn tất.**
 
+- **OS-4 — 2.9.57: ứng dụng Cài đặt** (`public/settings.html`, `src/settingsModel.ts` thuần + test, `src/haSettings.ts`):
+  thiết bị ESPHome tìm theo MAC (`esp32-<mac>` ↔ `connections` của device registry, WebSocket API), mọi thực thể của
+  nó → nhóm Điều khiển/Cấu hình/Chẩn đoán theo `entity_category`; ghi qua REST `services/<domain>/<service>` sau
+  `planSet()` (kiểm loại, kẹp khoảng, bỏ factory reset). Chỉ nhận lệnh từ tab `kind === 'settings'`. Thử tích hợp với
+  HA giả (`settings.itest.ts`). **Còn lại OS-4**: không; OS-3: thư mục + chạm giữ sắp xếp; OS-6: tinh chỉnh S3.
+
 ## 1. Ý tưởng của người dùng (tóm lại để thống nhất)
 
 - Panel không còn là "trình duyệt mở dashboard HA + popup menu", mà là **một hệ điều hành nhỏ** kiểu điện thoại / máy
@@ -209,7 +215,7 @@ thông báo, hẹn giờ) — chỉ hiện khi có, để không che trang.
 **Nấc 1** (kéo ngắn, ~1/3 màn hình): giờ + ngày dương/âm + thời tiết · hàng 6 ô cài đặt nhanh · thanh độ sáng.
 
 **Nấc 2** (kéo tiếp / chạm mở rộng, toàn bảng):
-- Lưới **ô cài đặt nhanh** (bật/tắt, chạm giữ → mở trang cài đặt tương ứng): Luôn sáng, Tắt tiếng, Khử vọng, Không làm
+- Lưới **ô cài đặt nhanh** (bật/tắt, chạm giữ → mở trang cài đặt tương ứng): Màn hình chờ (trước là Luôn sáng), Tắt tiếng, Khử vọng, Không làm
   phiền, Chế độ đêm, Màn hình chờ, Khoá trẻ em, Xoay màn hình.
 - Thanh **độ sáng** + **âm lượng**.
 - Thẻ **Đang phát** (Radio / Nhạc / YouTube nền): tên, nút phát/dừng, tiếp.
