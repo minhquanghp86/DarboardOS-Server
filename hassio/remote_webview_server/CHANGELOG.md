@@ -1,3 +1,13 @@
+## V2.9.63
+### Sửa: truyền YouTube có hình nhưng không có tiếng
+
+- Tab **YouTube TV** không còn bị lớp "khoá âm thanh theo tab" can thiệp: trước đây giao diện TV của YouTube đọc
+  `muted`/`volume` ngay lúc khởi động — đúng lúc tab chưa được mở tiếng — nên tưởng TV đang tắt tiếng / âm lượng 0 và
+  giữ nguyên trạng thái đó. Nay trình phát thấy âm thanh thật; **nút âm lượng trên điện thoại** cũng chỉnh được.
+- Rời tab YouTube TV (mở ứng dụng khác khi đang truyền) thì video tự tạm dừng, như ứng dụng YouTube.
+- Log addon ghi trạng thái âm thanh thật của trình phát khi bắt đầu phát (`[cast] … dang phat — VIDEO muted=… vol=…`)
+  để chẩn đoán nếu vẫn mất tiếng.
+
 ## V2.9.62
 ### Truyền YouTube từ điện thoại lên màn hình (như Smart TV)
 
