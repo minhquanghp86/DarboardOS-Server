@@ -97,8 +97,10 @@
     $('list').appendChild(el);
   });
   var note = document.createElement('div');
-  note.className = 'note'; note.textContent = 'Nguồn: Đài Tiếng nói Việt Nam (vov.vn). Rời trang này là dừng phát.';
+  note.className = 'note'; note.textContent = 'Nguồn: Đài Tiếng nói Việt Nam (vov.vn). Mở ứng dụng khác vẫn phát tiếp — dừng bằng nút ■ ở đây hoặc thẻ "Đang phát" trong thanh kéo xuống.';
   $('list').appendChild(note);
+  // Server goi khi nguoi dung bam Dung o the "Dang phat" (Shell) — dung han, huy HLS, khong chi tam dung the audio.
+  window.rwvStop = stop;
   function toggle() { if (playing) stop(); else play(cur || ST[0]); }
   $('play').addEventListener('click', toggle);
   $('play').addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
