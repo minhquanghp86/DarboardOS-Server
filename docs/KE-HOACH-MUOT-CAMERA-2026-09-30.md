@@ -115,3 +115,18 @@ Mỗi bước: làm → đo lại (đo ngắn ~60–90 s) → báo người dùn
 ### Còn lại
 - Đo lại YouTube TV sau 2.9.67 (người dùng truyền).
 - Camera: màu nhạt, vùng tối ngả tím — người dùng: "chỉnh sau".
+
+### Dò người bằng camera (30/09, firmware nhánh client @ camera_motion mới)
+- **Chưa bao giờ chạy** trước đây: camera chỉ giao khung cho bộ dò khi `keep_camera_on` (YAML không đặt). Đã sửa.
+- Bật lên thì báo nhầm liên tục (cảnh trống 1,7–2,5% ô đổi do nhiễu hạt khi tự phơi sáng tăng gain). Sửa: ô lấy trung
+  bình 4×8 điểm, chỉ đếm ô đổi có ≥ 2 ô kề cũng đổi, so 5 lần/s → cảnh trống **0,00%**, 266–302 lần so/phút.
+- Đây là **dò chuyển động**, không phải nhận diện người. Nhận diện người thật (AI) đã có ở Frigate:
+  `binary_sensor.p4_panel_person_occupancy` (camera P4, detect 960×536 @ 5 fps, track person).
+- Góc camera hiện tại ngửa lên mái nhà — khó thấy người đi lại.
+
+### Tải P4 khi bật dò chuyển động + AEC + tự đánh thức (30/09)
+| Cảnh | Lõi 0 | Lõi 1 | Ghi chú |
+|---|---|---|---|
+| Rảnh ở HA, trước (tất cả tắt) | ~6,5% | ~5% | |
+| Rảnh ở HA, bật hết | 42,8% | 19,7% | mww (đánh thức) 20,8%; camera (có bộ dò) 4,4% (trước ~1%) |
+| YouTube, bật hết | 64% | 67% | 24,1 / 26,2 fps (2 lượt; không bật: 26,7–29,9) — mww/AEC tự dừng, không có trong bảng |
