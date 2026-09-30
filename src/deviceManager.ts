@@ -207,7 +207,7 @@ interface Tab {
   lastUsed: number;
   /** (26/09/2026 OS-3) Anh thu nho (data URL JPEG ~320 px) chup luc roi tab — cho man hinh "Gan day". */
   thumb?: string;
-  /** (30/09/2026) Da Page.setWebLifecycleState frozen (tab nen khong chay JS/ve/giai ma) — xem freezeTab(). */
+  /** (30/09/2026) JavaScript cua tab dang bi tam dung (Debugger.pause, tab nen) — xem freezeTab(). */
   frozen?: boolean;
 }
 
@@ -1416,7 +1416,11 @@ async function applyHomeLayout(except?: DeviceSession): Promise<void> {
         if (tab.launcherScriptId) await tab.session.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: tab.launcherScriptId });
         tab.launcherScriptId = (await tab.session.send('Page.addScriptToEvaluateOnNewDocument', { source: src })).identifier;
         if (tab.kind === 'system' && dev !== except) {
+          // (30/09/2026) Tab dang tam dung (nen): evaluate se treo -> bo tam, ve lai, dung lai.
+          const wasFrozen = !!tab.frozen;
+          await thawTab(tab);
           await tab.session.send('Runtime.evaluate', { expression: `window.__rwvShell && window.__rwvShell.layout && window.__rwvShell.layout(${layout})` });
+          if (wasFrozen) freezeTab(dev, tab);
         }
       } catch { /* tab dang dong */ }
     }
@@ -1838,10 +1842,14 @@ function onTabMedia(dev: DeviceSession, tab: Tab, playing: boolean): void {
 }
 
 // (30/09/2026) DONG BANG TAB NEN. Do that 30/09: addon 8 tab, 3 tab cam.html giai ma luong camera lien tuc o nen, CPU
-// addon 25-50% luc KHONG ai xem gi, may HASS con 182 MB RAM + 2,75 GB swap -> video giat. Tab nen (khong active)
-// duoc Page.setWebLifecycleState frozen: JS, ve, bo dem thoi gian, giai ma dung han; quay lai = 'active', TUC THI
-// (van khong tai lai). Ngoai le: tab dang phat am thanh nen (radio/nhac) va YouTube TV (dong bang lam dut ket noi voi
-// dien thoai dang truyen). FREEZE_BG_TABS=0 de tat.
+// addon 25-50% luc KHONG ai xem gi, may HASS con 182 MB RAM + 2,75 GB swap -> video giat.
+// Cach lam: TAM DUNG JavaScript cua tab nen bang debugger (Debugger.pause) — tab khong chay timer/xu ly websocket/ve
+// lai DOM; quay lai = Debugger.resume, TUC THI (khong tai lai). DA THU va LOAI: Page.setWebLifecycleState 'frozen'
+// (Chromium bo qua voi trang dang "hien thi" — headless coi MOI tab la hien thi; do: timer van chay du 30/30 lan) va
+// Emulation.setCPUThrottlingRate (khong tac dung trong headless). Do tren Chromium: 80 vong viec/4 s -> 1 khi tam dung.
+// Video do trang dang phat KHONG thuoc JS (luong media rieng) -> YouTube/TikTok/TV van duoc pause rieng khi roi tab,
+// tab camera dong han (isCameraTab). Ngoai le: tab dang phat nhac/radio nen, YouTube TV (giu ket noi voi dien thoai).
+// FREEZE_BG_TABS=0 de tat.
 const FREEZE_BG_TABS = !['0', 'false'].includes(process.env.FREEZE_BG_TABS ?? '');
 
 /** Tab camera (luong go2rtc giai ma lien tuc): DONG HAN khi roi thay vi de ngam — mo lai chi mat ~1 s. */
@@ -1853,16 +1861,20 @@ function freezeTab(dev: DeviceSession, tab: Tab): void {
   if (!FREEZE_BG_TABS || tab.frozen || dev.activeTabKey === tab.key || !dev.tabs.has(tab.key)) return;
   if (tab.kind === 'yttv' || (tab.backgroundAudio && tab.mediaPlaying)) return;
   tab.frozen = true;
-  tab.session.send('Page.setWebLifecycleState', { state: 'frozen' })
+  // Debugger.enable ngay truoc khi dung (khong de bat thuong truc: moi script trang nap se ban su kien ve server).
+  tab.session.send('Debugger.enable', {})
+    .then(() => tab.frozen ? tab.session.send('Debugger.pause') : undefined)
     .then(() => console.log(`[app] ${dev.deviceId}: dong bang tab nen "${tab.key}"`))
     .catch((e: unknown) => { tab.frozen = false; console.warn(`[app] ${dev.deviceId}: khong dong bang duoc "${tab.key}":`, e); });
 }
 
-/** Bo dong bang TRUOC moi thao tac can trang chay (hien, dieu huong, nap lai Shell). */
+/** Bo dong bang TRUOC moi thao tac can trang chay (hien, dieu huong, nap lai Shell). Runtime.evaluate tren trang dang
+ * tam dung se TREO toi khi resume — moi cho goi evaluate vao tab co the dang nen deu phai qua day truoc. */
 async function thawTab(tab: Tab): Promise<void> {
   if (!tab.frozen) return;
   tab.frozen = false;
-  await tab.session.send('Page.setWebLifecycleState', { state: 'active' }).catch(() => { });
+  await tab.session.send('Debugger.resume').catch(() => { });
+  await tab.session.send('Debugger.disable').catch(() => { });
 }
 
 function closeTab(dev: DeviceSession, key: string, reason = 'qua so tab toi da'): void {

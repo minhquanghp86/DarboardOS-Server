@@ -118,8 +118,9 @@ it('dien thoai tim thay panel, truyen YouTube -> YouTube TV tren panel, ngat -> 
   expect((await srv.pageUrls()).some((u) => u.includes('pairingCode'))).toBe(false);
 
   // 5) Tat "Nhan truyen YouTube" o Cai dat -> dien thoai khong thay nua
-  const hp = (await srv.pages()).find((p) => p.url === home)!;
-  await srv.evaluate(hp, `window.__rwvControl('{"app":"settings"}')`);
+  // (30/09/2026) Gui tu tab DANG HIEN (Radio): tab nen (Home Assistant) bi tam dung JavaScript — xem freezeTab().
+  const cur = (await srv.pages()).find((p) => p.url.includes('/radio.html'))!;
+  await srv.evaluate(cur, `window.__rwvControl('{"app":"settings"}')`);
   const sp = await srv.waitPage((u) => u.includes('/settings.html'));
   await sleep(500);
   await srv.evaluate(sp, `window.__rwvControl(JSON.stringify({ settings: 'set', id: 'rwv.cast', v: false }))`);

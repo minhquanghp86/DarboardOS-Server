@@ -1,3 +1,13 @@
+## V2.9.65
+### Đóng băng tab nền — sửa cho có tác dụng thật
+
+- Bản 2.9.64 dùng lệnh đóng băng của Chrome (`Page.setWebLifecycleState`) nhưng **Chrome bỏ qua lệnh này** với tab
+  "đang hiển thị" — mà ở chế độ chạy ẩn mọi tab đều được coi là hiển thị. Đo lại: tab "đóng băng" vẫn chạy đủ timer.
+- Nay tab nền bị **tạm dừng JavaScript** (qua debugger của Chrome): không chạy timer, không xử lý dữ liệu, không vẽ lại.
+  Quay lại ứng dụng thì chạy tiếp ngay, không tải lại. Đo trên Chromium: tải giả lập 80 → 1 vòng việc/4 giây.
+- Video đang phát không thuộc JavaScript nên YouTube/TikTok/TV vẫn được dừng riêng khi rời, tab camera vẫn đóng hẳn.
+- Thêm test tích hợp chứng minh tab nền thật sự dừng và chạy tiếp khi quay lại.
+
 ## V2.9.64
 ### Mượt hơn: tab nền không còn chạy ngầm
 

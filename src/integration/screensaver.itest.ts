@@ -68,8 +68,12 @@ it('mo URL tu HA / trang bat dau phat video khi man hinh cho dang hien -> tat, k
   dev.openUrl(url);
   const w = await srv.waitPage((u) => u === url);
   await srv.evaluate(w, spy);
-  await waitOn(ha, false, 5_000);
   await sleep(2_000);
   expect(await srv.evaluate(w, 'window.__itestSaver === true')).toBe(false);
   expect(srv.log()).toContain('tat man hinh cho (mo URL)');
+  // (30/09/2026) Tab cu nay o nen, JavaScript bi tam dung (freezeTab) — server go man hinh cho khoi no TRUOC khi dung.
+  // Quay lai tab cu roi kiem tra (truoc day doc thang tab nen).
+  await srv.evaluate(w, `window.__rwvControl('{"app":"home"}')`);
+  await sleep(500);
+  expect(await srv.evaluate(ha, 'window.__itestSaver === true')).toBe(false);
 });
