@@ -1,3 +1,13 @@
+## V2.9.67
+### YouTube TV mượt hơn; trợ lý giọng nói không tranh CPU với video
+
+- **YouTube TV** (truyền từ điện thoại) phát toàn màn hình, nguồn thường chỉ 240–360p. Đo 30/09: 22,6 khung/giây,
+  ~9 lần/giây phải nén lại khung (vượt trần gói 32 KB của P4), CPU addon ~285%. Nay riêng tab YouTube TV, khi nguồn
+  ≤ 360p, server gửi khung **nửa độ phân giải** và P4 phóng ×2 bằng phần cứng — gần như không mất chi tiết, ít hơn ~4
+  lần dữ liệu. YouTube thường và ứng dụng khác vẫn đủ độ phân giải. Tắt: `YT_TV_HALF_MAX_H=0`.
+- **Báo thiết bị "đang phát media"** (DeviceControl trường 7) khi tab đang hiện hoặc nhạc/radio nền đang phát. Firmware
+  P4 (`on_media_playing`) dùng để tạm dừng tự đánh thức + khử vọng (AEC) trong lúc phát. Firmware cũ bỏ qua.
+
 ## V2.9.66
 ### Sửa video tụt còn vài khung/giây hơn một phút sau khi chuyển ứng dụng
 

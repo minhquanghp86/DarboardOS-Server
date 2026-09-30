@@ -130,6 +130,8 @@ export type DeviceSession = {
   sharpenNow?: () => void;
   /** Ti le man hinh cua the <video> DANG PHAT lon nhat (hoi Chrome qua CDP, cache) — nhan dien video chac chan. */
   videoElArea?: number;
+  /** (30/09/2026) Chieu cao NGUON (videoHeight) cua <video> dang phat lon nhat — cho quy tac nua do phan giai YouTube TV. */
+  videoSrcH?: number;
   videoProbeMs?: number;
   videoProbeBusy?: boolean;
 
@@ -171,6 +173,8 @@ export type DeviceSession = {
   doorbell?: { id: string; url: string; prevKey: string; timer: NodeJS.Timeout; unlock: string | null };
   /** (27/09/2026) Dien thoai dang truyen YouTube: URL youtube.com/tv (kem pairingCode) + ung dung dang dung truoc do. */
   castUrl?: string;
+  /** (30/09/2026) Gia tri 'dang phat media' da gui thiet bi gan nhat (ControlField.Media) — undefined = chua gui. */
+  mediaSent?: boolean;
   castPrev?: string;
   /**
    * (26/09/2026) Ton dong socket LON NHAT tai cac lan PHAI BO KHUNG vi nghen, ke tu tick dieu tiet truoc. Vong dieu
@@ -279,16 +283,22 @@ const HALF_KEEP_AREA = 0.2;
 const HALF_VIDEO_EL_AREA = 0.2;
 const VIDEO_PROBE_MS = 500;
 const VIDEO_PROBE_JS = `(() => {
-  const W = innerWidth, H = innerHeight; let best = 0;
+  const W = innerWidth, H = innerHeight; let best = 0, srcH = 0;
   for (const v of document.querySelectorAll('video')) {
     if (v.paused || v.ended || v.readyState < 3) continue;
     const r = v.getBoundingClientRect();
     const w = Math.max(0, Math.min(r.right, W) - Math.max(r.left, 0));
     const h = Math.max(0, Math.min(r.bottom, H) - Math.max(r.top, 0));
-    best = Math.max(best, (w * h) / (W * H));
+    const a = (w * h) / (W * H);
+    if (a > best) { best = a; srcH = v.videoHeight || 0; }
   }
-  return best;
+  return { a: best, h: srcH };
 })()`;
+// (30/09/2026) Ngoai le cho quy tac "du do phan giai" (25/09): tab YOUTUBE TV phat TOAN MAN HINH, nguon thuong chi
+// 240-360p -> gui khung NUA do phan giai (P4 phong x2 bang PPA) gan nhu khong mat chi tiet ma bot ~4 lan du lieu.
+// Do that 30/09 khi truyen tu dien thoai: 22,6 khung/s, ~9 lan nen lai/giay (khung vuot tran 32 KB), CPU addon ~285%.
+// Nguoi dung dong y 30/09. Nguon cao hon nguong -> van du do phan giai. YT_TV_HALF_MAX_H=0 de tat.
+const YT_TV_HALF_MAX_H = Math.max(0, parseInt(process.env.YT_TV_HALF_MAX_H ?? '360', 10) || 0);
 // (25/09/2026) Nguoi dung chon DU DO PHAN GIAI (do net cao) -> mac dinh KHONG gui khung video 1/2 nua, ke ca khi
 // thiet bi bao ?half=1 (firmware P4 van bat half_scale_video vi ly do khac — xem YAML). Bat lai: HALF_SCALE_VIDEO=1.
 const HALF_SCALE_VIDEO = process.env.HALF_SCALE_VIDEO === '1';
@@ -1838,6 +1848,7 @@ function onTabMedia(dev: DeviceSession, tab: Tab, playing: boolean): void {
       .then((r) => console.log(`[cast] ${dev.deviceId}: dang phat — ${(r as { result?: { value?: string } })?.result?.value || 'khong thay the media'}`))
       .catch(() => { });
   }
+  syncMediaPlaying(dev);
   pushDeviceStateToPage(dev);
 }
 
@@ -1885,6 +1896,7 @@ function closeTab(dev: DeviceSession, key: string, reason = 'qua so tab toi da')
   tab.session.send('Page.stopScreencast').catch(() => { });
   root?.send('Target.closeTarget', { targetId: tab.targetId }).catch(() => { });
   console.log(`[app] ${dev.deviceId}: dong tab "${key}" (${tab.kind}, ${reason})`);
+  syncMediaPlaying(dev);
 }
 
 /**
@@ -2097,6 +2109,7 @@ async function activateTab(dev: DeviceSession, key: string): Promise<void> {
   }
   requestFullFrameFor(dev);
   pushDeviceStateToPage(dev);
+  syncMediaPlaying(dev);
   console.log(`[app] ${dev.deviceId}: chuyen sang tab "${key}" (${next.kind})`);
 }
 
@@ -2198,6 +2211,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
   if (device) {
     if (deviceConfigsEqual(device.cfg, cfg)) {
       device.lastActive = Date.now();
+      device.mediaSent = undefined;  // (30/09/2026) thiet bi vua noi lai: gui lai 'dang phat media' o nhip toi
       requestFullFrameFor(device);
 
       // (25/09/2026) Thiet bi NOI LAI (khoi dong lai / OTA / watchdog WS): moi "nghen" ghi nhan TRUOC do la cua socket
@@ -2416,10 +2430,15 @@ async function flushPending(dev: DeviceSession): Promise<void> {
       // Hysteresis: bat khi nhip >= HALF_ON_FPS, chi tat khi < HALF_OFF_FPS. Do that lan dau voi mot nguong 8 fps:
       // nhip den lai do chinh server dieu tiet (~8 fps) nen bat/tat lien tuc quanh nguong.
       let halfWanted = dev.halfOn ? fps >= HALF_OFF_FPS : fps >= HALF_ON_FPS;
+      // (30/09/2026) Nua do phan giai: toan cuc (HALF_SCALE_VIDEO=1), hoac rieng tab YouTube TV khi nguon <= YT_TV_HALF_MAX_H.
+      const tvTab = YT_TV_HALF_MAX_H > 0 && dev.tabs.get(dev.activeTabKey)?.kind === 'yttv';
+      const halfProbe = dev.cfg.halfScale && (HALF_SCALE_VIDEO || tvTab);
+      const halfSend = halfProbe && (HALF_SCALE_VIDEO ||
+        (dev.videoSrcH != null && dev.videoSrcH > 0 && dev.videoSrcH <= YT_TV_HALF_MAX_H));
       // (24/09/2026) NHIP CAO CHUA DU: mot tab dashboard co anh dong NHO cung lam Chrome phat khung lien tuc ->
       // ca man hinh bi gui nua do phan giai, giao dien mo han (nguoi dung bao ngay). Phai co PHAN LON man hinh
       // doi moi la video: so anh thu nho xam 64x38 (sharp giai ma thang o kich thuoc nho — re) voi khung truoc.
-      if (halfWanted && HALF_SCALE_VIDEO && dev.cfg.halfScale && !sharpRefresh) {
+      if (halfWanted && halfProbe && !sharpRefresh) {
         const thumb = await sharp(imgBuf).resize(64, 38, { fit: 'fill' }).greyscale().raw().toBuffer();
         let changed = 0;
         if (dev.prevThumb && dev.prevThumb.length === thumb.length) {
@@ -2431,8 +2450,12 @@ async function flushPending(dev: DeviceSession): Promise<void> {
         if (!dev.videoProbeBusy && (dev.videoProbeMs === undefined || nowMs - dev.videoProbeMs >= VIDEO_PROBE_MS)) {
           dev.videoProbeBusy = true;
           dev.cdp.send('Runtime.evaluate', { expression: VIDEO_PROBE_JS, returnByValue: true })
-            .then((r) => { const v = (r as { result?: { value?: unknown } }).result?.value; dev.videoElArea = typeof v === 'number' ? v : 0; })
-            .catch(() => { dev.videoElArea = 0; })
+            .then((r) => {
+              const v = (r as { result?: { value?: { a?: number; h?: number } } }).result?.value;
+              dev.videoElArea = typeof v?.a === 'number' ? v.a : 0;
+              dev.videoSrcH = typeof v?.h === 'number' ? v.h : 0;
+            })
+            .catch(() => { dev.videoElArea = 0; dev.videoSrcH = 0; })
             .finally(() => { dev.videoProbeMs = Date.now(); dev.videoProbeBusy = false; });
         }
         const videoEl = dev.videoProbeMs !== undefined && nowMs - dev.videoProbeMs < VIDEO_PROBE_MS * 3 &&
@@ -2457,7 +2480,7 @@ async function flushPending(dev: DeviceSession): Promise<void> {
       } else {
         dev.prevThumb = undefined;
       }
-      if (!sharpRefresh && HALF_SCALE_VIDEO && dev.cfg.halfScale && halfWanted && !dev.cfg.rotation) {
+      if (!sharpRefresh && halfSend && halfWanted && !dev.cfg.rotation) {
         const capBytes = dev.cfg.maxBytesPerMessage - FRAME_HEADER_BYTES - TILE_HEADER_BYTES;
         const fullW = dev.cfg.width, fullH = dev.cfg.height;
         const halfW = Math.ceil(fullW / 2), halfH = Math.ceil(fullH / 2);
@@ -2664,8 +2687,23 @@ function noteActivity(dev: DeviceSession, why: string, alsoTab?: Tab): void {
  * (26/09/2026 OS-5) Goi moi 5 s (index.ts): thiet bi nao khong cham du lau (SCREENSAVER_IDLE_S), tab dang hien khong
  * phat video/camera va den nen dang sang -> hien man hinh cho tren Shell cua tab do.
  */
+/**
+ * (30/09/2026) Man hinh co DANG PHAT video/am thanh khong (tab dang hien, hoac tab nhac/radio phat nen) -> bao thiet bi
+ * (ControlField.Media) khi DOI. P4 dung de tam dung tu danh thuc + AEC trong luc phat (AEC chay lien tuc khi loa keu,
+ * ~21% mot loi) — nguoi dung chon 30/09: giu tro ly giong noi nhung khong de no tranh CPU voi video.
+ */
+function syncMediaPlaying(dev: DeviceSession, force = false): void {
+  let playing = false;
+  for (const t of dev.tabs.values()) if (t.mediaPlaying && (t.key === dev.activeTabKey || t.backgroundAudio)) playing = true;
+  if (!force && dev.mediaSent === playing) return;
+  dev.mediaSent = playing;
+  if (dev.cfg.devControl) broadcaster.sendDeviceControl(dev.deviceId, ControlField.Media, playing ? 1 : 0);
+}
+
 export function screensaverTick(): void {
   const now = Date.now();
+  // Moi 5 s: dong bo lai trang thai phat (tu sua neu mot goi bi mat khi thiet bi vua noi lai).
+  for (const d of devices.values()) syncMediaPlaying(d);
   for (const d of devices.values()) {
     const tab = d.tabs.get(d.activeTabKey);
     if (!tab || broadcaster.getClientCount(d.deviceId) === 0) continue;

@@ -76,6 +76,9 @@ export enum ControlField {
   Aec = 5,
   // (27/09/2026) Nut "Tro ly" tren Shell: 1 = bat dau nghe (dang nghe thi dung), 0 = dung.
   Assist = 6,
+  // (30/09/2026) Server -> thiet bi: man hinh DANG PHAT video/am thanh (1/0). Firmware (on_media_playing) tam dung
+  // tu danh thuc/AEC trong luc phat. Firmware cu bo qua truong la.
+  Media = 7,
 }
 
 export interface DeviceStateInfo {
