@@ -1,3 +1,10 @@
+## V2.9.84
+### Sửa: S3 kẹt ở 3 khung/giây khi phát YouTube
+
+- Đo 30/09: khung video nửa độ phân giải ~9 KB, S3 xử lý ~28 ms/khung, nhưng bộ điều tiết giữ nhịp 250–400 ms: một đợt
+  khung nét lúc mở trang làm tồn đọng > 96 KB → giãn nhịp, rồi hồi phục mỗi bước 50 ms, cần 2 mẫu tốt.
+- Thiết bị báo `half=2` (S3) dùng bộ điều tiết nhanh như P4: tồn đọng tới 192 KB, bước 17 ms, hồi sau 1 mẫu tốt, chờ 5 s.
+
 ## V2.9.83
 ### Sửa: S3 bật/tắt nửa độ phân giải liên tục
 
