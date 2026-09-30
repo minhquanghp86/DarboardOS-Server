@@ -287,12 +287,26 @@ function videoScreencastQuality(dev: DeviceSession, fps: number, nowMs: number):
 }
 
 function setScreencastQuality(dev: DeviceSession, tab: Tab, q: number, why: string): void {
+  const prevQ = tab.scQuality;
   tab.scQuality = q;
-  // Goi lai startScreencast khi dang chay = doi tham so (Chrome giu phien screencast, khong can stop).
-  tab.session.send('Page.startScreencast', {
-    format: 'jpeg', quality: q, maxWidth: dev.cfg.width, maxHeight: dev.cfg.height, everyNthFrame: dev.cfg.everyNthFrame,
-  }).then(() => console.log(`[screencast] ${dev.deviceId}: chat luong ${q} (${why})`))
-    .catch((e: unknown) => { tab.scQuality = undefined; console.warn(`[screencast] ${dev.deviceId}: doi chat luong that bai:`, e); });
+  // Chrome KHONG cho goi lai startScreencast khi dang chay ("Screencast is already active" — do that 30/09) -> dung roi
+  // bat lai voi chat luong moi (khung ke tiep den ngay sau khi bat lai). Loi: giu chat luong cu, khong thu lai tung khung.
+  (async () => {
+    await tab.session.send('Page.stopScreencast');
+    if (dev.tabs.get(dev.activeTabKey) !== tab) { tab.screencastOn = false; return; }  // da roi tab trong luc cho
+    await tab.session.send('Page.startScreencast', {
+      format: 'jpeg', quality: q, maxWidth: dev.cfg.width, maxHeight: dev.cfg.height, everyNthFrame: dev.cfg.everyNthFrame,
+    });
+    console.log(`[screencast] ${dev.deviceId}: chat luong ${q} (${why})`);
+  })().catch((e: unknown) => {
+    console.warn(`[screencast] ${dev.deviceId}: doi chat luong ${prevQ} -> ${q} that bai:`, e);
+    // Bat lai voi chat luong cu cho chac (neu stop da chay ma start loi, tab se khong con khung nao).
+    tab.session.send('Page.startScreencast', {
+      format: 'jpeg', quality: prevQ ?? q, maxWidth: dev.cfg.width, maxHeight: dev.cfg.height, everyNthFrame: dev.cfg.everyNthFrame,
+    }).catch(() => { });
+    tab.scQuality = prevQ;
+    dev.lowqStreakMs = Date.now() + 60_000;  // tam ngung thu lai 1 phut
+  });
 }
 
 const PREFERS_REDUCED_MOTION = /^(1|true|yes|on)$/i.test(process.env.PREFERS_REDUCED_MOTION ?? '');
