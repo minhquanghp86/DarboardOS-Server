@@ -1,3 +1,14 @@
+## V2.9.64
+### Mượt hơn: tab nền không còn chạy ngầm
+
+- **Đóng băng tab nền**: rời một ứng dụng thì tab của nó ngừng chạy (JavaScript, vẽ, giải mã video) cho tới khi quay
+  lại — quay lại vẫn tức thì, không tải lại. Đo 30/09 trước bản này: addon giữ 8 tab, CPU 25–50% ngay cả khi không ai
+  xem gì, máy HASS đã phải dùng 2,75 GB swap. Ngoại lệ: tab đang phát nhạc/radio nền, YouTube TV (giữ kết nối với
+  điện thoại). Tắt bằng biến môi trường `FREEZE_BG_TABS=0`.
+- **Tab camera đóng hẳn khi rời** (Camera P4, Camera nhà, trang xem một camera): luồng go2rtc không còn giải mã ngầm;
+  mở lại mất khoảng 1 giây.
+- **Màn hình chờ không hiện khi đang truyền YouTube từ điện thoại** (trước đây hiện đè lên giao diện TV giữa hai video).
+
 ## V2.9.63
 ### Truyền YouTube: hết giật, không lọt tiếng sang màn hình khác, chỉnh âm lượng từ điện thoại
 
