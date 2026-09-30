@@ -189,16 +189,16 @@ rest_command:
 
 ### Nhận biết có người (màn hình P4 có camera)
 
-- Hai cảm biến: **Chuyển động** (so độ sáng giữa các khung — không phải nhận diện người, mèo/rèm bay cũng có thể làm
-  báo) và **Person** (AI khuôn mặt chạy ngay trên chip, mỗi giây một lần, giữ 15 s sau lần thấy cuối; hoặc Frigate thấy
-  người, nếu có). Cần camera nhìn thấy mặt; phòng tối hẳn thì không thấy (camera không hồng ngoại).
-- Select **Nguồn phát hiện người**: *Chuyển động*, *Person* hoặc *Cả 2* (mặc định, = một trong hai). Nguồn được chọn
-  quyết định việc bật màn hình / giữ màn sáng / báo server (trễ tắt 10 s); bộ dò không được chọn sẽ tắt hẳn. Thấy người:
-  màn tắt → bật màn hình; đang màn hình chờ → mở trang chủ (như nút *Go Home*, server báo màn hình chờ từ 2.9.79);
-  đang thao tác → giữ màn hình sáng. Cả hai dừng khi đang phát video thật (YouTube/media hoặc trang video/camera).
+- Hai cảm biến, đều chạy **trên chip** (không dùng Frigate): **Chuyển động** (so độ sáng giữa các khung — không phải
+  nhận diện người, mèo/rèm bay cũng có thể làm báo) và **Person** (AI khuôn mặt, mỗi giây một lần, giữ 15 s sau lần
+  thấy cuối). Cần camera nhìn thấy mặt; phòng tối hẳn thì không thấy (camera không hồng ngoại).
+- Select **Nguồn phát hiện người**: *Chuyển động*, *Person*, *Cả 2* (mặc định, = một trong hai) hoặc *Tắt* (tắt hẳn).
+  Chọn ngay trên **thanh trạng thái** (kéo xuống, hàng *Phát hiện người*, từ 2.9.81) hoặc trong HA. Nguồn được chọn
+  quyết định việc bật màn hình / giữ màn sáng / báo server (trễ tắt 10 s); bộ dò không được chọn tắt hẳn. Thấy người:
+  màn tắt → bật màn hình; đang màn hình chờ → mở trang chủ (như nút *Go Home*); đang thao tác → giữ màn hình sáng. Cả
+  hai dừng khi đang phát video thật (YouTube/media hoặc trang video/camera).
 - Camera **Ảnh người phát hiện**: ảnh chụp lúc phát hiện người gần nhất (khung xanh quanh mặt), trống đến lần phát hiện
   đầu sau khi khởi động. Chỉ hoạt động khi camera đang chạy (Frigate/go2rtc kéo luồng hoặc `keep_camera_on`).
-- Nhận diện người chính xác hơn (máy chủ): Frigate — `binary_sensor.p4_panel_person_occupancy`.
 
 ### Truyền YouTube từ điện thoại (như Smart TV)
 

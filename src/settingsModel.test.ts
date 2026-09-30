@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HaEntity, HaState, buildSettingsView, findDeviceByMac, macFromDeviceId, planSet } from "./settingsModel.js";
+import { HaEntity, HaState, buildSettingsView, findDeviceByMac, findPresenceSelect, macFromDeviceId, planSet } from "./settingsModel.js";
 
 const dev = { id: "d1", name: "7.0 Guition JC1060P470C", model: "esp32-p4-evboard", sw_version: "2026.9.0",
   connections: [["mac", "28:37:2F:8A:02:18"]] as [string, string][] };
@@ -69,5 +69,18 @@ describe("cai dat tren panel: kiem tra thao tac", () => {
     expect(typeof planSet(v, "select.p4_xoay_man_hinh", "45")).toBe("string");
     expect(typeof planSet(v, "sensor.p4_wifi_signal", 1)).toBe("string");
     expect(typeof planSet(v, "text.p4_home_url", "x".repeat(300))).toBe("string");
+  });
+});
+
+describe("thanh trang thai: select nguon phat hien nguoi", () => {
+  const view = (items: any[]) => ({ device: { name: 'x' }, items });
+  const sel = (id: string, label: string, extra: any = {}) => ({ id, kind: 'select', group: 'control', label, value: 'Cả 2',
+    options: ['Chuyển động', 'Person', 'Cả 2', 'Tắt'], ...extra });
+  it("tim theo entity_id hoac nhan, bo qua khi khong co / khong dung duoc", () => {
+    expect(findPresenceSelect(view([sel('select.p4_nguon_phat_hien_nguoi', 'Khác')]))?.id).toBe('select.p4_nguon_phat_hien_nguoi');
+    expect(findPresenceSelect(view([sel('select.abc', 'Nguồn phát hiện người')]))?.id).toBe('select.abc');
+    expect(findPresenceSelect(view([sel('select.xoay', 'Xoay màn hình')]))).toBeUndefined();
+    expect(findPresenceSelect(view([sel('select.abc', 'Nguồn phát hiện người', { unavailable: true })]))).toBeUndefined();
+    expect(findPresenceSelect(view([]))).toBeUndefined();
   });
 });

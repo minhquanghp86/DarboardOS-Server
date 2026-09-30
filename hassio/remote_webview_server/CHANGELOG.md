@@ -1,3 +1,11 @@
+## V2.9.81
+### Mới: chọn "Phát hiện người" ngay trên thanh trạng thái
+
+- Kéo thanh trạng thái xuống: thêm hàng **Phát hiện người** với các nút *Tắt · Chuyển động · Person · Cả 2* — đổi
+  select `Nguồn phát hiện người` của màn hình qua Home Assistant. *Tắt* = tắt hẳn phát hiện người trên chip.
+- Chỉ hiện khi màn hình có select này (P4 từ YAML 30/09); hai màn S3 và firmware P4 cũ không thấy gì thay đổi. Không
+  đổi giao thức với firmware.
+
 ## V2.9.80
 ### Sửa: truyền YouTube lúc màn hình đang tắt thì màn không hiện video
 

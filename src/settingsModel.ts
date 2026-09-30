@@ -105,6 +105,16 @@ export function buildSettingsView(dev: HaDevice, entities: HaEntity[], states: M
   };
 }
 
+/**
+ * (30/09/2026) Select "Nguồn phát hiện người" cua firmware P4 (Chuyen dong / Person / Ca 2 / Tat) — hien trong thanh
+ * trang thai. Man khong co select nay (S3, firmware P4 cu) -> undefined, thanh trang thai khong hien hang do.
+ */
+export function findPresenceSelect(view: SettingsView): SettingItem | undefined {
+  const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/gi, 'd').toLowerCase();
+  return view.items.find((i) => i.kind === 'select' && !i.unavailable && (i.options ?? []).length > 1 &&
+    (/nguon_phat_hien_nguoi$/.test(i.id) || norm(i.label) === 'nguon phat hien nguoi'));
+}
+
 export interface ServiceCall { domain: string; service: string; data: Record<string, unknown> }
 
 /**

@@ -63,6 +63,15 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .slider .pct { position: absolute; right: clamp(10px, 2.6vmin, 16px); top: 50%; transform: translateY(-50%); font-weight: 600; font-variant-numeric: tabular-nums; }
 
 /* The "Dang phat": tab nen dang phat (Radio/Nhac) — mo lai hoac dung ngay tu thanh keo xuong */
+.ps { display: flex; align-items: center; gap: var(--gap); }
+.ps-l { display: flex; align-items: center; gap: clamp(6px, 1.6vmin, 10px); flex: none; color: var(--muted); font-weight: 600; white-space: nowrap; }
+.ps-l .ic { width: 1.35em; height: 1.35em; }
+.seg { flex: 1; min-width: 0; display: flex; gap: 4px; padding: 4px; border-radius: var(--r-md); background: var(--surface-2); }
+.seg button { flex: 1 1 0; min-width: 0; height: clamp(32px, 8vmin, 48px); border-radius: calc(var(--r-md) - 4px); color: var(--muted);
+  font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 6px; }
+.seg button.on { background: var(--accent); color: #fff; }
+.seg button.off.on { background: var(--surface-3); color: var(--text); }
+@media (max-width: 560px) { .ps-l span { display: none; } }
 .np { display: flex; flex-direction: column; gap: calc(var(--gap) * 0.6); }
 .np-row { display: flex; align-items: center; gap: var(--gap); padding: clamp(6px, 1.6vmin, 10px) clamp(10px, 2.6vmin, 16px);
   border-radius: var(--r-md); background: rgba(234,88,12,0.18); }

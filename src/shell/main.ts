@@ -31,6 +31,8 @@ interface DevState {
   dnd?: boolean;
   /** (27/09/2026) Firmware co tro ly giong noi (nut "Tro ly"). */
   va?: boolean;
+  /** (30/09/2026) Select "Nguon phat hien nguoi" cua thiet bi (chi P4 co). Server < 2.9.81 khong gui. */
+  ps?: { v: string; o: string[] } | null;
 }
 interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'critical'; ts: number; img: string | null; act: boolean }
 
@@ -160,6 +162,37 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   const sliders = el('div', 'sliders'); sliders.append(bri.el, vol.el);
   const ctl = el('div', 'ctl'); ctl.append(tilesBox, sliders);
 
+  // (30/09/2026) Hang "Phat hien nguoi": chon nguon danh thuc man hinh (select cua firmware P4 qua HA). "Tắt" dung dau.
+  const psBox = el('div', 'ps'); psBox.style.display = 'none';
+  const psLbl = el('div', 'ps-l'); psLbl.append(mdi('eye'), el('span', '', 'Phát hiện người'));
+  const psSeg = el('div', 'seg'); psSeg.setAttribute('role', 'radiogroup'); psSeg.setAttribute('aria-label', 'Phát hiện người');
+  psBox.append(psLbl, psSeg);
+  let psSig = '', psPick = '', psAt = 0;
+  function psMark(v: string) {
+    psSeg.querySelectorAll<HTMLElement>('button').forEach((b) => {
+      const on = b.dataset.v === v; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on));
+    });
+  }
+  function renderPresenceSel(ps: { v: string; o: string[] } | null | undefined) {
+    const show = !!ps && ps.o.length > 1;
+    if ((psBox.style.display !== 'none') !== show) {
+      psBox.style.display = show ? '' : 'none';
+      if (shadeVisible > 0) setVisible(fullH(), false);
+    }
+    if (!ps || !show) return;
+    const opts = [...ps.o].sort((a, b) => Number(b === 'Tắt') - Number(a === 'Tắt'));
+    const sig = opts.join('|');
+    if (sig !== psSig) {
+      psSig = sig;
+      psSeg.replaceChildren(...opts.map((o) => {
+        const b = el('button', o === 'Tắt' ? 'off' : '', o); b.dataset.v = o; b.setAttribute('role', 'radio');
+        b.addEventListener('click', (e) => { e.stopPropagation(); psPick = o; psAt = Date.now(); psMark(o); sendControl({ ps: 'set', v: o }); });
+        return b;
+      }));
+    }
+    psMark(Date.now() - psAt < 4000 ? psPick : ps.v);
+  }
+
   // Hang bieu tuong mo trang toan man hinh (chi hien muc DA CO — khong de nut chet)
   const shortcuts = el('div', 'shortcuts');
   let vaBtn: HTMLElement | null = null;
@@ -240,7 +273,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     ntBox.replaceChildren(head, ...rows);
     if (shadeVisible > 0) setVisible(fullH(), false);
   }
-  inner.append(info, ctl, npBox, ntBox, shortcuts);
+  inner.append(info, ctl, psBox, npBox, ntBox, shortcuts);
 
   // Chieu cao, keo, mo/dong. Muc 'full' (P4): keo theo ngon; 'reduced'/'minimal' (S3): nhay thang.
   let shadeVisible = 0;
@@ -257,7 +290,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     scrim.classList.toggle('on', shadeVisible > 0);
     pillChev.style.transform = shadeVisible > 0 ? 'translateX(-50%) rotate(180deg)' : 'translateX(-50%)';
   }
-  function openShade(animate: boolean) { hideToast(); tick(); setVisible(fullH(), animate); }
+  function openShade(animate: boolean) { hideToast(); tick(); setVisible(fullH(), animate); if (st?.ps) sendControl({ ps: 'get' }); }
   function closeShade(animate: boolean) { setVisible(0, animate); }
   scrim.addEventListener('click', (e) => { e.stopPropagation(); closeShade(true); });
   // Vuot len tren nen thanh (khong tren nut/thanh truot) -> dong
@@ -635,6 +668,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
       }
     }
     renderNowPlaying(s.np || []);
+    renderPresenceSel(s.ps);
     tick();
     try { window.dispatchEvent(new CustomEvent('rwv-state', { detail: s })); } catch { /* */ }
   }
