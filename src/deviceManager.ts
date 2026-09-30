@@ -191,6 +191,8 @@ export type DeviceSession = {
   castUrl?: string;
   /** (30/09/2026) Luc thiet bi NOI LAI gan nhat (phien cu duoc dung lai) — xem navigateToUrl. */
   reconnectedMs?: number;
+  /** (30/09/2026) Lan cuoi thay khung YouTube TV day du QUA TO — giu nua do phan giai 10 s tu moc nay. */
+  tvBigMs?: number;
   /** (30/09/2026) Gia tri 'dang phat media' da gui thiet bi gan nhat (ControlField.Media) — undefined = chua gui. */
   mediaSent?: boolean;
   castPrev?: string;
@@ -2622,7 +2624,10 @@ async function flushPending(dev: DeviceSession): Promise<void> {
       const halfProbe = dev.cfg.halfScale && (HALF_SCALE_VIDEO || tvTab);
       // (30/09/2026) Them: khung day du QUA TO (> 2 lan goi) cung gui nua do phan giai. Do that: truyen YouTube TV nguon
       // 720p -> anh Chrome 80-93 KB (q90), van 59 KB o q40 -> P4 giai ma ~120 ms/khung, WS nghen 2,2 MB roi noi lai.
-      const tooBigFull = imgBuf.length > 2 * (dev.cfg.maxBytesPerMessage - FRAME_HEADER_BYTES - TILE_HEADER_BYTES);
+      // GIU 10 s: khung 720p dao dong quanh nguong -> truoc day bat/tat tung khung (do 30/09, 2.9.77: ~190 khung day du
+      // lon xen giua, 20 fps, loa vap 68 lan) — moi lan tat lai phai gui ca khung net.
+      if (tvTab && imgBuf.length > 2 * (dev.cfg.maxBytesPerMessage - FRAME_HEADER_BYTES - TILE_HEADER_BYTES)) dev.tvBigMs = nowMs;
+      const tooBigFull = tvTab && dev.tvBigMs !== undefined && nowMs - dev.tvBigMs < 10_000;
       const halfSend = halfProbe && (HALF_SCALE_VIDEO || tooBigFull ||
         (dev.videoSrcH != null && dev.videoSrcH > 0 && dev.videoSrcH <= YT_TV_HALF_MAX_H));
       // (24/09/2026) NHIP CAO CHUA DU: mot tab dashboard co anh dong NHO cung lam Chrome phat khung lien tuc ->
