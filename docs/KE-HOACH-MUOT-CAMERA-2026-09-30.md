@@ -74,3 +74,30 @@ Mỗi bước: làm → đo lại (đo ngắn ~60–90 s) → báo người dùn
 3. **Không đụng tới Frigate** — mục D chỉ tối ưu trong phạm vi addon + firmware.
 4. ~~Thứ tự C → A → B~~. **Đổi (30/09, sau)**: làm **C (mượt server) + B (camera)** trước, đo lại; nếu ổn thì **KHÔNG gỡ A** (giữ trợ lý giọng nói, tự đánh thức, AEC) mà tối ưu để chúng chạy nhẹ. Quyết định 1 (gỡ AEC) chỉ áp dụng nếu sau cùng vẫn gỡ A.
 5. Đo YouTube TV: người dùng bấm truyền từ điện thoại khi được báo.
+
+## 4. Kết quả (30/09/2026)
+
+### C — làm mượt server (2.9.64 → 2.9.66)
+| | Trước | Sau |
+|---|---|---|
+| CPU addon lúc rảnh (sau khi mở vài ứng dụng rồi về HA) | ~32% | **8–10%** |
+| Timer trong tab nền | chạy đủ (50/5 s) | **0/5 s** (tạm dừng JS bằng debugger) |
+| Tab camera ở nền | 3 tab giải mã liên tục | **đóng khi rời** |
+| YouTube 60 s (P4) | 29,4 fps, CPU addon ~270% | 29,9 fps, CPU addon ~190% (lượt không quảng cáo) |
+| Quay lại YouTube sau khi chuyển ứng dụng | **3,5 fps** hơn 1 phút (điều tiết nhảy 50→400 ms) | **24,9 fps** (dao động 33–75 ms) |
+
+- 2.9.64: `Page.setWebLifecycleState frozen` — **không có tác dụng** (Chrome bỏ qua với tab "hiển thị"; headless coi mọi tab là hiển thị). 2.9.65 thay bằng `Debugger.pause` + test tích hợp chứng minh.
+- 2.9.66: bộ điều tiết — bước giãn nhịp tối đa ×2; ước lượng băng thông giảm tối đa 40%/lần nghẽn; tự nâng 15%/5 s.
+- **Không đổi** trần gói P4 32 KB: lịch sử ghi rõ gửi khung lớn từng gây treo watchdog P4 (17/09).
+- Chặn màn hình chờ khi đang truyền YouTube TV (log thật từng hiện đè).
+
+### B — camera (firmware nhánh `claude/two-repo-research-3ulwjd` @ `e28a42b`, đã nạp P4)
+- Driver OV02C10: phơi sáng (dòng) + bảng gain ×1…×31 + `tline_ns` (trước = 0) → IPA của ESP32-P4 tự phơi sáng
+  (AGC `high_light_priority`, gamma), cấu hình mục `OV02C10` trong `cfg/sc202cs.json`.
+- Cùng góc camera, ban ngày: sáng TB **24 → 111/255**, điểm gần đen **47% → 0%**, cháy 2,3%.
+- Còn lại: ảnh hơi nhạt/thiếu tương phản; vùng tối ngả tím (chưa trừ mức đen cảm biến). Cần thử cảnh tối và có đèn.
+
+### Còn lại
+- YouTube TV: cần người dùng truyền từ điện thoại để đo.
+- Âm thanh phía P4 (bộ đệm loa) khi phát video.
+- Quyết định giữ trợ lý giọng nói (theo yêu cầu: đo ổn thì giữ, tối ưu cho nhẹ).
