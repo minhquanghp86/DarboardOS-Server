@@ -184,7 +184,17 @@ rest_command:
 - Thẻ ở cuối màn hình hiện *Đang nghe…*, rồi câu bạn vừa nói, rồi câu trả lời; chạm thẻ để dừng hoặc đóng.
 - Cần một **Assist pipeline** trên Home Assistant: STT (vd addon *Whisper*) + TTS (vd *Piper* giọng tiếng Việt), chọn
   pipeline cho thiết bị ESPHome ở trang thiết bị.
-- Đang xem video thì từ đánh thức tạm dừng (giữ máy ổn định); nút Trợ lý vẫn dùng được.
+- Đang phát video **hoặc âm thanh** (kể cả radio/nhạc nền) thì từ đánh thức và khử vọng (AEC) **tự tạm dừng**, hết phát
+  thì tự bật lại (server báo thiết bị qua DeviceControl `Media`). Nút Trợ lý vẫn dùng được bất kỳ lúc nào.
+
+### Nhận biết có người (màn hình P4 có camera)
+
+- **Phát hiện khuôn mặt** (công tắc *Phát hiện khuôn mặt*, cảm biến *Có người (khuôn mặt)*): AI chạy ngay trên chip
+  (mô hình Espressif), mỗi giây một lần, **chỉ khi màn hình tắt** và không phát media — thấy mặt người thì bật màn hình.
+  Cần camera nhìn thấy mặt; phòng tối hẳn thì không thấy (camera không hồng ngoại).
+- **Dò chuyển động** (công tắc *Dò người bằng camera*, cảm biến *Có người (camera)*): so độ sáng giữa các khung — không
+  phải nhận diện người (mèo, rèm bay cũng có thể làm báo). Giữ làm dự phòng.
+- Nhận diện người chính xác hơn (máy chủ): Frigate — `binary_sensor.p4_panel_person_occupancy`.
 
 ### Truyền YouTube từ điện thoại (như Smart TV)
 
@@ -337,6 +347,9 @@ luôn gửi giá trị riêng của từng màn hình (trong YAML ESPHome) khi k
 | Camera P4 → Frigate | 1920×1056, 5 hình/giây, H.264 phần cứng |
 | Dashboard đứng yên | CPU màn hình ~5%, gần như không tốn mạng |
 | Băng thông WiFi tối đa của P4 | ~2,1–2,4 MB/giây |
+| Quay lại YouTube sau khi chuyển ứng dụng (2.9.66) | ~25 hình/giây ngay (trước: 3,5 hình/giây hơn 1 phút) |
+| YouTube TV truyền từ điện thoại, nguồn 240p (2.9.66) | 22,6 hình/giây — 2.9.67 dùng khung nửa độ phân giải cho TV nguồn ≤ 360p |
+| CPU addon lúc rảnh sau khi mở vài ứng dụng (2.9.65) | ~8–10% (trước ~32%: tab nền vẫn chạy) |
 
 ## Bảo mật
 
@@ -376,6 +389,10 @@ luôn gửi giá trị riêng của từng màn hình (trong YAML ESPHome) khi k
 - **Chrome DevTools**: bật *Mở DevTools ra mạng LAN* → trên máy tính mở Chrome, vào `chrome://inspect/#devices` →
   *Configure…* → thêm `<ip-HA>:9222` → *inspect* tab của màn hình. Tắt lại khi xong.
 - **Self-test**: đặt `url: "self-test"` trong YAML để đo thời gian dựng hình của màn hình.
+- **`FREEZE_BG_TABS`** (mặc định bật): tab ứng dụng ở nền bị **tạm dừng JavaScript** (qua debugger của Chrome) cho tới
+  khi quay lại; tab camera đóng hẳn khi rời. Ngoại lệ: nhạc/radio đang phát nền, YouTube TV. `0` để tắt.
+- **`YT_TV_HALF_MAX_H`** (mặc định `360`): tab YouTube TV có nguồn cao tối đa chừng này thì gửi khung nửa độ phân giải
+  (P4 phóng ×2). `0` để luôn đủ độ phân giải.
 - **Màn hình chờ sau (giây)** (`screensaver_idle_s`, mặc định `120`, `0` = tắt): không chạm bao lâu thì hiện đồng
   hồ lớn + ngày âm dương + thời tiết (tông tối 22h–6h, dịch chỗ mỗi phút chống lưu ảnh). Không hiện khi đang phát
   video/camera hoặc màn hình đã tắt đèn nền.
