@@ -1,3 +1,10 @@
+## V2.9.83
+### Sửa: S3 bật/tắt nửa độ phân giải liên tục
+
+- Đo 2.9.82 trên S3 480×480: 5,6 khung/giây, khung nửa (~8 KB) xen với khung đầy đủ 24–65 KB. Chế độ nửa chỉ bật khi
+  Chrome gửi ≥ 2,5 khung/giây, mà chính S3 giải mã chậm làm server giãn nhịp về ~2,5 → dao động quanh ngưỡng.
+- Thiết bị báo `half=2` không còn xét nhịp: có `<video>` đang phát (hoặc phần lớn màn hình đổi, giữ 1 s) là gửi khung nửa.
+
 ## V2.9.82
 ### Mới: YouTube mượt hơn trên hai màn S3
 
