@@ -123,6 +123,22 @@ describe('OS-2: moi ung dung mot tab (server + Chromium that)', () => {
     expect((await srv.pageUrls()).sort()).toEqual([home, url].sort());
   });
 
+  it('tab nen bi tam dung JavaScript (dong bang), quay lai thi chay tiep', async () => {
+    // (30/09/2026) Page.setWebLifecycleState 'frozen' tung "thanh cong" ma timer van chay du — test nay bat loai do.
+    const { home } = await connectPanel('it-freeze');
+    const ha = await srv.waitPage((u) => u === home);
+    await srv.evaluate(ha, 'window.__cnt = 0; setInterval(function () { window.__cnt++; }, 100); 1');
+    await srv.evaluate(ha, `window.__rwvControl('{"app":"weather"}')`);
+    const w = await srv.waitPage((u) => u.includes('/weather.html'));
+    await sleep(3_000);                                  // khong dong bang thi ~35 lan
+    await srv.evaluate(w, `window.__rwvControl('{"app":"home"}')`);
+    await sleep(500);
+    const n = await srv.evaluate<number>(ha, 'window.__cnt');
+    expect(n).toBeLessThan(15);
+    await sleep(1_000);
+    expect(await srv.evaluate<number>(ha, 'window.__cnt')).toBeGreaterThan(n + 5);   // chay tiep
+  });
+
   it('vuot tu mep trai: Quay lai trang truoc trong ung dung; het lich su thi ve man hinh chinh', async () => {
     const { home } = await connectPanel('it-back');
     const ha = await srv.waitPage((u) => u === home);

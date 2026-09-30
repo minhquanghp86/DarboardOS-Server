@@ -112,6 +112,9 @@ it('Man hinh chinh: cham giu keo doi cho, gop thu muc, dua xuong dock, luu va gi
   expect(s.layout).toEqual(expected);
 
   // 7) Trang khac (khong phai man hinh chinh) gui bo cuc -> bi bo qua
+  // (30/09/2026) Tab nen bi tam dung JavaScript (freezeTab) -> dua tab HA ra truoc roi moi gui tu no.
+  await srv.evaluate(hp2, `window.__rwvControl('{"app":"home"}')`);
+  await sleep(800);
   const ha2 = (await srv.pages()).find((p) => p.url === home)!;
   await srv.evaluate(ha2, `window.__rwvControl(JSON.stringify({ home: { dock: [], items: [] } }))`);
   await sleep(600);
