@@ -153,3 +153,16 @@ Yêu cầu người dùng: chỉ nhận diện khi **màn hình tắt**, tắt h
 - Flash: app 3,46 MB + ~0,6 MB (esp-dl + mô hình), phân vùng app 7,75 MB → đủ. RAM: tensor arena + khung trong PSRAM;
   cần đo RAM nội (P4 còn ~120 KB).
 - Điều kiện: camera phải NHÌN THẤY người (hiện đang ngửa lên mái nhà); phòng tối hẳn thì OV02C10 (không hồng ngoại) không thấy.
+
+## 6. Phát hiện khuôn mặt trên chip — `camera_face` (30/09, nhánh client @ `d3935c0`)
+- Người dùng chọn khuôn mặt (camera đặt gần) thay vì cả thân; bộ dò chuyển động giữ làm dự phòng.
+- ESP-DL `human_face_detect` 0.5.0 (MIT), mô hình ESPDet pico 224×224 nhúng flash. Ảnh vào: thu nhỏ + YUV→RGB bằng phần
+  mềm thành 224×126 đặt giữa ảnh 224×224 (viền xám 114, giữ tỉ lệ). Không dùng PPA/DMA2D.
+- Chỉ chạy khi: công tắc "Phát hiện khuôn mặt" bật + đèn nền TẮT + không phát media (script `update_face_detect`).
+  Thấy mặt → `wake_display` + `Có người (khuôn mặt)` lên HA.
+- `esp_video_camera` nay nhận tối đa 3 bộ quan sát khung (trước chỉ 1).
+- Đo trên P4: firmware 3,46 → **6,76 MB** (phân vùng app 7,75 MB — còn ~1 MB, lưu ý khi thêm tính năng);
+  RAM trong chip rảnh 117 → 100 KB lúc chạy, **85 KB** sau khi nạp mô hình (−13 KB); PSRAM −772 KB.
+  Suy luận TB ~151 ms (Espressif công bố 52 ms), chuẩn bị ảnh ~44 ms trên task camera, 52 lần/phút.
+- **Chưa thử với mặt người thật** (camera đang ngửa lên mái nhà).
+- Tối ưu có thể làm: chỉ vô hiệu cache các hàng cần đọc (thay vì cả khung 3 MB) để giảm 44 ms chuẩn bị ảnh.
