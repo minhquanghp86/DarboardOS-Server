@@ -190,8 +190,9 @@ rest_command:
 ### Nhận biết có người (màn hình P4 có camera)
 
 - **Phát hiện khuôn mặt** (công tắc *Phát hiện khuôn mặt*, cảm biến *Có người (khuôn mặt)*): AI chạy ngay trên chip
-  (mô hình Espressif), mỗi giây một lần, **chỉ khi màn hình tắt hoặc đang màn hình chờ** và không phát media. Thấy mặt
-  người: màn tắt → bật màn hình; đang màn hình chờ → mở trang chủ (như nút *Go Home*). Cần camera nhìn thấy mặt; phòng
+  (mô hình Espressif), mỗi giây một lần, **mọi lúc trừ khi đang phát video** (YouTube/media hoặc trang video/camera). Thấy mặt
+  người: màn tắt → bật màn hình; đang màn hình chờ → mở trang chủ (như nút *Go Home*); đang thao tác → giữ màn hình
+  sáng. Cảm biến giữ trạng thái "có mặt" 15 s sau lần thấy cuối. Cần camera nhìn thấy mặt; phòng
   tối hẳn thì không thấy (camera không hồng ngoại). Server báo trạng thái màn hình chờ cho P4 (từ 2.9.79).
 - **Dò chuyển động** (công tắc *Dò người bằng camera*, cảm biến *Có người (camera)*): so độ sáng giữa các khung — không
   phải nhận diện người (mèo, rèm bay cũng có thể làm báo). Giữ làm dự phòng.
