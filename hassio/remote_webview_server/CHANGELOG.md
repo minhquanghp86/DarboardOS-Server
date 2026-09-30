@@ -1,3 +1,10 @@
+## V2.9.78
+### YouTube TV 720p: nửa độ phân giải ổn định, không bật/tắt từng khung
+
+- Đo 2.9.77 (truyền 720p thật): P4 hết quá tải (giải mã 17,5 ms, CPU 24%), nhưng khung 720p dao động quanh ngưỡng "quá
+  to" nên chế độ nửa độ phân giải bật/tắt liên tục — ~190 khung đầy đủ cỡ lớn xen giữa, 20 fps, loa vấp 68 lần/30 s.
+  Nay đã thấy một khung quá to thì giữ nửa độ phân giải 10 giây.
+
 ## V2.9.77
 ### YouTube TV: chọn 720p trên điện thoại không còn làm P4 quá tải và mất hình
 
