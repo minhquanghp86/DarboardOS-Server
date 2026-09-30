@@ -1,3 +1,11 @@
+## V2.9.73
+### Sửa: màn hình báo đã kết nối nhưng đứng hình sau khi addon khởi động lại
+
+- Cổng WebSocket mở **trước** khi Chrome khởi động xong (~2,5 s) nhưng bộ xử lý kết nối chỉ được gắn **sau** đó. Màn
+  nào kết nối lại đúng khoảng này thì bắt tay thành công nhưng server không bao giờ biết tới nó: màn báo "WS Connected",
+  server 0 thiết bị, hình đứng mãi. Gặp thật 30/09 sau lần cập nhật 2.9.72 (cả 3 màn). Nay cổng chỉ mở khi Chrome đã
+  sẵn sàng (màn kết nối sớm bị từ chối và tự thử lại).
+
 ## V2.9.72
 ### Video trên P4 đi thẳng từ Chrome, không còn giải nén + nén lại ở server
 
