@@ -72,5 +72,5 @@ Mỗi bước: làm → đo lại (đo ngắn ~60–90 s) → báo người dùn
 1. **Gỡ luôn AEC** (`mic_aec`) khỏi YAML P4 (giữ mã component trong repo).
 2. **Đồng ý đóng băng tab nền** (trừ tab đang phát nhạc/radio nền); tab camera dừng luồng khi rời.
 3. **Không đụng tới Frigate** — mục D chỉ tối ưu trong phạm vi addon + firmware.
-4. Thứ tự: **C (làm mượt server) → A (gỡ trợ lý + AEC) → B (camera)**.
+4. ~~Thứ tự C → A → B~~. **Đổi (30/09, sau)**: làm **C (mượt server) + B (camera)** trước, đo lại; nếu ổn thì **KHÔNG gỡ A** (giữ trợ lý giọng nói, tự đánh thức, AEC) mà tối ưu để chúng chạy nhẹ. Quyết định 1 (gỡ AEC) chỉ áp dụng nếu sau cùng vẫn gỡ A.
 5. Đo YouTube TV: người dùng bấm truyền từ điện thoại khi được báo.
