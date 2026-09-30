@@ -189,15 +189,15 @@ rest_command:
 
 ### Nhận biết có người (màn hình P4 có camera)
 
-- **Phát hiện khuôn mặt** (công tắc *Phát hiện khuôn mặt*, cảm biến *Có người (khuôn mặt)*): AI chạy ngay trên chip
-  (mô hình Espressif), mỗi giây một lần, **mọi lúc trừ khi đang phát video** (YouTube/media hoặc trang video/camera). Thấy mặt
-  người: màn tắt → bật màn hình; đang màn hình chờ → mở trang chủ (như nút *Go Home*); đang thao tác → giữ màn hình
-  sáng. Cảm biến giữ trạng thái "có mặt" 15 s sau lần thấy cuối. Cần camera nhìn thấy mặt; phòng
-  tối hẳn thì không thấy (camera không hồng ngoại). Server báo trạng thái màn hình chờ cho P4 (từ 2.9.79).
-- **Dò chuyển động** (công tắc *Dò người bằng camera*, cảm biến *Có người (camera)*): so độ sáng giữa các khung — không
-  phải nhận diện người (mèo, rèm bay cũng có thể làm báo). Giữ làm dự phòng.
-- **Có người** (cảm biến gộp): bật khi có chuyển động **hoặc** thấy mặt **hoặc** Frigate thấy người (nếu có Frigate),
-  tắt sau 10 s không còn nguồn nào. Dùng cảm biến này cho tự động hoá.
+- Hai cảm biến: **Chuyển động** (so độ sáng giữa các khung — không phải nhận diện người, mèo/rèm bay cũng có thể làm
+  báo) và **Person** (AI khuôn mặt chạy ngay trên chip, mỗi giây một lần, giữ 15 s sau lần thấy cuối; hoặc Frigate thấy
+  người, nếu có). Cần camera nhìn thấy mặt; phòng tối hẳn thì không thấy (camera không hồng ngoại).
+- Select **Nguồn phát hiện người**: *Chuyển động*, *Person* hoặc *Cả 2* (mặc định, = một trong hai). Nguồn được chọn
+  quyết định việc bật màn hình / giữ màn sáng / báo server (trễ tắt 10 s); bộ dò không được chọn sẽ tắt hẳn. Thấy người:
+  màn tắt → bật màn hình; đang màn hình chờ → mở trang chủ (như nút *Go Home*, server báo màn hình chờ từ 2.9.79);
+  đang thao tác → giữ màn hình sáng. Cả hai dừng khi đang phát video thật (YouTube/media hoặc trang video/camera).
+- Camera **Ảnh người phát hiện**: ảnh chụp lúc phát hiện người gần nhất (khung xanh quanh mặt), trống đến lần phát hiện
+  đầu sau khi khởi động. Chỉ hoạt động khi camera đang chạy (Frigate/go2rtc kéo luồng hoặc `keep_camera_on`).
 - Nhận diện người chính xác hơn (máy chủ): Frigate — `binary_sensor.p4_panel_person_occupancy`.
 
 ### Truyền YouTube từ điện thoại (như Smart TV)
