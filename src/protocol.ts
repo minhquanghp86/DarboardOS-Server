@@ -79,6 +79,8 @@ export enum ControlField {
   // (30/09/2026) Server -> thiet bi: man hinh DANG PHAT video/am thanh (1/0). Firmware (on_media_playing) tam dung
   // tu danh thuc/AEC trong luc phat. Firmware cu bo qua truong la.
   Media = 7,
+  /** (30/09/2026) Man hinh cho dang hien (1) / tat (0) — P4 dung de phat hien khuon mat + ve trang chu. */
+  Saver = 8,
 }
 
 export interface DeviceStateInfo {

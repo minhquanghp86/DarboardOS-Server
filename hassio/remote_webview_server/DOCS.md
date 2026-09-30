@@ -190,10 +190,13 @@ rest_command:
 ### Nhận biết có người (màn hình P4 có camera)
 
 - **Phát hiện khuôn mặt** (công tắc *Phát hiện khuôn mặt*, cảm biến *Có người (khuôn mặt)*): AI chạy ngay trên chip
-  (mô hình Espressif), mỗi giây một lần, **chỉ khi màn hình tắt** và không phát media — thấy mặt người thì bật màn hình.
-  Cần camera nhìn thấy mặt; phòng tối hẳn thì không thấy (camera không hồng ngoại).
+  (mô hình Espressif), mỗi giây một lần, **chỉ khi màn hình tắt hoặc đang màn hình chờ** và không phát media. Thấy mặt
+  người: màn tắt → bật màn hình; đang màn hình chờ → mở trang chủ (như nút *Go Home*). Cần camera nhìn thấy mặt; phòng
+  tối hẳn thì không thấy (camera không hồng ngoại). Server báo trạng thái màn hình chờ cho P4 (từ 2.9.79).
 - **Dò chuyển động** (công tắc *Dò người bằng camera*, cảm biến *Có người (camera)*): so độ sáng giữa các khung — không
   phải nhận diện người (mèo, rèm bay cũng có thể làm báo). Giữ làm dự phòng.
+- **Có người** (cảm biến gộp): bật khi có chuyển động **hoặc** thấy mặt **hoặc** Frigate thấy người (nếu có Frigate),
+  tắt sau 10 s không còn nguồn nào. Dùng cảm biến này cho tự động hoá.
 - Nhận diện người chính xác hơn (máy chủ): Frigate — `binary_sensor.p4_panel_person_occupancy`.
 
 ### Truyền YouTube từ điện thoại (như Smart TV)

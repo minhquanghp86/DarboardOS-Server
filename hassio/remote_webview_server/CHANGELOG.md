@@ -1,3 +1,10 @@
+## V2.9.79
+### Báo màn hình "đang màn hình chờ" cho thiết bị (phát hiện khuôn mặt lúc màn hình chờ)
+
+- Server báo thiết bị khi màn hình chờ (đồng hồ / khung ảnh) hiện hoặc tắt: DeviceControl trường 8 (`Saver`), gửi
+  **ngay** khi đổi và nhắc lại mỗi 5 s. Firmware P4 (`on_screensaver`, tag fw-2026.09.30d) dùng để chạy phát hiện
+  khuôn mặt cả lúc màn hình chờ; thấy mặt thì về trang chủ. Firmware cũ bỏ qua trường lạ.
+
 ## V2.9.78
 ### YouTube TV 720p: nửa độ phân giải ổn định, không bật/tắt từng khung
 
