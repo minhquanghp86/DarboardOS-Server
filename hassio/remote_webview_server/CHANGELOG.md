@@ -1,3 +1,12 @@
+## V2.9.82
+### Mới: YouTube mượt hơn trên hai màn S3
+
+- Đo 30/09 trên S3 480×480: YouTube chỉ **1,9 khung/giây** — S3 giải mã JPEG bằng phần mềm ~60 ms/khung, socket nghẽn
+  >200 KB, server phải giãn nhịp tới 350 ms.
+- Firmware S3 mới (`fw-2026.09.30j`, `half_scale_video: true`) báo `half=2`: khi phát video server gửi khung **nửa độ
+  phân giải** (¼ điểm ảnh) cho **mọi** video, S3 tự nhân đôi điểm ảnh. Dừng ~0,7 s thì server gửi lại khung nét.
+- P4 không đổi (vẫn `half=1`: chỉ YouTube TV nguồn ≤ 720p). Firmware cũ / server cũ: không đổi gì (tương thích hai chiều).
+
 ## V2.9.81
 ### Mới: chọn "Phát hiện người" ngay trên thanh trạng thái
 

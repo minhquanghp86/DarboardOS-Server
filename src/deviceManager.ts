@@ -2464,11 +2464,11 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
       // OTA xong, phien duoc tao boi firmware CU (khong co half=1); firmware moi noi lai roi vao day va
       // halfScale ket o false vinh vien. Cung loai loi voi homeUrl ben duoi. Hai co nay khong can dung lai
       // gi (khong script/target nao phu thuoc) nen chi can gan lai.
-      if (device.cfg.halfScale !== cfg.halfScale || device.cfg.audioEnabled !== cfg.audioEnabled ||
+      if (device.cfg.halfScale !== cfg.halfScale || device.cfg.halfVideo !== cfg.halfVideo || device.cfg.audioEnabled !== cfg.audioEnabled ||
           device.cfg.urlSet !== cfg.urlSet || device.cfg.fbBands !== cfg.fbBands ||
           device.cfg.devControl !== cfg.devControl || device.cfg.voice !== cfg.voice) {
-        console.log(`[device] ${id}: cap nhat co firmware half=${cfg.halfScale} audio=${cfg.audioEnabled} urlset=${cfg.urlSet} fb=${cfg.fbBands}`);
-        device.cfg = { ...device.cfg, halfScale: cfg.halfScale, audioEnabled: cfg.audioEnabled, urlSet: cfg.urlSet,
+        console.log(`[device] ${id}: cap nhat co firmware half=${cfg.halfScale}${cfg.halfVideo ? "(video)" : ""} audio=${cfg.audioEnabled} urlset=${cfg.urlSet} fb=${cfg.fbBands}`);
+        device.cfg = { ...device.cfg, halfScale: cfg.halfScale, halfVideo: cfg.halfVideo, audioEnabled: cfg.audioEnabled, urlSet: cfg.urlSet,
                        fbBands: cfg.fbBands, devControl: cfg.devControl, voice: cfg.voice };
         device.processor.setBandSplit(cfg.fbBands);
       }
@@ -2665,14 +2665,14 @@ async function flushPending(dev: DeviceSession): Promise<void> {
       let halfWanted = dev.halfOn ? fps >= HALF_OFF_FPS : fps >= HALF_ON_FPS;
       // (30/09/2026) Nua do phan giai: toan cuc (HALF_SCALE_VIDEO=1), hoac rieng tab YouTube TV khi nguon <= YT_TV_HALF_MAX_H.
       const tvTab = YT_TV_HALF_MAX_H > 0 && dev.tabs.get(dev.activeTabKey)?.kind === 'yttv';
-      const halfProbe = dev.cfg.halfScale && (HALF_SCALE_VIDEO || tvTab);
+      const halfProbe = dev.cfg.halfScale && (HALF_SCALE_VIDEO || tvTab || dev.cfg.halfVideo);
       // (30/09/2026) Them: khung day du QUA TO (> 2 lan goi) cung gui nua do phan giai. Do that: truyen YouTube TV nguon
       // 720p -> anh Chrome 80-93 KB (q90), van 59 KB o q40 -> P4 giai ma ~120 ms/khung, WS nghen 2,2 MB roi noi lai.
       // GIU 10 s: khung 720p dao dong quanh nguong -> truoc day bat/tat tung khung (do 30/09, 2.9.77: ~190 khung day du
       // lon xen giua, 20 fps, loa vap 68 lan) — moi lan tat lai phai gui ca khung net.
       if (tvTab && imgBuf.length > 2 * (dev.cfg.maxBytesPerMessage - FRAME_HEADER_BYTES - TILE_HEADER_BYTES)) dev.tvBigMs = nowMs;
       const tooBigFull = tvTab && dev.tvBigMs !== undefined && nowMs - dev.tvBigMs < 10_000;
-      const halfSend = halfProbe && (HALF_SCALE_VIDEO || tooBigFull ||
+      const halfSend = halfProbe && (HALF_SCALE_VIDEO || dev.cfg.halfVideo || tooBigFull ||
         (dev.videoSrcH != null && dev.videoSrcH > 0 && dev.videoSrcH <= YT_TV_HALF_MAX_H));
       // (24/09/2026) NHIP CAO CHUA DU: mot tab dashboard co anh dong NHO cung lam Chrome phat khung lien tuc ->
       // ca man hinh bi gui nua do phan giai, giao dien mo han (nguoi dung bao ngay). Phai co PHAN LON man hinh

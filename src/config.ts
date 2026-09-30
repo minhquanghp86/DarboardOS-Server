@@ -36,6 +36,9 @@ export type DeviceConfig = {
   // Chi khi do server moi gui khung video 1/2 do phan giai (FLAG_HALF_SCALE). Nhu audioEnabled, KHONG dua
   // vao deviceConfigsEqual() — co dinh theo firmware.
   halfScale: boolean;
+  // (30/09/2026) ?half=2: nhu half=1 VA thiet bi MUON khung nua cho MOI video (S3: giai ma JPEG phan mem ~60 ms/khung
+  // 480x480 -> YouTube ~2 fps; nua do phan giai = 1/4 diem anh, phong x2 bang phan mem). Co dinh theo firmware.
+  halfVideo: boolean;
   // (25/09/2026) Thiet bi co trigger on_url_entered (bao ?urlset=1): URL nguoi dung nhap o nut mo rong duoc GUI
   // cho thiet bi (SetDisplayURL) de no tu dat "URL hien thi" roi mo trang. Khong co -> server tu mo trang.
   // Co dinh theo firmware, KHONG dua vao deviceConfigsEqual() (giong halfScale).
@@ -146,7 +149,8 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
   // append_q_str_encoded_() ben phia firmware.
   const homeUrl = params.get("home") || undefined;
   const audioEnabled = params.get("audio") === "1";
-  const halfScale = params.get("half") === "1";
+  const halfScale = params.get("half") === "1" || params.get("half") === "2";
+  const halfVideo = params.get("half") === "2";
   const urlSet = params.get("urlset") === "1";
   const fbBands = params.get("fb") === "1";
   const devControl = params.get("ctl") === "1";
@@ -169,6 +173,7 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
     homeUrl,
     audioEnabled,
     halfScale,
+    halfVideo,
     urlSet,
     fbBands,
     devControl,
