@@ -1,3 +1,11 @@
+## V2.9.74
+### Sửa: hạ chất lượng screencast khi phát video (2.9.72) thật sự hoạt động
+
+- 2.9.72 đổi chất lượng bằng cách gọi lại lệnh bật screencast khi nó đang chạy — Chrome từ chối ("Screencast is already
+  active"), nên tính năng chưa từng chạy (đo A/B trên P4: 0 khung đi đường tắt ở cả hai chế độ). Nay dừng rồi bật lại
+  screencast với chất lượng mới; lỗi thì giữ chất lượng cũ và tạm ngưng thử 1 phút (không thử lại từng khung).
+- Test tích hợp mới: trang có hoạt ảnh → đổi chất lượng xuống, hết hoạt ảnh → về 90, khung vẫn đến.
+
 ## V2.9.73
 ### Sửa: màn hình báo đã kết nối nhưng đứng hình sau khi addon khởi động lại
 
