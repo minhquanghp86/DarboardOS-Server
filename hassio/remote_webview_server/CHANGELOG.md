@@ -1,3 +1,14 @@
+## V2.9.77
+### YouTube TV: chọn 720p trên điện thoại không còn làm P4 quá tải và mất hình
+
+- Đo 30/09: truyền YouTube TV rồi chọn **720p** → ảnh toàn màn hình 80–93 KB/khung (vẫn 59 KB ở chất lượng thấp), vượt
+  xa gói 32 KB của P4 → P4 giải mã ~120 ms/khung, hàng đợi phình tới 2,2 MB, P4 tự kết nối lại. Nay tab YouTube TV gửi
+  khung **nửa độ phân giải** (P4 phóng ×2 bằng phần cứng, ~12 KB/khung) cả khi nguồn ≤ 360p (như trước) lẫn khi khung
+  đầy đủ quá to (> 2 lần gói).
+- Sau khi P4 kết nối lại, firmware gửi lệnh mở trang chủ → trước đây màn hình về Home Assistant trong khi video vẫn phát
+  ngầm, điện thoại tưởng vẫn đang truyền nên không mở lại. Nay trong 8 giây sau khi kết nối lại mà đang truyền, lệnh
+  đó bị bỏ qua và YouTube TV hiện lại.
+
 ## V2.9.76
 ### Hạ chất lượng screencast chỉ khi thật sự có ích
 

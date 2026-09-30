@@ -189,6 +189,8 @@ export type DeviceSession = {
   doorbell?: { id: string; url: string; prevKey: string; timer: NodeJS.Timeout; unlock: string | null };
   /** (27/09/2026) Dien thoai dang truyen YouTube: URL youtube.com/tv (kem pairingCode) + ung dung dang dung truoc do. */
   castUrl?: string;
+  /** (30/09/2026) Luc thiet bi NOI LAI gan nhat (phien cu duoc dung lai) — xem navigateToUrl. */
+  reconnectedMs?: number;
   /** (30/09/2026) Gia tri 'dang phat media' da gui thiet bi gan nhat (ControlField.Media) — undefined = chua gui. */
   mediaSent?: boolean;
   castPrev?: string;
@@ -1144,6 +1146,14 @@ function isHaUrl(dev: DeviceSession, url: string): boolean {
  * ke ca khi tab do dang o mot trang con khac cua HA — dung yeu cau ban dau cua nut nay.
  */
 export function navigateToUrl(dev: DeviceSession, url: string): Promise<void> {
+  // (30/09/2026) Dang TRUYEN YouTube TV ma thiet bi vua noi lai (vd P4 qua tai khi phat video 720p, WS nghen roi tu
+  // noi lai): firmware tu gui OpenURL (trang chu) ngay khi noi -> truoc day keo man hinh ve HA, video van phat o tab
+  // nen, dien thoai van tuong dang truyen nen khong mo lai (log that 30/09 11:42). Bo qua OpenURL trong 8 s sau khi noi
+  // lai va hien lai YouTube TV; OpenURL sau do (nguoi dung bam Go Home / tu dong hoa) van chay binh thuong.
+  if (dev.castUrl && dev.tabs.has('yttv') && dev.reconnectedMs !== undefined && Date.now() - dev.reconnectedMs < 8_000) {
+    console.log(`[cast] ${dev.deviceId}: noi lai trong luc truyen — bo qua OpenURL ${url.slice(0, 60)}, giu YouTube TV`);
+    return dev.tabOps.run(async () => { await activateTab(dev, 'yttv'); requestFullFrameFor(dev); });
+  }
   return dev.tabOps.run(() => navigateToUrlNow(dev, url));
 }
 
@@ -2386,6 +2396,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
   if (device) {
     if (deviceConfigsEqual(device.cfg, cfg)) {
       device.lastActive = Date.now();
+      device.reconnectedMs = Date.now();
       device.mediaSent = undefined;  // (30/09/2026) thiet bi vua noi lai: gui lai 'dang phat media' o nhip toi
       requestFullFrameFor(device);
 
@@ -2609,7 +2620,10 @@ async function flushPending(dev: DeviceSession): Promise<void> {
       // (30/09/2026) Nua do phan giai: toan cuc (HALF_SCALE_VIDEO=1), hoac rieng tab YouTube TV khi nguon <= YT_TV_HALF_MAX_H.
       const tvTab = YT_TV_HALF_MAX_H > 0 && dev.tabs.get(dev.activeTabKey)?.kind === 'yttv';
       const halfProbe = dev.cfg.halfScale && (HALF_SCALE_VIDEO || tvTab);
-      const halfSend = halfProbe && (HALF_SCALE_VIDEO ||
+      // (30/09/2026) Them: khung day du QUA TO (> 2 lan goi) cung gui nua do phan giai. Do that: truyen YouTube TV nguon
+      // 720p -> anh Chrome 80-93 KB (q90), van 59 KB o q40 -> P4 giai ma ~120 ms/khung, WS nghen 2,2 MB roi noi lai.
+      const tooBigFull = imgBuf.length > 2 * (dev.cfg.maxBytesPerMessage - FRAME_HEADER_BYTES - TILE_HEADER_BYTES);
+      const halfSend = halfProbe && (HALF_SCALE_VIDEO || tooBigFull ||
         (dev.videoSrcH != null && dev.videoSrcH > 0 && dev.videoSrcH <= YT_TV_HALF_MAX_H));
       // (24/09/2026) NHIP CAO CHUA DU: mot tab dashboard co anh dong NHO cung lam Chrome phat khung lien tuc ->
       // ca man hinh bi gui nua do phan giai, giao dien mo han (nguoi dung bao ngay). Phai co PHAN LON man hinh
