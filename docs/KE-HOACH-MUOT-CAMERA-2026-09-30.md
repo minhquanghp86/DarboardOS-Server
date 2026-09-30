@@ -97,7 +97,21 @@ Mỗi bước: làm → đo lại (đo ngắn ~60–90 s) → báo người dùn
 - Cùng góc camera, ban ngày: sáng TB **24 → 111/255**, điểm gần đen **47% → 0%**, cháy 2,3%.
 - Còn lại: ảnh hơi nhạt/thiếu tương phản; vùng tối ngả tím (chưa trừ mức đen cảm biến). Cần thử cảnh tối và có đèn.
 
+### YouTube TV — đo lần truyền thật 30/09 (server 2.9.66)
+- Hình: 22,6 fps, ~9 lần/s nén lại khung (toàn màn hình, khung vượt 32 KB), CPU addon ~285%, nguồn **240p**
+  (Chrome giải mã đủ 30 khung/s, không bỏ khung — YouTube tự chọn chất lượng).
+- Tiếng: sạch. Server 750/750 gói/30 s, 0 cắt; P4 nhận 750/750, 0 rơi, loa từ chối 640 B; 33 lần gói đến trễ > 80 ms
+  (tối đa 139 ms) — bộ đệm loa 250 ms vẫn chịu được.
+- **2.9.67** (người dùng đồng ý): riêng tab YouTube TV, nguồn ≤ 360p → khung nửa độ phân giải (`YT_TV_HALF_MAX_H`).
+  **Chưa đo lại** — cần người dùng truyền lần nữa.
+
+### Trợ lý giọng nói — GIỮ (người dùng chọn 30/09), tạm dừng khi đang phát
+- Server 2.9.67 gửi `DeviceControl Media=7` khi tab đang hiện / nhạc nền đang phát (test tích hợp `media.itest.ts`).
+- Firmware: trigger `on_media_playing` (nhánh client @ `5634f8d`), YAML: cờ `media_busy`, dừng/bật lại tự đánh thức.
+- Đo trên P4: chọn Hey Jarvis → bật ngay; mở YouTube → dừng đánh thức (giải phóng bộ đệm); về HA → bật lại.
+- Sửa kèm lỗi có sẵn: chọn "Tự đánh thức" từ HA không có tác dụng ngay (set_action chạy trước khi select ghi nhận).
+- Chưa thử riêng trường hợp radio/nhạc nền (chỉ có tín hiệu Media, không có `video_active`).
+
 ### Còn lại
-- YouTube TV: cần người dùng truyền từ điện thoại để đo.
-- Âm thanh phía P4 (bộ đệm loa) khi phát video.
-- Quyết định giữ trợ lý giọng nói (theo yêu cầu: đo ổn thì giữ, tối ưu cho nhẹ).
+- Đo lại YouTube TV sau 2.9.67 (người dùng truyền).
+- Camera: màu nhạt, vùng tối ngả tím — người dùng: "chỉnh sau".
