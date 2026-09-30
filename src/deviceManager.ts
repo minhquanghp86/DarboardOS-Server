@@ -36,7 +36,7 @@ import { parseDoorbell, unlockCall } from "./doorbell.js";
 import type { DialHooks } from "./dial.js";
 import { Notice, NoticeStore, NotifyRequest, parseNotify, shouldPopup, shouldWake } from "./notifications.js";
 import { callService, getSettingsView } from "./haSettings.js";
-import { planSet } from "./settingsModel.js";
+import { findPresenceSelect, planSet } from "./settingsModel.js";
 import { getLauncherConfig, saveHomeLayout } from "./launcherConfig.js";
 import { HomeLayout, resolveLayout } from "./homeLayout.js";
 import { ControlField, DeviceEventKind, DeviceStateInfo, Encoding, VoiceState, FRAME_HEADER_BYTES, TILE_HEADER_BYTES, parseDeviceStatePacket } from "./protocol.js";
@@ -183,6 +183,8 @@ export type DeviceSession = {
   voice?: { s: number; t: string; at: number };
   /** (27/09/2026) Co nguoi truoc man hinh (camera cua panel). */
   presence?: { on: boolean; at: number };
+  /** (30/09/2026) Select "Nguon phat hien nguoi" cua thiet bi (HA) cho thanh trang thai; null = thiet bi khong co. */
+  presenceSel?: { id: string; v: string; o: string[]; at: number } | null;
   /** (27/09/2026) Ngay (gio thiet bi) da chao buoi sang — moi ngay mot lan. */
   morningDate?: string;
   /** (27/09/2026) Chuong cua dang hien: id lan bam, URL trang, tab dang dung truoc do, hen gio tu dong. */
@@ -1247,6 +1249,9 @@ function handleMenuControl(id: string, payload: unknown, from?: Tab): void {
     }
     return;
   }
+  // (30/09/2026) Hang "Phat hien nguoi" trong thanh trang thai: {ps:'get'} khi mo thanh, {ps:'set', v:'<lua chon>'}.
+  if (msg?.ps === 'get') { refreshPresenceSel(dev, 5000).catch(() => { }); return; }
+  if (msg?.ps === 'set' && typeof msg.v === 'string') { setPresenceSel(dev, msg.v).catch(() => { }); return; }
   // (26/09/2026 OS-5) Thong bao: mo (cham the), xoa mot, xoa het; bat/tat Khong lam phien.
   if (msg?.ntOpen != null) { openNotice(dev, Number(msg.ntOpen)); return; }
   if (msg?.ntDel != null) { noticesOf(id).remove(Number(msg.ntDel)); pushDeviceStateToPage(dev); return; }
@@ -1433,6 +1438,32 @@ async function handleSettings(dev: DeviceSession, tab: Tab, msg: any): Promise<v
   setTimeout(() => { pushSettings(dev, tab, ok ? undefined : { ok: false, msg: 'Home Assistant không nhận thay đổi.' }).catch(() => { }); }, 600);
 }
 
+// (30/09/2026) Doc lai select "Nguon phat hien nguoi" tu HA (moi lan mo thanh trang thai, toi da moi `minAgeMs`).
+async function refreshPresenceSel(dev: DeviceSession, minAgeMs: number): Promise<void> {
+  if (dev.presenceSel && Date.now() - dev.presenceSel.at < minAgeMs) return;
+  const r = await getSettingsView(dev.deviceId);
+  if (!r.ok) return;
+  const it = findPresenceSelect(r.view);
+  const next = it ? { id: it.id, v: it.value, o: it.options ?? [], at: Date.now() } : null;
+  const changed = JSON.stringify(next && { ...next, at: 0 }) !== JSON.stringify(dev.presenceSel && { ...dev.presenceSel, at: 0 });
+  dev.presenceSel = next;
+  if (changed) pushDeviceStateToPage(dev);
+}
+
+async function setPresenceSel(dev: DeviceSession, v: string): Promise<void> {
+  const r = await getSettingsView(dev.deviceId);
+  if (!r.ok) return;
+  const it = findPresenceSelect(r.view);
+  if (!it) return;
+  const plan = planSet(r.view, it.id, v);
+  if (typeof plan === 'string') { console.warn(`[presence] ${dev.deviceId}: tu choi "${v}": ${plan}`); return; }
+  const ok = await callService(plan).catch(() => false);
+  console.log(`[presence] ${dev.deviceId}: nguon phat hien nguoi = "${v}" -> ${ok ? 'OK' : 'LOI'}`);
+  if (ok && dev.presenceSel) { dev.presenceSel = { ...dev.presenceSel, v, at: Date.now() }; }
+  pushDeviceStateToPage(dev);
+  setTimeout(() => { refreshPresenceSel(dev, 0).catch(() => { }); }, 1500);
+}
+
 /** Cham the thong bao: mo ung dung / URL kem theo, bo khoi lich su. */
 function openNotice(dev: DeviceSession, id: number): void {
   const n = noticesOf(dev.deviceId).get(id);
@@ -1472,7 +1503,9 @@ function pushDeviceStateToPage(dev: DeviceSession): void {
     dnd: dndOf(dev.deviceId),
     va: !!dev.cfg.voice && !!dev.cfg.devControl,
     pr: dev.presence ?? null,
+    ps: dev.presenceSel ? { v: dev.presenceSel.v, o: dev.presenceSel.o } : null,
   };
+  if (dev.presenceSel === undefined) { dev.presenceSel = null; refreshPresenceSel(dev, 0).catch(() => { }); }
   dev.cdp.send('Runtime.evaluate', {
     expression: `(window.__rwvShell ? window.__rwvShell.state : window.__rwvDeviceState || function(){})(${JSON.stringify(payload)})`,
   }).catch(() => { });
