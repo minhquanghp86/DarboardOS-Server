@@ -111,3 +111,27 @@ JPEG 1024×600 như addon, 30 s:
 - Về iGPU và Frigate: Chrome headless báo `video_decode=disabled_software` và 0 codec phần cứng ngay cả khi `vainfo`
   trong container thấy H.264/VP9 trên iGPU (đang được Frigate dùng) — giới hạn nằm ở Chrome headless (Ozone headless
   không dùng VA-API), không phải do Frigate chiếm iGPU.
+
+### Đề xuất 1b (CPU xử lý ảnh server) — ĐO XONG, KẾT LUẬN 30/09 (server 2.9.71 → 2.9.76)
+- Hồ sơ CPU thật (inspector Node) lúc P4 phát YouTube: luồng JS chỉ bận ~18%; phần lớn CPU nằm ở sharp/libvips.
+- Bộ đếm mới `/metrics.pipeline` (+ `slowWhy` 2.9.75): **100% khung video đi đường chậm**, lý do `big` — ảnh Chrome quá
+  to. Màn gói nhỏ (P4 32 KB) nhận screencast chất lượng 90 (trang xem YouTube: 129 KB/khung).
+- Thử hạ chất lượng screencast khi có video (2.9.72; 2.9.74 sửa "Screencast is already active" bằng stop+start): trang
+  xem YouTube thường ở q40 **vẫn 54 KB** (video chỉ một phần màn hình, còn lại chữ/ảnh thu nhỏ) → không bao giờ vừa gói;
+  đường chậm (chỉ gửi ô đổi, ~28 KB) mới đúng. 2.9.76: hạ chất lượng rồi 15 khung vẫn quá to → trả về 90, 5 phút không thử.
+  Giữ cơ chế cho video phủ kín màn (camera, TikTok, toàn màn hình).
+- "Nén lại cho vừa" (2.9.71) chỉ có tác dụng khi khung ≤ 2 lần trần; trang YouTube thường không thuộc diện này.
+- Kết luận: với trang xem YouTube thường, chi phí đường chậm là bản chất (giải nén + so ô); không cắt được mà không mất
+  độ nét. Không nên dùng trang `/embed/` để thử (YouTube báo lỗi 153 khi mở trực tiếp).
+- Sự cố phụ tìm ra: cổng WS mở trước khi Chrome sẵn sàng → mất sự kiện kết nối, 3 màn kẹt (sửa 2.9.73).
+
+### Đề xuất 8 (flash P4) — XONG 30/09 (fw-2026.09.30b)
+- Phân tích `esp_idf_size`: esp-dl 2,67 MB, trong đó ~0,98 MB là bộ chuyển đổi điểm ảnh mọi tổ hợp. camera_face chỉ cần
+  RGB888→RGB888 → tắt 14 cờ `CONFIG_PIX_CVT_*`. Flash **6,77 → 5,74 MB** / 7,75 MB. Khuôn mặt vẫn chạy (41 lần/60 s,
+  suy luận TB 132 ms).
+
+### Đề xuất 6 (màu camera) — XONG 30/09 (fw-2026.09.30c)
+- ISP trừ mức đen (BLC) chỉ có trên P4 ≥ v3.0; bo này build cho chip cũ → dùng **mức đen đích của cảm biến**
+  (`0x4002/0x4003`, gốc 64) qua tuỳ chọn mới `black_level` (P4 đặt 16); IPA thêm độ bão hoà 144.
+- Đo trên ảnh thật (Frigate): 20% điểm tối nhất 64 → 12/255; lệch màu vùng tối R−G +16 → +5,7, B−G +12 → +5,0; bão hoà TB
+  0,142 → 0,284. Chưa hiệu chuẩn ma trận màu (CCM) — cần bảng màu chuẩn nếu muốn chính xác hơn.
