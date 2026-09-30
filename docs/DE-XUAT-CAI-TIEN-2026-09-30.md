@@ -91,3 +91,10 @@ JPEG 1024×600 như addon, 30 s:
 - "Dùng lần cuối" tính từ lúc rời tab.
 - Test tích hợp mới: `tabs.itest.ts` (tab nền điều hướng localhost → 127.0.0.2 rồi hiện: phải có khung, không lỗi
   screencast), `ramBudget.itest.ts`. Tổng: 126 test đơn vị + 31 test tích hợp đạt.
+
+### Đề xuất 5 ("Có người" hợp nhất) — XONG 30/09 (chỉ YAML P4, không đổi tag firmware)
+- `Có người` = chuyển động (camera_motion) **hoặc** khuôn mặt (camera_face, khi màn tắt) **hoặc** Frigate thấy người
+  (**tuỳ chọn**: `platform: homeassistant` đọc `binary_sensor.p4_panel_person_occupancy`), trễ tắt 10 s. Mọi hành
+  động (bật màn, giữ màn sáng, báo server) chuyển sang cảm biến này.
+- **Không có Frigate**: thực thể HA không tồn tại → nguồn đó luôn "tắt", hai nguồn trên chip vẫn đủ.
+- Kiểm chứng: giả trạng thái Frigate = on qua API HA → `Có người` bật ngay; off → tắt sau đúng ~10 s.
