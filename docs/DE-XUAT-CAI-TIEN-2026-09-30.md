@@ -57,3 +57,29 @@ Dựa trên toàn bộ tính năng hiện có của server 2.9.68 và firmware n
 3. **(3) + (4)** — ổn định máy chủ.
 4. **(5) (6) (7) (8)** — hoàn thiện trải nghiệm.
 5. **(9)** — tính năng lớn, làm khi nền đã ổn.
+
+## 5. Kết quả thực hiện
+
+### Đề xuất 2 (quy trình phát hành) — XONG 30/09
+- Nhánh `claude/two-repo-research-3ulwjd` gộp vào `main` của repo firmware; tag `fw-2026.09.30`; 3 YAML trỏ tag (`refresh: 1d`).
+- CI build cả 3 màn (`ci/p4.yaml`, `ci/s3-4848.yaml`, `ci/s3-4827.yaml`); `ci/make_ci_yaml.py` dùng chung.
+- Bản Ổn định 30/09 + script `tools/sao-luu-ban-on-dinh.sh` (repo firmware).
+
+### Đề xuất 1 (GPU cho Chrome) — ĐÃ THỬ, KHÔNG CÓ LỢI → DỪNG
+Thử A/B trong container addon (Chrome riêng cổng 9333, không đụng Chrome phục vụ panel), YouTube 480p H.264 + screencast
+JPEG 1024×600 như addon, 30 s:
+| | Dựng hình | Giải mã video | CPU Chrome |
+|---|---|---|---|
+| Hiện tại | SwiftShader (phần mềm) | FFmpeg (phần mềm) | 73% |
+| GPU (`--use-angle=gl-egl`, Mesa iris) | **GPU Intel UHD 630** (compositing/raster bật) | vẫn FFmpeg | 72% |
+| GPU + bỏ sandbox + VA-API (`intel-media-va-driver`, vainfo thấy H.264/VP9) | GPU | vẫn FFmpeg — Chrome headless báo **0 codec phần cứng** | 72% |
+- Chrome headless (Ozone headless) không dùng VA-API → không giải mã phần cứng được; dựng hình GPU không giảm CPU.
+- **Phát hiện quan trọng hơn** — đo tách CPU addon khi P4 phát YouTube: **Node (server xử lý ảnh) 62%**, Chrome ~74%
+  (tổng 135%); lúc rảnh: Node 14%, Chrome 19%. Tối ưu nên nhắm **khâu giải nén/nén lại khung ở server** (sharp), không
+  phải GPU.
+- Ghi chú: YouTube thường (không ép codec) gửi **AV1** (giải mã phần mềm Dav1d) — tab YouTube TV đã ép H.264; nên áp
+  dụng ép H.264/VP9 cho mọi tab YouTube (AV1 nặng nhất cho CPU).
+
+### Đề xuất mới 1b (thay GPU): giảm CPU khâu xử lý ảnh server
+- Ép H.264 cho tab YouTube thường (tránh AV1 giải mã phần mềm nặng).
+- Đo chi tiết thời gian từng bước trong flushPending (giải nén JPEG của Chrome, chia dải, nén lại) để chọn chỗ cắt.
