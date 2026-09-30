@@ -117,6 +117,9 @@ export type DeviceSession = {
   halfFrames: number;
   /** (30/09/2026) Khung video Chrome hoi vuot tran goi -> nen lai MOT lan ca khung cho vua (xem flushPending). */
   fitFrames?: number;
+  /** (30/09/2026) Moc bat dau chuoi khung nhip cao + hen gio tra chat luong screencast ve muc tinh. */
+  lowqStreakMs?: number;
+  lowqTimer?: NodeJS.Timeout;
   /** Khung di duong thuong (giai nen RGBA + so sanh o + nen tung o). */
   slowFrames?: number;
   /** Anh Chrome cua khung video gan nhat — dung de gui lai ban NET khi video dung. */
@@ -220,6 +223,8 @@ interface Tab {
   thumb?: string;
   /** (30/09/2026) JavaScript cua tab dang bi tam dung (Debugger.pause, tab nen) — xem freezeTab(). */
   frozen?: boolean;
+  /** (30/09/2026) Chat luong JPEG screencast DANG dung cua tab (doi khi phat video — xem videoScreencastQuality). */
+  scQuality?: number;
 }
 
 // (23/09/2026) SUA LOI: "man ngu tu bat lai nhung khong hien gi, phai vuot
@@ -242,6 +247,52 @@ interface Tab {
 export function requestFullFrameFor(dev: DeviceSession): void {
   dev.processor.requestFullFrame();
   dev.prevFrameHash = -1;
+}
+
+/**
+ * (30/09/2026) HA CHAT LUONG SCREENCAST KHI PHAT VIDEO. Thiet bi goi nho (P4: 32 KB < 128 KB) truoc day LUON nhan
+ * screencast Chrome o SCREENCAST_JPEG_QUALITY (90) — khung video 60-120 KB, khong bao gio vua mot goi -> duong tat
+ * khong bao gio chay, 100% khung video di duong cham (giai nen ca khung + so sanh o + nen lai; do 30/09: Node ~120%
+ * CPU, /metrics pipeline: 0 khung duong tat). Nay: nhip cao lien tuc >= 1,5 s -> doi screencast sang chat luong
+ * thiet bi (Chrome nen san dung muc can -> chuyen thang); het khung nhip cao 1,5 s -> tra ve 90 va ve lai khung net.
+ * Tat nong: "videoLowQ": false trong /data/rwv-tuning.json.
+ */
+function videoScreencastQuality(dev: DeviceSession, fps: number, nowMs: number): void {
+  const tab = dev.tabs.get(dev.activeTabKey);
+  if (!tab || !tab.screencastOn || dev.cfg.rotation || PASSTHROUGH_MIN_FPS <= 0) return;
+  const base = dev.cfg.maxBytesPerMessage >= 131072 ? dev.cfg.jpegQuality : SCREENCAST_JPEG_QUALITY;
+  const low = dev.cfg.jpegQuality;
+  if (base === low) return;
+  const enabled = tuning().videoLowQ !== false;
+  if (enabled && fps >= PASSTHROUGH_MIN_FPS) {
+    dev.lowqStreakMs ??= nowMs;
+    if (nowMs - dev.lowqStreakMs >= 1500 && tab.scQuality !== low) setScreencastQuality(dev, tab, low, `video ${fps.toFixed(0)} fps`);
+  } else {
+    dev.lowqStreakMs = undefined;
+  }
+  // Chi GIA HAN hen gio khi con nhip video; khung lai rai nhip thap khong duoc giu chat luong thap mai.
+  const videoNow = enabled && fps >= PASSTHROUGH_MIN_FPS;
+  if (tab.scQuality !== base && (videoNow || !dev.lowqTimer)) {
+    if (dev.lowqTimer) clearTimeout(dev.lowqTimer);
+    dev.lowqTimer = setTimeout(() => {
+      dev.lowqTimer = undefined;
+      dev.lowqStreakMs = undefined;
+      if (dev.tabs.get(dev.activeTabKey) === tab && tab.scQuality !== base) {
+        setScreencastQuality(dev, tab, base, 'het video');
+        requestFullFrameFor(dev);
+        nudgeRepaintAsync(dev.cdp).catch(() => { });
+      }
+    }, enabled ? 1500 : 0);
+  }
+}
+
+function setScreencastQuality(dev: DeviceSession, tab: Tab, q: number, why: string): void {
+  tab.scQuality = q;
+  // Goi lai startScreencast khi dang chay = doi tham so (Chrome giu phien screencast, khong can stop).
+  tab.session.send('Page.startScreencast', {
+    format: 'jpeg', quality: q, maxWidth: dev.cfg.width, maxHeight: dev.cfg.height, everyNthFrame: dev.cfg.everyNthFrame,
+  }).then(() => console.log(`[screencast] ${dev.deviceId}: chat luong ${q} (${why})`))
+    .catch((e: unknown) => { tab.scQuality = undefined; console.warn(`[screencast] ${dev.deviceId}: doi chat luong that bai:`, e); });
 }
 
 const PREFERS_REDUCED_MOTION = /^(1|true|yes|on)$/i.test(process.env.PREFERS_REDUCED_MOTION ?? '');
@@ -2198,6 +2249,7 @@ async function activateTab(dev: DeviceSession, key: string): Promise<void> {
           everyNthFrame: dev.cfg.everyNthFrame,
         });
         next.screencastOn = true;
+        next.scQuality = screencastQuality;
         if (attempt > 1) console.log(`[device] ${dev.deviceId}: bat screencast tab "${key}" thanh cong o lan thu ${attempt}`);
       } catch (e) {
         if (attempt === 4) console.warn(`[device] ${dev.deviceId}: khong bat duoc screencast tab "${key}" sau 4 lan:`, e);
@@ -2516,6 +2568,7 @@ async function flushPending(dev: DeviceSession): Promise<void> {
         const span = nowMs - dev.recentFrameMs[0];
         if (span > 0) fps = (dev.recentFrameMs.length - 1) * 1000 / span;
       }
+      if (!sharpRefresh) videoScreencastQuality(dev, fps, nowMs);
 
       // ══════════════════════════════════════════════════════════════════
       // (24/09/2026) KHUNG VIDEO NUA DO PHAN GIAI (thiet bi bao ?half=1 — P4)
