@@ -1,3 +1,10 @@
+## V2.9.75
+### Chẩn đoán: vì sao khung video đi đường chậm
+
+- `/metrics.pipeline.<màn>.slowWhy`: đếm lý do từng khung rơi vào đường chậm (`fps` nhịp thấp, `big` ảnh Chrome quá to,
+  `dims` sai kích thước, `sharp` khung làm nét), kèm kích thước/khổ ảnh Chrome gần nhất; `scQuality` = chất lượng
+  screencast đang dùng. Đo 30/09 (2.9.74): ở chất lượng 40 vẫn 0 khung đi đường tắt — cần số liệu này để sửa đúng chỗ.
+
 ## V2.9.74
 ### Sửa: hạ chất lượng screencast khi phát video (2.9.72) thật sự hoạt động
 

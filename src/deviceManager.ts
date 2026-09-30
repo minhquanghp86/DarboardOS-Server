@@ -122,6 +122,8 @@ export type DeviceSession = {
   lowqTimer?: NodeJS.Timeout;
   /** Khung di duong thuong (giai nen RGBA + so sanh o + nen tung o). */
   slowFrames?: number;
+  /** (30/09/2026) Ly do roi vao duong cham: nhip thap / khung Chrome qua to / sai kich thuoc / lam net. */
+  slowWhy?: { fps: number; big: number; dims: number; sharp: number; lastBytes: number; lastW: number; lastH: number };
   /** Anh Chrome cua khung video gan nhat — dung de gui lai ban NET khi video dung. */
   lastVideoB64?: string;
   sharpTimer?: NodeJS.Timeout;
@@ -1687,10 +1689,11 @@ const LOW_MEM_MB = Math.max(0, Number(process.env.LOW_MEM_MB ?? '600') || 0);
 let hostMemCache: { at: number; v: ReturnType<typeof parseMeminfo> } = { at: 0, v: null };
 
 /** (30/09/2026) Bo dem duong di cua khung theo thiet bi — cho /metrics (pipeline). */
-export function pipelineStats(): Record<string, { passthrough: number; fit: number; half: number; slow: number }> {
-  const o: Record<string, { passthrough: number; fit: number; half: number; slow: number }> = {};
+export function pipelineStats(): Record<string, Record<string, unknown>> {
+  const o: Record<string, Record<string, unknown>> = {};
   for (const d of devices.values()) {
-    o[d.deviceId] = { passthrough: d.passthroughFrames, fit: d.fitFrames ?? 0, half: d.halfFrames, slow: d.slowFrames ?? 0 };
+    o[d.deviceId] = { passthrough: d.passthroughFrames, fit: d.fitFrames ?? 0, half: d.halfFrames, slow: d.slowFrames ?? 0,
+      slowWhy: d.slowWhy ?? null, scQuality: d.tabs.get(d.activeTabKey)?.scQuality ?? null };
   }
   return o;
 }
@@ -2698,7 +2701,11 @@ async function flushPending(dev: DeviceSession): Promise<void> {
       }
       // ══════════════════════════════════════════════════════════════════
 
+      const why = (dev.slowWhy ??= { fps: 0, big: 0, dims: 0, sharp: 0, lastBytes: 0, lastW: 0, lastH: 0 });
+      why.lastBytes = imgBuf.length;
+      let slowReason: 'fps' | 'big' | 'dims' | 'sharp' = sharpRefresh ? 'sharp' : 'fps';
       if (fps >= PASSTHROUGH_MIN_FPS && !dev.cfg.rotation) {
+        slowReason = 'big';
         const capBytes = dev.cfg.maxBytesPerMessage - FRAME_HEADER_BYTES - TILE_HEADER_BYTES;
         // (30/09/2026) NEN LAI CHO VUA. Do 30/09 (P4, YouTube, Chrome nen q40): khung Chrome TB ~28 KB, rat nhieu khung
         // vuot tran ~32 KB -> roi ve duong thuong (giai nen ca khung ra RGBA, so sanh o, nen lai tung o) — ho so CPU:
@@ -2717,6 +2724,8 @@ async function flushPending(dev: DeviceSession): Promise<void> {
         if (passBuf) {
           // metadata() chỉ đọc header JPEG (không giải nén pixel) nên rất rẻ.
           const meta = await sharp(imgBuf).metadata();
+          why.lastW = meta.width ?? 0; why.lastH = meta.height ?? 0;
+          slowReason = 'dims';
           if (meta.width === dev.cfg.width && meta.height === dev.cfg.height) {
             if (fitted) dev.fitFrames = (dev.fitFrames ?? 0) + 1;
             const out = {
@@ -2746,6 +2755,7 @@ async function flushPending(dev: DeviceSession): Promise<void> {
       // ════════════════════════════════════════════════════════════════════
 
       dev.slowFrames = (dev.slowFrames ?? 0) + 1;
+      why[slowReason]++;
       let img = sharp(imgBuf);
       if (dev.cfg.rotation) img = img.rotate(dev.cfg.rotation);
       const { data, info } = await img.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
