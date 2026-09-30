@@ -191,6 +191,8 @@ export type DeviceSession = {
   castUrl?: string;
   /** (30/09/2026) Luc thiet bi NOI LAI gan nhat (phien cu duoc dung lai) — xem navigateToUrl. */
   reconnectedMs?: number;
+  /** (30/09/2026) Luc bat dau truyen YouTube TV gan nhat — xem navigateToUrl. */
+  castLaunchMs?: number;
   /** (30/09/2026) Lan cuoi thay khung YouTube TV day du QUA TO — giu nua do phan giai 10 s tu moc nay. */
   tvBigMs?: number;
   /** (30/09/2026) Gia tri 'dang phat media' da gui thiet bi gan nhat (ControlField.Media) — undefined = chua gui. */
@@ -1154,8 +1156,13 @@ export function navigateToUrl(dev: DeviceSession, url: string): Promise<void> {
   // noi lai): firmware tu gui OpenURL (trang chu) ngay khi noi -> truoc day keo man hinh ve HA, video van phat o tab
   // nen, dien thoai van tuong dang truyen nen khong mo lai (log that 30/09 11:42). Bo qua OpenURL trong 8 s sau khi noi
   // lai va hien lai YouTube TV; OpenURL sau do (nguoi dung bam Go Home / tu dong hoa) van chay binh thuong.
-  if (dev.castUrl && dev.tabs.has('yttv') && dev.reconnectedMs !== undefined && Date.now() - dev.reconnectedMs < 8_000) {
-    console.log(`[cast] ${dev.deviceId}: noi lai trong luc truyen — bo qua OpenURL ${url.slice(0, 60)}, giu YouTube TV`);
+  // (30/09/2026) Cung vay ngay sau khi BAT DAU truyen: man dang tat -> server bat den nen -> firmware cu (resume())
+  // gui lai OpenURL trang chu (log that 30/09 12:32:46: YouTube TV vua hien da bi keo ve HA trong cung giay).
+  const now = Date.now();
+  const justReconnected = dev.reconnectedMs !== undefined && now - dev.reconnectedMs < 8_000;
+  const justLaunched = dev.castLaunchMs !== undefined && now - dev.castLaunchMs < 6_000;
+  if (dev.castUrl && dev.tabs.has('yttv') && (justReconnected || justLaunched)) {
+    console.log(`[cast] ${dev.deviceId}: ${justLaunched ? 'vua bat dau truyen' : 'noi lai trong luc truyen'} — bo qua OpenURL ${url.slice(0, 60)}, giu YouTube TV`);
     return dev.tabOps.run(async () => { await activateTab(dev, 'yttv'); requestFullFrameFor(dev); });
   }
   return dev.tabOps.run(() => navigateToUrlNow(dev, url));
@@ -1925,6 +1932,7 @@ export const dialHooks: DialHooks = {
     if (!dev) return;
     if (dev.activeTabKey !== 'yttv') dev.castPrev = dev.activeTabKey;
     dev.castUrl = url;
+    dev.castLaunchMs = Date.now();
     if (dev.cfg.devControl) broadcaster.sendDeviceControl(id, ControlField.Brightness, dev.devState?.brightness ?? 100);
     noteActivity(dev, 'truyen YouTube');
     dev.tabOps.run(async () => {

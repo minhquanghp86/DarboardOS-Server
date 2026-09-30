@@ -1,3 +1,11 @@
+## V2.9.80
+### Sửa: truyền YouTube lúc màn hình đang tắt thì màn không hiện video
+
+- Log thật 30/09: màn đang tắt → điện thoại truyền → server bật đèn nền → firmware (`resume()`) gửi lại lệnh mở **trang
+  chủ** → YouTube TV vừa hiện đã bị đẩy ra nền, màn hình về HA, video phát ngầm, điện thoại vẫn báo đang truyền.
+- Server: trong 6 giây sau khi bắt đầu truyền, lệnh mở trang từ thiết bị bị bỏ qua (giữ YouTube TV). Firmware mới
+  (`fw-2026.09.30e`) sửa tận gốc: bật màn hình chỉ xin vẽ lại, không mở lại trang nữa.
+
 ## V2.9.79
 ### Báo màn hình "đang màn hình chờ" cho thiết bị (phát hiện khuôn mặt lúc màn hình chờ)
 
