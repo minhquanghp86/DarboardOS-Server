@@ -119,6 +119,10 @@ export type DeviceSession = {
   fitFrames?: number;
   /** (30/09/2026) Moc bat dau chuoi khung nhip cao + hen gio tra chat luong screencast ve muc tinh. */
   lowqStreakMs?: number;
+  /** So khung LIEN TIEP van qua to du screencast da ha chat luong (trang co video nho giua nhieu chu). */
+  lowqBigRun?: number;
+  /** Khong thu ha chat luong lai truoc moc nay (sau khi thay khong co ich / doi chat luong loi). */
+  lowqBackoffUntil?: number;
   lowqTimer?: NodeJS.Timeout;
   /** Khung di duong thuong (giai nen RGBA + so sanh o + nen tung o). */
   slowFrames?: number;
@@ -265,7 +269,7 @@ function videoScreencastQuality(dev: DeviceSession, fps: number, nowMs: number):
   const base = dev.cfg.maxBytesPerMessage >= 131072 ? dev.cfg.jpegQuality : SCREENCAST_JPEG_QUALITY;
   const low = dev.cfg.jpegQuality;
   if (base === low) return;
-  const enabled = tuning().videoLowQ !== false;
+  const enabled = tuning().videoLowQ !== false && nowMs >= (dev.lowqBackoffUntil ?? 0);
   if (enabled && fps >= PASSTHROUGH_MIN_FPS) {
     dev.lowqStreakMs ??= nowMs;
     if (nowMs - dev.lowqStreakMs >= 1500 && tab.scQuality !== low) setScreencastQuality(dev, tab, low, `video ${fps.toFixed(0)} fps`);
@@ -307,7 +311,7 @@ function setScreencastQuality(dev: DeviceSession, tab: Tab, q: number, why: stri
       format: 'jpeg', quality: prevQ ?? q, maxWidth: dev.cfg.width, maxHeight: dev.cfg.height, everyNthFrame: dev.cfg.everyNthFrame,
     }).catch(() => { });
     tab.scQuality = prevQ;
-    dev.lowqStreakMs = Date.now() + 60_000;  // tam ngung thu lai 1 phut
+    dev.lowqBackoffUntil = Date.now() + 60_000;  // tam ngung thu lai 1 phut
   });
 }
 
@@ -2728,6 +2732,7 @@ async function flushPending(dev: DeviceSession): Promise<void> {
           slowReason = 'dims';
           if (meta.width === dev.cfg.width && meta.height === dev.cfg.height) {
             if (fitted) dev.fitFrames = (dev.fitFrames ?? 0) + 1;
+            dev.lowqBigRun = 0;
             const out = {
               rects: [{ x: 0, y: 0, w: meta.width, h: meta.height, data: passBuf }],
               isFullFrame: true,
@@ -2756,6 +2761,23 @@ async function flushPending(dev: DeviceSession): Promise<void> {
 
       dev.slowFrames = (dev.slowFrames ?? 0) + 1;
       why[slowReason]++;
+      // (30/09/2026) Ha chat luong KHONG giup: trang xem YouTube thuong (video chi mot phan man hinh, con lai chu/anh)
+      // o q40 van ~54 KB (do: q90 129 KB) -> khong bao gio vua goi; duong cham (chi gui o doi) moi la dung, con chu thi
+      // mo them. 15 khung lien tiep nhu vay -> tra ve chat luong tinh, 5 phut khong thu lai.
+      const actTab = dev.tabs.get(dev.activeTabKey);
+      if (slowReason === 'big' && actTab && actTab.scQuality === dev.cfg.jpegQuality
+          && dev.cfg.maxBytesPerMessage < 131072 && SCREENCAST_JPEG_QUALITY !== dev.cfg.jpegQuality) {
+        dev.lowqBigRun = (dev.lowqBigRun ?? 0) + 1;
+        if (dev.lowqBigRun >= 15) {
+          dev.lowqBigRun = 0;
+          if (dev.lowqTimer) { clearTimeout(dev.lowqTimer); dev.lowqTimer = undefined; }
+          dev.lowqBackoffUntil = Date.now() + 5 * 60_000;
+          setScreencastQuality(dev, actTab, SCREENCAST_JPEG_QUALITY, `van qua to o q${dev.cfg.jpegQuality} (${Math.round(imgBuf.length / 1024)} KB) — video khong phu man hinh`);
+          requestFullFrameFor(dev);
+        }
+      } else if (slowReason !== 'big') {
+        dev.lowqBigRun = 0;
+      }
       let img = sharp(imgBuf);
       if (dev.cfg.rotation) img = img.rotate(dev.cfg.rotation);
       const { data, info } = await img.ensureAlpha().raw().toBuffer({ resolveWithObject: true });

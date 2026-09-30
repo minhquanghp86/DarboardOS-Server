@@ -1,3 +1,12 @@
+## V2.9.76
+### Hạ chất lượng screencast chỉ khi thật sự có ích
+
+- Số liệu 2.9.75 (`slowWhy`) cho thấy: trang xem YouTube thường (video chỉ chiếm một phần màn hình, còn lại chữ và ảnh
+  thu nhỏ) ở chất lượng 40 **Chrome vẫn nén ra ~54 KB** (chất lượng 90: 129 KB) — không bao giờ vừa gói 32 KB của P4.
+  Với trang kiểu này, đường "chậm" (chỉ gửi các ô thay đổi, ~28 KB) mới là đúng; hạ chất lượng chỉ làm chữ mờ hơn.
+- Nay sau khi hạ chất lượng, nếu 15 khung liên tiếp vẫn quá to → trả về 90, không thử lại trong 5 phút. Video phủ gần hết
+  màn hình (toàn màn hình, trang nhúng, YouTube TV) vẫn được hưởng đường tắt.
+
 ## V2.9.75
 ### Chẩn đoán: vì sao khung video đi đường chậm
 

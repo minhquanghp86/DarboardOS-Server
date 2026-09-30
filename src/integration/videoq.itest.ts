@@ -37,3 +37,22 @@ it('video -> chat luong thiet bi; het video -> ve 90; khung van den', async () =
   dev.repaintRect(0, 0, 1024, 600);
   await dev.waitFor(() => dev!.frameCount() > before, 8_000, 'khung sau khi ve lai 90');
 });
+
+// Nhieu hat toan man hinh: o chat luong thiet bi khung van qua to (nhu trang YouTube thuong: video + nhieu chu).
+const NOISE = 'data:text/html,' + encodeURIComponent(`<body style="margin:0"><canvas id=c width=1024 height=600></canvas><script>
+var x=document.getElementById('c').getContext('2d'),t0=Date.now(),im=x.createImageData(1024,600);
+(function f(){ if(Date.now()-t0>15000) return; for(var i=0;i<im.data.length;i++) im.data[i]=Math.random()*255; x.putImageData(im,0,0);
+requestAnimationFrame(f); })();</script></body>`);
+
+it('ha chat luong ma khung van qua to -> tu tra ve 90, tam ngung thu lai', async () => {
+  const home = srv.local('/ha');
+  dev = await FakeDevice.connect(srv, 'it-vq2', { home, q: '40', mfi: '33', mbpm: '8192' });
+  await dev.waitFor(() => dev!.currentUrls().includes(home), 20_000, 'ket noi');
+  dev.openUrl(NOISE);
+  for (let i = 0; i < 200 && !/it-vq2: chat luong 90 \(van qua to/.test(srv.log()); i++) await sleep(100);
+  expect(srv.log()).toMatch(/it-vq2: chat luong 40 \(video/);
+  expect(srv.log()).toMatch(/it-vq2: chat luong 90 \(van qua to o q40/);
+  const n40 = (srv.log().match(/it-vq2: chat luong 40/g) ?? []).length;
+  await sleep(3000);  // hoat anh van chay: KHONG duoc ha xuong lai (tam ngung 5 phut)
+  expect((srv.log().match(/it-vq2: chat luong 40/g) ?? []).length).toBe(n40);
+});
