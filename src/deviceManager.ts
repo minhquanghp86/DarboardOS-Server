@@ -3090,7 +3090,9 @@ export function runAdaptiveTick(): void {
     // khung day du 0,8 (YAML) -> YouTube DU do phan giai 24 fps. File tinh chinh van ghi de duoc.
     // (25/09/2026 chieu) Chay thu 10 phut: nghen o ~1 MB/s la THOANG QUA (WiFi chap chon) nhung buoc gian toi thieu
     // 50 ms day 33 -> 83 ms roi mat 45-60 s moi hoi -> TB chi ~17 fps. Buoc 17 ms (33 -> 50), hoi sau 1 mau tot, cho 5 s.
-    const fbProfile = device.cfg.fbBands
+    // (30/09/2026) Ca thiet bi half=2 (S3): khung video nua ~7-10 KB, S3 xu ly ~28 ms (do that) nhung ho so mac dinh (buoc
+    // 50 ms, 2 mau tot, ton dong 96 KB) giu S3 o 250-400 ms/khung (3 fps) sau mot dot khung net luc mo trang.
+    const fbProfile = device.cfg.fbBands || device.cfg.halfVideo
       ? { decodeBudgetRatio: 1.3, maxBacklogBytes: 196_608, intervalBackoffFactor: 1.5,
           intervalStepMs: 17, goodStreakNeeded: 1, cooldownMs: 5_000 } : {};
     const cfgA = {
