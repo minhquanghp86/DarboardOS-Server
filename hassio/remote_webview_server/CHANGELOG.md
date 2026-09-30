@@ -1,3 +1,11 @@
+## V2.9.70
+### YouTube thường nhẹ hơn: chỉ nhận video H.264
+
+- Đo 30/09: tab YouTube (và YouTube Music) nhận video **AV1** — Chrome của addon giải mã bằng CPU (không có giải mã
+  phần cứng trong chế độ headless, đã thử GPU/VA-API), AV1 là loại nặng nhất. Nay tab YouTube/Nhạc chỉ báo hỗ trợ
+  **H.264**, tối đa 720p/30 hình/giây (giống tab YouTube TV từ 2.9.5x). Tắt: `YT_H264=0`; giới hạn: `YT_MAX_HEIGHT`,
+  `YT_MAX_FPS`.
+
 ## V2.9.69
 ### Tiết kiệm RAM máy chủ: ứng dụng nền lâu không dùng tự đóng, vẫn còn trong "Gần đây"
 

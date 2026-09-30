@@ -1812,6 +1812,9 @@ export function buildTvCodecScript(maxH: number, maxFps: number): string {
 }
 const YT_TV_MAX_H = Number(process.env.YT_TV_MAX_HEIGHT) || 720;
 const YT_TV_MAX_FPS = Number(process.env.YT_TV_MAX_FPS) || 30;
+const YT_H264 = !['0', 'false'].includes(process.env.YT_H264 ?? '');
+const YT_MAX_H = Number(process.env.YT_MAX_HEIGHT) || 720;
+const YT_MAX_FPS = Number(process.env.YT_MAX_FPS) || 30;
 
 export const dialHooks: DialHooks = {
   devices: () => [...devices.values()]
@@ -1994,6 +1997,12 @@ async function createTab(dev: DeviceSession, key: string, kind: string, pinned: 
   // (23/09/2026, xem buildAudioGuardScript) Tiem TRUOC bat ky script nao khac va truoc lan dieu huong dau tien.
   await session.send('Page.addScriptToEvaluateOnNewDocument', { source: buildAudioGuardScript(!dev.cfg.audioEnabled, kind === 'yttv') });
   if (kind === 'yttv') await session.send('Page.addScriptToEvaluateOnNewDocument', { source: buildTvCodecScript(YT_TV_MAX_H, YT_TV_MAX_FPS) });
+  // (30/09/2026) YouTube THUONG (va YouTube Music) cung chi H.264: khong ep thi YouTube gui AV1 (Dav1d giai ma bang
+  // CPU — nang nhat); Chrome headless khong co giai ma phan cung (da thu GPU/VA-API 30/09: 0 codec phan cung).
+  // YT_H264=0 de tat.
+  else if (YT_H264 && (kind === 'youtube' || kind === 'music')) {
+    await session.send('Page.addScriptToEvaluateOnNewDocument', { source: buildTvCodecScript(YT_MAX_H, YT_MAX_FPS) });
+  }
   await session.send('Page.addScriptToEvaluateOnNewDocument', { source: KIOSK_KEYBOARD_SCRIPT });
   const { identifier: launcherScriptId } = await session.send(
     'Page.addScriptToEvaluateOnNewDocument', { source: buildLauncherScript(dev.cfg.homeUrl, dev.cfg) }

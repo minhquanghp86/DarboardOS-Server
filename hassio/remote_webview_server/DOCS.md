@@ -391,6 +391,8 @@ luôn gửi giá trị riêng của từng màn hình (trong YAML ESPHome) khi k
 - **Self-test**: đặt `url: "self-test"` trong YAML để đo thời gian dựng hình của màn hình.
 - **`FREEZE_BG_TABS`** (mặc định bật): tab ứng dụng ở nền bị **tạm dừng JavaScript** (qua debugger của Chrome) cho tới
   khi quay lại; tab camera đóng hẳn khi rời. Ngoại lệ: nhạc/radio đang phát nền, YouTube TV. `0` để tắt.
+- **`YT_H264`** (mặc định bật): tab YouTube / Nhạc (YouTube Music) chỉ nhận video H.264 (≤ `YT_MAX_HEIGHT` 720,
+  ≤ `YT_MAX_FPS` 30) thay cho AV1/VP9 — nhẹ CPU máy chủ hơn nhiều. `0` để tắt.
 - **`YT_TV_HALF_MAX_H`** (mặc định `360`): tab YouTube TV có nguồn cao tối đa chừng này thì gửi khung nửa độ phân giải
   (P4 phóng ×2). `0` để luôn đủ độ phân giải.
 - **Màn hình chờ sau (giây)** (`screensaver_idle_s`, mặc định `120`, `0` = tắt): không chạm bao lâu thì hiện đồng
