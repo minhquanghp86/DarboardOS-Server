@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SerialQueue, TabPolicyView, appKeyForUrl, nowPlaying, pickEvictions, recentsList } from "./tabPolicy.js";
+import { SerialQueue, TabPolicyView, appKeyForUrl, nowPlaying, parseMeminfo, pickEvictions, pickIdleCloses, recentsList, tabBudget } from "./tabPolicy.js";
 
 const tab = (key: string, o: Partial<TabPolicyView> = {}): TabPolicyView => ({
   key, label: key, pinned: false, backgroundAudio: false, mediaPlaying: false, mediaKnown: false, lastUsed: 0, ...o,
@@ -101,5 +101,32 @@ describe("URL -> ung dung", () => {
     const local = [{ id: "weather", url: "http://127.0.0.1:18080/weather.html" }, { id: "timer", url: "http://127.0.0.1:18080/timer.html" }];
     expect(appKeyForUrl("http://127.0.0.1:18080/timer.html?x=1", local)).toBe("timer");
     expect(appKeyForUrl("http://127.0.0.1:18080/cam.html", local)).toBeNull();
+  });
+});
+
+describe("ngan sach RAM (dong tab nen nhan roi)", () => {
+  const M = 60_000;
+  it("dong tab nen qua han, mien ghim/active/dang phat/YouTube TV", () => {
+    const tabs = [
+      { ...tab("home", { pinned: true }), kind: "ha" },
+      { ...tab("weather", { lastUsed: 0 }), kind: "weather" },
+      { ...tab("radio", { backgroundAudio: true, mediaKnown: true, mediaPlaying: true }), kind: "radio" },
+      { ...tab("yttv"), kind: "yttv" },
+      { ...tab("news", { lastUsed: 25 * M }), kind: "news" },
+      { ...tab("cur"), kind: "x" },
+    ];
+    expect(pickIdleCloses(tabs, "cur", 30 * M, 20 * M)).toEqual(["weather"]);
+    expect(pickIdleCloses(tabs, "cur", 30 * M, 0)).toEqual([]);
+  });
+  it("thieu RAM -> 1 tab nen, 3 phut", () => {
+    expect(tabBudget(3700, 600, 2, 20 * M)).toEqual({ maxAppTabs: 2, idleMs: 20 * M, low: false });
+    expect(tabBudget(400, 600, 2, 20 * M)).toEqual({ maxAppTabs: 1, idleMs: 3 * M, low: true });
+    expect(tabBudget(400, 600, 2, 0)).toEqual({ maxAppTabs: 1, idleMs: 3 * M, low: true });
+    expect(tabBudget(null, 600, 2, 20 * M).low).toBe(false);
+  });
+  it("doc /proc/meminfo", () => {
+    const t = "MemTotal:       10182460 kB\nMemFree: 1 kB\nMemAvailable:    3728036 kB\nSwapTotal:       3360408 kB\nSwapFree:         433960 kB\n";
+    expect(parseMeminfo(t)).toEqual({ totalMb: 9944, availMb: 3641, swapTotalMb: 3282, swapUsedMb: 2858 });
+    expect(parseMeminfo("x")).toBeNull();
   });
 });

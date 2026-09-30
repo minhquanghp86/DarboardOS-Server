@@ -83,3 +83,11 @@ JPEG 1024×600 như addon, 30 s:
 ### Đề xuất mới 1b (thay GPU): giảm CPU khâu xử lý ảnh server
 - Ép H.264 cho tab YouTube thường (tránh AV1 giải mã phần mềm nặng).
 - Đo chi tiết thời gian từng bước trong flushPending (giải nén JPEG của Chrome, chia dải, nén lại) để chọn chỗ cắt.
+
+### Đề xuất 3 + 4 (ngân sách RAM, test đổi gốc) — XONG 30/09 (server 2.9.69)
+- Đo lại trước khi làm: máy HASS nay 10 GB RAM, ~3,7 GB khả dụng, nhưng swap đã dùng ~2,9/3,3 GB.
+- Tab nền không dùng quá `IDLE_TAB_CLOSE_MIN` (20 phút) → đóng hẳn; thẻ vẫn ở "Gần đây" (ảnh + URL), chạm = mở lại
+  đúng trang. RAM khả dụng < `LOW_MEM_MB` (600) → 1 ứng dụng nền, đóng sau 3 phút. `/metrics.host` báo RAM/swap.
+- "Dùng lần cuối" tính từ lúc rời tab.
+- Test tích hợp mới: `tabs.itest.ts` (tab nền điều hướng localhost → 127.0.0.2 rồi hiện: phải có khung, không lỗi
+  screencast), `ramBudget.itest.ts`. Tổng: 126 test đơn vị + 31 test tích hợp đạt.

@@ -23,7 +23,7 @@ import { fileURLToPath } from "node:url";
 import { buildLauncherApps, listAllApps, GROUP_TITLES, LOCAL_ORIGIN, LAUNCHER_CAMS_URL, LAUNCHER_OS_HOME_URL, LAUNCHER_SCENES_URL, LAUNCHER_TIMER_URL, LAUNCHER_WEATHER_URL } from "./launcherApps.js";
 import { createRequire } from "node:module";
 import { getWeatherMini, onWeatherMiniUpdate } from "./weatherMini.js";
-import { SerialQueue, appKeyForUrl, nowPlaying, pickEvictions, recentsList } from "./tabPolicy.js";
+import { SerialQueue, appKeyForUrl, nowPlaying, parseMeminfo, pickEvictions, pickIdleCloses, recentsList, tabBudget } from "./tabPolicy.js";
 import { SCREENSAVER_IDLE_S, SCREENSAVER_PHOTOS, deviceHour, isNightHour, shouldShowSaver } from "./screensaver.js";
 import { listPhotos } from "./homeApi.js";
 import { panelPrefs } from "./panelPrefs.js";
@@ -155,6 +155,9 @@ export type DeviceSession = {
   activeTabKey: string;
   /** (26/09/2026) Moi thao tac mo/chuyen tab (openApp, navigateToUrl) chay TUAN TU — xem SerialQueue (tabPolicy.ts). */
   tabOps: SerialQueue;
+  /** (30/09/2026) Tab da bi DONG de tiet kiem RAM (nhan roi/qua han muc): van hien trong "Gan day" (anh + URL cu), cham
+   * vao = mo lai dung trang do. Nguoi dung tu dong o Gan day thi xoa han. */
+  closedRecents?: Map<string, { label: string; thumb?: string; url: string; lastUsed: number }>;
   /** (26/09/2026 OS-5) Lan cham cuoi (moc cho man hinh cho) va man hinh cho dang hien tren tab active hay khong. */
   lastTouchMs: number;
   saverOn: boolean;
@@ -1165,6 +1168,7 @@ function handleMenuControl(id: string, payload: unknown, from?: Tab): void {
   if (typeof msg?.close === 'string' || msg?.closeAll) {
     const keys = msg.closeAll ? [...dev.tabs.keys()] : [msg.close as string];
     dev.tabOps.run(async () => {
+      if (msg.closeAll) dev.closedRecents?.clear(); else dev.closedRecents?.delete(msg.close as string);
       for (const k of keys) {
         const t = dev.tabs.get(k);
         if (t && !t.pinned && k !== dev.activeTabKey) closeTab(dev, k, 'nguoi dung dong o Gan day');
@@ -1573,13 +1577,18 @@ async function openAppNow(dev: DeviceSession, key: string): Promise<void> {
   noteActivity(dev, `mo ung dung ${key}`);
   let tab = dev.tabs.get(key);
   if (!tab) {
+    const ghost = dev.closedRecents?.get(key);
     const spec = resolveAppSpec(dev, key);
-    if (!spec) { console.warn(`[app] ${dev.deviceId}: khong biet ung dung "${key}"`); return; }
+    if (!spec) {
+      // Tab "Trinh duyet" da dong vi RAM: mo lai dung URL cu qua duong URL thuong.
+      if (ghost?.url) { dev.closedRecents!.delete(key); return navigateToUrlNow(dev, ghost.url); }
+      console.warn(`[app] ${dev.deviceId}: khong biet ung dung "${key}"`); return;
+    }
     tab = await createTab(dev, key, spec.kind, spec.pinned, spec.label);
     if (devices.get(dev.deviceId) !== dev) { closeTab(dev, key, 'phien thiet bi da bi xoa'); return; }
     // Bat screencast TRUOC (tren trang trang, an toan) roi moi dieu huong cheo nguon — xem createTab().
     await activateTab(dev, key);
-    await navigateTab(dev, tab, spec.url);
+    await navigateTab(dev, tab, ghost?.url && ghost.url !== 'about:blank' ? ghost.url : spec.url);
   } else {
     await activateTab(dev, key);
   }
@@ -1592,7 +1601,60 @@ async function openAppNow(dev: DeviceSession, key: string): Promise<void> {
  * duoc, uu tien khong lam gian doan am thanh dang phat hon la giu dung han muc tuyet doi).
  */
 function evictIfNeeded(dev: DeviceSession): void {
-  for (const key of pickEvictions(dev.tabs.values(), dev.activeTabKey, MAX_APP_TABS)) closeTab(dev, key);
+  const b = currentTabBudget();
+  for (const key of pickEvictions(dev.tabs.values(), dev.activeTabKey, b.maxAppTabs)) {
+    retireTab(dev, key, b.low ? 'qua so tab toi da (may chu thieu RAM)' : 'qua so tab toi da');
+  }
+}
+
+// (30/09/2026) NGAN SACH RAM MAY CHU. Do 30/09: may HASS 10 GB, swap da dung ~2,9/3,3 GB (Frigate 2,4 GB + addon 1,7 GB);
+// tab nen bi tam dung JS (2.9.65) het ton CPU nhung van giu nguyen RAM renderer. Them:
+//   - tab nen khong dung qua IDLE_TAB_CLOSE_MIN phut (mac dinh 20; 0 = tat) -> DONG HAN, van con trong "Gan day"
+//     (anh + URL cu, cham = mo lai dung trang) — xem pickIdleCloses (tabPolicy.ts);
+//   - MemAvailable < LOW_MEM_MB (mac dinh 600) -> chi giu 1 ung dung nen, dong tab nhan roi sau 3 phut (tabBudget).
+// So lieu RAM/swap may chu nam trong /metrics (host).
+const IDLE_TAB_CLOSE_MS = Math.max(0, Number(process.env.IDLE_TAB_CLOSE_MIN ?? '20') || 0) * 60_000;
+const LOW_MEM_MB = Math.max(0, Number(process.env.LOW_MEM_MB ?? '600') || 0);
+let hostMemCache: { at: number; v: ReturnType<typeof parseMeminfo> } = { at: 0, v: null };
+
+/** RAM/swap may chu (doc /proc/meminfo, cache 5 s). Container addon thay dung so lieu cua may HASS. */
+export function hostMem(): ReturnType<typeof parseMeminfo> {
+  const now = Date.now();
+  if (now - hostMemCache.at > 5_000) {
+    let v: ReturnType<typeof parseMeminfo> = null;
+    try { v = parseMeminfo(fs.readFileSync('/proc/meminfo', 'utf8')); } catch { /* khong phai Linux */ }
+    hostMemCache = { at: now, v };
+  }
+  return hostMemCache.v;
+}
+
+function currentTabBudget(): ReturnType<typeof tabBudget> {
+  return tabBudget(hostMem()?.availMb ?? null, LOW_MEM_MB, MAX_APP_TABS, IDLE_TAB_CLOSE_MS);
+}
+
+/** Dong tab de tiet kiem RAM nhung GIU the trong "Gan day" (anh thu nho + URL) de mo lai dung cho cu. */
+function retireTab(dev: DeviceSession, key: string, reason: string): void {
+  const tab = dev.tabs.get(key);
+  if (!tab) return;
+  if (!tab.pinned && tab.kind !== 'yttv' && tab.kind !== 'doorbell' && !isCameraTab(tab)) {
+    const g = (dev.closedRecents ??= new Map());
+    g.set(key, { label: tab.label, thumb: tab.thumb, url: tab.url, lastUsed: tab.lastUsed });
+    // Giu toi da 6 the cu nhat da dong.
+    for (const k of [...g.entries()].sort((a, b) => a[1].lastUsed - b[1].lastUsed).slice(0, Math.max(0, g.size - 6)).map((e) => e[0])) g.delete(k);
+  }
+  closeTab(dev, key, reason);
+}
+
+/** Moi 5 s (screensaverTick): dong tab nen nhan roi qua han (xem IDLE_TAB_CLOSE_MS / tabBudget). */
+function closeIdleTabs(dev: DeviceSession, now: number): void {
+  const b = currentTabBudget();
+  if (pickIdleCloses(dev.tabs.values(), dev.activeTabKey, now, b.idleMs).length === 0) return;
+  dev.tabOps.run(async () => {
+    const keys = pickIdleCloses(dev.tabs.values(), dev.activeTabKey, Date.now(), b.idleMs);
+    const mins = Math.round(b.idleMs / 60_000);
+    for (const k of keys) retireTab(dev, k, `khong dung qua ${mins} phut${b.low ? ', may chu thieu RAM' : ''}`);
+    if (keys.length) { pushDeviceStateToPage(dev); await showRecents(dev, false); }
+  }).catch(() => { });
 }
 
 /**
@@ -1819,7 +1881,9 @@ export function openRecents(dev: DeviceSession): void {
 async function showRecents(dev: DeviceSession, open: boolean): Promise<void> {
   const active = dev.tabs.get(dev.activeTabKey);
   if (open && active) await captureThumb(dev, active);
-  const list = recentsList(dev.tabs.values(), dev.activeTabKey);
+  const ghosts = [...(dev.closedRecents ?? new Map()).entries()].filter(([k]) => !dev.tabs.has(k))
+    .map(([k, g]) => ({ key: k, label: g.label, pinned: false, lastUsed: g.lastUsed, thumb: g.thumb }));
+  const list = recentsList([...dev.tabs.values(), ...ghosts], dev.activeTabKey);
   await dev.cdp.send('Runtime.evaluate', {
     expression: `window.__rwvShell && window.__rwvShell.recents && window.__rwvShell.recents(${JSON.stringify(list)}, ${open})`,
   }).catch(() => { });
@@ -1920,6 +1984,7 @@ async function createTab(dev: DeviceSession, key: string, kind: string, pinned: 
   const root = getRoot() as unknown as CDPRoot;
   if (!root) throw new Error('CDP not ready');
 
+  dev.closedRecents?.delete(key);
   const { targetId } = await root.send<{ targetId: string }>('Target.createTarget', { url: 'about:blank' });
   const { sessionId } = await root.send<{ sessionId: string }>('Target.attachToTarget', { targetId, flatten: true });
   const session = root.session(sessionId);
@@ -2069,6 +2134,7 @@ async function activateTab(dev: DeviceSession, key: string): Promise<void> {
 
   const prev = dev.tabs.get(dev.activeTabKey);
   if (prev) {
+    prev.lastUsed = Date.now();  // "dung lan cuoi" = luc ROI tab (don tab / dong tab nhan roi tinh tu day)
     // YouTube/TikTok: DUNG video khi roi tab, tranh tieng ngam tiep tuc chay ngam voi tab khac.
     if (prev.kind === 'youtube' || prev.kind === 'tiktok' || prev.kind === 'yttv') {
       prev.session.send('Runtime.evaluate', {
@@ -2094,7 +2160,7 @@ async function activateTab(dev: DeviceSession, key: string): Promise<void> {
   dev.activeTabKey = key;
   dev.cdp = next.session;
   dev.saverOn = false;  // man hinh cho nam trong Shell cua tab CU
-  next.lastUsed = Date.now();
+  next.lastUsed = Math.max(Date.now(), (prev?.lastUsed ?? 0) + 1);  // luon moi hon tab vua roi (cung mili-giay)
   setTabAudioAllowed(next, true);
 
   if (!next.screencastOn) {
@@ -2718,6 +2784,7 @@ export function screensaverTick(): void {
   const now = Date.now();
   // Moi 5 s: dong bo lai trang thai phat (tu sua neu mot goi bi mat khi thiet bi vua noi lai).
   for (const d of devices.values()) syncMediaPlaying(d);
+  for (const d of devices.values()) closeIdleTabs(d, now);
   for (const d of devices.values()) {
     const tab = d.tabs.get(d.activeTabKey);
     if (!tab || broadcaster.getClientCount(d.deviceId) === 0) continue;

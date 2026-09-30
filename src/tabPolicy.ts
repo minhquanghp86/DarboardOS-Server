@@ -49,6 +49,38 @@ export function pickEvictions(tabs: Iterable<TabPolicyView>, activeKey: string, 
   return out;
 }
 
+/**
+ * (30/09/2026) NGAN SACH RAM: tab nen khong dung qua `idleMs` thi DONG HAN (tam dung JS o 2.9.65 giam CPU nhung KHONG
+ * giam RAM — moi tab van la mot tien trinh renderer ~150-300 MB). Mien: tab ghim, tab active, tab co the dang phat nen,
+ * YouTube TV (giu ket noi voi dien thoai). idleMs <= 0: tat.
+ */
+export function pickIdleCloses(
+  tabs: Iterable<TabPolicyView & { kind?: string }>, activeKey: string, now: number, idleMs: number,
+): string[] {
+  if (idleMs <= 0) return [];
+  return [...tabs]
+    .filter((t) => !t.pinned && t.key !== activeKey && t.kind !== 'yttv' && !mayBePlayingInBackground(t)
+      && now - t.lastUsed > idleMs)
+    .map((t) => t.key);
+}
+
+/** Han muc tab khi may chu THIEU RAM (MemAvailable < lowMb): chi giu 1 ung dung nen, dong tab nhan roi sau 3 phut. */
+export function tabBudget(memAvailMb: number | null, lowMb: number, maxAppTabs: number, idleMs: number):
+  { maxAppTabs: number; idleMs: number; low: boolean } {
+  const low = memAvailMb != null && memAvailMb < lowMb;
+  if (!low) return { maxAppTabs, idleMs, low };
+  return { maxAppTabs: Math.min(1, maxAppTabs), idleMs: Math.min(idleMs > 0 ? idleMs : Infinity, 3 * 60_000), low };
+}
+
+/** Doc /proc/meminfo -> MB (null neu thieu truong). */
+export function parseMeminfo(text: string): { totalMb: number; availMb: number; swapTotalMb: number; swapUsedMb: number } | null {
+  const kb = (k: string) => { const m = new RegExp(`^${k}:\\s+(\\d+)`, 'm').exec(text); return m ? Number(m[1]) : null; };
+  const t = kb('MemTotal'), a = kb('MemAvailable'), st = kb('SwapTotal'), sf = kb('SwapFree');
+  if (t == null || a == null) return null;
+  const mb = (v: number) => Math.round(v / 1024);
+  return { totalMb: mb(t), availMb: mb(a), swapTotalMb: mb(st ?? 0), swapUsedMb: mb((st ?? 0) - (sf ?? 0)) };
+}
+
 /** Thẻ "Đang phát" trong thanh trang thai: tab NEN dang phat THAT (da bao), khong tinh tab dang hien. */
 export function nowPlaying(tabs: Iterable<TabPolicyView>, activeKey: string): { k: string; l: string }[] {
   const out: { k: string; l: string }[] = [];
