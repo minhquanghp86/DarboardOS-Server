@@ -207,6 +207,8 @@ interface Tab {
   lastUsed: number;
   /** (26/09/2026 OS-3) Anh thu nho (data URL JPEG ~320 px) chup luc roi tab — cho man hinh "Gan day". */
   thumb?: string;
+  /** (30/09/2026) Da Page.setWebLifecycleState frozen (tab nen khong chay JS/ve/giai ma) — xem freezeTab(). */
+  frozen?: boolean;
 }
 
 // (23/09/2026) SUA LOI: "man ngu tu bat lai nhung khong hien gi, phai vuot
@@ -1368,6 +1370,9 @@ function pushDeviceStateToPage(dev: DeviceSession): void {
  * doi hoac khi nguoi dung luu cau hinh menu (trang "Menu panel").
  */
 async function reloadLauncherTab(device: DeviceSession, tab: Tab): Promise<boolean> {
+  // (30/09/2026) Trang dong bang khong chay Runtime.evaluate (lenh treo cho toi khi bo dong bang) -> bo tam, nap, dong lai.
+  const wasFrozen = !!tab.frozen;
+  await thawTab(tab);
   try {
     // (26/09/2026 OS-2) launcherScriptId gio la CUA TUNG TAB (moi tab la mot session/target rieng) — xem
     // reloadAllLaunchers() ben duoi, goi ham nay cho MOI tab dang mo cua thiet bi.
@@ -1385,6 +1390,7 @@ async function reloadLauncherTab(device: DeviceSession, tab: Tab): Promise<boole
         `window.__launcherInitialized=false; window.__rwvShell=undefined;` +
         `})();` + src,
     });
+    if (wasFrozen) freezeTab(device, tab);
     return true;
   } catch (e) {
     console.warn(`[device] ⚠️ Khong nap lai duoc Shell cho ${device.deviceId} (tab "${tab.key}"):`, e);
@@ -1809,6 +1815,8 @@ function onTabMedia(dev: DeviceSession, tab: Tab, playing: boolean): void {
   tab.mediaKnown = true;
   if (!changed) return;
   if (tab.backgroundAudio) console.log(`[app] ${dev.deviceId}: tab "${tab.key}" ${playing ? 'dang phat' : 'da dung phat'}`);
+  // (30/09/2026) Radio/nhac o NEN vua ngung phat -> khong con ly do chay ngam: dong bang.
+  if (!playing && dev.activeTabKey !== tab.key) freezeTab(dev, tab);
   if (playing && dev.activeTabKey === tab.key) noteActivity(dev, 'bat dau phat video/am thanh');
   // (27/09/2026) "Tieu diem am thanh" nhu dien thoai: mot tab cua man hinh bat dau phat -> dung moi tab KHAC dang phat
   // (vd Radio phat nen roi truyen YouTube -> truoc day hai tieng chong nhau).
@@ -1827,6 +1835,34 @@ function onTabMedia(dev: DeviceSession, tab: Tab, playing: boolean): void {
       .catch(() => { });
   }
   pushDeviceStateToPage(dev);
+}
+
+// (30/09/2026) DONG BANG TAB NEN. Do that 30/09: addon 8 tab, 3 tab cam.html giai ma luong camera lien tuc o nen, CPU
+// addon 25-50% luc KHONG ai xem gi, may HASS con 182 MB RAM + 2,75 GB swap -> video giat. Tab nen (khong active)
+// duoc Page.setWebLifecycleState frozen: JS, ve, bo dem thoi gian, giai ma dung han; quay lai = 'active', TUC THI
+// (van khong tai lai). Ngoai le: tab dang phat am thanh nen (radio/nhac) va YouTube TV (dong bang lam dut ket noi voi
+// dien thoai dang truyen). FREEZE_BG_TABS=0 de tat.
+const FREEZE_BG_TABS = !['0', 'false'].includes(process.env.FREEZE_BG_TABS ?? '');
+
+/** Tab camera (luong go2rtc giai ma lien tuc): DONG HAN khi roi thay vi de ngam — mo lai chi mat ~1 s. */
+function isCameraTab(t: Tab): boolean {
+  return !t.pinned && (t.kind === 'camera' || t.kind === 'cams' || /\/cams?\.html(\?|$)/.test(t.url));
+}
+
+function freezeTab(dev: DeviceSession, tab: Tab): void {
+  if (!FREEZE_BG_TABS || tab.frozen || dev.activeTabKey === tab.key || !dev.tabs.has(tab.key)) return;
+  if (tab.kind === 'yttv' || (tab.backgroundAudio && tab.mediaPlaying)) return;
+  tab.frozen = true;
+  tab.session.send('Page.setWebLifecycleState', { state: 'frozen' })
+    .then(() => console.log(`[app] ${dev.deviceId}: dong bang tab nen "${tab.key}"`))
+    .catch((e: unknown) => { tab.frozen = false; console.warn(`[app] ${dev.deviceId}: khong dong bang duoc "${tab.key}":`, e); });
+}
+
+/** Bo dong bang TRUOC moi thao tac can trang chay (hien, dieu huong, nap lai Shell). */
+async function thawTab(tab: Tab): Promise<void> {
+  if (!tab.frozen) return;
+  tab.frozen = false;
+  await tab.session.send('Page.setWebLifecycleState', { state: 'active' }).catch(() => { });
 }
 
 function closeTab(dev: DeviceSession, key: string, reason = 'qua so tab toi da'): void {
@@ -1954,6 +1990,7 @@ async function createTab(dev: DeviceSession, key: string, kind: string, pinned: 
  */
 async function navigateTab(dev: DeviceSession, tab: Tab, url: string): Promise<void> {
   if (!url || url === 'about:blank' || tab.url === url) return;
+  await thawTab(tab);
   await tab.session.send('Page.navigate', { url }).catch((e: unknown) =>
     console.warn(`[device] ${dev.deviceId}: dieu huong tab "${tab.key}" (${url}) that bai:`, e));
   tab.url = url; // lac quan — handleTabNavigation() se xac nhan/sua lai khi Page.frameNavigated thuc su toi
@@ -2013,13 +2050,20 @@ async function activateTab(dev: DeviceSession, key: string): Promise<void> {
     }
     setTabAudioAllowed(prev, prev.backgroundAudio);
     noteActivity(dev, 'chuyen tab', prev);  // go man hinh cho khoi tab CU (quay lai sau khong con thay no)
-    void captureThumb(dev, prev);  // anh cho "Gan day" — truoc khi tat screencast, khong cho
+    if (isCameraTab(prev)) {
+      closeTab(dev, prev.key, 'roi tab camera');
+    } else {
+      // anh cho "Gan day" — truoc khi tat screencast, khong cho; XONG moi dong bang (trang dong bang khong chup duoc).
+      const p = prev;
+      void captureThumb(dev, p).finally(() => freezeTab(dev, p));
+    }
     if (prev.screencastOn) {
       prev.session.send('Page.stopScreencast').catch(() => { });
       prev.screencastOn = false;
     }
   }
 
+  await thawTab(next);
   dev.activeTabKey = key;
   dev.cdp = next.session;
   dev.saverOn = false;  // man hinh cho nam trong Shell cua tab CU
@@ -2615,7 +2659,10 @@ export function screensaverTick(): void {
     if (!tab || broadcaster.getClientCount(d.deviceId) === 0) continue;
     if (!shouldShowSaver({
       // (27/09/2026) Khung anh da la man hinh cho — khong phu dong ho len.
-      now, lastTouchMs: d.lastTouchMs, idleMs: panelPrefs.saverIdleS(d.deviceId, SCREENSAVER_IDLE_S) * 1000, mediaPlaying: tab.mediaPlaying || tab.kind === 'photos',
+      now, lastTouchMs: d.lastTouchMs, idleMs: panelPrefs.saverIdleS(d.deviceId, SCREENSAVER_IDLE_S) * 1000, mediaPlaying: tab.mediaPlaying || tab.kind === 'photos' ||
+        // (30/09/2026) Dang truyen tu dien thoai: giua hai video giao dien TV dung yen, nguoi dung cam dien thoai
+        // (khong cham panel) -> truoc day man hinh cho hien de len YouTube TV (log that).
+        (tab.kind === 'yttv' && !!d.castUrl),
       backlightOn: d.devState ? d.devState.backlightOn : null, shown: d.saverOn,
     })) continue;
     d.saverOn = true;
