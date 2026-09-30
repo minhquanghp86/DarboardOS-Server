@@ -127,3 +127,20 @@ it('dien thoai tim thay panel, truyen YouTube -> YouTube TV tren panel, ngat -> 
   await sleep(500);
   expect(await search()).toEqual([]);
 });
+
+it('bat dau truyen luc man tat: firmware cu gui lai OpenURL trang chu (resume) -> van giu YouTube TV (loi 30/09 12:32)', async () => {
+  const home = srv.local('/ha');
+  dev = await FakeDevice.connect(srv, DEV_ID, { home, ctl: '1' });
+  await dev.waitFor(() => dev!.currentUrls().includes(home), 20_000, 'ket noi');
+  const appUrl = `http://127.0.0.1:${dialPort}/dial/${DEV_ID}/apps/`;
+  const post = await fetch(appUrl + 'YouTube', { method: 'POST', headers: { 'content-type': 'text/plain' }, body: 'pairingCode=zz99&theme=cl' });
+  expect(post.status).toBe(201);
+  await dev.waitFor(() => dev!.currentUrls().some((u) => u.includes('pairingCode=zz99')), 15_000, 'YouTube TV hien');
+  dev.openUrl(home);                                  // resume() cua firmware cu ngay sau khi den nen bat
+  await sleep(2_000);
+  expect(dev.currentUrls().slice(-1)[0]).toContain('pairingCode=zz99');
+  expect(srv.log()).toMatch(/vua bat dau truyen — bo qua OpenURL/);
+  await sleep(4_500);                                 // qua 6 s: Go Home cua nguoi dung van chay binh thuong
+  dev.openUrl(home);
+  await dev.waitFor(() => dev!.currentUrls().slice(-1)[0] === home, 10_000, 'Go Home sau 6 s');
+});
