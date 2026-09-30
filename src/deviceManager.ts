@@ -115,6 +115,10 @@ export type DeviceSession = {
   // (24/09/2026) Khung VIDEO nua do phan giai cho thiet bi bao ?half=1 — xem flushPending.
   halfOn: boolean;
   halfFrames: number;
+  /** (30/09/2026) Khung video Chrome hoi vuot tran goi -> nen lai MOT lan ca khung cho vua (xem flushPending). */
+  fitFrames?: number;
+  /** Khung di duong thuong (giai nen RGBA + so sanh o + nen tung o). */
+  slowFrames?: number;
   /** Anh Chrome cua khung video gan nhat — dung de gui lai ban NET khi video dung. */
   lastVideoB64?: string;
   sharpTimer?: NodeJS.Timeout;
@@ -1617,6 +1621,15 @@ const IDLE_TAB_CLOSE_MS = Math.max(0, Number(process.env.IDLE_TAB_CLOSE_MIN ?? '
 const LOW_MEM_MB = Math.max(0, Number(process.env.LOW_MEM_MB ?? '600') || 0);
 let hostMemCache: { at: number; v: ReturnType<typeof parseMeminfo> } = { at: 0, v: null };
 
+/** (30/09/2026) Bo dem duong di cua khung theo thiet bi — cho /metrics (pipeline). */
+export function pipelineStats(): Record<string, { passthrough: number; fit: number; half: number; slow: number }> {
+  const o: Record<string, { passthrough: number; fit: number; half: number; slow: number }> = {};
+  for (const d of devices.values()) {
+    o[d.deviceId] = { passthrough: d.passthroughFrames, fit: d.fitFrames ?? 0, half: d.halfFrames, slow: d.slowFrames ?? 0 };
+  }
+  return o;
+}
+
 /** RAM/swap may chu (doc /proc/meminfo, cache 5 s). Container addon thay dung so lieu cua may HASS. */
 export function hostMem(): ReturnType<typeof parseMeminfo> {
   const now = Date.now();
@@ -2620,12 +2633,27 @@ async function flushPending(dev: DeviceSession): Promise<void> {
 
       if (fps >= PASSTHROUGH_MIN_FPS && !dev.cfg.rotation) {
         const capBytes = dev.cfg.maxBytesPerMessage - FRAME_HEADER_BYTES - TILE_HEADER_BYTES;
-        if (imgBuf.length <= capBytes) {
+        // (30/09/2026) NEN LAI CHO VUA. Do 30/09 (P4, YouTube, Chrome nen q40): khung Chrome TB ~28 KB, rat nhieu khung
+        // vuot tran ~32 KB -> roi ve duong thuong (giai nen ca khung ra RGBA, so sanh o, nen lai tung o) — ho so CPU:
+        // processFrameAsync la ham ton nhat, duong tat bat/tat lien tuc. Khung hoi vuot (<= 2x tran): nen lai MOT lan ca
+        // khung o chat luong thap dan cho toi khi vua mot goi — mot lan giai nen + mot lan nen, khong RGBA/so sanh o.
+        // Tat nong: "passthroughFit": false trong /data/rwv-tuning.json.
+        let passBuf: Buffer | undefined = imgBuf.length <= capBytes ? imgBuf : undefined;
+        let fitted = false;
+        if (!passBuf && imgBuf.length <= capBytes * 2 && tuning().passthroughFit !== false) {
+          for (const factor of [0.85, 0.7, 0.55]) {
+            const q = Math.max(20, Math.round(dev.processor.tuning.jpegQuality * factor));
+            const b = await sharp(imgBuf).jpeg({ quality: q, chromaSubsampling: '4:2:0' }).toBuffer();
+            if (b.length <= capBytes) { passBuf = b; fitted = true; break; }
+          }
+        }
+        if (passBuf) {
           // metadata() chỉ đọc header JPEG (không giải nén pixel) nên rất rẻ.
           const meta = await sharp(imgBuf).metadata();
           if (meta.width === dev.cfg.width && meta.height === dev.cfg.height) {
+            if (fitted) dev.fitFrames = (dev.fitFrames ?? 0) + 1;
             const out = {
-              rects: [{ x: 0, y: 0, w: meta.width, h: meta.height, data: imgBuf }],
+              rects: [{ x: 0, y: 0, w: meta.width, h: meta.height, data: passBuf }],
               isFullFrame: true,
               encoding: Encoding.JPEG,
             };
@@ -2650,6 +2678,7 @@ async function flushPending(dev: DeviceSession): Promise<void> {
       }
       // ════════════════════════════════════════════════════════════════════
 
+      dev.slowFrames = (dev.slowFrames ?? 0) + 1;
       let img = sharp(imgBuf);
       if (dev.cfg.rotation) img = img.rotate(dev.cfg.rotation);
       const { data, info } = await img.ensureAlpha().raw().toBuffer({ resolveWithObject: true });

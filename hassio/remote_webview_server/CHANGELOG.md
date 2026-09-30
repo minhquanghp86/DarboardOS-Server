@@ -1,3 +1,12 @@
+## V2.9.71
+### Server bớt CPU khi phát video
+
+- Đo 30/09 (hồ sơ CPU thật lúc P4 phát YouTube): khung JPEG của Chrome trung bình ~28 KB, sát trần 32 KB/gói của P4 —
+  khung nào vượt trần phải đi **đường chậm** (giải nén cả khung, so sánh từng ô, nén lại từng ô), đường tắt video
+  bật/tắt liên tục. Nay khung vượt trần ít (≤ 2 lần) được **nén lại một lần cả khung** ở chất lượng thấp hơn chút cho
+  vừa một gói. Tắt nóng: `"passthroughFit": false` trong `/data/rwv-tuning.json`.
+- `/metrics` có thêm `pipeline`: số khung đi đường tắt / nén-cho-vừa / nửa độ phân giải / đường chậm của từng màn.
+
 ## V2.9.70
 ### YouTube thường nhẹ hơn: chỉ nhận video H.264
 

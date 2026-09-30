@@ -11,7 +11,8 @@
 //     "decodeBudgetRatio": 0.5,   // ngan sach xu ly = nhip x ti le (mac dinh 0.5)
 //     "intervalBackoffFactor": 2, // gian nhip nhan bao nhieu khi qua tai (mac dinh 2)
 //     "wsHighWaterBytes": 196608, // ton dong socket tren muc nay thi BO khung (mac dinh 196608)
-//     "fullFrameAreaThreshold": 0.5 } // ghi de nguong khung day du cua thiet bi (mac dinh: theo thiet bi)
+//     "fullFrameAreaThreshold": 0.5, // ghi de nguong khung day du cua thiet bi (mac dinh: theo thiet bi)
+//     "passthroughFit": false }  // tat "nen lai cho vua mot goi" o duong tat video (mac dinh bat — 2.9.71)
 import fs from 'node:fs';
 
 export type Tuning = {
@@ -22,6 +23,7 @@ export type Tuning = {
   intervalBackoffFactor?: number;
   wsHighWaterBytes?: number;
   fullFrameAreaThreshold?: number;
+  passthroughFit?: boolean;
 };
 
 const FILE = process.env.TUNING_FILE || '/data/rwv-tuning.json';
@@ -37,6 +39,7 @@ export function sanitizeTuning(j: unknown): Tuning {
   const o = (j && typeof j === 'object') ? j as Record<string, unknown> : {};
   const t: Tuning = {};
   if (typeof o.adaptive === 'boolean') t.adaptive = o.adaptive;
+  if (typeof o.passthroughFit === 'boolean') t.passthroughFit = o.passthroughFit;
   const f = num(o.fixedIntervalMs, 10, 2000); if (f !== undefined) t.fixedIntervalMs = Math.round(f);
   const b = num(o.maxBacklogBytes, 8192, 4_194_304); if (b !== undefined) t.maxBacklogBytes = Math.round(b);
   const r = num(o.decodeBudgetRatio, 0.1, 1.5); if (r !== undefined) t.decodeBudgetRatio = r;
