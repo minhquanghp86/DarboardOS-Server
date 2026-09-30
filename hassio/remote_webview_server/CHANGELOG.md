@@ -1,3 +1,13 @@
+## V2.9.72
+### Video trên P4 đi thẳng từ Chrome, không còn giải nén + nén lại ở server
+
+- Đo 30/09 (bộ đếm mới `/metrics.pipeline`): khi P4 phát YouTube, **100% khung đi đường chậm**, 0 khung đi đường
+  tắt. Lý do: màn hình gói nhỏ (P4 32 KB) luôn nhận ảnh Chrome ở chất lượng 90 (60–120 KB/khung), không bao giờ vừa
+  một gói. Node tốn ~120% CPU chỉ để giải nén rồi nén lại.
+- Nay khi nhịp khung cao liên tục ≥ 1,5 s (đang phát video), Chrome được chuyển sang nén **ở đúng chất lượng của
+  màn hình** → khung đi thẳng. Hết video 1,5 s thì trả về chất lượng 90 và vẽ lại khung nét cho giao diện tĩnh.
+  Tắt nóng: `"videoLowQ": false` trong `/data/rwv-tuning.json`.
+
 ## V2.9.71
 ### Server bớt CPU khi phát video
 
