@@ -400,6 +400,12 @@ luôn gửi giá trị riêng của từng màn hình (trong YAML ESPHome) khi k
   Assistant và màn hình chính (hai cái đó luôn giữ). Mỗi ứng dụng mở là một tiến trình renderer Chrome riêng — tăng
   giá trị này cho quay lại ứng dụng gần đây nhanh hơn, đổi lại tốn thêm RAM (xem mục Giới hạn đã biết). Radio/Nhạc
   **đang phát** không bị đóng; đã dừng phát thì được đóng như ứng dụng thường.
+- **`IDLE_TAB_CLOSE_MIN`** (mặc định `20`, `0` = tắt): ứng dụng nằm nền không dùng quá chừng này phút thì **đóng hẳn**
+  để trả RAM (tạm dừng JavaScript chỉ bớt CPU, không bớt RAM). Ứng dụng đã đóng **vẫn còn trong "Gần đây"** với ảnh
+  thu nhỏ; chạm vào là mở lại đúng trang cũ (tải lại ~1–2 s). Không đóng: Home Assistant, màn hình chính, nhạc/radio
+  đang phát, YouTube TV.
+- **`LOW_MEM_MB`** (mặc định `600`): máy chủ còn ít hơn chừng này MB RAM khả dụng thì chỉ giữ **1** ứng dụng nền và
+  đóng ứng dụng nền sau **3 phút**. RAM/swap máy chủ xem ở `/metrics` (mục `host`).
 
 ## Giới hạn đã biết
 
@@ -412,7 +418,8 @@ luôn gửi giá trị riêng của từng màn hình (trong YAML ESPHome) khi k
 - Hẹn giờ lưu trong bộ nhớ addon: khởi động lại addon thì hẹn giờ đang chạy bị huỷ.
 - **RAM tăng theo số tab mở**: mỗi ứng dụng đang mở (kể cả chạy nền) là một tiến trình Chrome renderer riêng. Với
   `MAX_APP_TABS` mặc định (2) cộng Home Assistant + màn hình chính, một màn hình có thể giữ tới 4 tab cùng lúc.
-  Chưa có nút "đóng ứng dụng" thủ công trong bản này — ứng dụng cũ nhất tự đóng khi vượt hạn mức. Radio/Nhạc đang
+  Ứng dụng cũ nhất tự đóng khi vượt hạn mức, ứng dụng nền lâu không dùng tự đóng sau `IDLE_TAB_CLOSE_MIN`; đóng tay
+  được ở màn hình **Gần đây**. Radio/Nhạc đang
   phát nền dừng được ngay từ thẻ **Đang phát** trong thanh kéo xuống (từ 2.9.49).
 
 ## Mã nguồn, ghi công, giấy phép

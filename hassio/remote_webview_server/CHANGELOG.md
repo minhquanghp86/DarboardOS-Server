@@ -1,3 +1,16 @@
+## V2.9.69
+### Tiết kiệm RAM máy chủ: ứng dụng nền lâu không dùng tự đóng, vẫn còn trong "Gần đây"
+
+- Đo 30/09: máy HASS đã dùng ~2,9/3,3 GB swap (Frigate 2,4 GB, addon 1,7 GB). Tạm dừng tab nền (2.9.65) bớt CPU
+  nhưng không bớt RAM. Nay ứng dụng nằm nền **quá 20 phút** thì đóng hẳn (`IDLE_TAB_CLOSE_MIN`); thẻ của nó **vẫn ở
+  "Gần đây"** (ảnh thu nhỏ + trang cũ), chạm là mở lại đúng chỗ. Ứng dụng bị đóng vì vượt `MAX_APP_TABS` cũng vậy.
+- Máy chủ còn dưới **600 MB** RAM khả dụng (`LOW_MEM_MB`): chỉ giữ 1 ứng dụng nền, đóng ứng dụng nền sau 3 phút.
+- `/metrics` có thêm `host`: RAM tổng/khả dụng, swap tổng/đã dùng (MB).
+- "Dùng lần cuối" của một ứng dụng nay tính từ lúc **rời** nó (trước: lúc mở) — ứng dụng vừa dùng lâu không bị đóng
+  trước ứng dụng chỉ lướt qua.
+- Thêm test tích hợp: tab nền được điều hướng **sang gốc khác** rồi hiện ra phải có hình ngay (chặn lớp lỗi "Not
+  attached to an active page" đã gặp ở 2.9.48 và 2.9.68); đóng tab nhàn rỗi + mở lại từ "Gần đây".
+
 ## V2.9.68
 ### Sửa màn hình đứng hình khi HA mở URL; màn S3 không còn thanh âm lượng thừa
 

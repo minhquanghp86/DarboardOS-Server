@@ -123,6 +123,24 @@ describe('OS-2: moi ung dung mot tab (server + Chromium that)', () => {
     expect((await srv.pageUrls()).sort()).toEqual([home, url].sort());
   });
 
+  it('tab NEN dieu huong sang GOC KHAC roi hien ra -> van nhan khung ngay (loi "Not attached" 2.9.48 / 2.9.68)', async () => {
+    // 127.0.0.1 (goc HA gia) / localhost / 127.0.0.2 cung cong = BA site khac nhau voi Chrome -> doi tien trinh dung trang.
+    const { home } = await connectPanel('it-xorigin');
+    await srv.waitPage((u) => u === home);
+    const port = new URL(home).port;
+    const a = `http://localhost:${port}/weather.html?goc=a`, b = `http://127.0.0.2:${port}/weather.html?goc=b`;
+    dev!.openUrl(a);                                   // tab 'Trinh duyet' (khac goc HA)
+    await dev!.waitFor(() => dev!.currentUrls().includes(a), 15_000, 'mo goc a');
+    dev!.openUrl(home);                                // ve HA -> 'Trinh duyet' o NEN (JS tam dung)
+    await dev!.waitFor(() => dev!.currentUrls().slice(-1)[0] === home, 15_000, 've HA');
+    await sleep(1_500);
+    const before = dev!.frameCount();
+    dev!.openUrl(b);                                   // tab nen, URL doi SANG GOC KHAC
+    await dev!.waitFor(() => dev!.currentUrls().includes(b), 15_000, 'mo goc b');
+    await dev!.waitFor(() => dev!.frameCount() > before + 2, 8_000, 'khung tu tab vua hien');
+    expect(srv.log()).not.toContain('khong bat duoc screencast');
+  });
+
   it('tab nen bi tam dung JavaScript (dong bang), quay lai thi chay tiep', async () => {
     // (30/09/2026) Page.setWebLifecycleState 'frozen' tung "thanh cong" ma timer van chay du — test nay bat loai do.
     const { home } = await connectPanel('it-freeze');
