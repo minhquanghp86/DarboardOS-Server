@@ -195,6 +195,8 @@ export type DeviceSession = {
   tvBigMs?: number;
   /** (30/09/2026) Gia tri 'dang phat media' da gui thiet bi gan nhat (ControlField.Media) — undefined = chua gui. */
   mediaSent?: boolean;
+  /** (30/09/2026) Trang thai man hinh cho da bao thiet bi (ControlField.Saver). */
+  saverSent?: boolean;
   castPrev?: string;
   /**
    * (26/09/2026) Ton dong socket LON NHAT tai cac lan PHAI BO KHUNG vi nghen, ke tu tick dieu tiet truoc. Vong dieu
@@ -1244,7 +1246,7 @@ function handleMenuControl(id: string, payload: unknown, from?: Tab): void {
   if (msg?.ntClear) { noticesOf(id).clear(); pushDeviceStateToPage(dev); return; }
   if (msg?.f === 'dnd') { setDnd(id, Number(msg?.v) === 1); for (const d of devices.values()) if (d.deviceId === id) pushDeviceStateToPage(d); return; }
   // (26/09/2026 OS-5) Nguoi dung cham tat man hinh cho.
-  if (msg?.wake) { dev.saverOn = false; dev.lastTouchMs = Date.now(); return; }
+  if (msg?.wake) { setSaver(dev, false); dev.lastTouchMs = Date.now(); return; }
   // (26/09/2026) Trang cua MOT tab bao dang phat / da dung (buildAudioGuardScript). Chi tin tab con thuoc thiet bi.
   if (msg?.media != null) {
     if (from && dev.tabs.get(from.key) === from) onTabMedia(dev, from, !!msg.media);
@@ -1364,7 +1366,7 @@ export function postNotify(body: NotifyRequest): { ok: boolean; error?: string; 
     const wake = shouldWake(n, quiet);
     const screenOff = dev.devState ? !dev.devState.backlightOn : false;
     if (wake && dev.cfg.devControl) broadcaster.sendDeviceControl(id, ControlField.Brightness, dev.devState?.brightness ?? 100);
-    if (wake) { dev.lastTouchMs = Date.now(); dev.saverOn = false; }
+    if (wake) { dev.lastTouchMs = Date.now(); setSaver(dev, false); }
     // Man hinh dang tat: doi den nen bat + remote_webview resume (~0,5 s) roi moi hien, de khung do toi duoc man hinh.
     const show = () => dev.cdp.send('Runtime.evaluate', {
       expression: `window.__rwvShell && window.__rwvShell.notify && window.__rwvShell.notify(${JSON.stringify(noticeForShell(n))}, ${wake && !quiet})`,
@@ -2170,7 +2172,7 @@ async function createTab(dev: DeviceSession, key: string, kind: string, pinned: 
     if (evt?.frame?.parentId) return;
     // Tai lieu moi: moi <audio>/<video> cua trang cu da mat -> khong con phat, trang moi se tu bao lai neu phat.
     if (tab.mediaKnown && tab.mediaPlaying) onTabMedia(dev, tab, false);
-    if (dev.activeTabKey === key) dev.saverOn = false;  // tai lieu moi: Shell moi, khong con man hinh cho
+    if (dev.activeTabKey === key) setSaver(dev, false);  // tai lieu moi: Shell moi, khong con man hinh cho
     tab.mediaKnown = false;
     handleTabNavigation(dev, tab, evt?.frame?.url);
   });
@@ -2265,7 +2267,7 @@ async function activateTab(dev: DeviceSession, key: string): Promise<void> {
   await thawTab(next);
   dev.activeTabKey = key;
   dev.cdp = next.session;
-  dev.saverOn = false;  // man hinh cho nam trong Shell cua tab CU
+  setSaver(dev, false);  // man hinh cho nam trong Shell cua tab CU
   next.lastUsed = Math.max(Date.now(), (prev?.lastUsed ?? 0) + 1);  // luon moi hon tab vua roi (cung mili-giay)
   setTabAudioAllowed(next, true);
 
@@ -2399,7 +2401,8 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     if (deviceConfigsEqual(device.cfg, cfg)) {
       device.lastActive = Date.now();
       device.reconnectedMs = Date.now();
-      device.mediaSent = undefined;  // (30/09/2026) thiet bi vua noi lai: gui lai 'dang phat media' o nhip toi
+      device.mediaSent = undefined;
+      device.saverSent = undefined;  // (30/09/2026) thiet bi vua noi lai: gui lai 'dang phat media' o nhip toi
       requestFullFrameFor(device);
 
       // (25/09/2026) Thiet bi NOI LAI (khoi dong lai / OTA / watchdog WS): moi "nghen" ghi nhan TRUOC do la cua socket
@@ -2898,7 +2901,7 @@ export function markInteraction(deviceId: string): void {
   if (!d) return;
   d.lastInputMs = Date.now();
   d.lastTouchMs = d.lastInputMs;
-  d.saverOn = false;  // Shell tu go man hinh cho khi duoc cham (cham do bi "nuot", khong toi trang)
+  setSaver(d, false);  // Shell tu go man hinh cho khi duoc cham (cham do bi "nuot", khong toi trang)
   // (24/09/2026) Cham luc man hinh dang o nua do phan giai: lam net NGAY, khong doi khung moi / hen gio 0,7 s.
   if (d.halfOn && d.sharpenNow) d.sharpenNow();
 }
@@ -2914,7 +2917,7 @@ function noteActivity(dev: DeviceSession, why: string, alsoTab?: Tab): void {
   const expr = 'window.__rwvShell && window.__rwvShell.screensaver && window.__rwvShell.screensaver(false)';
   if (alsoTab && alsoTab.session !== dev.cdp) alsoTab.session.send('Runtime.evaluate', { expression: expr }).catch(() => { });
   if (!dev.saverOn) return;
-  dev.saverOn = false;
+  setSaver(dev, false);
   dev.cdp.send('Runtime.evaluate', { expression: expr }).catch(() => { });
   console.log(`[saver] ${dev.deviceId}: tat man hinh cho (${why})`);
 }
@@ -2928,6 +2931,23 @@ function noteActivity(dev: DeviceSession, why: string, alsoTab?: Tab): void {
  * (ControlField.Media) khi DOI. P4 dung de tam dung tu danh thuc + AEC trong luc phat (AEC chay lien tuc khi loa keu,
  * ~21% mot loi) — nguoi dung chon 30/09: giu tro ly giong noi nhung khong de no tranh CPU voi video.
  */
+/**
+ * (30/09/2026) Doi trang thai man hinh cho + bao thiet bi (ControlField.Saver) NGAY khi doi: P4 chi phat hien khuon
+ * mat khi man tat HOAC dang man hinh cho, thay mat luc dang man hinh cho thi ve trang chu (yeu cau nguoi dung). Bao tre
+ * co the lam P4 ve trang chu nham ngay sau khi nguoi dung vua cham tat man hinh cho.
+ */
+function setSaver(dev: DeviceSession, on: boolean): void {
+  dev.saverOn = on;
+  syncSaver(dev);
+}
+
+function syncSaver(dev: DeviceSession, force = false): void {
+  const on = !!dev.saverOn;
+  if (!force && dev.saverSent === on) return;
+  dev.saverSent = on;
+  if (dev.cfg.devControl) broadcaster.sendDeviceControl(dev.deviceId, ControlField.Saver, on ? 1 : 0);
+}
+
 function syncMediaPlaying(dev: DeviceSession, force = false): void {
   let playing = false;
   for (const t of dev.tabs.values()) if (t.mediaPlaying && (t.key === dev.activeTabKey || t.backgroundAudio)) playing = true;
@@ -2940,6 +2960,7 @@ export function screensaverTick(): void {
   const now = Date.now();
   // Moi 5 s: dong bo lai trang thai phat (tu sua neu mot goi bi mat khi thiet bi vua noi lai).
   for (const d of devices.values()) syncMediaPlaying(d);
+  for (const d of devices.values()) syncSaver(d);
   for (const d of devices.values()) closeIdleTabs(d, now);
   for (const d of devices.values()) {
     const tab = d.tabs.get(d.activeTabKey);
@@ -2952,7 +2973,7 @@ export function screensaverTick(): void {
         (tab.kind === 'yttv' && !!d.castUrl),
       backlightOn: d.devState ? d.devState.backlightOn : null, shown: d.saverOn,
     })) continue;
-    d.saverOn = true;
+    setSaver(d, true);
     d.saverPhotoAt = 0;
     d.cdp.send('Runtime.evaluate', {
       expression: 'window.__rwvShell && window.__rwvShell.screensaver && window.__rwvShell.screensaver(true)',
