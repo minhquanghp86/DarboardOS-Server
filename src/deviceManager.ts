@@ -1090,11 +1090,14 @@ async function navigateToUrlNow(dev: DeviceSession, url: string): Promise<void> 
     await navigateTab(dev, tab, url);
     navigated = true;
   } else {
-    if (tab.url !== url) {
-      await navigateTab(dev, tab, url); // tab da ton tai: neu dang active thi screencast da chay tu truoc, an toan;
-      navigated = true;                 // neu dang o nen thi khong ai xem, cung an toan.
-    }
+    // (30/09/2026) KICH HOAT TRUOC roi moi dieu huong, ca voi tab da ton tai. Truoc day dieu huong tab NEN truoc ->
+    // activateTab bat screencast dung luc trang dang doi goc -> "Not attached to an active page" (log that 30/09 khi HA
+    // mo camera cho ca 3 man cung luc), screencast KHONG chay ma van danh dau da bat -> man hinh dung hinh.
     await activateTab(dev, key);
+    if (tab.url !== url) {
+      await navigateTab(dev, tab, url);
+      navigated = true;
+    }
   }
   // (25/09/2026, giu nguyen tu ban OS-1) Trang TINH khong navigate lai (URL trung) sau khi thiet bi mat ket noi roi
   // noi lai van can duoc VE LAI: "nudge" ep Chrome phat mot khung moi. Da navigate that thi Chrome tu ve lai, khong
@@ -2097,11 +2100,22 @@ async function activateTab(dev: DeviceSession, key: string): Promise<void> {
   if (!next.screencastOn) {
     const canPassthrough = PASSTHROUGH_MIN_FPS > 0 && dev.cfg.maxBytesPerMessage >= 131072;
     const screencastQuality = canPassthrough ? dev.cfg.jpegQuality : SCREENCAST_JPEG_QUALITY;
-    await next.session.send('Page.startScreencast', {
-      format: 'jpeg', quality: screencastQuality, maxWidth: dev.cfg.width, maxHeight: dev.cfg.height,
-      everyNthFrame: dev.cfg.everyNthFrame,
-    }).catch((e: unknown) => console.warn(`[device] ${dev.deviceId}: khong bat duoc screencast tab "${key}":`, e));
-    next.screencastOn = true;
+    // (30/09/2026) Thu lai: dieu huong doi goc (tien trinh dung trang doi) co the lam lenh nay tra "Not attached to an
+    // active page" trong mot khoang ngan. Chi danh dau screencastOn khi THAT SU bat duoc — truoc day danh dau bat ke,
+    // tab khong bao gio phat khung cho toi lan chuyen tab sau (man hinh dung hinh).
+    for (let attempt = 1; attempt <= 4 && !next.screencastOn; attempt++) {
+      try {
+        await next.session.send('Page.startScreencast', {
+          format: 'jpeg', quality: screencastQuality, maxWidth: dev.cfg.width, maxHeight: dev.cfg.height,
+          everyNthFrame: dev.cfg.everyNthFrame,
+        });
+        next.screencastOn = true;
+        if (attempt > 1) console.log(`[device] ${dev.deviceId}: bat screencast tab "${key}" thanh cong o lan thu ${attempt}`);
+      } catch (e) {
+        if (attempt === 4) console.warn(`[device] ${dev.deviceId}: khong bat duoc screencast tab "${key}" sau 4 lan:`, e);
+        else await new Promise((r) => setTimeout(r, 250 * attempt));
+      }
+    }
   }
   if (next.url) {
     dev.url = next.url;

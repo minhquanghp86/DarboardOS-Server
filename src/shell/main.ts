@@ -619,6 +619,8 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     dndTile.el.style.display = s.dnd == null ? 'none' : '';
     if (s.dnd != null) dndTile.set(s.dnd);
     renderNotices(s.nt || []);
+    // (30/09/2026) Thiet bi khong co loa (S3) bao am luong 'khong co' (null) -> an thanh am luong, do sang chiem ca hang.
+    vol.el.style.display = s.v == null ? 'none' : '';
     bri.set(s.b); vol.set(s.v);
     if (s.tg) { tiles[0].set(s.tg.noSleep); tiles[1].set(s.tg.muted); tiles[2].set(s.tg.aec); }
     if (s.wx) {

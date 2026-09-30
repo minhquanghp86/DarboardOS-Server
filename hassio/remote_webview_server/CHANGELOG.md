@@ -1,3 +1,14 @@
+## V2.9.68
+### Sửa màn hình đứng hình khi HA mở URL; màn S3 không còn thanh âm lượng thừa
+
+- Khi Home Assistant mở một URL (vd camera) cho **nhiều màn cùng lúc**, việc bật truyền hình cho tab đôi khi thất bại
+  ("Not attached to an active page") mà vẫn bị đánh dấu là đã bật → màn hình đứng hình tới lần chuyển tab sau (log thật
+  30/09). Nay: tab đang ở nền được **kích hoạt trước rồi mới điều hướng**, và lệnh bật truyền hình **thử lại** tối đa 4
+  lần, chỉ đánh dấu khi thành công thật.
+- Thanh trạng thái: thiết bị không có loa (màn S3) **không hiện thanh âm lượng** — thanh độ sáng chiếm cả hàng.
+- Hai màn S3 cập nhật firmware mới (component chung với P4): có **giờ** trên nút giữa / màn hình chính và **thanh độ sáng**
+  trong thanh trạng thái.
+
 ## V2.9.67
 ### YouTube TV mượt hơn; trợ lý giọng nói không tranh CPU với video
 
