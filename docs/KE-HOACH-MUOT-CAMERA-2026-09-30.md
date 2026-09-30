@@ -130,3 +130,26 @@ Mỗi bước: làm → đo lại (đo ngắn ~60–90 s) → báo người dùn
 | Rảnh ở HA, trước (tất cả tắt) | ~6,5% | ~5% | |
 | Rảnh ở HA, bật hết | 42,8% | 19,7% | mww (đánh thức) 20,8%; camera (có bộ dò) 4,4% (trước ~1%) |
 | YouTube, bật hết | 64% | 67% | 24,1 / 26,2 fps (2 lượt; không bật: 26,7–29,9) — mww/AEC tự dừng, không có trong bảng |
+
+## 5. Nghiên cứu: nhận diện NGƯỜI thật ngay trên ESP32-P4 (30/09)
+
+Yêu cầu người dùng: chỉ nhận diện khi **màn hình tắt**, tắt hẳn khi phát YouTube/đang dùng (tránh quá tải).
+
+| Lựa chọn | Mô hình / cách làm | Tốc độ trên P4 | Giấy phép | Nhận xét |
+|---|---|---|---|---|
+| **Espressif `pedestrian_detect` v0.3.2** (ESP-DL ~3.3) | PicoDet INT8, ảnh vào 224×224 RGB, toàn thân người | 3,5 + **55,6** + 1,4 ms ≈ 60 ms/lần | **MIT** | Chính thức, hỗ trợ P4; mô hình ~432 KB flash |
+| `zacs/jcarugati esphome-person_detector` v0.4.0 | Bọc lại `pedestrian_detect` thành component ESPHome, ~75 ms/lần, 1 lần/1,5 s | ~75 ms | **GPL-3.0** | Dùng `esp_video_camera` RIÊNG (khác bản OV02C10 của mình). Chép vào repo sẽ buộc cả firmware thành GPL → **chỉ tham khảo thiết kế** |
+| `human_face_detect` (ESP-DL) | Phát hiện có mặt người | nhanh hơn | MIT | Hợp khi camera gần, chỉ thấy đầu vai |
+| TFLite Micro person_detection (vd `nliaudat/esphome_ai_component`) | 96×96 xám | nhanh | Apache | Độ chính xác thấp hơn nhiều |
+| Frigate (đang có) | `binary_sensor.p4_panel_person_occupancy` | 1–2 s trễ | — | Không tốn CPU P4, đã chạy thật |
+
+**Khả năng tích hợp** (đề xuất: component riêng trong repo client, chỉ phụ thuộc Espressif MIT):
+- Nguồn khung: observer khung thô có sẵn của `esp_video_camera` (YUV420 1920×1080, 5 fps — đã sửa cho `camera_motion`).
+- Thu nhỏ + đổi YUV→RGB888 224×224 bằng phần mềm ngay trong task camera (~50 nghìn điểm, vài ms) → **không dùng PPA/DMA2D**
+  (tránh lỗi treo JPEG+PPA của IDF, xem bộ nhớ `p4-dma2d-jpeg-ppa-hang`).
+- Task suy luận riêng, ưu tiên thấp, 1 lần/giây ≈ 6% một lõi — **chỉ chạy khi đèn nền tắt** (lúc đó panel không giải mã
+  video nên CPU rảnh); bật màn hình / đang phát media → dừng hẳn.
+- Có người → `wake_display` + cảm biến "Có người (AI)" lên HA.
+- Flash: app 3,46 MB + ~0,6 MB (esp-dl + mô hình), phân vùng app 7,75 MB → đủ. RAM: tensor arena + khung trong PSRAM;
+  cần đo RAM nội (P4 còn ~120 KB).
+- Điều kiện: camera phải NHÌN THẤY người (hiện đang ngửa lên mái nhà); phòng tối hẳn thì OV02C10 (không hồng ngoại) không thấy.
