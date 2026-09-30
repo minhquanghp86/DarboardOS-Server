@@ -140,8 +140,14 @@ export type AdaptiveSample = {
 
 /** Tồn đọng tối thiểu (cả đầu lẫn cuối cửa sổ) để coi là đang nghẽn. */
 export const LINK_CONGESTED_BYTES = 32_768;
-/** Hệ số tự nâng ước lượng băng thông mỗi tick không nghẽn (dò dần như TCP). */
-export const LINK_PROBE_UP = 1.05;
+/** Hệ số tự nâng ước lượng băng thông mỗi tick không nghẽn (dò dần như TCP).
+ * (30/09/2026) 1.05 -> 1.15: do that tren P4 — mot cu nghen ngan luc chuyen tab keo uoc luong con 397 KB/s (thuc te
+ * vua chay on 860 KB/s), san nhip bi giu 150-190 ms (5-6 khung/s) HON MOT PHUT vi moi 5 s chi nang 5%. 15%: gap doi
+ * sau ~25 s; neu duong truyen yeu that, lan nghen ke tiep keo xuong lai. */
+export const LINK_PROBE_UP = 1.15;
+/** (30/09/2026) Moi lan do luc nghen, uoc luong giam toi da 40%: mot cu don vai giay (khung day du luc chuyen tab,
+ * thiet bi dang ban) khong duoc lam "mat" nua bang thong. Duong truyen yeu that thi vai lan do lien tiep van keo xuong. */
+export const LINK_MAX_DROP = 0.6;
 
 export type LinkEstimate = {
   lastAt: number;
@@ -172,7 +178,7 @@ export function updateLinkEstimate(
   const drained = Math.max(0, ((sent - backlog) - (prev.lastSent - prev.lastBacklog)) / dt);
   let cap = prev.capacityBytesPerSec;
   if (prev.lastBacklog > LINK_CONGESTED_BYTES && backlog > LINK_CONGESTED_BYTES) {
-    cap = cap != null ? Math.round(0.5 * cap + 0.5 * drained) : Math.round(drained);
+    cap = cap != null ? Math.max(Math.round(LINK_MAX_DROP * cap), Math.round(0.5 * cap + 0.5 * drained)) : Math.round(drained);
   } else if (cap != null && drained > cap) {
     cap = Math.round(drained);   // duong truyen vua chung minh chiu duoc nhieu hon
   } else if (cap != null && backlog < LINK_CONGESTED_BYTES) {
@@ -294,8 +300,11 @@ export function decideAdaptive(
       // (24/09/2026) Biet bang thong thi nhay THANG toi nhip duong truyen chiu duoc,
       // thay vi nhan doi mu (182 -> 364 -> 400 trong khi chi can ~250).
       const bwFloor = bandwidthFloorMs(sample, cfg);
+      // (30/09/2026) Nhung KHONG qua gap doi moi buoc: do that tren P4, uoc luong bang thong do sai dung luc nghen ->
+      // nhay 50 -> 400 ms (2,5 khung/s) trong mot buoc, roi mat hon mot phut moi hoi phuc — nguoi dung thay "video giat".
       out.minFrameIntervalMs = bwFloor > out.minFrameIntervalMs
-        ? Math.min(cfg.maxIntervalMs, Math.max(bwFloor, out.minFrameIntervalMs + cfg.intervalStepMs))
+        ? Math.min(cfg.maxIntervalMs, backoffInterval(out.minFrameIntervalMs, cfg),
+            Math.max(bwFloor, out.minFrameIntervalMs + cfg.intervalStepMs))
         : backoffInterval(out.minFrameIntervalMs, cfg);
       out.lastReason = `ton dong ${sample.backlogBytes}B > ${cfg.maxBacklogBytes}B → giãn nhịp còn ${out.minFrameIntervalMs}ms`;
     } else if (out.quality > cfg.minQuality) {

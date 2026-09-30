@@ -322,6 +322,25 @@ describe("GĐ3 - ước lượng đường truyền", () => {
     expect(r.state.probeFloorMs).toBe(182);
   });
 
+  it("tồn đọng lúc nhịp nhanh + ước lượng băng thông thấp -> giãn tối đa gấp đôi, không nhảy thẳng 400 ms (P4 30/09)", () => {
+    // Log that: "ton dong 333341B -> gian nhip con 400ms" tu 50 ms trong MOT buoc -> 2,5 khung/s hon mot phut.
+    const s = { decodeMs: 15, bytesPerSec: 0, frameErrors: 0, backlogBytes: 333_341,
+      capacityBytesPerSec: 120_000, recentFrameBytes: 37_000 };
+    expect(bandwidthFloorMs(s, cfg)).toBe(400);
+    const st = { ...initialAdaptiveState(40, 33, t0), minFrameIntervalMs: 50 };
+    expect(decideAdaptive(s, st, cfg, t0 + 60_000).state.minFrameIntervalMs).toBe(100);
+  });
+
+  it("một cú nghẽn ngắn mất tối đa 40% ước lượng băng thông, không nghẽn thì hồi lại trong ~20 s", () => {
+    const l0: LinkEstimate = { lastAt: t0, lastSent: 0, lastBacklog: 2 * LINK_CONGESTED_BYTES, lastFrames: 0, capacityBytesPerSec: 900_000 };
+    const l1 = updateLinkEstimate(l0, 250_000, 2 * LINK_CONGESTED_BYTES, 10, t0 + 5_000);   // chi thoat 50 KB/s luc don
+    expect(l1.capacityBytesPerSec).toBe(540_000);                                              // cu: 475_000
+    let l: LinkEstimate = { ...l1, lastBacklog: 0 };
+    let now = t0 + 5_000;
+    for (let i = 0; i < 4; i++) { now += 5_000; l = updateLinkEstimate(l, l.lastSent + 2_500_000, 0, l.lastFrames + 100, now); }
+    expect(l.capacityBytesPerSec).toBeGreaterThan(900_000);
+  });
+
   it("hồi phục rút NỬA khoảng cách về sàn, và dừng đúng ở sàn băng thông", () => {
     let st: AdaptiveState = { ...initialAdaptiveState(55, 33, t0), minFrameIntervalMs: 400 };
     const s = { decodeMs: 30, bytesPerSec: 0, frameErrors: 0, backlogBytes: 0,

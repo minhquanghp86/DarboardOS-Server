@@ -1,3 +1,12 @@
+## V2.9.66
+### Sửa video tụt còn vài khung/giây hơn một phút sau khi chuyển ứng dụng
+
+- Đo thật trên P4: quay lại YouTube → một cú dồn dữ liệu vài giây → bộ điều tiết giãn nhịp **50 → 400 ms** (2,5
+  khung/giây) trong một bước, và ước lượng băng thông WiFi rớt còn 397 KB/s (thực tế đường truyền vừa chạy ổn
+  ~860 KB/s). Sau đó chỉ tự nâng 5% mỗi 5 giây → video giật như trình chiếu hơn một phút.
+- Nay: mỗi bước giãn nhịp tối đa gấp đôi; một lần đo lúc nghẽn làm ước lượng giảm tối đa 40%; không nghẽn thì tự nâng
+  15% mỗi 5 giây (gấp đôi sau ~25 giây). Đường truyền yếu thật thì các lần đo sau vẫn kéo xuống như cũ.
+
 ## V2.9.65
 ### Đóng băng tab nền — sửa cho có tác dụng thật
 
