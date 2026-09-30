@@ -98,3 +98,16 @@ JPEG 1024×600 như addon, 30 s:
   động (bật màn, giữ màn sáng, báo server) chuyển sang cảm biến này.
 - **Không có Frigate**: thực thể HA không tồn tại → nguồn đó luôn "tắt", hai nguồn trên chip vẫn đủ.
 - Kiểm chứng: giả trạng thái Frigate = on qua API HA → `Có người` bật ngay; off → tắt sau đúng ~10 s.
+
+### Đề xuất 7 (phần 1: YouTube thường chỉ H.264) — XONG 30/09 (server 2.9.70)
+- Tab YouTube/Nhạc tiêm cùng script giới hạn codec như YouTube TV (≤720p, ≤30 hình/s). Kiểm chứng trong tab panel:
+  `MediaSource.isTypeSupported(av01/vp09)` = false, trình phát dùng `avc1` (trước: `av01`).
+- Đo A/B sạch (Chrome riêng cổng 9333 trong container, video pAnTNJaVhcs 480p, chỉ đo khi hết quảng cáo, luân phiên
+  2 lượt × 30 s): AV1 (Dav1d) **81% / 80%** CPU Chrome, bỏ 8 / 6 khung; H.264 (FFmpeg) **76% / 73%**, bỏ 3 / 4 khung.
+  → Giảm ~6–9% một lõi — có lợi nhưng nhỏ; nút thắt chính vẫn là khâu xử lý ảnh của server (Node ~80–120% khi phát).
+- Đo trên panel bị nhiễu quảng cáo (YouTube chèn quảng cáo giữa lượt đo) — không dùng làm số so sánh.
+- Bài học quy trình: addon lấy mã từ image `chrome-h264` do GitHub Actions build → PHẢI chờ digest ghcr đổi rồi mới
+  update/rebuild (lần đầu cập nhật sớm, addon báo 2.9.70 nhưng chạy mã 2.9.69).
+- Về iGPU và Frigate: Chrome headless báo `video_decode=disabled_software` và 0 codec phần cứng ngay cả khi `vainfo`
+  trong container thấy H.264/VP9 trên iGPU (đang được Frigate dùng) — giới hạn nằm ở Chrome headless (Ozone headless
+  không dùng VA-API), không phải do Frigate chiếm iGPU.
