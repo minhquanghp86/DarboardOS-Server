@@ -34,10 +34,16 @@ import type WebSocket from 'ws';
 const WS_PORT   = env.get("WS_PORT").default("8081").asIntPositive();
 const HEALTH_PORT = env.get("HEALTH_PORT").default("18080").asIntPositive();
 
-const wss = new WebSocketServer({ port: WS_PORT, perMessageDeflate: false });
 const inputRouter = new InputRouter();
 
 await bootstrapAsync();
+
+// (30/09/2026) SUA LOI "man hinh ket noi nhung server khong biet": truoc day cong WS mo TRUOC `await bootstrapAsync()`
+// (khoi dong Chrome ~2,5 s) con handler 'connection' dang ky SAU do. Panel noi lai dung khoang nay: thu vien ws bat
+// tay xong, phat su kien 'connection' khi CHUA ai nghe -> mat; socket mo coi mai mai (panel bao WS Connected, server
+// 0 thiet bi, man hinh dung). Gap that 30/09 sau lan cap nhat 2.9.72: ca 3 man ket. Nay chi mo cong khi Chrome san
+// sang va handler duoc gan ngay trong cung nhip (khong con await nao o giua).
+const wss = new WebSocketServer({ port: WS_PORT, perMessageDeflate: false });
 
 // ── Helper: route một message đã có dev ─────────────────────────────────────
 function routeMessage(dev: DeviceSession, buf: Buffer): void {
