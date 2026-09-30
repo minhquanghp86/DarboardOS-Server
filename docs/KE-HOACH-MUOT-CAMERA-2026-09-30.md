@@ -68,8 +68,9 @@ Mỗi bước: làm → đo lại (đo ngắn ~60–90 s) → báo người dùn
 ### E. Dọn nhánh
 - Khi A–C ổn: merge `claude/two-repo-research-3ulwjd` vào `main` repo client, đổi YAML HASS về `ref: main` (hoặc tag ổn định), chốt Bản Ổn định mới (có hỏi người dùng).
 
-## 3. Cần người dùng quyết định
-1. Gỡ luôn AEC (`mic_aec`) khỏi YAML?
-2. Có đồng ý để addon đóng băng tab nền (trừ nhạc/radio)?
-3. Khi đo YouTube TV: bạn bấm truyền một video từ điện thoại lúc tôi báo.
-4. Có xem xét giảm RAM của Frigate không?
+## 3. Quyết định của người dùng (30/09/2026)
+1. **Gỡ luôn AEC** (`mic_aec`) khỏi YAML P4 (giữ mã component trong repo).
+2. **Đồng ý đóng băng tab nền** (trừ tab đang phát nhạc/radio nền); tab camera dừng luồng khi rời.
+3. **Không đụng tới Frigate** — mục D chỉ tối ưu trong phạm vi addon + firmware.
+4. Thứ tự: **C (làm mượt server) → A (gỡ trợ lý + AEC) → B (camera)**.
+5. Đo YouTube TV: người dùng bấm truyền từ điện thoại khi được báo.
