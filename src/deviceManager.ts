@@ -234,6 +234,8 @@ interface Tab {
   audioAllowed: boolean;
   /** (26/09/2026) Trang tu bao dang phat <audio>/<video> (buildAudioGuardScript -> {media}), reset moi lan dieu huong. */
   mediaPlaying: boolean;
+  /** (01/10/2026) Luc ngung phat gan nhat — xem SAVER_MEDIA_GRACE_MS. */
+  mediaStoppedMs?: number;
   /** Trang da bao trang thai phat it nhat mot lan tu lan dieu huong gan nhat (chua bao -> chinh sach don than trong). */
   mediaKnown: boolean;
   lastUsed: number;
@@ -2039,6 +2041,7 @@ async function showRecents(dev: DeviceSession, open: boolean): Promise<void> {
 /** (26/09/2026) Trang cua tab bao bat dau/ngung phat. Doi trang thai -> cap nhat the "Dang phat" tren man hinh. */
 function onTabMedia(dev: DeviceSession, tab: Tab, playing: boolean): void {
   const changed = tab.mediaPlaying !== playing || !tab.mediaKnown;
+  if (tab.mediaPlaying && !playing) tab.mediaStoppedMs = Date.now();
   tab.mediaPlaying = playing;
   tab.mediaKnown = true;
   if (!changed) return;
@@ -3034,6 +3037,7 @@ export function screensaverTick(): void {
         // (30/09/2026) Dang truyen tu dien thoai: giua hai video giao dien TV dung yen, nguoi dung cam dien thoai
         // (khong cham panel) -> truoc day man hinh cho hien de len YouTube TV (log that).
         (tab.kind === 'yttv' && !!d.castUrl),
+      mediaStoppedMs: tab.mediaStoppedMs,
       backlightOn: d.devState ? d.devState.backlightOn : null, shown: d.saverOn,
     })) continue;
     setSaver(d, true);

@@ -1,3 +1,11 @@
+## V2.9.86
+### Sửa: màn hình chờ hiện đè lên video đang phát
+
+- Log thật P4 01/10: YouTube báo "tạm dừng" thoáng qua (nạp đệm, đổi chất lượng) → quá 2 phút không chạm thì màn hình
+  chờ hiện ngay, 3–6 s sau tắt, lặp lại mỗi vài phút trong lúc video vẫn chạy.
+- Tab phải ngừng phát **liên tục 30 s** mới được hiện màn hình chờ. Áp dụng như nhau cho **P4 và S3** (không phụ thuộc
+  firmware).
+
 ## V2.9.85
 ### Sửa: P4 đứng hình khi WiFi yếu lúc xem YouTube
 
