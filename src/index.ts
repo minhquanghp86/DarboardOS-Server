@@ -306,7 +306,7 @@ setInterval(refreshScreenNames, 5 * 60_000);
 setChatHooks({
   screens: () => connectedScreens().map((s) => {
     if (!screenNames.has(s.id)) refreshScreenNames();
-    return { ...s, name: screenNames.get(s.id) || `Màn hình ${s.w}×${s.h}`, online: true };
+    return { ...s, name: screenNames.get(s.id) || '', online: true };  // '' = chua co ten HA -> chat.ts dung ten da luu
   }),
   notify: (device, title, message, conv) => { postNotify({ device, title, message, priority: 'high', app: 'chat', arg: conv }); },
   chatActive: (device) => isAppShowing(device, 'chat'),

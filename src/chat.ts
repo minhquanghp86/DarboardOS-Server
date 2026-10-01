@@ -196,6 +196,8 @@ function screens(): ScreenInfo[] {
   let changed = false;
   for (const s of live) {
     const k = known.get(s.id);
+    // Ten HA chua tai xong (vua khoi dong): giu ten da luu, khong co thi tam goi theo co man hinh.
+    if (!s.name) s.name = k?.name || `Màn hình ${s.w}×${s.h}`;
     if (!k || k.name !== s.name || k.w !== s.w || k.cam !== s.cam) changed = true;
     known.set(s.id, s);
   }
