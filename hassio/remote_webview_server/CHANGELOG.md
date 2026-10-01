@@ -1,3 +1,19 @@
+## V2.9.89
+### Bàn phím ảo: chạm ra ngoài không còn bị nuốt; ảnh màn hình chờ kéo theo "Màn hình chờ"; tab nền đóng băng chắc chắn
+
+Áp dụng như nhau cho **P4 và cả hai S3** (chỉ server).
+
+- **Bàn phím ảo**: đang gõ mà chạm ra ngoài (vd **dòng gợi ý tìm kiếm YouTube**) trước đây không có tác dụng — bàn phím
+  ẩn và bỏ focus ô nhập ngay (YouTube đóng danh sách gợi ý) rồi chặn mọi sự kiện 400 ms, nuốt luôn cú chạm đó. Nay chạm
+  ngoài chỉ ẩn bàn phím, cú chạm đi tiếp; bỏ focus sau 350 ms. Nút ▼/Enter của bàn phím vẫn chặn như cũ.
+- **Cài đặt → "Màn hình chờ hiện ảnh"**: bật → tự bật *No Sleep* ("Màn hình chờ", màn luôn sáng để hiện khung ảnh); tắt
+  → tự tắt. Chỉ tác động lúc gạt (qua Home Assistant — chạy cả firmware S3).
+- **Đóng băng tab nền**: mỗi lệnh gửi Chrome có hạn 3 s — trước đây một lệnh không trả lời làm cả chuỗi treo im lặng,
+  tab nền vẫn chạy (log lỗi nay hiện rõ).
+- **Sau khi thiết bị nối lại** (khởi động lại / OTA): bỏ đỉnh tồn đọng + ước lượng băng thông của socket cũ. Đo 01/10:
+  P4 nối lại, nhịp kế tiếp đọc tồn đọng 1,66 MB của socket đã chết → YouTube 7,7 hình/giây, ~5 phút mới về bình thường.
+- Dọn: bỏ file `src/deviceManager.ts.backup` khỏi repo.
+
 ## V2.9.88
 ### Rà soát 01/10
 
