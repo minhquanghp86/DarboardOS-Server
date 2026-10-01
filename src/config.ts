@@ -39,6 +39,9 @@ export type DeviceConfig = {
   // (30/09/2026) ?half=2: nhu half=1 VA thiet bi MUON khung nua cho MOI video (S3: giai ma JPEG phan mem ~60 ms/khung
   // 480x480 -> YouTube ~2 fps; nua do phan giai = 1/4 diem anh, phong x2 bang phan mem). Co dinh theo firmware.
   halfVideo: boolean;
+  // (01/10/2026) ?cam=<cong>: firmware co ung dung Camera (cam_app, chi P4). 0 = khong co -> an ung dung Camera. Co dinh
+  // theo firmware, KHONG dua vao deviceConfigsEqual().
+  camPort: number;
   // (25/09/2026) Thiet bi co trigger on_url_entered (bao ?urlset=1): URL nguoi dung nhap o nut mo rong duoc GUI
   // cho thiet bi (SetDisplayURL) de no tu dat "URL hien thi" roi mo trang. Khong co -> server tu mo trang.
   // Co dinh theo firmware, KHONG dua vao deviceConfigsEqual() (giong halfScale).
@@ -151,6 +154,7 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
   const audioEnabled = params.get("audio") === "1";
   const halfScale = params.get("half") === "1" || params.get("half") === "2";
   const halfVideo = params.get("half") === "2";
+  const camPort = Math.max(0, Math.min(65535, parseInt(params.get("cam") || "0", 10) || 0));
   const urlSet = params.get("urlset") === "1";
   const fbBands = params.get("fb") === "1";
   const devControl = params.get("ctl") === "1";
@@ -174,6 +178,7 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
     audioEnabled,
     halfScale,
     halfVideo,
+    camPort,
     urlSet,
     fbBands,
     devControl,

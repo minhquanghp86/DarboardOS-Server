@@ -14,6 +14,7 @@ import env from "env-var";
 import { makeConfigFromParams, setConfigFor, logDeviceConfig } from "./config.js";
 import { reloadAllLaunchers, broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick, refreshDisplaysTick, markInteraction, screensaverTick, postNotify, repaintRect, onDeviceStatePacket, onDeviceEvent, anyTzOffset, postDoorbell, closeDoorbell, unlockDoorbell, dialHooks, YT_TV_URL, hostMem, pipelineStats } from './deviceManager.js';
 import type { DeviceSession } from './deviceManager.js';
+import { handleCamProxy, noteCameraHost } from './camProxy.js';
 import { InputRouter } from "./inputRouter.js";
 import { bootstrapAsync } from './browser.js';
 import { subscribeDeviceAudio, unsubscribeDeviceAudio } from './audioCapture.js';
@@ -92,6 +93,7 @@ wss.on("connection", async (ws, req) => {
   logDeviceConfig(id, cfg);
 
   broadcaster.addClient(id, ws);
+  noteCameraHost(id, req.socket.remoteAddress, cfg.camPort);
 
   // (23/09/2026) Dang ky nhan audio NGAY, khong doi ensureDeviceAsync — viec
   // bat/phat am thanh doc lap hoan toan voi Chromium target cua tung thiet
@@ -173,7 +175,10 @@ for (const name of STATIC_PAGES) {
 }
 
 http.createServer((req, res) => {
-  const pathname = new URL(req.url || "/", `http://localhost:${HEALTH_PORT}`).pathname;
+  const reqUrl = new URL(req.url || "/", `http://localhost:${HEALTH_PORT}`);
+  const pathname = reqUrl.pathname;
+  // (01/10/2026) Ung dung Camera: chuyen tiep toi cam_app cua panel co camera (src/camProxy.ts).
+  if (handleCamProxy(req, res, pathname, reqUrl.search)) return;
 
   // (14/09/2026) /metrics: số liệu thật để đo hiệu năng (GĐ0)
   if (pathname.startsWith('/metrics')) {

@@ -1649,8 +1649,8 @@ async function reloadLauncherTab(device: DeviceSession, tab: Tab): Promise<boole
   }
 }
 
-function homeLayoutFor(homeUrl: string | undefined): HomeLayout {
-  return resolveLayout(getLauncherConfig().home, buildLauncherApps(homeUrl).map((a) => a.id));
+function homeLayoutFor(homeUrl: string | undefined, hasCamera = true): HomeLayout {
+  return resolveLayout(getLauncherConfig().home, buildLauncherApps(homeUrl, hasCamera).map((a) => a.id));
 }
 
 /**
@@ -1661,7 +1661,7 @@ function homeLayoutFor(homeUrl: string | undefined): HomeLayout {
 async function applyHomeLayout(except?: DeviceSession): Promise<void> {
   for (const dev of devices.values()) {
     const src = buildLauncherScript(dev.cfg.homeUrl, dev.cfg);
-    const layout = JSON.stringify(homeLayoutFor(dev.cfg.homeUrl));
+    const layout = JSON.stringify(homeLayoutFor(dev.cfg.homeUrl, dev.cfg.camPort > 0));
     for (const tab of dev.tabs.values()) {
       try {
         if (tab.launcherScriptId) await tab.session.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: tab.launcherScriptId });
@@ -1715,9 +1715,10 @@ function shellMotion(cfg: DeviceConfig | undefined): 'full' | 'reduced' | 'minim
  * dong goi bang esbuild thanh dist/shell.bundle.js). Thay launcher popup cu (chuoi JS ~500 dong trong file nay).
  */
 export function buildLauncherScript(homeUrl: string | undefined, devCfg?: DeviceConfig): string {
+  const hasCamera = !devCfg || devCfg.camPort > 0;
   const cfg = {
-    apps: buildLauncherApps(homeUrl),
-    home: homeLayoutFor(homeUrl),
+    apps: buildLauncherApps(homeUrl, hasCamera),
+    home: homeLayoutFor(homeUrl, hasCamera),
     groups: Object.entries(GROUP_TITLES),
     motion: shellMotion(devCfg),
     urls: {
@@ -2588,13 +2589,16 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
       // OTA xong, phien duoc tao boi firmware CU (khong co half=1); firmware moi noi lai roi vao day va
       // halfScale ket o false vinh vien. Cung loai loi voi homeUrl ben duoi. Hai co nay khong can dung lai
       // gi (khong script/target nao phu thuoc) nen chi can gan lai.
-      if (device.cfg.halfScale !== cfg.halfScale || device.cfg.halfVideo !== cfg.halfVideo || device.cfg.audioEnabled !== cfg.audioEnabled ||
+      if (device.cfg.halfScale !== cfg.halfScale || device.cfg.halfVideo !== cfg.halfVideo || device.cfg.camPort !== cfg.camPort || device.cfg.audioEnabled !== cfg.audioEnabled ||
           device.cfg.urlSet !== cfg.urlSet || device.cfg.fbBands !== cfg.fbBands ||
           device.cfg.devControl !== cfg.devControl || device.cfg.voice !== cfg.voice) {
-        console.log(`[device] ${id}: cap nhat co firmware half=${cfg.halfScale}${cfg.halfVideo ? "(video)" : ""} audio=${cfg.audioEnabled} urlset=${cfg.urlSet} fb=${cfg.fbBands}`);
-        device.cfg = { ...device.cfg, halfScale: cfg.halfScale, halfVideo: cfg.halfVideo, audioEnabled: cfg.audioEnabled, urlSet: cfg.urlSet,
+        console.log(`[device] ${id}: cap nhat co firmware half=${cfg.halfScale}${cfg.halfVideo ? "(video)" : ""} cam=${cfg.camPort} audio=${cfg.audioEnabled} urlset=${cfg.urlSet} fb=${cfg.fbBands}`);
+        const camChanged = device.cfg.camPort !== cfg.camPort;
+        device.cfg = { ...device.cfg, halfScale: cfg.halfScale, halfVideo: cfg.halfVideo, camPort: cfg.camPort, audioEnabled: cfg.audioEnabled, urlSet: cfg.urlSet,
                        fbBands: cfg.fbBands, devControl: cfg.devControl, voice: cfg.voice };
         device.processor.setBandSplit(cfg.fbBands);
+        // (01/10/2026) Firmware moi co / het ung dung Camera: dung lai launcher (hien / an bieu tuong Camera).
+        if (camChanged) reloadAllLaunchers().catch(() => { });
       }
 
       // (23/09/2026 v3) homeUrl KHONG nam trong deviceConfigsEqual() (co y —
