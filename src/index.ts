@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url';
 import { WebSocketServer } from "ws"
 import env from "env-var";
 import { makeConfigFromParams, setConfigFor, logDeviceConfig } from "./config.js";
-import { broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick, refreshDisplaysTick, markInteraction, screensaverTick, postNotify, repaintRect, onDeviceStatePacket, onDeviceEvent, anyTzOffset, postDoorbell, closeDoorbell, unlockDoorbell, dialHooks, YT_TV_URL, hostMem, pipelineStats } from './deviceManager.js';
+import { reloadAllLaunchers, broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick, refreshDisplaysTick, markInteraction, screensaverTick, postNotify, repaintRect, onDeviceStatePacket, onDeviceEvent, anyTzOffset, postDoorbell, closeDoorbell, unlockDoorbell, dialHooks, YT_TV_URL, hostMem, pipelineStats } from './deviceManager.js';
 import type { DeviceSession } from './deviceManager.js';
 import { InputRouter } from "./inputRouter.js";
 import { bootstrapAsync } from './browser.js';
@@ -286,7 +286,10 @@ if (!['0', 'false'].includes(process.env.CAST_ENABLED ?? '')) {
   });
 }
 startDebugProxy();
-ensureMdiIcons().catch(() => { });  // bieu tuong MDI cua cau hinh cu (neu bo dem bi mat)
+// bieu tuong MDI cua cau hinh cu (neu bo dem bi mat) + bieu tuong mac dinh cua ung dung co san. (01/10/2026) Tai xong ma co
+// bieu tuong moi -> nap lai launcher tren cac tab dang mo: man hinh noi lai NGAY khi khoi dong nhan cau hinh truoc khi tai
+// xong (do 01/10: 4 ung dung tien ich thieu bieu tuong toi lan nap trang sau).
+ensureMdiIcons().then((changed) => { if (changed) return reloadAllLaunchers(); }).catch(() => { });
 // (14/09/2026) GD2: 30s/lan xin so lieu decode tu cac thiet bi -> /metrics
 // (17/09/2026) 30s -> 10s. Sau khi ha tick dieu tiet ve 5s, chinh chu ky XIN
 // SO LIEU nay tro thanh thu chan toc do phan ung: vong dieu khien chay 5s/lan
