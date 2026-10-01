@@ -1,3 +1,16 @@
+## V2.9.93
+### Ứng dụng Camera (P4), Frigate, Google Maps, YouTube Music; sửa màn hình chờ S3
+
+- **Camera** (chỉ màn có camera — P4, firmware `fw-2026.10.01c`): xem trực tiếp, chụp ảnh 1920×1080, quay video `.mkv` lưu
+  thẻ SD của panel, thư viện xem/xoá. Chưa cắm thẻ: vẫn chụp, ảnh chỉ xem tạm. Lệnh đi qua `/api/cam/*` (chỉ nhận từ chính
+  panel, chuyển tới đúng IP của màn đã báo `?cam=`). Màn không có camera (S3): không hiện ứng dụng/nút Camera.
+- **Frigate** (trước là "Camera nhà", logo Frigate lấy từ chính add-on Frigate). Thanh trạng thái: nút **Camera** (P4) +
+  **Frigate**.
+- **Google Maps** (trước là "Giao thông", biểu tượng Google Maps), **YouTube Music** (trước là "Nhạc").
+- Màn hình chờ S3 480×480 không hiện khi bật "Màn hình chờ": firmware S3 báo sai trạng thái đèn nền — sửa ở YAML S3
+  (`fw-2026.10.01c`); server không đổi.
+- Gồm cả 2.9.92 (tự nạp lại tab khi renderer chết).
+
 ## V2.9.92
 ### Sửa: cả 3 màn đen khi máy chủ hết RAM (P4 + S3)
 

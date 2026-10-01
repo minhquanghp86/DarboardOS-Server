@@ -206,6 +206,12 @@ rest_command:
   **"Ảnh màn hình chờ"** (màn hình chờ hiện khung ảnh). Gạt "Ảnh màn hình chờ" trên HA hay mục *Màn hình chờ hiện ảnh*
   trong Cài đặt trên màn đều như nhau, và kéo theo "Màn hình chờ" (bật ảnh → bật, tắt ảnh → tắt).
 
+### Ứng dụng Camera (2.9.93, chỉ P4)
+
+- Mở từ menu hoặc nút **Camera** trên thanh trạng thái: hình trực tiếp, nút chụp (chế độ ẢNH) / quay (chế độ VIDEO), ô
+  **Thư viện** (xem, phát, xoá — chạm *Xoá* hai lần để xác nhận). Ảnh 1920×1080, video H.264 `.mkv` (không tiếng, tự dừng
+  sau 30 phút) lưu `DCIM/` trên thẻ SD của P4 (FAT32; cắm lúc nào cũng được, tự nhận). Ứng dụng **Frigate** là lưới camera nhà.
+
 ### Tiện ích web (2.9.91)
 
 - Giải trí: **VTVgo** (lần đầu bấm *Đồng ý & tiếp tục* điều khoản), **Zing MP3**, **NhacCuaTui** (phát nền như Nhạc/Radio).
