@@ -33,8 +33,13 @@ interface DevState {
   va?: boolean;
   /** (30/09/2026) Select "Nguon phat hien nguoi" cua thiet bi (chi P4 co). Server < 2.9.81 khong gui. */
   ps?: { v: string; o: string[] } | null;
+  /** (02/10/2026) CHUA XEM tren chinh man hinh nay: cu = tin nhan chua doc, nu = thong bao thuong. Server < 2.9.94 khong gui. */
+  cu?: number;
+  nu?: number;
 }
-interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'critical'; ts: number; img: string | null; act: boolean }
+/** s = da xem tren man hinh nay; k = loai (chat = tin nhan, nt = thong bao thuong). Server < 2.9.94 khong gui. */
+interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'critical'; ts: number; img: string | null; act: boolean;
+  s?: boolean; k?: 'chat' | 'nt' }
 
 (function () {
   if (window.__rwvShell) return;
@@ -247,13 +252,21 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   }
   function noticeIcon(n: Notice, cls: string): HTMLElement {
     const box = el('div', cls + ' ' + n.p);
-    if (n.img) { const im = document.createElement('img'); im.alt = ''; im.src = n.img; im.addEventListener('error', () => { im.replaceWith(mdi('bell')); }); box.appendChild(im); }
-    else box.appendChild(mdi('bell'));
+    const ic = n.k === 'chat' ? 'message' : 'bell';
+    if (n.img) { const im = document.createElement('img'); im.alt = ''; im.src = n.img; im.addEventListener('error', () => { im.replaceWith(mdi(ic)); }); box.appendChild(im); }
+    else box.appendChild(mdi(ic));
     return box;
   }
+  // (02/10/2026) So CHUA XEM cua man hinh nay. Server cu (khong gui cu/nu): coi moi thong bao con lai la chua xem.
+  function unseenCounts(): { chat: number; nt: number } {
+    if (st && st.nu != null) return { chat: st.cu || 0, nt: st.nu };
+    return { chat: 0, nt: (st?.nt || []).length };
+  }
   function renderNotices(list: Notice[]) {
-    const sig = JSON.stringify(list.map((n) => n.id));
-    pill.classList.toggle('unread', list.length > 0);
+    const sig = JSON.stringify(list.map((n) => [n.id, !!n.s]));
+    const u = unseenCounts();
+    pill.classList.toggle('unread', u.chat + u.nt > 0);
+    renderChatBadge(u.chat);
     if (sig === ntSig) { ntBox.querySelectorAll<HTMLElement>('[data-ts]').forEach((e) => setText(e, ago(Number(e.dataset.ts)))); return; }
     ntSig = sig;
     ntBox.style.display = list.length ? '' : 'none';
@@ -261,7 +274,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     const clr = el('button', 'nt-clr', 'Xoá hết'); clr.addEventListener('click', (e) => { e.stopPropagation(); sendControl({ ntClear: 1 }); });
     head.appendChild(clr);
     const rows = list.slice(0, 4).map((n) => {
-      const row = el('div', 'nt-row');
+      const row = el('div', 'nt-row' + (n.s === false ? ' new' : ''));
       const txt = el('div', 'nt-txt'); const top = el('div', 'nt-top');
       const when = el('span', 'nt-ago', ago(n.ts)); when.dataset.ts = String(n.ts);
       top.append(el('span', 'nt-t', n.t || n.m), when);
@@ -292,7 +305,11 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     scrim.classList.toggle('on', shadeVisible > 0);
     pillChev.style.transform = shadeVisible > 0 ? 'translateX(-50%) rotate(180deg)' : 'translateX(-50%)';
   }
-  function openShade(animate: boolean) { hideToast(); tick(); setVisible(fullH(), animate); if (st?.ps) sendControl({ ps: 'get' }); }
+  function openShade(animate: boolean) {
+    hideToast(); tick(); setVisible(fullH(), animate); if (st?.ps) sendControl({ ps: 'get' });
+    // (02/10/2026) Nhin thay danh sach = DA XEM thong bao thuong tren man hinh nay (tin nhan: phai doc trong Tin nhan).
+    if ((st?.nt || []).some((n) => n.s === false && n.k !== 'chat')) sendControl({ ntSeen: 1 });
+  }
   function closeShade(animate: boolean) { setVisible(0, animate); }
   scrim.addEventListener('click', (e) => { e.stopPropagation(); closeShade(true); });
   // Vuot len tren nen thanh (khong tren nut/thanh truot) -> dong
@@ -520,7 +537,8 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     saverEl = el('div', 'saver'); svBox = el('div', 'sv-box');
     svClock = el('div', 'sv-clock'); svDate = el('div', 'sv-date'); svWx = el('div', 'sv-wx');
     svCap = el('div', 'sv-cap');
-    svBox.append(svClock, svDate, svWx, svCap);
+    svBadges = el('div', 'sv-bdg'); svBdgSig = '';
+    svBox.append(svClock, svDate, svWx, svBadges, svCap);
     svPh = [el('div', 'sv-ph'), el('div', 'sv-ph')]; svTop = 0;
     saverEl.append(svPh[0], svPh[1], svBox);
     if (CFG.motion === 'full') saverEl.classList.add('anim');
@@ -546,9 +564,42 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     svShiftMin = -1; svWxSig = '';
     updateSaver();
   }
+  // (02/10/2026) Man hinh cho: "2 tin nhắn · 1 thông báo" CHUA XEM tren chinh man hinh nay. Cham tin nhan -> mo Tin nhan,
+  // cham thong bao -> mo thanh keo xuong. Chi doi DOM khi so dem doi (moi khung ve lai la bang thong WiFi).
+  let svBadges: HTMLElement, svBdgSig = '';
+  function renderSaverBadges(): void {
+    if (!saverEl) return;
+    const u = unseenCounts();
+    const sig = u.chat + '|' + u.nt;
+    if (sig === svBdgSig) return;
+    svBdgSig = sig;
+    const chip = (icon: string, text: string, go: () => void) => {
+      const c = el('button', 'sv-b'); c.append(mdi(icon), el('span', '', text));
+      c.addEventListener('pointerdown', (e) => e.stopPropagation());
+      c.addEventListener('click', (e) => { e.stopPropagation(); screensaver(false); sendControl({ wake: 1 }); go(); });
+      return c;
+    };
+    const out: HTMLElement[] = [];
+    if (u.chat) out.push(chip('message', u.chat + ' tin nhắn', () => { if (hasApp('chat')) openApp('chat'); else openShade(true); }));
+    if (u.nt) out.push(chip('bell', u.nt + ' thông báo', () => openShade(true)));
+    svBadges.replaceChildren(...out);
+  }
+  // Bieu tuong Tin nhan o man hinh chinh / dock: huy hieu so tin chua doc (style dong trong shadow — song qua moi lan ve lai).
+  // (khong dung bien let/const o day: renderNotices co the chay truoc dong nay -> TDZ; luu tren chinh the style)
+  function renderChatBadge(n: number): void {
+    let sty = shadow.querySelector<HTMLStyleElement>('style.chat-bdg');
+    if (!sty) { sty = document.createElement('style'); sty.className = 'chat-bdg'; sty.dataset.n = '-1'; shadow.appendChild(sty); }
+    if (sty.dataset.n === String(n)) return;
+    sty.dataset.n = String(n);
+    sty.textContent = n > 0 ? `.app[data-k="chat"] .app-ic{position:relative;overflow:visible}` +
+      `.app[data-k="chat"] .app-ic::after{content:"${n > 99 ? '99+' : n}";position:absolute;top:-4px;right:-6px;min-width:18px;height:18px;` +
+      `padding:0 5px;box-sizing:border-box;border-radius:9px;background:#ef4444;color:#fff;font:700 11px/18px "Be Vietnam Pro",Roboto,sans-serif;` +
+      `text-align:center;box-shadow:0 0 0 2px rgba(0,0,0,.35)}` : '';
+  }
   function updateSaver(): void {
     const t = deviceNow();
     if (!saverEl || !t) return;
+    renderSaverBadges();
     const h = t.getUTCHours(), m = t.getUTCMinutes();
     setText(svClock, pad2(h) + ':' + pad2(m));
     setText(svDate, dateText(t));

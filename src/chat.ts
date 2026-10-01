@@ -170,6 +170,8 @@ export interface ChatHooks {
   people(): Promise<{ userId: string; name: string; pic: string | null }[]>;
   /** Tai anh tu HA (duong /api/image/serve/... cua entity_picture). */
   haImage(path: string): Promise<Buffer | null>;
+  /** (02/10/2026) Sau moi thay doi: server cap nhat so tin chua doc tren man hinh (chuong, man hinh cho, bieu tuong). */
+  changed(): void;
 }
 let hooks: ChatHooks | null = null;
 export function setChatHooks(h: ChatHooks): void { hooks = h; }
@@ -189,7 +191,18 @@ chat.onChange = () => {
     catch (e) { console.warn('[chat] khong luu duoc:', (e as Error).message); }
   }, 300);
   for (const w of [...waiters]) w();
+  if (!changedT) changedT = setTimeout(() => { changedT = null; hooks?.changed(); }, 150);
 };
+let changedT: NodeJS.Timeout | null = null;
+
+/** (02/10/2026) Tin CHUA DOC cua mot man hinh: tong + theo cuoc tro chuyen (rieng tung man hinh — man nao doc man do het). */
+export function unreadForScreen(deviceId: string): { total: number; byConv: Record<string, number> } {
+  const me: Author = { side: 'screen', id: deviceId, name: '' };
+  const byConv: Record<string, number> = {};
+  let total = 0;
+  for (const c of chat.listFor(me)) { const n = chat.unread(c, me); if (n) { byConv[c.id] = n; total += n; } }
+  return { total, byConv };
+}
 chat.onOrphans = (files) => { for (const f of files) fs.promises.unlink(path.join(MEDIA, path.basename(f))).catch(() => { }); };
 
 // Man hinh da tung thay (ten tu HA) — van liet ke khi dang tat.
@@ -326,7 +339,9 @@ function afterSend(c: Conv, m: Msg): void {
   for (const id of screenRecipients(c, m.from)) {
     if (viewing.get(id)?.conv === c.id && Date.now() - (viewing.get(id)?.at ?? 0) < 40_000 && hooks?.chatActive(id)) continue;
     const pic = m.from.side === 'ha' && people.get(m.from.id)?.pic ? `${LOCAL_URL}/chat/avatar?u=${encodeURIComponent(m.from.id)}` : undefined;
-    hooks?.notify(id, title, preview(m), c.id, pic);
+    // Nhieu tin chua doc cung cuoc tro chuyen: mot thong bao "3 tin mới · <tin cuoi>" (bao cu duoc thay the).
+    const n = chat.unread(c, { side: 'screen', id, name: '' });
+    hooks?.notify(id, title, (n > 1 ? `${n} tin mới · ` : '') + preview(m), c.id, pic);
   }
   if (m.from.side === 'screen') {
     hooks?.haEvent({ conversation_id: c.id, conversation: convTitle(c), from: m.from.name, device_id: m.from.id, text: m.text ?? '', kind: m.media?.kind ?? 'text' });

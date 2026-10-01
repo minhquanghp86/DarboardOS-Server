@@ -27,7 +27,13 @@ export interface Notice {
   image?: string;
   /** (02/10/2026) Tham so cho ung dung `app` khi cham (vd id cuoc tro chuyen cua Tin nhan). */
   arg?: string;
+  /** (02/10/2026) Nguoi dung DA XEM tren chinh man hinh nay (cham the / mo thanh keo xuong). The noi tu hien khi khong
+   *  ai nhin KHONG tinh la da xem — cham bao (chuong) con cho toi khi co nguoi xem tren dung man hinh do. */
+  seen?: boolean;
 }
+
+/** Loai thong bao: tin nhan (ung dung Tin nhan) hay thong bao thuong (HA /notify, Bang tin...). */
+export const noticeKind = (n: Pick<Notice, 'app'>): 'chat' | 'nt' => (n.app === 'chat' ? 'chat' : 'nt');
 
 export interface NotifyRequest {
   title?: unknown; message?: unknown; priority?: unknown; device?: unknown; app?: unknown; url?: unknown;
@@ -78,17 +84,44 @@ export function shouldWake(n: Pick<Notice, 'priority'>, dnd: boolean): boolean {
 export class NoticeStore {
   private items: Notice[] = [];
   private nextId = 1;
+  /** (02/10/2026) Goi sau moi thay doi — server luu ra dia (thong bao chua xem con sau khi cap nhat addon). */
+  onChange: () => void = () => { };
   constructor(private max = 30) { }
 
   add(n: Omit<Notice, 'id' | 'ts'>, now = Date.now()): Notice {
+    // Cung ung dung + cung tham so (vd cung mot cuoc tro chuyen): thay the bao cu, khong chat dong.
+    if (n.app && n.arg) this.items = this.items.filter((x) => !(x.app === n.app && x.arg === n.arg));
     const full: Notice = { ...n, id: this.nextId++, ts: now };
     this.items.unshift(full);
     if (this.items.length > this.max) this.items.length = this.max;
+    this.onChange();
     return full;
   }
   get(id: number): Notice | undefined { return this.items.find((n) => n.id === id); }
-  remove(id: number): void { this.items = this.items.filter((n) => n.id !== id); }
-  clear(): void { this.items = []; }
+  remove(id: number): void { this.removeWhere((n) => n.id === id); }
+  clear(): void { if (this.items.length) { this.items = []; this.onChange(); } }
+  /** true = co thay doi. */
+  removeWhere(pred: (n: Notice) => boolean): boolean {
+    const before = this.items.length;
+    this.items = this.items.filter((n) => !pred(n));
+    if (this.items.length === before) return false;
+    this.onChange(); return true;
+  }
+  /** Danh dau DA XEM moi thong bao loai `kind` (mo thanh keo xuong: thong bao thuong). true = co thay doi. */
+  markSeen(kind: 'chat' | 'nt' | 'all' = 'all'): boolean {
+    let ch = false;
+    for (const n of this.items) if (!n.seen && (kind === 'all' || noticeKind(n) === kind)) { n.seen = true; ch = true; }
+    if (ch) this.onChange();
+    return ch;
+  }
+  unseen(kind: 'chat' | 'nt'): number { return this.items.filter((n) => !n.seen && noticeKind(n) === kind).length; }
+  /** Luu / nap (file /data). */
+  dump(): { next: number; items: Notice[] } { return { next: this.nextId, items: this.items }; }
+  restore(d: { next?: number; items?: Notice[] } | undefined): void {
+    if (!d || !Array.isArray(d.items)) return;
+    this.items = d.items.filter((n) => n && typeof n.id === 'number').slice(0, this.max);
+    this.nextId = Math.max(Number(d.next) || 1, ...this.items.map((n) => n.id + 1));
+  }
   /** `limit` muc moi nhat — gui xuong Shell (giu goi trang thai nho). */
   list(limit = 10): Notice[] { return this.items.slice(0, limit); }
   get size(): number { return this.items.length; }

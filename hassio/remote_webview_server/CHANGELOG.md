@@ -10,6 +10,11 @@
   chưa đặt ảnh -> chữ cái đầu trên nền màu riêng), màn hình hiện biểu tượng màn hình; tin gom nhóm theo người gửi như ứng
   dụng chat. Trên trang thanh bên, tin của người nhà KHÁC (cùng dùng HA) nằm bên trái kèm ảnh. Thẻ thông báo trên panel
   hiện ảnh người gửi.
+- **Đã xem riêng từng màn hình**: thông báo đến làm màn sáng + hiện thẻ nhưng CHƯA tính là đã xem. Chuông (chấm trên nút
+  kéo) và dòng **"2 tin nhắn · 1 thông báo"** trên **màn hình chờ** còn cho tới khi có người xem trên CHÍNH màn đó: chạm
+  thẻ, mở thanh kéo xuống (thông báo thường), đọc cuộc trò chuyện trong Tin nhắn (tin nhắn). Màn khác chưa xem vẫn còn
+  chuông. Chạm "tin nhắn" trên màn hình chờ mở thẳng Tin nhắn. Biểu tượng Tin nhắn có huy hiệu số tin chưa đọc. Nhiều
+  tin cùng cuộc trò chuyện gộp một thông báo ("3 tin mới · …"). Thông báo + trạng thái đã xem lưu qua cập nhật addon.
 - **Trang thanh bên** đổi tên "Menu panel" -> **Darboard**, hai thẻ: *Tin nhắn* (mặc định) và *Menu ứng dụng* (như cũ).
   Gửi ảnh/video bằng nút ghim, kéo thả hoặc dán; ảnh tự thu nhỏ (≤ 2048 px), video ≤ 200 MB tải lên từng đoạn có tiến độ.
 - **Thư viện** (P4): ảnh/video trong DCIM theo ngày, lọc Ảnh/Video, xem ảnh (vuốt, chạm đúp phóng to), trình phát video

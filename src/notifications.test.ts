@@ -46,3 +46,33 @@ describe("lich su thong bao", () => {
     expect(s.size).toBe(0);
   });
 });
+
+describe('NoticeStore — da xem rieng tung man hinh (02/10/2026)', () => {
+  it('mo thanh keo xuong chi danh dau thong bao thuong; tin nhan van chua xem', () => {
+    const s = new NoticeStore();
+    s.add({ title: 'Cua mo', message: '', priority: 'high' });
+    s.add({ title: 'Quang · Gia dinh', message: 'an com', priority: 'high', app: 'chat', arg: 'c1' });
+    expect(s.unseen('nt')).toBe(1); expect(s.unseen('chat')).toBe(1);
+    expect(s.markSeen('nt')).toBe(true);
+    expect(s.unseen('nt')).toBe(0); expect(s.unseen('chat')).toBe(1);
+    expect(s.size).toBe(2);  // da xem van con trong danh sach
+    expect(s.markSeen('nt')).toBe(false);
+  });
+  it('tin moi cung cuoc tro chuyen thay the bao cu (khong chat dong)', () => {
+    const s = new NoticeStore();
+    s.add({ title: 'A', message: '1', priority: 'high', app: 'chat', arg: 'c1' });
+    s.add({ title: 'A', message: '2 tin mới · 2', priority: 'high', app: 'chat', arg: 'c1' });
+    s.add({ title: 'B', message: 'x', priority: 'high', app: 'chat', arg: 'c2' });
+    expect(s.list().map((n) => n.message)).toEqual(['x', '2 tin mới · 2']);
+    expect(s.removeWhere((n) => n.arg === 'c1')).toBe(true);
+    expect(s.size).toBe(1);
+  });
+  it('luu / nap giu trang thai da xem va id tiep theo', () => {
+    const a = new NoticeStore(); let saved = 0; a.onChange = () => saved++;
+    a.add({ title: 'x', message: '', priority: 'normal' }); a.markSeen();
+    const b = new NoticeStore(); b.restore(JSON.parse(JSON.stringify(a.dump())));
+    expect(b.list()[0].seen).toBe(true);
+    expect(b.add({ title: 'y', message: '', priority: 'normal' }).id).toBe(2);
+    expect(saved).toBe(2);
+  });
+});

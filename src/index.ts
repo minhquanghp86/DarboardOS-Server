@@ -15,8 +15,8 @@ import { makeConfigFromParams, setConfigFor, logDeviceConfig } from "./config.js
 import { reloadAllLaunchers, broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick, refreshDisplaysTick, markInteraction, screensaverTick, postNotify, repaintRect, onDeviceStatePacket, onDeviceEvent, anyTzOffset, postDoorbell, closeDoorbell, unlockDoorbell, dialHooks, YT_TV_URL, hostMem, pipelineStats } from './deviceManager.js';
 import type { DeviceSession } from './deviceManager.js';
 import { camFetch, handleCamProxy, noteCameraHost } from './camProxy.js';
-import { handleChatApi, requestOpenConv, setChatHooks } from './chat.js';
-import { connectedScreens, isAppShowing, setNoticeArgHook } from './deviceManager.js';
+import { handleChatApi, requestOpenConv, setChatHooks, unreadForScreen } from './chat.js';
+import { chatChanged, connectedScreens, isAppShowing, setChatUnreadProvider, setNoticeArgHook } from './deviceManager.js';
 import { getRegistry, haFetch, haGetRaw } from './haSettings.js';
 import { findDeviceByMac, macFromDeviceId } from './settingsModel.js';
 import { InputRouter } from "./inputRouter.js";
@@ -317,12 +317,14 @@ setChatHooks({
       .map((s) => ({ userId: s.attributes!.user_id as string, name: String(s.attributes!.friendly_name || s.entity_id.slice(7)),
         pic: typeof s.attributes!.entity_picture === 'string' && s.attributes!.entity_picture.startsWith('/') ? s.attributes!.entity_picture as string : null }));
   },
+  changed: () => chatChanged(),
   haImage: async (p) => { const r = await haGetRaw(p); return r.ok ? Buffer.from(await r.arrayBuffer()) : null; },
   chatActive: (device) => isAppShowing(device, 'chat'),
   haEvent: (data) => { haFetch('/events/darboard_chat_message', { method: 'POST', body: JSON.stringify(data) }).catch(() => { }); },
   camFetch,
 });
 setNoticeArgHook((device, app, arg) => { if (app === 'chat') requestOpenConv(device, arg); });
+setChatUnreadProvider(unreadForScreen);
 startWeatherMini();
 // (27/09/2026) Truyen YouTube tu dien thoai: panel hien nhu mot TV trong nut truyen (DIAL). Tat: tuy chon cast_enabled.
 if (!['0', 'false'].includes(process.env.CAST_ENABLED ?? '')) {

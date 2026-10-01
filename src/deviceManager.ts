@@ -34,7 +34,7 @@ import { deviceClock, parseWindow, shouldGreet } from "./today.js";
 import { getToday, speakOnPanel } from "./todayData.js";
 import { parseDoorbell, unlockCall } from "./doorbell.js";
 import type { DialHooks } from "./dial.js";
-import { Notice, NoticeStore, NotifyRequest, parseNotify, shouldPopup, shouldWake } from "./notifications.js";
+import { Notice, NoticeStore, NotifyRequest, noticeKind, parseNotify, shouldPopup, shouldWake } from "./notifications.js";
 import { callService, getRegistry, getSettingsView, getStates, haReady } from "./haSettings.js";
 import { findDeviceByMac, findNoSleepSwitch, findPresenceSelect, isSaverPhotosSwitchId, macFromDeviceId, planSet } from "./settingsModel.js";
 import { getLauncherConfig, saveHomeLayout } from "./launcherConfig.js";
@@ -1293,6 +1293,8 @@ function handleMenuControl(id: string, payload: unknown, from?: Tab): void {
   // (26/09/2026 OS-5) Thong bao: mo (cham the), xoa mot, xoa het; bat/tat Khong lam phien.
   if (msg?.ntOpen != null) { openNotice(dev, Number(msg.ntOpen)); return; }
   if (msg?.ntDel != null) { noticesOf(id).remove(Number(msg.ntDel)); pushDeviceStateToPage(dev); return; }
+  // (02/10/2026) Mo thanh keo xuong (thay danh sach) = da xem thong bao thuong; tin nhan chi "da xem" khi doc trong Tin nhan.
+  if (msg?.ntSeen) { if (noticesOf(id).markSeen('nt')) pushDeviceStateToPage(dev); return; }
   if (msg?.ntClear) { noticesOf(id).clear(); pushDeviceStateToPage(dev); return; }
   if (msg?.f === 'dnd') { setDnd(id, Number(msg?.v) === 1); for (const d of devices.values()) if (d.deviceId === id) pushDeviceStateToPage(d); return; }
   // (26/09/2026 OS-5) Nguoi dung cham tat man hinh cho.
@@ -1375,10 +1377,38 @@ function fireTimer(dev: DeviceSession): void {
 // ── (26/09/2026 OS-5) THONG BAO + KHONG LAM PHIEN ─────────────────────────────────────────────────────────────────
 // Lich su va Khong lam phien giu theo deviceId (khong theo phien) — thiet bi noi lai / bi don khi ranh van con.
 const noticeStores = new Map<string, NoticeStore>();
+// (02/10/2026) Luu thong bao (kem trang thai da xem) ra /data: cap nhat / khoi dong lai addon khong lam mat "chuong" chua xem.
+const NOTICES_FILE = process.env.NOTICES_FILE || path.join(fs.existsSync('/data') ? '/data' : path.join(process.cwd(), 'data'), 'rwv-notices.json');
+let noticeSaveT: NodeJS.Timeout | null = null;
+function saveNoticesSoon(): void {
+  if (noticeSaveT) return;
+  noticeSaveT = setTimeout(() => {
+    noticeSaveT = null;
+    const o: Record<string, unknown> = {};
+    for (const [id, s] of noticeStores) o[id] = s.dump();
+    fs.promises.writeFile(NOTICES_FILE, JSON.stringify(o)).catch(() => { });
+  }, 1000);
+}
+let savedNotices: Record<string, { next?: number; items?: Notice[] }> = {};
+try { savedNotices = JSON.parse(fs.readFileSync(NOTICES_FILE, 'utf8')); } catch { /* chua co */ }
 function noticesOf(id: string): NoticeStore {
   let s = noticeStores.get(id);
-  if (!s) { s = new NoticeStore(); noticeStores.set(id, s); }
+  if (!s) { s = new NoticeStore(); s.restore(savedNotices[id]); s.onChange = saveNoticesSoon; noticeStores.set(id, s); }
   return s;
+}
+
+// (02/10/2026) Tin nhan (src/chat.ts) cho biet so tin CHUA DOC cua tung man hinh (theo cuoc tro chuyen). Bao "tin nhan" cua
+// mot cuoc tro chuyen tu mat khi man hinh do da doc het (mo cuoc tro chuyen trong ung dung Tin nhan) hoac cuoc do bi xoa.
+type ChatUnread = (deviceId: string) => { total: number; byConv: Record<string, number> };
+let chatUnread: ChatUnread = () => ({ total: 0, byConv: {} });
+export function setChatUnreadProvider(fn: ChatUnread): void { chatUnread = fn; }
+/** Goi sau moi thay doi cua Tin nhan: don bao tin nhan da doc + cap nhat so dem (man hinh cho, chuong, bieu tuong). */
+export function chatChanged(): void {
+  for (const dev of devices.values()) {
+    const u = chatUnread(dev.deviceId);
+    noticesOf(dev.deviceId).removeWhere((n) => n.app === 'chat' && !!n.arg && !(u.byConv[n.arg] > 0));
+    pushDeviceStateToPage(dev);
+  }
 }
 const GO2RTC_FOR_PAGES = process.env.GO2RTC_URL || 'http://127.0.0.1:1984';
 // Khong lam phien: ghi ra /data (ben qua cap nhat addon). Loi ghi chi mat tinh ben, khong anh huong chay.
@@ -1394,7 +1424,8 @@ function setDnd(id: string, on: boolean): void {
 }
 /** Gon cho Shell: id, tieu de, noi dung, uu tien, thoi diem, anh, co hanh dong khi cham khong. */
 function noticeForShell(n: Notice) {
-  return { id: n.id, t: n.title, m: n.message, p: n.priority, ts: n.ts, img: n.image ?? null, act: !!(n.app || n.url) };
+  return { id: n.id, t: n.title, m: n.message, p: n.priority, ts: n.ts, img: n.image ?? null, act: !!(n.app || n.url),
+    s: !!n.seen, k: noticeKind(n) };
 }
 
 /**
@@ -1621,6 +1652,9 @@ function pushDeviceStateToPage(dev: DeviceSession): void {
     tm: dev.timer ? { endsAt: dev.timer.endsAt, label: dev.timer.label } : null,
     np: nowPlaying(dev.tabs.values(), dev.activeTabKey),
     nt: noticesOf(dev.deviceId).list(8).map(noticeForShell),
+    // (02/10/2026) So CHUA XEM rieng man hinh nay: cu = tin nhan chua doc, nu = thong bao thuong chua xem.
+    cu: chatUnread(dev.deviceId).total,
+    nu: noticesOf(dev.deviceId).unseen('nt'),
     dnd: dndOf(dev.deviceId),
     va: !!dev.cfg.voice && !!dev.cfg.devControl,
     pr: dev.presence ?? null,

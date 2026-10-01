@@ -235,6 +235,15 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .sv-ph.fx-zoom.fromR, .sv-ph.fx-zoom.fromL { transform: scale(1.08); transition: none; }
 .sv-ph.fx-zoom.show { transform: scale(1); }
 .sv-ph.fx-none { transition: none; }
+.sv-bdg { display: flex; gap: clamp(6px, 1.6vmin, 12px); flex-wrap: wrap; justify-content: center; }
+.sv-bdg:empty { display: none; }
+.sv-b { display: inline-flex; align-items: center; gap: 0.4em; padding: 0.35em 0.9em; border: none; border-radius: 999px; cursor: pointer;
+  background: rgba(59,130,246,0.22); color: #dbeafe; font: 600 clamp(12px, 3.2vmin, 22px)/1.2 "Be Vietnam Pro", Roboto, sans-serif; }
+.sv-b .ic, .sv-b svg { width: 1.2em; height: 1.2em; }
+.sv-b + .sv-b { background: rgba(245,158,11,0.2); color: #fde68a; }
+.saver.night .sv-b { background: rgba(120,80,60,0.25); color: #9a6a58; }
+.saver.photo .sv-b { text-shadow: 0 1px 6px rgba(0,0,0,0.7); background: rgba(0,0,0,0.45); }
+.nt-row.new .nt-t::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #3b82f6; margin-right: 6px; vertical-align: middle; }
 .sv-cap { font-size: clamp(11px, 2.6vmin, 16px); color: #fff; opacity: 0.85; text-shadow: 0 1px 8px rgba(0,0,0,0.8); }
 .sv-cap:empty { display: none; }
 .saver:not(.photo) .sv-cap { display: none; }
