@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HaEntity, HaState, buildSettingsView, findDeviceByMac, findNoSleepSwitch, findPresenceSelect, macFromDeviceId, planSet } from "./settingsModel.js";
+import { HaEntity, HaState, buildSettingsView, findDeviceByMac, findNoSleepSwitch, findPresenceSelect, isSaverPhotosSwitchId, macFromDeviceId, planSet } from "./settingsModel.js";
 
 const dev = { id: "d1", name: "7.0 Guition JC1060P470C", model: "esp32-p4-evboard", sw_version: "2026.9.0",
   connections: [["mac", "28:37:2F:8A:02:18"]] as [string, string][] };
@@ -93,5 +93,10 @@ describe("bat/tat anh man hinh cho -> No Sleep", () => {
     expect(findNoSleepSwitch(view([sw('switch.abc', 'No Sleep')]))?.id).toBe('switch.abc');
     expect(findNoSleepSwitch(view([sw('switch.amp', 'Audio Amplifier')]))).toBeUndefined();
     expect(findNoSleepSwitch(view([sw('switch.x_no_sleep', 'No Sleep', { unavailable: true })]))).toBeUndefined();
+    // firmware 01/10: doi ten "Màn hình chờ"; khong nham voi "Ảnh màn hình chờ"
+    expect(findNoSleepSwitch(view([sw('switch.p4_anh_man_hinh_cho', 'Ảnh màn hình chờ'), sw('switch.p4_man_hinh_cho', 'Màn hình chờ')]))?.id).toBe('switch.p4_man_hinh_cho');
+    expect(findNoSleepSwitch(view([sw('switch.p4_anh_man_hinh_cho', 'Ảnh màn hình chờ')]))).toBeUndefined();
+    expect(isSaverPhotosSwitchId('switch.p4_anh_man_hinh_cho')).toBe(true);
+    expect(isSaverPhotosSwitchId('switch.p4_man_hinh_cho')).toBe(false);
   });
 });

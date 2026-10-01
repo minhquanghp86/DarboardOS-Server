@@ -52,6 +52,10 @@ jobs:
             # (14/09/2026) nhanh `main` cung tao cung tag nay: day la nhanh HA doc
             # metadata add-on + la noi code se duoc merge ve -> image luon moi.
             type=raw,value=chrome-h264,enable=${{ github.ref == 'refs/heads/main' }}
+            # (01/10/2026) THU TREN MAY THAT truoc khi gop main (nguoi dung yeu cau: lam tren nhanh, duyet roi moi gop):
+            # commit tren nhanh feature/** co "[thu-may-that]" trong noi dung -> image nhanh cung gan tag chrome-h264
+            # (add-on dung tag nay). Khong duyet -> build lai main de quay ve.
+            type=raw,value=chrome-h264,enable=${{ startsWith(github.ref, 'refs/heads/feature/') && contains(github.event.head_commit.message, '[thu-may-that]') }}
 
       - name: Build & Push
         uses: docker/build-push-action@v6

@@ -1,3 +1,11 @@
+## V2.9.91 (nhánh feature/ux-0110 — chờ duyệt)
+### Thực thể "Ảnh màn hình chờ" và "Màn hình chờ" trên Home Assistant
+
+- Firmware mới (nhánh `feature/ux-0110`) có công tắc **"Ảnh màn hình chờ"** (P4 + 2 S3) và đổi "No Sleep" thành
+  **"Màn hình chờ"**. Server đồng bộ hai chiều: gạt trên HA ↔ mục "Màn hình chờ hiện ảnh" trong Cài đặt trên màn hình
+  (kèm bật/tắt "Màn hình chờ" như khi gạt ở Cài đặt). Lần đầu thấy công tắc: Cài đặt đang có là gốc.
+- Nhận diện công tắc "Màn hình chờ" theo tên mới (vẫn nhận "No Sleep" của firmware cũ). Firmware cũ: không đổi gì.
+
 ## V2.9.90
 ### Bàn phím ảo tự ẩn đúng lúc (P4 + S3)
 

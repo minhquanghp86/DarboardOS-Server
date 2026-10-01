@@ -120,8 +120,15 @@ export function findPresenceSelect(view: SettingsView): SettingItem | undefined 
  * man hinh cho. Tim theo entity_id hoac nhan.
  */
 export function findNoSleepSwitch(view: SettingsView): SettingItem | undefined {
-  return view.items.find((i) => i.kind === 'switch' && !i.unavailable &&
-    (/_no_sleep$/.test(i.id) || i.label.trim().toLowerCase() === 'no sleep'));
+  // (01/10/2026) Firmware moi doi ten "No Sleep" -> "Màn hình chờ" (entity_id ..._man_hinh_cho); KHONG nham voi
+  // "Ảnh màn hình chờ" (..._anh_man_hinh_cho).
+  return view.items.find((i) => i.kind === 'switch' && !i.unavailable && (/_no_sleep$/.test(i.id) ||
+    (/_man_hinh_cho$/.test(i.id) && !/_anh_man_hinh_cho$/.test(i.id)) || ['no sleep', 'màn hình chờ'].includes(i.label.trim().toLowerCase())));
+}
+
+/** (01/10/2026) Cong tac "Ảnh màn hình chờ" cua firmware (P4 + S3) — server dong bo hai chieu voi Cai dat. */
+export function isSaverPhotosSwitchId(entityId: string): boolean {
+  return /^switch\..*_anh_man_hinh_cho$/.test(entityId);
 }
 
 export interface ServiceCall { domain: string; service: string; data: Record<string, unknown> }

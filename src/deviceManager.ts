@@ -35,8 +35,8 @@ import { getToday, speakOnPanel } from "./todayData.js";
 import { parseDoorbell, unlockCall } from "./doorbell.js";
 import type { DialHooks } from "./dial.js";
 import { Notice, NoticeStore, NotifyRequest, parseNotify, shouldPopup, shouldWake } from "./notifications.js";
-import { callService, getSettingsView } from "./haSettings.js";
-import { findNoSleepSwitch, findPresenceSelect, planSet } from "./settingsModel.js";
+import { callService, getRegistry, getSettingsView, getStates, haReady } from "./haSettings.js";
+import { findDeviceByMac, findNoSleepSwitch, findPresenceSelect, isSaverPhotosSwitchId, macFromDeviceId, planSet } from "./settingsModel.js";
 import { getLauncherConfig, saveHomeLayout } from "./launcherConfig.js";
 import { HomeLayout, resolveLayout } from "./homeLayout.js";
 import { ControlField, DeviceEventKind, DeviceStateInfo, Encoding, VoiceState, FRAME_HEADER_BYTES, TILE_HEADER_BYTES, parseDeviceStatePacket } from "./protocol.js";
@@ -176,6 +176,8 @@ export type DeviceSession = {
   saverOn: boolean;
   /** (01/10/2026) Dang hoi trang co video dang chay khong truoc khi hien man hinh cho. */
   saverProbeBusy?: boolean;
+  /** (01/10/2026) Trang thai cong tac HA "Ảnh màn hình chờ" lan dong bo cuoi (undefined = chua thay). */
+  photoSwSeen?: boolean;
   /** (27/09/2026) Man hinh cho dang khung anh: anh dang hien + luc doi. */
   saverPhoto?: string | null;
   saverPhotoAt?: number;
@@ -1460,6 +1462,7 @@ async function handleSettings(dev: DeviceSession, tab: Tab, msg: any): Promise<v
       // chờ), tat anh -> tat. Chi tac dong LUC GAT; sau do van doi rieng duoc. Qua HA nen chay ca firmware S3 (khong co
       // on_set_no_sleep).
       setNoSleepViaHa(dev, !!msg.v).catch(() => { });
+      setSaverPhotosSwitch(dev, !!msg.v).catch(() => { });
     }
     // Doi nguon / album / kieu hien thi: ap dung ngay o lan doi anh ke tiep; album moi -> tai danh sach ngay.
     if (ok && (msg.id === 'rwv.gphotos_url' || msg.id === 'rwv.photo_source')) {
@@ -1479,6 +1482,54 @@ async function handleSettings(dev: DeviceSession, tab: Tab, msg: any): Promise<v
   console.log(`[settings] ${dev.deviceId}: ${plan.domain}.${plan.service} ${msg.id} -> ${ok ? 'OK' : 'LOI'}`);
   // Doi thiet bi ESPHome ap dung + HA cap nhat trang thai roi moi doc lai.
   setTimeout(() => { pushSettings(dev, tab, ok ? undefined : { ok: false, msg: 'Home Assistant không nhận thay đổi.' }).catch(() => { }); }, 600);
+}
+
+/** (01/10/2026) Gat cong tac HA "Ảnh màn hình chờ" cua thiet bi cho khop Cai dat (khong co cong tac -> bo qua). */
+async function setSaverPhotosSwitch(dev: DeviceSession, on: boolean): Promise<void> {
+  dev.photoSwSeen = on;
+  const r = await getSettingsView(dev.deviceId);
+  if (!r.ok) return;
+  const it = r.view.items.find((i) => i.kind === 'switch' && isSaverPhotosSwitchId(i.id) && !i.unavailable);
+  if (!it || it.on === on) return;
+  const ok = await callService({ domain: 'switch', service: on ? 'turn_on' : 'turn_off', data: { entity_id: it.id } }).catch(() => false);
+  console.log(`[settings] ${dev.deviceId}: cong tac ${it.id} -> ${on ? 'bat' : 'tat'} ${ok ? 'OK' : 'LOI'}`);
+}
+
+/**
+ * (01/10/2026) Dong bo HA -> Cai dat: nguoi dung gat "Ảnh màn hình chờ" tren HA -> ap vao tuy chon man hinh (nhu gat o
+ * Cai dat, ke ca bat/tat "Màn hình chờ"). Lan dau thay cong tac: Cai dat dang co la goc, day sang HA. Moi 10 s, MOT lan doc
+ * /states cho moi man hinh. Thiet bi chua co cong tac (firmware cu) -> bo qua.
+ */
+let photoSyncAt = 0;
+async function syncSaverPhotoSwitches(): Promise<void> {
+  if (!haReady() || Date.now() - photoSyncAt < 10_000 || devices.size === 0) return;
+  photoSyncAt = Date.now();
+  const [reg, states] = await Promise.all([getRegistry(), getStates()]);
+  const byId = new Map(states.map((s) => [s.entity_id, s]));
+  for (const dev of devices.values()) {
+    const mac = macFromDeviceId(dev.deviceId);
+    const hd = mac ? findDeviceByMac(reg.devices, mac) : undefined;
+    if (!hd) continue;
+    const ent = reg.entities.find((e) => e.device_id === hd.id && !e.disabled_by && isSaverPhotosSwitchId(e.entity_id));
+    const st = ent ? byId.get(ent.entity_id) : undefined;
+    if (!ent || !st || (st.state !== 'on' && st.state !== 'off')) continue;
+    const haOn = st.state === 'on';
+    const prefOn = panelPrefs.saverPhotos(dev.deviceId, SCREENSAVER_PHOTOS);
+    if (dev.photoSwSeen === undefined) {
+      dev.photoSwSeen = prefOn;
+      if (haOn !== prefOn) setSaverPhotosSwitch(dev, prefOn).catch(() => { });
+      continue;
+    }
+    if (haOn === dev.photoSwSeen) continue;
+    dev.photoSwSeen = haOn;
+    if (haOn === prefOn) continue;
+    const ok = panelPrefs.set(dev.deviceId, 'rwv.saver_photos', haOn);
+    console.log(`[settings] ${dev.deviceId}: HA ${ent.entity_id} = ${haOn ? 'bat' : 'tat'} -> anh man hinh cho ${ok ? 'OK' : 'TU CHOI'}`);
+    if (!ok) continue;
+    dev.saverPhotoAt = 0;
+    if (!haOn) { dev.saverPhoto = null; showSaverPhoto(dev, null); }
+    setNoSleepViaHa(dev, haOn).catch(() => { });
+  }
 }
 
 async function setNoSleepViaHa(dev: DeviceSession, on: boolean): Promise<void> {
@@ -3094,6 +3145,7 @@ export function screensaverTick(): void {
   for (const d of devices.values()) syncMediaPlaying(d);
   for (const d of devices.values()) syncSaver(d);
   for (const d of devices.values()) closeIdleTabs(d, now);
+  syncSaverPhotoSwitches().catch(() => { });
   for (const d of devices.values()) {
     const tab = d.tabs.get(d.activeTabKey);
     if (!tab || broadcaster.getClientCount(d.deviceId) === 0) continue;
