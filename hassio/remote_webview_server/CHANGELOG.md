@@ -1,3 +1,11 @@
+## V2.9.103
+### Tin nhắn: màn hình chờ đè lên thì tin mới vẫn thông báo
+
+- **Sửa:** mở sẵn ứng dụng Tin nhắn, một lúc sau màn hình chờ hiện đè lên — tin mới đến không có chuông / thẻ thông báo
+  (server coi là "đang xem") và trang tự đánh dấu đã đọc. Nay "đang xem" = Tin nhắn đang hiện **và** không có màn hình
+  chờ **và** có người chạm màn hình trong 2 phút gần đây. Không thì vẫn chuông + thẻ thông báo như ở ứng dụng khác, tin
+  giữ "chưa đọc" (chấm, thẻ trên màn hình chờ) tới khi chạm vào màn hình.
+
 ## V2.9.102
 ### Sửa: nút "Sửa" trong Cài đặt không có tác dụng
 

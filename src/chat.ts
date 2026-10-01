@@ -160,7 +160,7 @@ export interface ChatHooks {
   screens(): ScreenInfo[];
   /** Thong bao tren man hinh (postNotify). `conv` -> cham the thong bao mo dung cuoc tro chuyen. */
   notify(device: string, title: string, message: string, conv: string, image?: string): void;
-  /** Man hinh dang mo ung dung Tin nhan (tab dang hien)? */
+  /** Nguoi dung DANG XEM Tin nhan tren man hinh nay (tab dang hien, khong man hinh cho, vua cham)? */
   chatActive(device: string): boolean;
   /** Bao HA (su kien) khi man hinh gui tin. */
   haEvent(data: Record<string, unknown>): void;
@@ -581,6 +581,9 @@ export function handleChatApi(req: http.IncomingMessage, res: http.ServerRespons
         return json(res, 200, { ok: true });
       }
       case 'read': {
+        // (01/10/2026) Man hinh chi "da doc" khi nguoi dung DANG XEM that (khong man hinh cho de len, vua cham) — chat.html
+        // da tu chan; day la chot cuoi neu trang cu / trang bi goi luc man hinh cho vua hien.
+        if (me.side === 'screen' && hooks && !hooks.chatActive(me.id)) return json(res, 200, { ok: false, skipped: true });
         chat.markRead(conv(q.get('c')), me, Number(q.get('m')) || 0);
         return json(res, 200, { ok: true });
       }

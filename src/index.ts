@@ -16,7 +16,7 @@ import { reloadAllLaunchers, broadcaster, ensureDeviceAsync, cleanupIdleAsync, r
 import type { DeviceSession } from './deviceManager.js';
 import { camFetch, handleCamProxy, noteCameraHost } from './camProxy.js';
 import { handleChatApi, requestOpenConv, setChatHooks, unreadForScreen } from './chat.js';
-import { chatChanged, connectedScreens, isAppShowing, setChatUnreadProvider, setNoticeArgHook, syncSoundToDevice } from './deviceManager.js';
+import { chatChanged, connectedScreens, isUserViewing, setChatUnreadProvider, setNoticeArgHook, syncSoundToDevice } from './deviceManager.js';
 import { handleAlarmApi } from './alarms.js';
 import { getRegistry, haFetch, haGetRaw } from './haSettings.js';
 import { findDeviceByMac, macFromDeviceId } from './settingsModel.js';
@@ -325,7 +325,7 @@ setChatHooks({
   },
   changed: () => chatChanged(),
   haImage: async (p) => { const r = await haGetRaw(p); return r.ok ? Buffer.from(await r.arrayBuffer()) : null; },
-  chatActive: (device) => isAppShowing(device, 'chat'),
+  chatActive: (device) => isUserViewing(device, 'chat'),
   haEvent: (data) => { haFetch('/events/darboard_chat_message', { method: 'POST', body: JSON.stringify(data) }).catch(() => { }); },
   camFetch,
 });

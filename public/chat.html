@@ -280,9 +280,18 @@
       if (S.cur === id) { toast(e.message, 3500); closeConv(); }
     });
   }
+  // (01/10/2026) Chi "da doc" khi nguoi dung DANG XEM that: khong bi man hinh cho de len (Shell bao __rwvSaverOn /
+  // su kien rwv-saver) va vua cham trong 2 phut. Truoc day mo san Tin nhan -> man hinh cho -> tin moi tu danh dau da doc,
+  // khong thong bao. Cham lai man hinh (ke ca cham tat man hinh cho) -> doc ngay.
+  var lastTouch = Date.now();
+  var READ_IDLE_MS = 120000;
+  function touched() { lastTouch = Date.now(); setTimeout(markRead, 400); }
+  document.addEventListener('pointerdown', touched, true);
+  document.addEventListener('keydown', touched, true);
+  window.addEventListener('rwv-saver', function (e) { if (!e.detail) setTimeout(markRead, 400); });
   function markRead() {
     var last = S.msgs[S.msgs.length - 1];
-    if (!last || document.hidden) return;
+    if (!last || document.hidden || window.__rwvSaverOn || Date.now() - lastTouch > READ_IDLE_MS) return;
     var c = S.convs.find(function (x) { return x.id === S.cur; });
     if (c && c.unread) api('read?c=' + S.cur + '&m=' + last.id, { method: 'POST' }).catch(function () { });
   }

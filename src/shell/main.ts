@@ -551,14 +551,21 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     };
     img.src = m.url;
   }
+  // (01/10/2026) Bao trang dang mo (vd Tin nhan) man hinh cho bat/tat: trang khong "da doc" khi bi che, doc lai khi go.
+  function saverSignal(on: boolean): void {
+    if (!!window.__rwvSaverOn === on) return;
+    window.__rwvSaverOn = on;
+    try { window.dispatchEvent(new CustomEvent('rwv-saver', { detail: on })); } catch { /* */ }
+  }
   function screensaver(on: boolean): void {
-    if (!on) { saverEl?.remove(); saverEl = null; return; }
+    if (!on) { saverEl?.remove(); saverEl = null; saverSignal(false); return; }
     if (alarmId || shadow.querySelector('.alarm')) return;  // (01/10/2026) dang bao thuc: khong che
     // (01/10/2026) Ban phim ao (script tiem rieng, lop popover tren cung) tung nam de len man hinh cho.
     try { if (typeof window.__vkbHide === 'function') window.__vkbHide(); } catch { /* */ }
     if (saverEl || !deviceNow()) return;
     closeShade(false); closeRecents();
     saverEl = el('div', 'saver'); svBox = el('div', 'sv-box');
+    saverSignal(true);
     svClock = el('div', 'sv-clock'); svDate = el('div', 'sv-date'); svWx = el('div', 'sv-wx');
     svCap = el('div', 'sv-cap');
     svBadges = el('div', 'sv-bdg'); svBdgSig = '';

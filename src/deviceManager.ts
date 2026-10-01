@@ -1698,6 +1698,16 @@ export function isAppShowing(deviceId: string, key: string): boolean {
   return !!d && d.activeTabKey === key && (d.devState ? d.devState.backlightOn : true);
 }
 
+/**
+ * (01/10/2026) Nguoi dung DANG XEM ung dung `key` tren man hinh nay: dang hien, KHONG bi man hinh cho de len, va co CHAM
+ * that (lastInputMs — khong tinh danh thuc do thong bao) trong `withinMs`. Tin nhan: nguoi dung bao mo Tin nhan, man
+ * hinh cho de len -> tin moi khong thong bao (truoc day chi xet tab + den nen).
+ */
+export function isUserViewing(deviceId: string, key: string, withinMs = 120_000): boolean {
+  const d = devices.get(deviceId);
+  return !!d && isAppShowing(deviceId, key) && !d.saverOn && d.lastInputMs != null && Date.now() - d.lastInputMs < withinMs;
+}
+
 onWeatherMiniUpdate(() => { for (const d of devices.values()) pushDeviceStateToPage(d); });
 
 /** Thiet bi bao DeviceState -> luu lai, dua vao trang dang mo. */

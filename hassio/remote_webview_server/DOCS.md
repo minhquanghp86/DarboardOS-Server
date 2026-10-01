@@ -286,7 +286,9 @@ automation:
 
 **Đã xem riêng từng màn hình**: chấm trên nút kéo và dòng "2 tin nhắn · 1 thông báo" trên màn hình chờ còn tới khi có
 người xem trên CHÍNH màn đó (chạm thẻ, mở thanh kéo xuống, đọc cuộc trò chuyện). Biểu tượng Tin nhắn có huy hiệu số tin
-chưa đọc. Nhiều tin cùng cuộc trò chuyện gộp một thông báo.
+chưa đọc. Nhiều tin cùng cuộc trò chuyện gộp một thông báo. Đang mở đúng cuộc trò chuyện chỉ tính là "đang xem" khi
+không có màn hình chờ đè lên và có người chạm màn hình trong 2 phút gần đây (2.9.103) — không thì tin mới vẫn có chuông
++ thẻ thông báo và giữ chưa đọc tới lần chạm kế tiếp.
 
 ### Thư viện + Tệp (2.9.94, chỉ P4 — thẻ SD)
 
