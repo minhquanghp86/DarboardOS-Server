@@ -7,7 +7,7 @@
 
 import type { DeviceSession } from "./deviceManager.js";
 import { goBack, goOsHome, navigateToUrl, openRecents } from "./deviceManager.js";
-import { EdgeGestures, GestureAction } from "./gestures.js";
+import { EdgeGestures, GestureAction, TV_KEY_CODE, tvSwipeKeys } from "./gestures.js";
 import { TouchKind, parseFrameStats, parseOpenURLPacket, parseTouchPacket } from "./protocol.js";
 import { metrics } from "./metrics.js";
 import { mapPointForRotation } from "./util.js";
@@ -20,6 +20,8 @@ export class InputRouter {
   /** Hen gio "giu yen" cua cu chi vuot-len-roi-giu (Gan day), moi thiet bi mot cai. */
   private readonly _holdTimers = new Map<string, NodeJS.Timeout>();
   private readonly _moveThrottleMs: number;
+  /** (01/10/2026) YouTube TV: diem dat ngon / diem cuoi (toa do trang) de doi vuot thanh phim mui ten. */
+  private readonly _tvTouch = new Map<string, { x0: number; y0: number; x: number; y: number }>();
 
   constructor(moveThrottleMs = 12) {
     this._moveThrottleMs = moveThrottleMs;
@@ -58,7 +60,13 @@ export class InputRouter {
   private async _runActions(dev: DeviceSession, actions: GestureAction[]): Promise<void> {
     for (const a of actions) {
       if (a.type === 'pass') {
-        for (const ev of a.events) await this._dispatchTouchAsync(dev, ev.kind, ev.x, ev.y);
+        // (01/10/2026) Tab YouTube TV chi nghe phim (remote): van chuyen cham nhu cu (cham chon video / o tim kiem chay),
+        // them: tha tay sau mot cu vuot -> phim mui ten (xem tvSwipeKeys).
+        const tv = dev.tabs.get(dev.activeTabKey)?.kind === 'yttv';
+        for (const ev of a.events) {
+          await this._dispatchTouchAsync(dev, ev.kind, ev.x, ev.y);
+          if (tv) await this._tvGesture(dev, ev.kind, ev.x, ev.y);
+        }
       } else if (a.type === 'shade') {
         dev.cdp.send('Runtime.evaluate', {
           expression: `window.__rwvShell && window.__rwvShell.gesture(${JSON.stringify(a.phase)}, ${Math.round(a.y)})`,
@@ -111,6 +119,26 @@ export class InputRouter {
     // nguoi dung tu nhap URL o Shell.
     console.log(`[inputRouter] OpenURL → ${pkt.url}`);
     await navigateToUrl(dev, pkt.url);
+  }
+
+  private async _tvGesture(dev: DeviceSession, kind: TouchKind, x: number, y: number): Promise<void> {
+    const p = mapPointForRotation(x, y, dev.cfg.width, dev.cfg.height, dev.cfg.rotation);
+    const id = dev.deviceId;
+    if (kind === TouchKind.Down) { this._tvTouch.set(id, { x0: p.x, y0: p.y, x: p.x, y: p.y }); return; }
+    const t = this._tvTouch.get(id);
+    if (!t) return;
+    if (kind === TouchKind.Move) { t.x = p.x; t.y = p.y; return; }
+    if (kind !== TouchKind.Up) return;
+    this._tvTouch.delete(id);
+    for (const key of tvSwipeKeys(t.x - t.x0, t.y - t.y0)) {
+      const code = TV_KEY_CODE[key];
+      const ev = { key, code: key, windowsVirtualKeyCode: code, nativeVirtualKeyCode: code };
+      try {
+        await dev.cdp.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...ev });
+        await dev.cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', ...ev });
+      } catch (e) { console.warn(`[yttv] gui phim that bai: ${(e as Error).message}`); return; }
+      await new Promise((r) => setTimeout(r, 70));  // de giao dien TV kip chuyen o (hieu ung)
+    }
   }
 
   private async _dispatchTouchAsync(dev: DeviceSession, kind: TouchKind, x: number, y: number): Promise<void> {

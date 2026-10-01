@@ -152,3 +152,18 @@ export class EdgeGestures {
     return [{ type: 'pass', events: [this.down!, raw] }];
   }
 }
+
+// (01/10/2026) YOUTUBE TV (tab 'yttv') chi dieu khien bang phim (remote): cham = click van chay, nhung vuot bi bo qua.
+// Doi vuot thanh phim mui ten nhu dien thoai: vuot LEN = noi dung di len = xuong hang DUOI (ArrowDown); vuot TRAI =
+// sang o ben PHAI (ArrowRight). Vuot dai = nhieu buoc (~1 buoc / 120 px, toi da 6). Duoi nguong = cham, khong gui gi.
+export const TV_SWIPE_MIN_PX = 40;
+export type TvKey = 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight';
+export function tvSwipeKeys(dx: number, dy: number): TvKey[] {
+  const ax = Math.abs(dx), ay = Math.abs(dy);
+  if (Math.max(ax, ay) < TV_SWIPE_MIN_PX) return [];
+  const horiz = ax > ay;
+  const key: TvKey = horiz ? (dx < 0 ? 'ArrowRight' : 'ArrowLeft') : (dy < 0 ? 'ArrowDown' : 'ArrowUp');
+  const steps = Math.max(1, Math.min(6, Math.round((horiz ? ax : ay) / 120)));
+  return new Array(steps).fill(key);
+}
+export const TV_KEY_CODE: Record<TvKey, number> = { ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40 };

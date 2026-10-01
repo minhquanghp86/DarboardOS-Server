@@ -100,3 +100,18 @@ describe("vuot len tu mep duoi roi GIU -> Gan day", () => {
     expect(g.poll(5_000)).toEqual([]);
   });
 });
+
+import { tvSwipeKeys } from './gestures.js';
+describe('YouTube TV: vuot -> phim mui ten', () => {
+  it('cham / vuot ngan khong gui phim', () => { expect(tvSwipeKeys(10, -20)).toEqual([]); });
+  it('huong tu nhien nhu dien thoai', () => {
+    expect(tvSwipeKeys(0, -100)).toEqual(['ArrowDown']);
+    expect(tvSwipeKeys(0, 130)).toEqual(['ArrowUp']);
+    expect(tvSwipeKeys(-100, 10)).toEqual(['ArrowRight']);
+    expect(tvSwipeKeys(90, -20)).toEqual(['ArrowLeft']);
+  });
+  it('vuot dai = nhieu buoc, toi da 6', () => {
+    expect(tvSwipeKeys(-500, 0)).toHaveLength(4);
+    expect(tvSwipeKeys(0, -2000)).toHaveLength(6);
+  });
+});

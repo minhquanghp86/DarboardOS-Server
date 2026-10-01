@@ -1,3 +1,10 @@
+## V2.9.98
+### YouTube TV: vuốt để di chuyển
+
+- Giao diện YouTube TV chỉ nghe phím remote nên trước đây chỉ chạm (chọn video, ô tìm kiếm) có tác dụng, vuốt bị bỏ qua.
+  Nay vuốt trên YouTube TV = phím mũi tên như remote, hướng tự nhiên như điện thoại: vuốt lên → xuống hàng dưới, vuốt
+  sang trái → video bên phải; vuốt dài đi nhiều bước. Chạm vẫn như cũ. YouTube thường / YouTube Music không đổi.
+
 ## V2.9.97
 ### Tiếng cho video quay + mục "Luồng camera" trong Cài đặt (P4)
 
