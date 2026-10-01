@@ -1,3 +1,13 @@
+## V2.9.90
+### Bàn phím ảo tự ẩn đúng lúc (P4 + S3)
+
+- Người dùng báo 01/10: chạm gợi ý YouTube đã chuyển đúng trang (2.9.89) nhưng **bàn phím vẫn hiện**, cả khi màn hình chờ
+  hiện lên. Ghi sự kiện thật: bàn phím ẩn đúng lúc chạm, rồi 118 ms sau YouTube tự focus lại ô tìm kiếm → bàn phím hiện lại;
+  trang chuyển xong focus sang nút nhưng bàn phím vẫn nằm đó.
+- Sau khi chạm ra ngoài, bỏ qua focus tự động của trang trong 1 s (chạm thẳng vào ô nhập vẫn mở bàn phím).
+- Focus rời ô nhập sang thứ không phải ô nhập (trang tự chuyển, nút) → tự ẩn bàn phím.
+- Màn hình chờ hiện → ẩn bàn phím.
+
 ## V2.9.89
 ### Bàn phím ảo: chạm ra ngoài không còn bị nuốt; ảnh màn hình chờ kéo theo "Màn hình chờ"; tab nền đóng băng chắc chắn
 

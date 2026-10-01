@@ -511,6 +511,8 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   }
   function screensaver(on: boolean): void {
     if (!on) { saverEl?.remove(); saverEl = null; return; }
+    // (01/10/2026) Ban phim ao (script tiem rieng, lop popover tren cung) tung nam de len man hinh cho.
+    try { if (typeof window.__vkbHide === 'function') window.__vkbHide(); } catch { /* */ }
     if (saverEl || !deviceNow()) return;
     closeShade(false); closeRecents();
     saverEl = el('div', 'saver'); svBox = el('div', 'sv-box');

@@ -459,7 +459,7 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
   window.__kioskKeyboardInitialized = true;
 
   // Cải tiến: dùng closure-private object thay vì window.__vkb* globals
-  var _shield = { closing: 0, opening: 0, lastTap: 0 };
+  var _shield = { closing: 0, opening: 0, lastTap: 0, outsideAt: 0 };
 
   var keyboardContainer = null;
   var currentLayout    = 'default';
@@ -901,7 +901,7 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
   // focus. Cham ngoai: khong tam chan, blur sau 350 ms (click da toi dong goi y). Nut an/Enter van chan nhu cu (cu cham
   // khong lot xuong trang ben duoi ban phim vua bien mat).
   function hideKeyboard(outsideTap){
-    if(!outsideTap) _shield.closing=Date.now();
+    if(!outsideTap) _shield.closing=Date.now(); else _shield.outsideAt=Date.now();
     if(keyboardContainer){
       keyboardContainer.classList.remove('vkb-visible');
       if(keyboardContainer.hidePopover&&keyboardContainer.matches(':popover-open')) keyboardContainer.hidePopover();
@@ -934,6 +934,10 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
   }
 
   function checkAndShow(e){
+    // (01/10/2026) Trang tu focus lai o nhap ngay sau khi nguoi dung cham RA NGOAI (YouTube: cham dong goi y -> 118 ms sau
+    // focus lai o tim kiem -> ban phim hien lai va nam tren man hinh ca khi da chuyen trang). Bo qua focus tu dong trong
+    // 1 s; cham THANG vao o nhap (click) van mo ban phim.
+    if(e.type==='focusin'&&_shield.outsideAt&&(Date.now()-_shield.outsideAt<1000)) return;
     var path=e.composedPath?e.composedPath():[e.target];
     var inp=resolveInput(path);
     if(inp&&ensureDOM()){
@@ -944,6 +948,19 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
 
   document.addEventListener('focusin',checkAndShow,true);
   document.addEventListener('click',checkAndShow,true);
+  // (01/10/2026) Focus roi o nhap sang thu KHONG phai o nhap (trang tu chuyen, nut bam...) -> an ban phim. Cham phim cua
+  // ban phim khong lam o nhap mat focus (bi chan o pointerdown/mousedown) nen khong dung toi day.
+  function deepActive(){ var a=document.activeElement; while(a&&a.shadowRoot&&a.shadowRoot.activeElement) a=a.shadowRoot.activeElement; return a; }
+  document.addEventListener('focusout',function(){
+    setTimeout(function(){
+      var vis=keyboardContainer&&keyboardContainer.classList.contains('vkb-visible');
+      if(!vis) return;
+      var a=deepActive();
+      if(!a||a===document.body||!resolveInput([a])) hideKeyboard(true);
+    },200);
+  },true);
+  // Shell goi khi hien man hinh cho / chuyen ung dung: khong de ban phim nam de len.
+  window.__vkbHide=function(){ var vis=keyboardContainer&&keyboardContainer.classList.contains('vkb-visible'); if(vis) hideKeyboard(true); };
 
   /* ---- Master event shield --------------------------------- */
   ['pointerdown','pointerup','mousedown','mouseup','click','touchstart','touchend'].forEach(function(ev){
