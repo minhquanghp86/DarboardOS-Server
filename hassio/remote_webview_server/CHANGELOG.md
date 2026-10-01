@@ -1,3 +1,11 @@
+## V2.9.88
+### Rà soát 01/10
+
+- Màn hình chờ: trong lúc server hỏi trang có video đang chạy (tối đa 1,5 s) mà người dùng vừa chạm → không hiện nữa
+  (trước có thể hiện ngay sau cú chạm). P4 + S3.
+- Tài liệu: khung nửa độ phân giải theo thiết bị (S3 `half=2`, P4 `half=1` + tự động khi nghẽn), màn hình chờ kiểu điện
+  thoại, đóng băng tab dừng mọi media, đóng tab nền sau 5 phút (thiếu RAM 2 phút), YouTube trên S3 ~14 hình/giây.
+
 ## V2.9.87
 ### Màn hình chờ không bao giờ đè lên video; tab nền thật sự dừng và đóng sớm hơn
 
