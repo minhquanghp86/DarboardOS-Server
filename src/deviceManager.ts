@@ -197,6 +197,8 @@ export type DeviceSession = {
   castLaunchMs?: number;
   /** (30/09/2026) Lan cuoi thay khung YouTube TV day du QUA TO — giu nua do phan giai 10 s tu moc nay. */
   tvBigMs?: number;
+  /** (01/10/2026) P4 (half=1): duong truyen nghen -> khung video nua do phan giai toi moc nay. */
+  netHalfUntilMs?: number;
   /** (30/09/2026) Gia tri 'dang phat media' da gui thiet bi gan nhat (ControlField.Media) — undefined = chua gui. */
   mediaSent?: boolean;
   /** (30/09/2026) Trang thai man hinh cho da bao thiet bi (ControlField.Saver). */
@@ -390,6 +392,8 @@ const YT_TV_HALF_MAX_H = Math.max(0, parseInt(process.env.YT_TV_HALF_MAX_H ?? '3
 // (25/09/2026) Nguoi dung chon DU DO PHAN GIAI (do net cao) -> mac dinh KHONG gui khung video 1/2 nua, ke ca khi
 // thiet bi bao ?half=1 (firmware P4 van bat half_scale_video vi ly do khac — xem YAML). Bat lai: HALF_SCALE_VIDEO=1.
 const HALF_SCALE_VIDEO = process.env.HALF_SCALE_VIDEO === '1';
+// (01/10/2026) Giu khung nua bao lau sau lan nghen cuoi (P4). 0 = tat tinh nang.
+const NET_HALF_HOLD_MS = Math.max(0, parseInt(process.env.NET_HALF_HOLD_MS ?? '15000', 10) || 0);
 const HALF_HOLD_MS = Math.max(0, parseInt(process.env.HALF_HOLD_MS ?? '3000', 10) || 3000);
 // Thay doi lon phai keo dai lien tuc bao lau moi coi la video (loai hieu ung chuyen tab).
 const HALF_SUSTAIN_MS = Math.max(0, parseInt(process.env.HALF_SUSTAIN_MS ?? '1000', 10) || 1000);
@@ -2591,6 +2595,17 @@ async function flushPending(dev: DeviceSession): Promise<void> {
       // Bỏ nguyên khung (không bỏ một phần) để không bao giờ sinh khung rách.
       const backlog = broadcaster.backlogBytes(dev.deviceId);
       const highWater = tuning().wsHighWaterBytes ?? WS_HIGH_WATER_BYTES;
+      // (01/10/2026) NGHEN -> NUA DO PHAN GIAI (chi thiet bi half=1: P4). Do that 01/10 sang: YouTube thuong khung day du
+      // ~42 KB, WiFi P4 yeu di -> ton dong 200 -> 934 KB, ping P4 2 s, WebSocket roi/noi lai, dung hinh ~40 s moi lan.
+      // Ton dong qua NUA nguong bo khung -> gui khung nua (1/4 byte) toi NET_HALF_HOLD_MS sau lan nghen cuoi. Van chi ap
+      // khi dang co video (dieu kien <video>/dien tich ben duoi). S3 (half=2) da luon nua khi phat video: khong doi.
+      if (NET_HALF_HOLD_MS > 0 && dev.cfg.halfScale && !dev.cfg.halfVideo && backlog > highWater / 2) {
+        const nowNet = Date.now();
+        if (dev.netHalfUntilMs === undefined || nowNet >= dev.netHalfUntilMs) {
+          console.log(`[half] ${dev.deviceId}: duong truyen nghen (ton dong ${backlog}B) -> cho phep khung nua ${NET_HALF_HOLD_MS / 1000} s`);
+        }
+        dev.netHalfUntilMs = nowNet + NET_HALF_HOLD_MS;
+      }
       if (backlog > highWater) {
         metrics.onFrameSkipped(dev.deviceId);
         dev.backlogSkipPeak = Math.max(dev.backlogSkipPeak ?? 0, backlog);
@@ -2662,21 +2677,24 @@ async function flushPending(dev: DeviceSession): Promise<void> {
       // moi -> gui lai khung cuoi o do phan giai DAY DU (duong thuong) cho net lai.
       // Hysteresis: bat khi nhip >= HALF_ON_FPS, chi tat khi < HALF_OFF_FPS. Do that lan dau voi mot nguong 8 fps:
       // nhip den lai do chinh server dieu tiet (~8 fps) nen bat/tat lien tuc quanh nguong.
+      const netHalf = dev.netHalfUntilMs !== undefined && nowMs < dev.netHalfUntilMs;
       let halfWanted = dev.halfOn ? fps >= HALF_OFF_FPS : fps >= HALF_ON_FPS;
       // (30/09/2026) Thiet bi half=2 (S3): KHONG xet nhip. Do that 30/09: S3 giai ma cham -> server gian nhip con ~2,5 fps
       // = dung nguong HALF_ON_FPS -> nua do phan giai bat/tat lien tuc, xen khung day du 24-65 KB (5,6 fps). Chi con
       // dieu kien <video> dang phat / phan lon man hinh doi (ben duoi, giu HALF_SUSTAIN_MS).
       if (dev.cfg.halfVideo) halfWanted = true;
+      // Dang nghen thi bo dieu tiet da gian nhip (fps den thap) — khong de nguong fps chan che do cuu.
+      if (netHalf) halfWanted = true;
       // (30/09/2026) Nua do phan giai: toan cuc (HALF_SCALE_VIDEO=1), hoac rieng tab YouTube TV khi nguon <= YT_TV_HALF_MAX_H.
       const tvTab = YT_TV_HALF_MAX_H > 0 && dev.tabs.get(dev.activeTabKey)?.kind === 'yttv';
-      const halfProbe = dev.cfg.halfScale && (HALF_SCALE_VIDEO || tvTab || dev.cfg.halfVideo);
+      const halfProbe = dev.cfg.halfScale && (HALF_SCALE_VIDEO || tvTab || dev.cfg.halfVideo || netHalf);
       // (30/09/2026) Them: khung day du QUA TO (> 2 lan goi) cung gui nua do phan giai. Do that: truyen YouTube TV nguon
       // 720p -> anh Chrome 80-93 KB (q90), van 59 KB o q40 -> P4 giai ma ~120 ms/khung, WS nghen 2,2 MB roi noi lai.
       // GIU 10 s: khung 720p dao dong quanh nguong -> truoc day bat/tat tung khung (do 30/09, 2.9.77: ~190 khung day du
       // lon xen giua, 20 fps, loa vap 68 lan) — moi lan tat lai phai gui ca khung net.
       if (tvTab && imgBuf.length > 2 * (dev.cfg.maxBytesPerMessage - FRAME_HEADER_BYTES - TILE_HEADER_BYTES)) dev.tvBigMs = nowMs;
       const tooBigFull = tvTab && dev.tvBigMs !== undefined && nowMs - dev.tvBigMs < 10_000;
-      const halfSend = halfProbe && (HALF_SCALE_VIDEO || dev.cfg.halfVideo || tooBigFull ||
+      const halfSend = halfProbe && (HALF_SCALE_VIDEO || dev.cfg.halfVideo || netHalf || tooBigFull ||
         (dev.videoSrcH != null && dev.videoSrcH > 0 && dev.videoSrcH <= YT_TV_HALF_MAX_H));
       // (24/09/2026) NHIP CAO CHUA DU: mot tab dashboard co anh dong NHO cung lam Chrome phat khung lien tuc ->
       // ca man hinh bi gui nua do phan giai, giao dien mo han (nguoi dung bao ngay). Phai co PHAN LON man hinh
