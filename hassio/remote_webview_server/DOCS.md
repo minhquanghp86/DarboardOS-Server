@@ -198,7 +198,7 @@ rest_command:
   màn tắt → bật màn hình; đang màn hình chờ → mở trang chủ (như nút *Go Home*); đang thao tác → giữ màn hình sáng. Cả
   hai dừng khi đang phát video thật (YouTube/media hoặc trang video/camera).
 - Camera **Ảnh người phát hiện**: ảnh chụp lúc phát hiện người gần nhất (khung xanh quanh mặt), trống đến lần phát hiện
-  đầu sau khi khởi động. Chỉ hoạt động khi camera đang chạy (Frigate/go2rtc kéo luồng hoặc `keep_camera_on`).
+  đầu sau khi khởi động. Camera tự chạy khi có bộ dò cần hình (firmware P4 từ `fw-2026.10.01`), không còn phụ thuộc Frigate.
 
 ### Truyền YouTube từ điện thoại (như Smart TV)
 
@@ -394,24 +394,32 @@ luôn gửi giá trị riêng của từng màn hình (trong YAML ESPHome) khi k
   *Configure…* → thêm `<ip-HA>:9222` → *inspect* tab của màn hình. Tắt lại khi xong.
 - **Self-test**: đặt `url: "self-test"` trong YAML để đo thời gian dựng hình của màn hình.
 - **`FREEZE_BG_TABS`** (mặc định bật): tab ứng dụng ở nền bị **tạm dừng JavaScript** (qua debugger của Chrome) cho tới
-  khi quay lại; tab camera đóng hẳn khi rời. Ngoại lệ: nhạc/radio đang phát nền, YouTube TV. `0` để tắt.
+  khi quay lại; tab camera đóng hẳn khi rời. Ngoại lệ: nhạc/radio đang phát nền, YouTube TV. `0` để tắt. Từ 2.9.87,
+  trước khi tạm dừng, server **dừng mọi video/âm thanh** của tab (bộ giải mã video của Chrome không phụ thuộc
+  JavaScript — trước đây trang web có video vẫn phát ngầm). Đo 01/10: tab YouTube 9,9% CPU → 0,1% ngay khi về trang chủ.
 - **`YT_H264`** (mặc định bật): tab YouTube / Nhạc (YouTube Music) chỉ nhận video H.264 (≤ `YT_MAX_HEIGHT` 720,
   ≤ `YT_MAX_FPS` 30) thay cho AV1/VP9 — nhẹ CPU máy chủ hơn nhiều. `0` để tắt.
 - **`YT_TV_HALF_MAX_H`** (mặc định `360`): tab YouTube TV có nguồn cao tối đa chừng này thì gửi khung nửa độ phân giải
   (P4 phóng ×2). `0` để luôn đủ độ phân giải.
+- **Khung nửa độ phân giải theo thiết bị** (2.9.82–2.9.85, không cần cấu hình): firmware báo `half=1` (P4) hoặc
+  `half=2` (S3). **S3** nhận khung nửa cho **mọi** video (giải mã phần mềm; YouTube 1,9 → ~14 hình/giây). **P4** nhận khung
+  nửa cho YouTube TV nguồn ≤ 360p, và **tự động khi đường truyền nghẽn** (tồn đọng > ~96 KB, giữ `NET_HALF_HOLD_MS`
+  = 15 s rồi về đủ độ phân giải; `0` = tắt) — WiFi yếu thì hình mờ đi thay vì đứng hình. Dashboard không bao giờ mờ.
 - **Màn hình chờ sau (giây)** (`screensaver_idle_s`, mặc định `120`, `0` = tắt): không chạm bao lâu thì hiện đồng
-  hồ lớn + ngày âm dương + thời tiết (tông tối 22h–6h, dịch chỗ mỗi phút chống lưu ảnh). Không hiện khi đang phát
-  video/camera hoặc màn hình đã tắt đèn nền.
+  hồ lớn + ngày âm dương + thời tiết (tông tối 22h–6h, dịch chỗ mỗi phút chống lưu ảnh). Không hiện khi màn hình đã
+  tắt đèn nền. **Như điện thoại** (2.9.87): không bao giờ vẽ đè lên video/camera đang phát — trước khi hiện, server hỏi
+  thẳng trang có `<video>`/`<audio>` đang chạy không; ngừng phát cũng tính là "vừa dùng" (đếm thời gian rảnh từ lúc video
+  dừng), nên YouTube tạm dừng thoáng qua khi nạp đệm không làm màn hình chờ hiện lên.
 - **`MAX_APP_TABS`** (mặc định `2`): số ứng dụng "phụ" tối đa được giữ mở cùng lúc mỗi màn hình, không kể Home
   Assistant và màn hình chính (hai cái đó luôn giữ). Mỗi ứng dụng mở là một tiến trình renderer Chrome riêng — tăng
   giá trị này cho quay lại ứng dụng gần đây nhanh hơn, đổi lại tốn thêm RAM (xem mục Giới hạn đã biết). Radio/Nhạc
   **đang phát** không bị đóng; đã dừng phát thì được đóng như ứng dụng thường.
-- **`IDLE_TAB_CLOSE_MIN`** (mặc định `20`, `0` = tắt): ứng dụng nằm nền không dùng quá chừng này phút thì **đóng hẳn**
+- **`IDLE_TAB_CLOSE_MIN`** (mặc định `5` từ 2.9.87, trước là 20; `0` = tắt): ứng dụng nằm nền không dùng quá chừng này phút thì **đóng hẳn**
   để trả RAM (tạm dừng JavaScript chỉ bớt CPU, không bớt RAM). Ứng dụng đã đóng **vẫn còn trong "Gần đây"** với ảnh
   thu nhỏ; chạm vào là mở lại đúng trang cũ (tải lại ~1–2 s). Không đóng: Home Assistant, màn hình chính, nhạc/radio
   đang phát, YouTube TV.
 - **`LOW_MEM_MB`** (mặc định `600`): máy chủ còn ít hơn chừng này MB RAM khả dụng thì chỉ giữ **1** ứng dụng nền và
-  đóng ứng dụng nền sau **3 phút**. RAM/swap máy chủ xem ở `/metrics` (mục `host`).
+  đóng ứng dụng nền sau **2 phút** (2.9.87, trước là 3). RAM/swap máy chủ xem ở `/metrics` (mục `host`).
 
 ## Giới hạn đã biết
 
@@ -419,7 +427,8 @@ luôn gửi giá trị riêng của từng màn hình (trong YAML ESPHome) khi k
   điện thoại có thể không tự thấy màn hình (log addon báo `[cast] SSDP loi`) — dùng cách *Liên kết với mã TV*.
 - Một trình duyệt dùng chung cho mọi màn hình: nếu **nhiều màn hình cùng có loa**, âm thanh của chúng có thể lẫn nhau
   — tại một thời điểm chỉ một tab của một màn hình được phép phát tiếng (server tự khoá/mở, xem mục "Menu ứng dụng").
-- ESP32-S3 giải mã JPEG bằng phần mềm nên chậm hơn P4 nhiều — hợp với dashboard hơn video.
+- ESP32-S3 giải mã JPEG bằng phần mềm nên chậm hơn P4 nhiều: YouTube ~14 hình/giây với khung nửa độ phân giải
+  (firmware `fw-2026.09.30j` trở lên), giới hạn ở tốc độ vẽ màn hình (~30–42 ms/khung).
 - Radio VOV cần ~10 giây để bắt đầu phát (máy chủ đài giới hạn tốc độ).
 - Hẹn giờ lưu trong bộ nhớ addon: khởi động lại addon thì hẹn giờ đang chạy bị huỷ.
 - **RAM tăng theo số tab mở**: mỗi ứng dụng đang mở (kể cả chạy nền) là một tiến trình Chrome renderer riêng. Với

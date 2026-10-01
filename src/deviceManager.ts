@@ -236,7 +236,7 @@ interface Tab {
   audioAllowed: boolean;
   /** (26/09/2026) Trang tu bao dang phat <audio>/<video> (buildAudioGuardScript -> {media}), reset moi lan dieu huong. */
   mediaPlaying: boolean;
-  /** (01/10/2026) Luc ngung phat gan nhat — xem SAVER_MEDIA_GRACE_MS. */
+  /** (01/10/2026) Luc ngung phat gan nhat — man hinh cho dem thoi gian ranh tu day (xem shouldShowSaver). */
   mediaStoppedMs?: number;
   /** Trang da bao trang thai phat it nhat mot lan tu lan dieu huong gan nhat (chua bao -> chinh sach don than trong). */
   mediaKnown: boolean;
@@ -3054,11 +3054,13 @@ export function screensaverTick(): void {
     if (d.saverProbeBusy) continue;
     d.saverProbeBusy = true;
     const sess = d.cdp;
+    const touchAt = d.lastTouchMs;
     Promise.race([
       sess.send('Runtime.evaluate', { expression: SAVER_MEDIA_PROBE_JS, returnByValue: true }) as Promise<{ result?: { value?: unknown } }>,
       new Promise<never>((_, rej) => setTimeout(() => rej(new Error('het gio')), 1500)),
     ]).then((r) => {
-      if (d.saverOn || d.cdp !== sess || d.activeTabKey !== tab.key || devices.get(d.deviceId) !== d) return;
+      // Trong luc hoi (toi da 1,5 s) nguoi dung vua cham / doi tab / man hinh noi lai -> khong hien.
+      if (d.saverOn || d.cdp !== sess || d.activeTabKey !== tab.key || devices.get(d.deviceId) !== d || d.lastTouchMs !== touchAt) return;
       if (r?.result?.value === true) {
         tab.mediaStoppedMs = Date.now();
         console.log(`[saver] ${d.deviceId}: khong hien man hinh cho — tab "${tab.key}" van dang phat`);
