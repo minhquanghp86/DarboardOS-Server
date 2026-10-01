@@ -1,3 +1,11 @@
+## V2.9.101
+### Còn người trước màn hình thì không vào màn hình chờ
+
+- **Sửa:** cảm biến phát hiện người (P4) bật màn hình / thoát màn hình chờ, nhưng người vẫn đứng đó (cảm biến vẫn báo có
+  người) thì sau *Màn hình chờ sau* (mặc định 2 phút) màn hình chờ vẫn phủ lên — server chỉ đếm từ lần chạm cuối. Nay:
+  còn người thì giữ nguyên trang hiện tại; chỉ khi cảm biến báo **trống** đủ thời gian rảnh mới hiện màn hình chờ.
+- Màn hình nối lại thì bỏ trạng thái "có người" cũ (tránh kẹt không bao giờ vào màn hình chờ).
+
 ## V2.9.100
 ### Dock không còn nút "Gần đây"
 

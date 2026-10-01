@@ -196,6 +196,9 @@ rest_command:
   quyết định việc bật màn hình / giữ màn sáng / báo server (trễ tắt 10 s); bộ dò không được chọn tắt hẳn. Thấy người:
   màn tắt → bật màn hình; đang màn hình chờ → mở trang chủ (như nút *Go Home*); đang thao tác → giữ màn hình sáng. Cả
   hai dừng khi đang phát video thật (YouTube/media hoặc trang video/camera).
+- **Còn người thì không vào màn hình chờ** (2.9.101): khi cảm biến còn báo có người, màn hình chờ không hiện, trang đang
+  mở vẫn để nguyên. Thời gian rảnh (*Màn hình chờ sau*) chỉ bắt đầu đếm từ lúc cảm biến báo **trống**. Đèn nền cũng vậy:
+  firmware chỉ tắt sau *Sleep time* kể từ lúc báo trống, và không bao giờ tắt khi công tắc **Màn hình chờ** đang bật.
 - Camera **Ảnh người phát hiện**: ảnh chụp lúc phát hiện người gần nhất (khung xanh quanh mặt), trống đến lần phát hiện
   đầu sau khi khởi động. Camera tự chạy khi có bộ dò cần hình (firmware P4 từ `fw-2026.10.01`), không còn phụ thuộc Frigate.
 

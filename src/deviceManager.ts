@@ -2751,6 +2751,9 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
       device.reconnectedMs = Date.now();
       device.mediaSent = undefined;
       device.saverSent = undefined;  // (30/09/2026) thiet bi vua noi lai: gui lai 'dang phat media' o nhip toi
+      // (01/10/2026) Thiet bi vua noi lai (co the da khoi dong lai): bo trang thai "co nguoi" cu — firmware chi bao khi DOI,
+      // giu lai "co nguoi" cua phien truoc thi man hinh cho khong bao gio hien. Con nguoi -> firmware bao lai khi thay.
+      device.presence = undefined;
       requestFullFrameFor(device);
 
       // (25/09/2026) Thiet bi NOI LAI (khoi dong lai / OTA / watchdog WS): moi "nghen" ghi nhan TRUOC do la cua socket
@@ -3351,6 +3354,7 @@ export function screensaverTick(): void {
         (tab.kind === 'yttv' && !!d.castUrl),
       mediaStoppedMs: tab.mediaStoppedMs,
       backlightOn: d.devState ? d.devState.backlightOn : null, shown: d.saverOn,
+      presenceOn: d.presence?.on === true, presenceOffMs: d.presence && !d.presence.on ? d.presence.at : undefined,
     })) continue;
     // (01/10/2026) KHONG BAO GIO ve de len video dang chay: hoi THANG trang (khong chi dua vao su kien phat/dung trang
     // tu bao — YouTube bao "tam dung" thoang qua khi nap dem). Dang chay -> coi nhu vua dung, dem lai thoi gian ranh.

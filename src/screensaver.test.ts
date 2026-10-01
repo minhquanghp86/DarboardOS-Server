@@ -19,6 +19,11 @@ describe("man hinh cho", () => {
     expect(shouldShowSaver({ ...base, mediaStoppedMs: 100_000 })).toBe(false);
     expect(shouldShowSaver({ ...base, mediaStoppedMs: 70_000 })).toBe(true);
   });
+  it("cam bien con bao co nguoi -> khong hien; bao trong -> dem ranh tu luc trong", () => {
+    expect(shouldShowSaver({ ...base, presenceOn: true })).toBe(false);
+    expect(shouldShowSaver({ ...base, presenceOn: false, presenceOffMs: 150_000 })).toBe(false);
+    expect(shouldShowSaver({ ...base, presenceOn: false, presenceOffMs: 70_000 })).toBe(true);
+  });
   it("chua biet trang thai den nen -> coi nhu sang", () => {
     expect(shouldShowSaver({ ...base, backlightOn: null })).toBe(true);
   });

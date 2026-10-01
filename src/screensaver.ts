@@ -22,6 +22,10 @@ export interface SaverInput {
   /** Den nen dang sang (thiet bi bao qua DeviceState); chua biet -> coi nhu sang. */
   backlightOn: boolean | null;
   shown: boolean;
+  /** (01/10/2026) Cam bien phat hien nguoi cua man hinh (P4) DANG bao co nguoi -> khong hien man hinh cho. */
+  presenceOn?: boolean;
+  /** Luc cam bien vua bao TRONG (ms) — thoi gian ranh dem tu day (nguoi vua roi di). */
+  presenceOffMs?: number;
 }
 
 /** true = can HIEN man hinh cho ngay bay gio (chua hien, du dieu kien). */
@@ -29,10 +33,14 @@ export function shouldShowSaver(s: SaverInput): boolean {
   if (s.shown || s.idleMs <= 0) return false;
   if (s.mediaPlaying) return false;              // dang xem video / camera: khong che
   if (s.backlightOn === false) return false;     // man hinh da tat: ve cung khong ai thay, ton bang thong
+  // (01/10/2026) Nguoi dung: con nguoi dung truoc man hinh (cam bien van bao co nguoi) thi KHONG vao man hinh cho — giu
+  // trang hien tai; chi khi cam bien bao TRONG du thoi gian ranh moi hien. Truoc day chi tinh lan cham cuoi: co nguoi ->
+  // P4 ve trang chu, 2 phut sau man hinh cho phu len du nguoi van dung do (cam bien giu "co nguoi", khong co suon moi).
+  if (s.presenceOn) return false;
   // (01/10/2026) Nhu dien thoai: NGUNG PHAT cung tinh la "vua dung" — dem thoi gian ranh tu lan cham cuoi HOAC luc video
   // ngung, lay cai muon hon. Truoc day YouTube bao "tam dung" thoang qua (nap dem) khi da qua 2 phut khong cham -> man
   // hinh cho hien de len video dang phat roi tat sau 3-6 s, lap lai (log that P4 01/10).
-  const since = Math.max(s.lastTouchMs, s.mediaStoppedMs ?? 0);
+  const since = Math.max(s.lastTouchMs, s.mediaStoppedMs ?? 0, s.presenceOffMs ?? 0);
   return s.now - since >= s.idleMs;
 }
 
