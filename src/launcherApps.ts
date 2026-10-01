@@ -60,6 +60,9 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   // public/camera.html). "Frigate" (truoc la "Camera nha") = luoi camera Frigate, logo Frigate lay tu chinh add-on Frigate.
   add('nha', 'Camera', 'camera', '#16a34a', LAUNCHER_CAMERA_URL);
   add('nha', 'Frigate', 'cams', '#1e3a8a', LAUNCHER_CAMS_URL, undefined, undefined, undefined, FRIGATE_ICON_PATH);
+  // (02/10/2026) The SD cua panel co camera: Thu vien (anh/video da chup, trinh phat) va Tep (duyet / xoa ca the).
+  add('nha', 'Thư viện', 'gallery', '#0d9488', `${LOCAL}/files.html?view=gallery`, undefined, 'gallery', 'mdi:image-album');
+  add('tien_ich', 'Tệp', 'files', '#64748b', `${LOCAL}/files.html`, undefined, 'files', 'mdi:folder-outline');
   add('nha', 'Cảnh', 'scenes', '#9333ea', LAUNCHER_SCENES_URL);
   // (27/09/2026) Ung dung Nha: dieu khien theo khu vuc, TV/loa (src/homeApi.ts).
   add('nha', 'Phòng', 'rooms', '#0284c7', `${LOCAL}/rooms.html`);
@@ -90,6 +93,8 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   add('tien_ich', 'Việc cần làm', 'todo', '#16a34a', `${LOCAL}/todo.html`);
   add('tien_ich', 'Hôm nay', 'today', '#f59e0b', `${LOCAL}/today.html`);
   add('tien_ich', 'Bảng tin', 'board', '#ca8a04', `${LOCAL}/board.html`);
+  // (02/10/2026) Nhan tin noi bo: panel <-> trang "Darboard" tren thanh ben HA (src/chat.ts, public/chat.html).
+  add('tien_ich', 'Tin nhắn', 'chat', '#2563eb', `${LOCAL}/chat.html`, undefined, 'chat', 'mdi:message-text-outline');
   add('tien_ich', 'Báo Mới', 'baomoi', '#15803d', 'https://baomoi.com', undefined, 'baomoi', 'mdi:newspaper-variant-multiple');
   add('tien_ich', 'Giá vàng', 'giavang', '#ca8a04', 'https://webgia.com', undefined, 'giavang', 'mdi:gold');
   add('tien_ich', 'Xổ số', 'xoso', '#dc2626', 'https://www.minhngoc.net.vn', undefined, 'xoso', 'mdi:ticket-confirmation-outline');
@@ -133,9 +138,11 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   return groups.flatMap(g => out.filter(a => a.group === g).sort((x, y) => orderIdx(x) - orderIdx(y)));
 }
 
+/** (01/10/2026) Ung dung chi co tren man hinh co camera + the SD (firmware bao ?cam=, hien chi P4). */
+export const CAMERA_ONLY_APPS = new Set(['camera', 'gallery', 'files']);
+
 /** Ung dung HIEN tren menu (bo an), gon cho launcher. */
 export function buildLauncherApps(homeUrl: string | undefined, hasCamera = true): LauncherApp[] {
-  // (01/10/2026) Ung dung Camera (chup/quay) chi co tren man hinh co camera (firmware bao ?cam=, hien chi P4).
-  return listAllApps(homeUrl).filter(a => !a.hidden && (hasCamera || a.id !== 'camera'))
+  return listAllApps(homeUrl).filter(a => !a.hidden && (hasCamera || !CAMERA_ONLY_APPS.has(a.id)))
     .map(({ id, label, kind, color, group, url, action, path }) => ({ id, label, kind, color, group, url, action, path }));
 }

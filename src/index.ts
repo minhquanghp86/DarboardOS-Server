@@ -14,7 +14,11 @@ import env from "env-var";
 import { makeConfigFromParams, setConfigFor, logDeviceConfig } from "./config.js";
 import { reloadAllLaunchers, broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick, refreshDisplaysTick, markInteraction, screensaverTick, postNotify, repaintRect, onDeviceStatePacket, onDeviceEvent, anyTzOffset, postDoorbell, closeDoorbell, unlockDoorbell, dialHooks, YT_TV_URL, hostMem, pipelineStats } from './deviceManager.js';
 import type { DeviceSession } from './deviceManager.js';
-import { handleCamProxy, noteCameraHost } from './camProxy.js';
+import { camFetch, handleCamProxy, noteCameraHost } from './camProxy.js';
+import { handleChatApi, requestOpenConv, setChatHooks } from './chat.js';
+import { connectedScreens, isAppShowing, setNoticeArgHook } from './deviceManager.js';
+import { getRegistry, haFetch } from './haSettings.js';
+import { findDeviceByMac, macFromDeviceId } from './settingsModel.js';
 import { InputRouter } from "./inputRouter.js";
 import { bootstrapAsync } from './browser.js';
 import { subscribeDeviceAudio, unsubscribeDeviceAudio } from './audioCapture.js';
@@ -163,7 +167,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // (25/09/2026) Them weather.html (ung dung "Thoi tiet" cua launcher) — cung nguyen tac: chi LAN, khong qua HA.
 // (25/09/2026) + cac ung dung launcher: camera nha, canh, lich am duong, radio, hen gio; lunar.js dung chung.
 const STATIC_PAGES = ['cam.html', 'camera.html', 'weather.html', 'cams.html', 'scenes.html', 'calendar.html', 'radio.html', 'timer.html', 'lunar.js',
-  'launcher-config.html', 'os-home.html', 'ui.css', 'ui.js', 'settings.html', 'rooms.html', 'todo.html', 'remote.html', 'photos.html', 'today.html', 'board.html', 'doorbell.html'];
+  'launcher-config.html', 'os-home.html', 'ui.css', 'ui.js', 'settings.html', 'rooms.html', 'todo.html', 'remote.html', 'photos.html', 'today.html', 'board.html', 'doorbell.html',
+  // (02/10/2026) Thu vien / Tep (the SD cua P4), Tin nhan noi bo, bieu tuong dung chung.
+  'files.html', 'chat.html', 'icons.js'];
 const staticCache = new Map<string, Buffer>();
 for (const name of STATIC_PAGES) {
   const p = path.join(__dirname, '..', 'public', name);
@@ -255,6 +261,7 @@ http.createServer((req, res) => {
   if (handleAppApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
   if (handleHomeApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
   if (handleLauncherApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
+  if (handleChatApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
 
   // (25/09/2026) Vi tri nha trong Home Assistant cho weather.html (cung nguon goc 127.0.0.1:HEALTH_PORT).
   if (pathname === '/weather-location') {
@@ -281,6 +288,32 @@ http.createServer((req, res) => {
 }).listen(HEALTH_PORT);
 
 setInterval(() => cleanupIdleAsync(), 60_000);
+
+// (02/10/2026) Tin nhan noi bo (src/chat.ts): ten man hinh lay tu so dang ky thiet bi HA (ten nguoi dung dat), 5 phut/lan.
+const screenNames = new Map<string, string>();
+async function refreshScreenNames(): Promise<void> {
+  try {
+    const reg = await getRegistry();
+    for (const s of connectedScreens()) {
+      const mac = macFromDeviceId(s.id);
+      const d = mac ? findDeviceByMac(reg.devices, mac) : undefined;
+      if (d) screenNames.set(s.id, d.name_by_user || d.name || s.id);
+    }
+  } catch { /* HA chua san sang */ }
+}
+refreshScreenNames();
+setInterval(refreshScreenNames, 5 * 60_000);
+setChatHooks({
+  screens: () => connectedScreens().map((s) => {
+    if (!screenNames.has(s.id)) refreshScreenNames();
+    return { ...s, name: screenNames.get(s.id) || `Màn hình ${s.w}×${s.h}`, online: true };
+  }),
+  notify: (device, title, message, conv) => { postNotify({ device, title, message, priority: 'high', app: 'chat', arg: conv }); },
+  chatActive: (device) => isAppShowing(device, 'chat'),
+  haEvent: (data) => { haFetch('/events/darboard_chat_message', { method: 'POST', body: JSON.stringify(data) }).catch(() => { }); },
+  camFetch,
+});
+setNoticeArgHook((device, app, arg) => { if (app === 'chat') requestOpenConv(device, arg); });
 startWeatherMini();
 // (27/09/2026) Truyen YouTube tu dien thoai: panel hien nhu mot TV trong nut truyen (DIAL). Tat: tuy chon cast_enabled.
 if (!['0', 'false'].includes(process.env.CAST_ENABLED ?? '')) {

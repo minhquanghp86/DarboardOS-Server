@@ -1575,8 +1575,24 @@ function openNotice(dev: DeviceSession, id: number): void {
   if (!n) return;
   noticesOf(dev.deviceId).remove(id);
   pushDeviceStateToPage(dev);
+  if (n.app && n.arg) noticeArgHook?.(dev.deviceId, n.app, n.arg);
   if (n.app) openApp(dev, n.app).catch(() => { });
   else if (n.url) navigateToUrl(dev, n.url).catch(() => { });
+}
+
+// (02/10/2026) Cham thong bao co tham so (Tin nhan: id cuoc tro chuyen) -> ung dung tu mo dung muc (src/chat.ts).
+let noticeArgHook: ((deviceId: string, app: string, arg: string) => void) | null = null;
+export function setNoticeArgHook(fn: (deviceId: string, app: string, arg: string) => void): void { noticeArgHook = fn; }
+
+/** (02/10/2026) Man hinh dang ket noi — cho Tin nhan (ten lay tu HA o index.ts). */
+export function connectedScreens(): { id: string; w: number; h: number; cam: boolean }[] {
+  return [...devices.values()].filter((d) => broadcaster.getClientCount(d.deviceId) > 0)
+    .map((d) => ({ id: d.deviceId, w: d.cfg.width, h: d.cfg.height, cam: d.cfg.camPort > 0 }));
+}
+/** Ung dung `key` dang la tab hien tren man hinh (va den nen dang bat). */
+export function isAppShowing(deviceId: string, key: string): boolean {
+  const d = devices.get(deviceId);
+  return !!d && d.activeTabKey === key && (d.devState ? d.devState.backlightOn : true);
 }
 
 onWeatherMiniUpdate(() => { for (const d of devices.values()) pushDeviceStateToPage(d); });
@@ -1795,6 +1811,8 @@ function resolveAppSpec(dev: DeviceSession, key: string): { kind: string; label:
   if (key === 'yttv') return { kind: 'yttv', label: 'YouTube TV', url: dev.castUrl ?? YT_TV_URL, pinned: false };
   const app = listAllApps(dev.cfg.homeUrl).find((a) => a.id === key && !a.hidden);
   if (!app || !app.url) return null;
+  // (02/10/2026) Tin nhan can biet DANG chay tren man hinh nao (src/chat.ts nhan dien bang ?dev=).
+  if (key === 'chat') return { kind: app.baseKind, label: app.label, url: app.url + (app.url.includes('?') ? '&' : '?') + 'dev=' + encodeURIComponent(dev.deviceId), pinned: false };
   // baseKind, KHONG phai kind: nguoi dung doi bieu tuong o "Menu panel" thi kind thanh 'mdi' -> Radio/Nhac mat phat
   // nen, YouTube/TikTok khong tu dung khi roi tab (activateTab dua vao loai ung dung goc).
   return { kind: app.baseKind, label: app.label, url: app.url, pinned: false };

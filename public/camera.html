@@ -6,7 +6,8 @@
 <title>Camera</title>
 <!--
   (01/10/2026) UNG DUNG CAMERA cua panel (chi man co camera — P4). Xem truc tiep luong go2rtc cua chinh panel (MSE, nhu
-  cam.html), chup anh 1920x1080 / quay video H.264 (.mkv) luu the SD cua panel, thu vien xem / xoa. Moi lenh qua
+  cam.html), chup anh 1920x1080 / quay video H.264 (.mkv) luu the SD cua panel; o thu vien mo files.html?view=gallery
+  (02/10/2026 — xem, phat, xoa). Moi lenh qua
   /api/cam/* cua server -> firmware cam_app (src/camProxy.ts). Khong co the SD: van chup duoc, anh chi xem tam.
   Tham so: src (luong go2rtc, mac dinh p4_panel), host (go2rtc, mac dinh 192.168.1.2:1984).
 -->
@@ -52,26 +53,6 @@
     color: #f9fafb; padding: 10px 18px; border-radius: 999px; font-size: 14px; font-weight: 600; max-width: 70vw; text-align: center; }
   #toast[hidden] { display: none; }
 
-  /* Thu vien */
-  #gal { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; }
-  #gal[hidden] { display: none; }
-  .ghead { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
-  .ghead h1 { font-size: 18px; margin: 0; flex: 1; }
-  .ghead .sub { color: var(--muted); font-size: 13px; font-weight: 500; }
-  .grid { flex: 1; overflow-y: auto; padding: 12px 16px 24px; display: grid; gap: 10px;
-    grid-template-columns: repeat(auto-fill, minmax(clamp(120px, 20vw, 190px), 1fr)); align-content: start; }
-  .tile { position: relative; aspect-ratio: 16 / 9; border-radius: var(--r-md); overflow: hidden; background: var(--surface-2) center / cover no-repeat;
-    border: none; padding: 0; cursor: pointer; color: var(--text); max-width: 100%; }
-  .tile .lbl { position: absolute; left: 0; right: 0; bottom: 0; padding: 4px 8px; font-size: 11px; text-align: left;
-    background: linear-gradient(to top, rgba(0,0,0,.75), rgba(0,0,0,0)); font-variant-numeric: tabular-nums; }
-  .tile .vid { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 30px; }
-  .empty { grid-column: 1 / -1; color: var(--muted); text-align: center; padding: 40px 10px; font-size: 15px; line-height: 1.6; }
-  #view { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; }
-  #view[hidden] { display: none; }
-  #view img, #view video { max-width: 100%; max-height: 100%; }
-  .vbar { position: fixed; top: 12px; left: 12px; right: 12px; display: flex; gap: 10px; align-items: center; }
-  .vbar .name { flex: 1; color: #e5e7eb; font-size: 13px; text-shadow: 0 1px 2px #000; }
-  .rwv-btn.danger { background: var(--err); color: #fff; }
 </style>
 </head>
 <body class="rwv-app">
@@ -94,21 +75,6 @@
 </div>
 <div id="toast" hidden></div>
 
-<div id="gal" hidden>
-  <div class="ghead">
-    <button class="rwv-btn" id="galBack">‹ Camera</button>
-    <h1>Thư viện <span class="sub" id="galSub"></span></h1>
-  </div>
-  <div class="grid" id="grid"></div>
-</div>
-
-<div id="view" hidden>
-  <div class="vbar">
-    <button class="rwv-btn" id="viewBack">‹ Thư viện</button>
-    <span class="name" id="viewName"></span>
-    <button class="rwv-btn danger" id="viewDel">Xoá</button>
-  </div>
-</div>
 
 <script type="module">
   const q = new URLSearchParams(location.search);
@@ -200,50 +166,8 @@
     busy = false; $('shutter').disabled = false; poll();
   };
 
-  // ---- Thu vien ----
-  async function openGallery() {
-    $('gal').hidden = false;
-    const grid = $('grid'); grid.replaceChildren();
-    let r;
-    try { r = await api('/sd/list'); } catch (e) { r = { sd: false, files: [], err: e.message }; }
-    if (!r.sd) {
-      const d = document.createElement('div'); d.className = 'empty';
-      d.textContent = 'Chưa có thẻ SD. Cắm thẻ (FAT32) vào khe trên màn hình — camera tự nhận, không cần khởi động lại.';
-      grid.append(d); $('galSub').textContent = ''; return;
-    }
-    $('galSub').textContent = `· ${r.files.length} tệp`;
-    if (!r.files.length) { const d = document.createElement('div'); d.className = 'empty'; d.textContent = 'Chưa có ảnh hay video nào.'; grid.append(d); return; }
-    for (const f of r.files) {
-      const b = document.createElement('button'); b.className = 'tile';
-      const isImg = /\.jpg$/i.test(f.n);
-      if (isImg) b.style.backgroundImage = `url("/api/cam/sd/file?n=${encodeURIComponent(f.n)}")`;
-      else { const v = document.createElement('div'); v.className = 'vid'; v.textContent = '▶'; b.append(v); }
-      const l = document.createElement('div'); l.className = 'lbl';
-      l.textContent = f.n.replace(/^(IMG|VID)_/, '').replace(/\.(jpg|mkv)$/i, '').replace(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})$/, '$3/$2 $4:$5') + ` · ${f.kb >= 1024 ? (f.kb / 1024).toFixed(1) + ' MB' : f.kb + ' KB'}`;
-      b.append(l);
-      b.onclick = () => openView(f.n, isImg);
-      grid.append(b);
-    }
-  }
-  $('thumb').onclick = openGallery;
-  $('galBack').onclick = () => { $('gal').hidden = true; };
-
-  let viewing = null, delArmed = false;
-  function openView(name, isImg) {
-    viewing = name; delArmed = false; $('viewDel').textContent = 'Xoá';
-    const v = $('view'); v.querySelectorAll('img,video').forEach((x) => x.remove());
-    const url = `/api/cam/sd/file?n=${encodeURIComponent(name)}`;
-    const el = document.createElement(isImg ? 'img' : 'video');
-    el.src = url;
-    if (!isImg) { el.controls = true; el.autoplay = true; el.onerror = () => toast('Trình duyệt không phát được tệp này — chép ra máy tính để xem.', 4000); }
-    v.append(el); $('viewName').textContent = name; v.hidden = false;
-  }
-  $('viewBack').onclick = () => { $('view').hidden = true; $('view').querySelectorAll('video').forEach((x) => x.pause()); };
-  $('viewDel').onclick = async () => {
-    if (!delArmed) { delArmed = true; $('viewDel').textContent = 'Chạm lần nữa để xoá'; return; }
-    try { await api('/sd/del?n=' + encodeURIComponent(viewing), 'POST'); toast('Đã xoá ' + viewing); $('view').hidden = true; openGallery(); }
-    catch (e) { toast(e.message, 3500); }
-  };
+  // ---- Thu vien: ung dung files.html (02/10/2026) — xem / phat / xoa; nut quay lai ve Camera ----
+  $('thumb').onclick = () => { location.href = '/files.html?view=gallery&from=camera'; };
 </script>
 </body>
 </html>

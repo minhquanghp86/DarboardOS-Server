@@ -25,11 +25,13 @@ export interface Notice {
   url?: string;
   /** Anh kem theo (vd anh chup camera cong qua go2rtc). */
   image?: string;
+  /** (02/10/2026) Tham so cho ung dung `app` khi cham (vd id cuoc tro chuyen cua Tin nhan). */
+  arg?: string;
 }
 
 export interface NotifyRequest {
   title?: unknown; message?: unknown; priority?: unknown; device?: unknown; app?: unknown; url?: unknown;
-  image?: unknown; camera?: unknown;
+  image?: unknown; camera?: unknown; arg?: unknown;
 }
 
 const str = (v: unknown, max: number): string => (typeof v === 'string' ? v.trim().slice(0, max) : '');
@@ -54,10 +56,11 @@ export function parseNotify(body: NotifyRequest, go2rtc: string):
     image = `${go2rtc.replace(/\/$/, '')}/api/frame.jpeg?src=${encodeURIComponent(camera)}`;
   }
   const app = str(body.app, 40);
+  const arg = app ? str(body.arg, 64) : '';
   return {
     ok: true,
     device: str(body.device, 64) || 'all',
-    notice: { title, message, priority, ...(app ? { app } : {}), ...(url ? { url } : {}), ...(image ? { image } : {}) },
+    notice: { title, message, priority, ...(app ? { app } : {}), ...(arg ? { arg } : {}), ...(url ? { url } : {}), ...(image ? { image } : {}) },
   };
 }
 

@@ -21,7 +21,74 @@ export function cameraHost(): { ip: string; port: number } | undefined {
   return hosts.values().next().value;
 }
 
-const ALLOWED = /^\/(cam\/(status|photo|last\.jpg|rec)|sd\/(list|file|del))$/;
+// (02/10/2026) + ung dung Tep / Thu vien: sd/ls (duyet), sd/get (tai, co Range de tua video), sd/rm (xoa), sd/thumb.
+const ALLOWED = /^\/(cam\/(status|photo|last\.jpg|rec)|sd\/(list|file|del|ls|get|rm|thumb))$/;
+
+// Panel chi mo 5 socket HTTP (cam_app) — luoi anh thu nho tai 30 o cung luc se day mat luong video dang phat. Hai hang
+// doi: yeu cau nho (ls/thumb/status...) toi da 2, tai tep (get) toi da 3.
+class Gate {
+  private busy = 0;
+  private q: (() => void)[] = [];
+  constructor(private max: number) { }
+  async run<T>(fn: () => Promise<T>): Promise<T> {
+    if (this.busy >= this.max) await new Promise<void>((r) => this.q.push(r));
+    this.busy++;
+    try { return await fn(); } finally { this.busy--; this.q.shift()?.(); }
+  }
+}
+const smallGate = new Gate(2), fileGate = new Gate(3);
+
+// Anh thu nho tu tao (sharp) cho anh KHONG co .thumb tren the (chep tu may tinh...). Bo nho dem nho theo duong+co+gio.
+const thumbCache = new Map<string, Buffer | null>();
+const THUMB_MAX = 300;
+function cacheThumb(k: string, v: Buffer | null): void {
+  thumbCache.delete(k); thumbCache.set(k, v);
+  while (thumbCache.size > THUMB_MAX) thumbCache.delete(thumbCache.keys().next().value!);
+}
+
+function fetchBuf(h: { ip: string; port: number }, path: string, max: number, method = 'GET'): Promise<{ code: number; type: string; body: Buffer }> {
+  return new Promise((resolve, reject) => {
+    const up = http.request({ host: h.ip, port: h.port, path, method, timeout: 20_000 }, (r) => {
+      const parts: Buffer[] = []; let n = 0;
+      r.on('data', (c: Buffer) => { n += c.length; if (n > max) { up.destroy(new Error('qua lon')); return; } parts.push(c); });
+      r.on('end', () => resolve({ code: r.statusCode || 502, type: String(r.headers['content-type'] || ''), body: Buffer.concat(parts) }));
+      r.on('error', reject);
+    });
+    up.on('timeout', () => up.destroy(new Error('het gio')));
+    up.on('error', reject);
+    up.end();
+  });
+}
+
+async function serveThumb(h: { ip: string; port: number }, search: string, res: http.ServerResponse): Promise<void> {
+  const q = new URLSearchParams(search);
+  const p = q.get('p') || '';
+  const key = `${p}|${q.get('s') || ''}|${q.get('t') || ''}`;
+  const send = (b: Buffer | null) => {
+    if (!b) { res.writeHead(404, { 'cache-control': 'no-store' }); res.end(); return; }
+    res.writeHead(200, { 'content-type': 'image/jpeg', 'content-length': b.length, 'cache-control': 'private, max-age=86400' });
+    res.end(b);
+  };
+  if (thumbCache.has(key)) { send(thumbCache.get(key)!); return; }
+  const qs = '?p=' + encodeURIComponent(p);
+  const t = await smallGate.run(() => fetchBuf(h, '/sd/thumb' + qs, 512 * 1024));
+  if (t.code === 200 && t.body.length) { cacheThumb(key, t.body); send(t.body); return; }
+  // Khong co .thumb: anh thuong -> tu thu nho (<= 20 MB); video/khac -> 404 (trang ve bieu tuong).
+  if (!/\.(jpe?g|png|webp|gif|bmp)$/i.test(p)) { cacheThumb(key, null); send(null); return; }
+  const full = await fileGate.run(() => fetchBuf(h, '/sd/get' + qs, 20 * 1024 * 1024));
+  if (full.code !== 200) { send(null); return; }
+  const sharp = (await import('sharp')).default;
+  const out = await sharp(full.body, { failOn: 'none' }).rotate().resize(320, 320, { fit: 'inside' }).jpeg({ quality: 70 }).toBuffer();
+  cacheThumb(key, out); send(out);
+}
+
+/** (02/10/2026) Cho server (Tin nhan: gui anh tu the SD / chup ngay). Toi da 200 MB. */
+export async function camFetch(pathAndQuery: string, method = 'GET'): Promise<{ code: number; type: string; body: Buffer }> {
+  const h = cameraHost();
+  if (!h) throw new Error('Màn hình có camera chưa kết nối.');
+  const big = pathAndQuery.startsWith('/sd/get');
+  return (big ? fileGate : smallGate).run(() => fetchBuf(h, pathAndQuery, 200 * 1024 * 1024, method));
+}
 
 /** true = da xu ly yeu cau (pathname bat dau /api/cam/). */
 export function handleCamProxy(req: http.IncomingMessage, res: http.ServerResponse, pathname: string, search: string): boolean {
@@ -36,16 +103,29 @@ export function handleCamProxy(req: http.IncomingMessage, res: http.ServerRespon
   if (!ALLOWED.test(sub) || (req.method !== 'GET' && req.method !== 'POST')) { send(404, { error: 'khong co' }); return true; }
   const h = cameraHost();
   if (!h) { send(503, { error: 'Màn hình có camera chưa kết nối.' }); return true; }
-  const up = http.request({ host: h.ip, port: h.port, path: sub + search, method: req.method, timeout: 20_000 }, (r) => {
-    const headers: http.OutgoingHttpHeaders = { 'cache-control': 'no-store' };
-    if (r.headers['content-type']) headers['content-type'] = r.headers['content-type'];
-    if (r.headers['content-length']) headers['content-length'] = r.headers['content-length'];
-    res.writeHead(r.statusCode || 502, headers);
-    r.pipe(res);
-  });
-  up.on('timeout', () => up.destroy(new Error('het gio')));
-  up.on('error', (e) => { if (!res.headersSent) send(502, { error: `Không gọi được camera (${e.message}).` }); else res.destroy(); });
-  req.on('close', () => { if (!res.writableEnded) up.destroy(); });
-  up.end();
+  if (sub === '/sd/thumb') {
+    serveThumb(h, search, res).catch((e) => { if (!res.headersSent) send(502, { error: (e as Error).message }); else res.destroy(); });
+    return true;
+  }
+  const isFile = sub === '/sd/get' || sub === '/sd/file';
+  const gate = isFile ? fileGate : smallGate;
+  gate.run(() => new Promise<void>((done) => {
+    const fwd: http.OutgoingHttpHeaders = {};
+    if (isFile && req.headers.range) fwd.range = req.headers.range;
+    const up = http.request({ host: h.ip, port: h.port, path: sub + search, method: req.method, timeout: 20_000, headers: fwd }, (r) => {
+      const headers: http.OutgoingHttpHeaders = { 'cache-control': 'no-store' };
+      for (const k of ['content-type', 'content-length', 'content-range', 'accept-ranges'] as const) if (r.headers[k]) headers[k] = r.headers[k];
+      // cam_app chi gui kieu chunked; do dai that nam o X-Body-Length -> Content-Length cho trinh phat video.
+      const bl = Number(r.headers['x-body-length']);
+      if (Number.isFinite(bl) && bl >= 0 && (r.statusCode === 200 || r.statusCode === 206)) headers['content-length'] = bl;
+      res.writeHead(r.statusCode || 502, headers);
+      r.pipe(res);
+      r.on('end', done); r.on('error', done); r.on('close', done);
+    });
+    up.on('timeout', () => up.destroy(new Error('het gio')));
+    up.on('error', (e) => { if (!res.headersSent) send(502, { error: `Không gọi được camera (${e.message}).` }); else res.destroy(); done(); });
+    req.on('close', () => { if (!res.writableEnded) up.destroy(); done(); });
+    up.end();
+  })).catch(() => { });
   return true;
 }
