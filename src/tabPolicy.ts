@@ -64,12 +64,13 @@ export function pickIdleCloses(
     .map((t) => t.key);
 }
 
-/** Han muc tab khi may chu THIEU RAM (MemAvailable < lowMb): chi giu 1 ung dung nen, dong tab nhan roi sau 3 phut. */
+/** Han muc tab khi may chu THIEU RAM (MemAvailable < lowMb): chi giu 1 ung dung nen, dong tab nhan roi sau 2 phut
+ * (01/10/2026: 3 -> 2, nguoi dung yeu cau). */
 export function tabBudget(memAvailMb: number | null, lowMb: number, maxAppTabs: number, idleMs: number):
   { maxAppTabs: number; idleMs: number; low: boolean } {
   const low = memAvailMb != null && memAvailMb < lowMb;
   if (!low) return { maxAppTabs, idleMs, low };
-  return { maxAppTabs: Math.min(1, maxAppTabs), idleMs: Math.min(idleMs > 0 ? idleMs : Infinity, 3 * 60_000), low };
+  return { maxAppTabs: Math.min(1, maxAppTabs), idleMs: Math.min(idleMs > 0 ? idleMs : Infinity, 2 * 60_000), low };
 }
 
 /** Doc /proc/meminfo -> MB (null neu thieu truong). */

@@ -1,3 +1,17 @@
+## V2.9.87
+### Màn hình chờ không bao giờ đè lên video; tab nền thật sự dừng và đóng sớm hơn
+
+Áp dụng như nhau cho **P4 và cả hai S3** (chỉ server, không cần nạp firmware). Thay cho cách "chờ 30 s" của 2.9.86.
+
+- **Màn hình chờ như điện thoại**: ngừng phát video cũng tính là "vừa dùng" — thời gian rảnh đếm từ lần chạm cuối HOẶC lúc
+  video ngừng (lấy cái muộn hơn). Trước khi vẽ, server **hỏi thẳng trang** có `<video>/<audio>` đang chạy không — đang
+  chạy thì không vẽ. Log thật P4 01/10: YouTube báo "tạm dừng" thoáng qua khi nạp đệm → màn hình chờ hiện đè video 3–6 s.
+- **Tab nền thật sự dừng**: trước khi đóng băng (dừng JavaScript) server **dừng mọi video/âm thanh** của tab — trước đây
+  chỉ YouTube/TikTok; trang web khác có video vẫn phát ngầm vì bộ giải mã của Chrome không phụ thuộc JavaScript. Radio /
+  nhạc được phép phát nền: không đổi.
+- **Đóng hẳn tab nền** (trả RAM) sau **5 phút** không dùng (trước 20), **2 phút** khi máy chủ thiếu RAM (trước 3). Vẫn còn
+  trong "Gần đây". Tuỳ chỉnh: `IDLE_TAB_CLOSE_MIN`.
+
 ## V2.9.86
 ### Sửa: màn hình chờ hiện đè lên video đang phát
 

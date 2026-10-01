@@ -174,6 +174,8 @@ export type DeviceSession = {
   /** (26/09/2026 OS-5) Lan cham cuoi (moc cho man hinh cho) va man hinh cho dang hien tren tab active hay khong. */
   lastTouchMs: number;
   saverOn: boolean;
+  /** (01/10/2026) Dang hoi trang co video dang chay khong truoc khi hien man hinh cho. */
+  saverProbeBusy?: boolean;
   /** (27/09/2026) Man hinh cho dang khung anh: anh dang hien + luc doi. */
   saverPhoto?: string | null;
   saverPhotoAt?: number;
@@ -1744,11 +1746,11 @@ function evictIfNeeded(dev: DeviceSession): void {
 
 // (30/09/2026) NGAN SACH RAM MAY CHU. Do 30/09: may HASS 10 GB, swap da dung ~2,9/3,3 GB (Frigate 2,4 GB + addon 1,7 GB);
 // tab nen bi tam dung JS (2.9.65) het ton CPU nhung van giu nguyen RAM renderer. Them:
-//   - tab nen khong dung qua IDLE_TAB_CLOSE_MIN phut (mac dinh 20; 0 = tat) -> DONG HAN, van con trong "Gan day"
+//   - tab nen khong dung qua IDLE_TAB_CLOSE_MIN phut (mac dinh 5, truoc 01/10 la 20; 0 = tat) -> DONG HAN, van con trong "Gan day"
 //     (anh + URL cu, cham = mo lai dung trang) — xem pickIdleCloses (tabPolicy.ts);
-//   - MemAvailable < LOW_MEM_MB (mac dinh 600) -> chi giu 1 ung dung nen, dong tab nhan roi sau 3 phut (tabBudget).
+//   - MemAvailable < LOW_MEM_MB (mac dinh 600) -> chi giu 1 ung dung nen, dong tab nhan roi sau 2 phut (tabBudget).
 // So lieu RAM/swap may chu nam trong /metrics (host).
-const IDLE_TAB_CLOSE_MS = Math.max(0, Number(process.env.IDLE_TAB_CLOSE_MIN ?? '20') || 0) * 60_000;
+const IDLE_TAB_CLOSE_MS = Math.max(0, Number(process.env.IDLE_TAB_CLOSE_MIN ?? '5') || 0) * 60_000;
 const LOW_MEM_MB = Math.max(0, Number(process.env.LOW_MEM_MB ?? '600') || 0);
 let hostMemCache: { at: number; v: ReturnType<typeof parseMeminfo> } = { at: 0, v: null };
 
@@ -2085,12 +2087,18 @@ function isCameraTab(t: Tab): boolean {
   return !t.pinned && (t.kind === 'camera' || t.kind === 'cams' || /\/cams?\.html(\?|$)/.test(t.url));
 }
 
+const PAUSE_ALL_MEDIA_JS = "document.querySelectorAll('video,audio').forEach(function(m){try{m.pause();}catch(e){}});";
+
 function freezeTab(dev: DeviceSession, tab: Tab): void {
   if (!FREEZE_BG_TABS || tab.frozen || dev.activeTabKey === tab.key || !dev.tabs.has(tab.key)) return;
   if (tab.kind === 'yttv' || (tab.backgroundAudio && tab.mediaPlaying)) return;
   tab.frozen = true;
-  // Debugger.enable ngay truoc khi dung (khong de bat thuong truc: moi script trang nap se ban su kien ve server).
-  tab.session.send('Debugger.enable', {})
+  // (01/10/2026) Debugger.pause chi dung JAVASCRIPT — bo giai ma <video>/<audio> cua Chrome VAN CHAY (truoc day chi
+  // YouTube/TikTok duoc dung video khi roi tab: trang web khac co video van phat ngam). Dung MOI media truoc khi dong
+  // bang. Tab radio/nhac dang phat nen khong bao gio toi day (dieu kien o tren).
+  tab.session.send('Runtime.evaluate', { expression: PAUSE_ALL_MEDIA_JS }).catch(() => { })
+    // Debugger.enable ngay truoc khi dung (khong de bat thuong truc: moi script trang nap se ban su kien ve server).
+    .then(() => tab.frozen ? tab.session.send('Debugger.enable', {}) : undefined)
     .then(() => tab.frozen ? tab.session.send('Debugger.pause') : undefined)
     .then(() => console.log(`[app] ${dev.deviceId}: dong bang tab nen "${tab.key}"`))
     .catch((e: unknown) => { tab.frozen = false; console.warn(`[app] ${dev.deviceId}: khong dong bang duoc "${tab.key}":`, e); });
@@ -3040,15 +3048,40 @@ export function screensaverTick(): void {
       mediaStoppedMs: tab.mediaStoppedMs,
       backlightOn: d.devState ? d.devState.backlightOn : null, shown: d.saverOn,
     })) continue;
-    setSaver(d, true);
-    d.saverPhotoAt = 0;
-    d.cdp.send('Runtime.evaluate', {
-      expression: 'window.__rwvShell && window.__rwvShell.screensaver && window.__rwvShell.screensaver(true)',
-    }).catch(() => { });
-    console.log(`[saver] ${d.deviceId}: hien man hinh cho (tab "${tab.key}")`);
+    // (01/10/2026) KHONG BAO GIO ve de len video dang chay: hoi THANG trang (khong chi dua vao su kien phat/dung trang
+    // tu bao — YouTube bao "tam dung" thoang qua khi nap dem). Dang chay -> coi nhu vua dung, dem lai thoi gian ranh.
+    // Hoi loi / qua 1,5 s -> bo qua lan nay (than trong: thu lai sau 5 s).
+    if (d.saverProbeBusy) continue;
+    d.saverProbeBusy = true;
+    const sess = d.cdp;
+    Promise.race([
+      sess.send('Runtime.evaluate', { expression: SAVER_MEDIA_PROBE_JS, returnByValue: true }) as Promise<{ result?: { value?: unknown } }>,
+      new Promise<never>((_, rej) => setTimeout(() => rej(new Error('het gio')), 1500)),
+    ]).then((r) => {
+      if (d.saverOn || d.cdp !== sess || d.activeTabKey !== tab.key || devices.get(d.deviceId) !== d) return;
+      if (r?.result?.value === true) {
+        tab.mediaStoppedMs = Date.now();
+        console.log(`[saver] ${d.deviceId}: khong hien man hinh cho — tab "${tab.key}" van dang phat`);
+        return;
+      }
+      showSaver(d, tab);
+    }).catch(() => { }).finally(() => { d.saverProbeBusy = false; });
   }
   for (const d of devices.values()) if (d.saverOn) saverPhotoTick(d, now);
 }
+
+function showSaver(d: DeviceSession, tab: Tab): void {
+  setSaver(d, true);
+  d.saverPhotoAt = 0;
+  d.cdp.send('Runtime.evaluate', {
+    expression: 'window.__rwvShell && window.__rwvShell.screensaver && window.__rwvShell.screensaver(true)',
+  }).catch(() => { });
+  console.log(`[saver] ${d.deviceId}: hien man hinh cho (tab "${tab.key}")`);
+}
+
+/** Co <video>/<audio> nao DANG CHAY that su (khong dung, chua het, du du lieu de phat). */
+const SAVER_MEDIA_PROBE_JS = `(() => { for (const m of document.querySelectorAll('video,audio')) {
+  if (!m.paused && !m.ended && m.readyState >= 2) return true; } return false; })()`;
 
 /**
  * (27/09/2026) Man hinh cho dang khung anh: moi phut mot anh gia dinh (thu nho dung kich thuoc man hinh o server), dong
