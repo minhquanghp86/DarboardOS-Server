@@ -43,7 +43,7 @@
   /* Trinh sua */
   #ed { position: fixed; inset: 0; background: var(--bg); z-index: 10; overflow-y: auto; }
   #ed .in { max-width: 720px; margin: 0 auto; padding: calc(var(--pad) + 10px) var(--pad) var(--pad); display: flex; flex-direction: column; gap: calc(var(--gap) * 1.2); }
-  .edh { display: flex; align-items: center; gap: 10px; }
+  .edh { display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 2; background: var(--bg); padding: 6px 0; }
   .edh h2 { flex: 1; margin: 0; font-size: 1.25em; }
   .pick { display: flex; align-items: center; justify-content: center; gap: clamp(8px, 3vmin, 24px); }
   .col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
@@ -138,7 +138,8 @@
     S.alarms.slice().sort(function (a, b) { return a.time < b.time ? -1 : 1; }).forEach(function (a) {
       var b = el('div', 'al' + (a.enabled ? '' : ' off')); b.setAttribute('role', 'button');
       var tx = el('div', 'tx');
-      tx.append(el('div', 'tm', a.time), el('div', 'ds', [a.label, daysText(a), screensText(a)].filter(Boolean).join(' · ')));
+      var dt = daysText(a);
+      tx.append(el('div', 'tm', a.time), el('div', 'ds', [a.label !== dt ? a.label : '', dt, screensText(a)].filter(Boolean).join(' · ')));
       if (a.snoozed && a.next) { var d = new Date(a.next + S.tz * 60000); tx.append(el('div', 'snz', 'Báo lại lúc ' + p2(d.getUTCHours()) + ':' + p2(d.getUTCMinutes()))); }
       var tg = el('div', 'tg' + (a.enabled ? ' on' : '')); tg.setAttribute('role', 'switch'); tg.setAttribute('aria-checked', String(a.enabled));
       tg.onclick = function (ev) {
@@ -246,6 +247,7 @@
     }
     var cancel = el('button', 'tb', 'Huỷ'); cancel.onclick = function () { ed.hidden = true; };
     var save = el('button', 'tb pri', 'Lưu');
+    head.append(cancel, save);  // tren cung (dinh khi cuon) — man 480x272 khong phai cuon xuong moi luu duoc
     save.onclick = function () {
       d.time = p2(hh) + ':' + p2(mm); d.label = inp.value; d.enabled = true;
       api('save', d).then(function (r) {
@@ -256,7 +258,7 @@
         });
       }).catch(function (e) { toast(e.message); });
     };
-    acts.append(cancel, save); inn.append(acts);
+    if (a) inn.append(acts);
   }
 
   load();
