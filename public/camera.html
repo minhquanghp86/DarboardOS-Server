@@ -160,8 +160,13 @@
     sh.setAttribute('aria-label', mode === 'photo' ? 'Chụp ảnh' : rec ? 'Dừng quay' : 'Quay video');
     $('mPhoto').disabled = $('mVideo').disabled = rec;
   }
+  let thumbName = '';
   async function poll() {
-    try { st = await api('/cam/status'); render(); }
+    try {
+      st = await api('/cam/status'); render();
+      // Anh chup gan nhat (ke ca chup tu lan mo truoc) -> o Thu vien.
+      if (st.last && st.last.name && st.last.name !== thumbName) { thumbName = st.last.name; setThumb('/api/cam/cam/last.jpg?n=' + encodeURIComponent(thumbName)); }
+    }
     catch (e) { $('sdChip').textContent = 'Camera chưa sẵn sàng: ' + e.message; $('sdChip').classList.add('warn'); }
   }
   poll(); setInterval(() => { if (!document.hidden) poll(); }, 2000);
