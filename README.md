@@ -41,13 +41,18 @@ hiện ở tab *Tài liệu* của addon trong Home Assistant.
 
 **Menu ứng dụng** (vuốt từ mép trên xuống, trên mọi trang)
 - Giờ, ngày dương/âm lịch, thời tiết thu gọn; thanh trượt độ sáng/âm lượng; nút Màn hình chờ / Tắt tiếng / Khử vọng mic / Không làm phiền.
-- Ứng dụng theo nhóm: Home Assistant, Camera P4, Camera nhà (lưới camera go2rtc), Solar,
+- Ứng dụng theo nhóm: Home Assistant, Camera P4, Frigate (lưới camera go2rtc), Solar,
   YouTube, TikTok, Nhạc, Radio VOV, Tin tức, Media, Thời tiết (Open-Meteo, 34 tỉnh/thành), Lịch âm dương, Hẹn giờ
   (báo thức toàn màn hình, vẫn reo khi đã chuyển trang), Trình duyệt.
 - Trang **Menu panel** trên thanh bên Home Assistant (ingress): ẩn/hiện, sắp xếp, biểu tượng MDI, màu, thêm ứng dụng.
 
 **Giao diện kiểu hệ điều hành** (OS-1/OS-2 — xem `docs/KE-HOACH-GIAO-DIEN-HE-DIEU-HANH.md`)
-- Vuốt lên từ mép dưới: về màn hình chính (đồng hồ, thời tiết, lưới ứng dụng, dock).
+- Vuốt lên từ mép dưới: về màn hình chính (đồng hồ, thời tiết, lưới ứng dụng, dock). Vuốt lên rồi giữ (hoặc nút
+  *Gần đây* trên thanh kéo xuống): màn hình **Gần đây**.
+- **Dock** tối đa 6 ứng dụng, mặc định Home Assistant, Camera, YouTube, Tin nhắn, NhacCuaTui, Google Maps (kéo thả để đổi).
+- **Màn hình chờ** (đồng hồ / khung ảnh) sau một lúc rảnh, không đè lên video đang phát. Màn có cảm biến phát hiện
+  người (P4): còn người đứng trước màn hình thì không vào màn hình chờ, chỉ đếm thời gian rảnh từ lúc cảm biến báo trống.
+- **YouTube TV**: vuốt = phím mũi tên như remote, cử chỉ quay lại = Esc (về trang chính của YouTube TV trước).
 - **Mỗi ứng dụng một tab Chromium riêng**: mở Home Assistant/Camera/Radio… không tải lại — tab được giữ "ấm" ở nền,
   quay lại gần như tức thì. Chỉ tab đang hiện mới được mã hoá/truyền hình; các tab khác vẫn chạy JS (radio/nhạc phát
   nền được). Tối đa `MAX_APP_TABS` ứng dụng phụ mở song song, cũ nhất tự đóng khi vượt hạn mức.
