@@ -6,6 +6,8 @@ import { getLauncherConfig, getMdiPath } from './launcherConfig.js';
 
 export interface LauncherApp {
   id: string; label: string; kind: string; color: string; group: AppGroup; url?: string; action?: 'url';
+  /** (01/10/2026) Bieu tuong MDI mac dinh ("mdi:ten") cua ung dung co san — nguoi dung van doi duoc o "Menu panel". */
+  defIcon?: string;
   /** kind === 'mdi': duong ve SVG 24x24 cua bieu tuong MDI */
   path?: string;
 }
@@ -37,13 +39,15 @@ export const LAUNCHER_TIMER_URL = `${LOCAL}/timer.html`;
 export const LAUNCHER_OS_HOME_URL = `${LOCAL}/os/home`;
 export const LAUNCHER_CAMS_URL = `${LOCAL}/cams.html`;
 export const LAUNCHER_SCENES_URL = `${LOCAL}/scenes.html`;
+/** (01/10/2026) Google Maps lop giao thong. Mac dinh trung tam Hai Phong; doi bang bien moi truong LAUNCHER_TRAFFIC_URL. */
+export const LAUNCHER_TRAFFIC_URL = process.env.LAUNCHER_TRAFFIC_URL || 'https://www.google.com/maps/@20.8449,106.6881,13z/data=!5m1!1e1';
 
 export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   let haOrigin = '';
   try { if (homeUrl) haOrigin = new URL(homeUrl).origin; } catch { }
   const apps: LauncherApp[] = [];
-  const add = (group: AppGroup, label: string, kind: string, color: string, url?: string, action?: 'url', id?: string) =>
-    apps.push({ id: id || kind, group, label, kind, color, url, action });
+  const add = (group: AppGroup, label: string, kind: string, color: string, url?: string, action?: 'url', id?: string, defIcon?: string) =>
+    apps.push({ id: id || kind, group, label, kind, color, url, action, defIcon });
 
   // Home Assistant la MOT ung dung (uu tien: dau dock). id giu 'home' de cau hinh cu (Menu panel) van ap dung.
   if (homeUrl) add('nha', 'Home Assistant', 'ha', '#1a8fd6', homeUrl, undefined, 'home');
@@ -64,6 +68,12 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   add('giai_tri', 'Nhạc', 'music', '#e11d48', 'https://music.youtube.com');
   add('giai_tri', 'Radio', 'radio', '#ea580c', `${LOCAL}/radio.html`);
   add('giai_tri', 'Tin tức', 'news', '#b91c1c', 'https://vnexpress.net');
+  // (01/10/2026) Tien ich web moi (nguoi dung chon). Do 01/10 trong tab Chrome rieng: deu tai duoc; VTVgo phat VTV1 truc
+  // tiep (khong vuong DRM; lan dau co hop Dieu khoan — nguoi dung tu bam Dong y). Zing MP3 / NhacCuaTui: kind 'music' de
+  // PHAT NEN nhu ung dung Nhac (tab khong bi dong bang khi dang phat).
+  add('giai_tri', 'VTVgo', 'vtvgo', '#c8102e', 'https://vtvgo.vn', undefined, 'vtvgo', 'mdi:television-play');
+  add('giai_tri', 'Zing MP3', 'music', '#8b45ca', 'https://zingmp3.vn', undefined, 'zingmp3', 'mdi:music-circle-outline');
+  add('giai_tri', 'NhacCuaTui', 'music', '#1f6feb', 'https://www.nhaccuatui.com', undefined, 'nhaccuatui', 'mdi:playlist-music');
   if (haOrigin) add('giai_tri', 'Media', 'media', '#7c3aed', `${haOrigin}/media-browser/browser`);
   add('giai_tri', 'Khung ảnh', 'photos', '#db2777', `${LOCAL}/photos.html`);
 
@@ -73,6 +83,10 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   add('tien_ich', 'Việc cần làm', 'todo', '#16a34a', `${LOCAL}/todo.html`);
   add('tien_ich', 'Hôm nay', 'today', '#f59e0b', `${LOCAL}/today.html`);
   add('tien_ich', 'Bảng tin', 'board', '#ca8a04', `${LOCAL}/board.html`);
+  add('tien_ich', 'Báo Mới', 'baomoi', '#15803d', 'https://baomoi.com', undefined, 'baomoi', 'mdi:newspaper-variant-multiple');
+  add('tien_ich', 'Giá vàng', 'giavang', '#ca8a04', 'https://webgia.com', undefined, 'giavang', 'mdi:gold');
+  add('tien_ich', 'Xổ số', 'xoso', '#dc2626', 'https://www.minhngoc.net.vn', undefined, 'xoso', 'mdi:ticket-confirmation-outline');
+  add('tien_ich', 'Giao thông', 'giaothong', '#0d9488', LAUNCHER_TRAFFIC_URL, undefined, 'giaothong', 'mdi:traffic-light');
   add('tien_ich', 'Trình duyệt', 'browser', '#0891b2', undefined, 'url');
   // (26/09/2026 OS-4) Cai dat cua CHINH man hinh nay (thuc the ESPHome qua HA API) — public/settings.html.
   add('tien_ich', 'Cài đặt', 'settings', '#475569', `${LOCAL}/settings.html`);
@@ -87,7 +101,7 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   const out: LauncherAppInfo[] = apps.map(a => {
     const o = conf.overrides[a.id] || {};
     const defaults = { label: a.label, color: a.color, group: a.group };
-    const icon = o.icon || iconOf.get(a.id) || '';
+    const icon = o.icon || iconOf.get(a.id) || a.defIcon || '';
     const info: LauncherAppInfo = {
       ...a, label: o.label || a.label, color: o.color || a.color, group: o.group || a.group,
       hidden: false, builtin: builtinIds.has(a.id), icon, baseKind: a.kind, defaults: builtinIds.has(a.id) ? defaults : undefined,

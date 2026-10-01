@@ -108,9 +108,13 @@ export function getMdiPath(icon: string | undefined): string | null {
   return mdi[icon.slice(4)] ?? null;
 }
 
+/** (01/10/2026) Bieu tuong MDI mac dinh cua ung dung co san (launcherApps.ts) — tai vao bo dem nhu bieu tuong nguoi dung chon. */
+export const BUILTIN_APP_MDI = ['television-play', 'music-circle-outline', 'playlist-music', 'newspaper-variant-multiple', 'gold',
+  'ticket-confirmation-outline', 'traffic-light'];
+
 /** Tai SVG cua moi bieu tuong MDI dang dung ma chua co trong bo dem. */
 export async function ensureMdiIcons(c: LauncherConfig = cfg): Promise<void> {
-  const want = new Set<string>();
+  const want = new Set<string>(BUILTIN_APP_MDI);
   for (const a of c.custom) if (a.icon) want.add(a.icon.slice(4));
   for (const o of Object.values(c.overrides)) if (o.icon) want.add(o.icon.slice(4));
   let changed = false;

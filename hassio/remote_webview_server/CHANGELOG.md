@@ -6,6 +6,13 @@
   (kèm bật/tắt "Màn hình chờ" như khi gạt ở Cài đặt). Lần đầu thấy công tắc: Cài đặt đang có là gốc.
 - Nhận diện công tắc "Màn hình chờ" theo tên mới (vẫn nhận "No Sleep" của firmware cũ). Firmware cũ: không đổi gì.
 
+### Tiện ích web mới (P4 + S3)
+
+- **Giải trí**: VTVgo (phát VTV1 trực tiếp được — lần đầu bấm *Đồng ý* điều khoản), Zing MP3, NhacCuaTui (phát nền như Nhạc).
+- **Tiện ích**: Báo Mới, Giá vàng (WebGiá: vàng SJC, tỷ giá, xăng dầu), Xổ số (Minh Ngọc), Giao thông (Google Maps lớp
+  giao thông, đổi vị trí bằng `LAUNCHER_TRAFFIC_URL`). Ẩn/đổi chỗ ở trang "Menu panel" như ứng dụng khác.
+- Ứng dụng có sẵn giờ có biểu tượng MDI mặc định (tải vào bộ đệm lúc khởi động).
+
 ## V2.9.90
 ### Bàn phím ảo tự ẩn đúng lúc (P4 + S3)
 
