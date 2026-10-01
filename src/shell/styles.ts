@@ -196,8 +196,6 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .rc.cur .rc-img { box-shadow: 0 0 0 2px var(--accent), 0 8px 28px rgba(0,0,0,0.45); }
 .rc.gone { opacity: 0; transform: translateY(-40%); pointer-events: none; }
 .rc-empty { margin: auto; color: var(--muted); }
-.recents-btn .app-ic { background: rgba(255,255,255,0.14); }
-.recents-btn .app-ic .ic { width: 55%; height: 55%; }
 
 /* ── Quay lai (OS-3) ─────────────────────────────────────────────────── */
 .backbub { position: absolute; left: -10px; top: 50%; width: 52px; height: 52px; border-radius: 50%; pointer-events: none; opacity: 0;

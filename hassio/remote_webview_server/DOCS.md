@@ -125,7 +125,7 @@ Giọt nước ở giữa mép trên mọi trang hiện **giờ của chính mà
 
 - **Chạm giữ** một ứng dụng khoảng nửa giây → vào chế độ sắp xếp và ứng dụng dính theo ngón tay.
 - Kéo sang **cạnh** ứng dụng khác để đổi chỗ; thả vào **giữa** ứng dụng khác để tạo **thư mục** (thả vào thư mục có
-  sẵn để thêm). Kéo xuống **dock** (tối đa 6; mặc định Home Assistant, Camera, YouTube, Tin nhắn, NhacCuaTui, Google Maps) hoặc kéo ra khỏi dock. Giữ sát mép trái/phải để sang trang.
+  sẵn để thêm). Kéo xuống **dock** (tối đa 6; mặc định Home Assistant, Camera, YouTube, Tin nhắn, NhacCuaTui, Google Maps; dock không có nút Gần đây — mở Gần đây bằng vuốt lên giữ hoặc thanh kéo xuống) hoặc kéo ra khỏi dock. Giữ sát mép trái/phải để sang trang.
 - Chạm thư mục để mở. Trong chế độ sắp xếp: chạm một chip để đổi tên thư mục, kéo ứng dụng ra ngoài khung để lấy ra.
 - **Xong** hoặc chạm chỗ trống để thoát. **Đặt lại** (chạm 2 lần) trở về bố cục mặc định.
 - Bố cục dùng chung cho mọi màn hình. Ứng dụng mới thêm ở trang *Darboard › Menu ứng dụng* xuất hiện ở cuối.

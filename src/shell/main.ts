@@ -354,7 +354,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   function startHome() {
     homeApi = mountHome({
       apps: CFG.apps, home: CFG.home, groups: CFG.groups, motion: CFG.motion, root, shadow,
-      launch, openApp, openRecents, send: sendControl, clockEls, dateEls,
+      launch, openApp, send: sendControl, clockEls, dateEls,
     });
     ({ box: homeWx, ico: homeWxIco, t: homeWxT, s: homeWxS } = homeApi.wx);
   }

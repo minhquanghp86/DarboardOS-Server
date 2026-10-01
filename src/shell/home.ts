@@ -6,7 +6,7 @@
 //   - Cham thu muc -> mo; trong che do sap xep keo ung dung ra ngoai khung thu muc -> lay ra; cham chip -> doi ten.
 //   - "Xong" hoac cham cho trong -> thoat. Moi lan tha: gui bo cuc cho server luu (dung chung ca 3 panel).
 // Khong co hieu ung chay lien tuc (rung icon kieu iOS) — moi khung dong la bang thong WiFi toi panel.
-import { el, mdi, setText } from './dom';
+import { el, setText } from './dom';
 import { App, appIcon } from './icons';
 import { DOCK_MAX, FOLDER_MAX, HomeFolder, HomeItem, HomeLayout, isFolder, resolveLayout } from '../homeLayout';
 
@@ -20,7 +20,6 @@ export interface HomeCtx {
   shadow: ShadowRoot;
   launch(app: App): void;
   openApp(id: string): void;
-  openRecents(): void;
   send(obj: unknown): void;
   clockEls: Element[];
   dateEls: Element[];
@@ -120,9 +119,8 @@ export function mountHome(ctx: HomeCtx): HomeApi {
     dots.replaceChildren();
     for (let p = 0; p < nPages && nPages > 1; p++) dots.appendChild(el('i'));
     const dockTiles = layout.dock.map((id) => tileFor(id)).filter((x): x is HTMLElement => !!x);
-    const rb = el('div', 'app recents-btn'); rb.dataset.act = 'recents'; rb.setAttribute('aria-label', 'Gần đây');
-    const rbi = el('div', 'app-ic'); rbi.appendChild(mdi('recents')); rb.append(rbi, el('span', 'l', 'Gần đây'));
-    dock.replaceChildren(...dockTiles, rb);
+    // (01/10/2026) Bo nut "Gan day" co dinh cuoi dock (nguoi dung yeu cau) — van mo bang vuot len giu / thanh keo xuong.
+    dock.replaceChildren(...dockTiles);
     showPage(cur, false);
     if (openFolderId) renderFolder();
     fitRows();
@@ -390,7 +388,6 @@ export function mountHome(ctx: HomeCtx): HomeApi {
       return;
     }
     if (target.closest('.eb-b')) return;  // nut cua thanh sap xep: xu ly bang click rieng
-    if (tile?.dataset.act === 'recents') { if (!editing) ctx.openRecents(); return; }
     if (tile?.dataset.k) {
       const k = tile.dataset.k;
       const f = folderById(k);

@@ -1,3 +1,9 @@
+## V2.9.100
+### Dock không còn nút "Gần đây"
+
+- Bỏ nút **Gần đây** cố định ở cuối dock (theo người dùng) — dock chỉ còn 6 ứng dụng. Màn hình Gần đây vẫn mở bằng
+  **vuốt lên từ mép dưới rồi giữ** hoặc nút **Gần đây** trên thanh kéo xuống.
+
 ## V2.9.99
 ### Dock 6 ứng dụng, bỏ ứng dụng Cảnh
 
