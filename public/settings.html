@@ -136,7 +136,9 @@
         setTimeout(function () { inp.focus(); }, 30);
       } else {
         var ed = el('button', 'btn', 'Sửa');
-        ed.addEventListener('click', function () { editing = it.id; render(last); });
+        // (01/10/2026) Sua loi: render() bo qua khi dang sua (de khong mat chu dang go) -> bam Sua khong hien o nhap. Ve
+        // CHU DONG thi di qua chot do (force).
+        ed.addEventListener('click', function () { editing = it.id; render(last, true); });
         r.append(label(it, it.value || it.hint || ''), ed);
       }
     } else if (it.kind === 'button') {
@@ -214,10 +216,10 @@
   // (27/09/2026) Muc cua addon (server luu): "Màn hình" va "Khung ảnh" (man hinh cho dang khung anh so).
   function panelSec(d, sec) { return (d.panel || []).filter(function (i) { return (i.sec || 'screen') === sec; }); }
 
-  function render(d) {
+  function render(d, force) {
     if (!d) return;
     last = d;
-    if (editing) return;   // dang go chu: giu nguyen (render lai sau khi Luu/Huy)
+    if (editing && !force) return;   // dang go chu: giu nguyen (render lai sau khi Luu/Huy)
     if (touching) { pendingRender = true; return; }
     var head = el('header'), t = el('div');
     t.append(el('h1', '', 'Cài đặt'));

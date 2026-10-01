@@ -1,3 +1,9 @@
+## V2.9.102
+### Sửa: nút "Sửa" trong Cài đặt không có tác dụng
+
+- Cài đặt › Màn hình › **Tên khi truyền**: bấm **Sửa** không hiện ô nhập (cả 3 màn hình). Trang có chốt "đang sửa thì
+  không vẽ lại" để không mất chữ đang gõ, nhưng chính lần vẽ khi bấm Sửa cũng bị chặn. Nay bấm Sửa hiện ô nhập + Lưu/Huỷ.
+
 ## V2.9.101
 ### Còn người trước màn hình thì không vào màn hình chờ
 
