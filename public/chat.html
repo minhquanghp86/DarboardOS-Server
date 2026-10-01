@@ -75,8 +75,8 @@
   .b.media .cap { background: var(--surface-2); border-radius: 0 0 14px 14px; margin-top: -2px; }
   .b.media.mine .cap { background: var(--mine); }
   .mv { position: relative; display: block; border: none; padding: 0; border-radius: 15px; overflow: hidden; cursor: pointer;
-    background: var(--surface-3); max-width: 100%; }
-  .mv img { display: block; max-width: min(100%, 300px); max-height: clamp(110px, 34vh, 260px); object-fit: cover; }
+    background: var(--surface-3); width: min(300px, 100%); }
+  .mv img { display: block; width: 100%; height: auto; max-height: clamp(110px, 34vh, 260px); object-fit: cover; }
   .mv .noimg { width: 200px; height: 112px; display: flex; align-items: center; justify-content: center; color: var(--muted); }
   .mv .play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 48px; height: 48px; border-radius: 50%;
     background: rgba(0,0,0,.55); color: #fff; display: flex; align-items: center; justify-content: center; }
@@ -94,7 +94,10 @@
   #text { flex: 1; min-width: 0; height: clamp(38px, 8vmin, 46px); border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2);
     color: var(--text); padding: 0 16px; font: inherit; outline: none; -webkit-user-select: text; user-select: text; }
   #text:focus { border-color: var(--accent); }
-  @media (max-height: 300px) { #quick { display: none; } .meta { display: none; } }
+  @media (max-height: 300px) {
+    #quick { display: none; } .meta { display: none; }
+    .sheet .box { padding: 10px 14px 8px; gap: 4px; } .chk { padding: 3px 4px; } .fld { height: 34px; } .tb { padding: 7px 16px; }
+  }
 
   /* Tam phu (tao, xoa, dinh kem, xem) */
   .sheet { position: fixed; inset: 0 0 var(--kb) 0; background: rgba(0,0,0,.55); display: flex; align-items: flex-end; justify-content: center; z-index: 30; }

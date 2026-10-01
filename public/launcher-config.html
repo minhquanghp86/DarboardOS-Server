@@ -135,8 +135,9 @@
   .bub { max-width: min(72%, 560px); align-self: flex-start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
     padding: 8px 13px; line-height: 1.4; white-space: pre-wrap; word-break: break-word; position: relative; }
   .bub.mine { align-self: flex-end; background: var(--primary); border-color: var(--primary); color: #fff; }
-  .bub.med { padding: 0; overflow: hidden; background: var(--surface); }
-  .bub.med img, .bub.med video { display: block; max-width: min(100%, 380px); max-height: 320px; background: #000; }
+  .bub.med { padding: 0; overflow: hidden; background: var(--surface); width: min(380px, 72%); }
+  .bub.med img, .bub.med video { display: block; width: 100%; height: auto; max-height: 320px; background: #000; }
+  .bub.med img { object-fit: cover; } .bub.med video { object-fit: contain; }
   .bub.med img { cursor: zoom-in; }
   .bub .cap { padding: 7px 12px; }
   .bub .del { position: absolute; top: 4px; right: -34px; opacity: 0; transition: opacity .1s; }
@@ -229,7 +230,7 @@
     <form class="comp" id="comp" hidden>
       <input type="file" id="files" accept="image/*,video/*" multiple hidden>
       <button class="ic" type="button" id="attach" title="Gửi ảnh / video" aria-label="Gửi ảnh hoặc video"></button>
-      <textarea id="msgText" rows="1" placeholder="Nhắn tới màn hình… (Enter để gửi, Shift+Enter xuống dòng)" maxlength="2000" aria-label="Nội dung tin nhắn"></textarea>
+      <textarea id="msgText" rows="1" placeholder="Nhắn tới màn hình…" title="Enter để gửi, Shift+Enter xuống dòng" maxlength="2000" aria-label="Nội dung tin nhắn"></textarea>
       <button class="ic send" type="submit" id="sendBtn" aria-label="Gửi"></button>
     </form>
   </section>
