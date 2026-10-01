@@ -292,9 +292,9 @@ chưa đọc. Nhiều tin cùng cuộc trò chuyện gộp một thông báo.
   ±10 s), *Chọn* (hoặc giữ ngón tay) để xoá nhiều. Nút thư viện trong ứng dụng Camera mở thẳng vào đây.
 - **Tệp**: duyệt toàn bộ thẻ (tên tiếng Việt), sắp xếp Tên/Ngày/Cỡ, xem ảnh/video/văn bản, xoá tệp hoặc cả thư mục.
 - Cần firmware `fw-2026.10.01d` trở lên (API thẻ SD mới, ảnh thu nhỏ khi chụp/quay, video có độ dài + mục lục để tua).
-- Thẻ microSD đến 64 GB (hoặc lớn hơn) dùng được nhưng phải **format FAT32** — thẻ > 32 GB bán ra thường là exFAT, firmware
-  không đọc được. Windows: Rufus / guiformat (công cụ có sẵn của Windows không cho FAT32 với thẻ > 32 GB); Linux:
-  `mkfs.vfat -F 32`. Mỗi tệp tối đa 4 GB (video tự dừng sau 30 phút, không vượt).
+- Thẻ microSD 64 GB (hoặc lớn hơn) dùng được nhưng phải là **FAT32** — thẻ > 32 GB bán ra thường là exFAT. Cắm vào P4
+  rồi mở **Tệp**: màn hình báo "Thẻ chưa đúng định dạng" → **Định dạng thẻ (FAT32)** (2.9.96 + `fw-2026.10.01e`, không
+  cần máy tính). Mỗi tệp tối đa 4 GB (video tự dừng sau 30 phút, không vượt).
 
 ### Âm thanh: Media / Thông báo / Báo thức (2.9.95, P4)
 

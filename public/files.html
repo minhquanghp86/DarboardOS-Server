@@ -271,6 +271,7 @@
       h.append(seg);
       var pill = storagePill(); if (pill) h.append(pill);
       if (n) { var c = el('button', 'txtbtn', 'Chọn'); c.onclick = function () { S.sel = new Set(); render(); }; h.append(c); }
+      if (!GALLERY && S.dir === '/') { var f = el('button', 'txtbtn', 'Định dạng'); f.onclick = askFormat; h.append(f); }
     }
   }
 
@@ -279,6 +280,7 @@
       RwvUI.state(box, { kind: 'err', title: 'Không đọc được thẻ SD', text: S.err, retry: refresh });
       return true;
     }
+    if (S.fmt === 1 || (S.sd && !S.sd.sd && (S.sd.unformatted || S.sd.fmt === 1))) { formatState(box); return true; }
     if (S.sd && !S.sd.sd) {
       RwvUI.state(box, { kind: 'empty', title: 'Chưa có thẻ SD', text: 'Cắm thẻ nhớ (FAT32) vào khe trên màn hình — tự nhận sau vài giây, không cần khởi động lại.', retry: refresh });
       return true;
@@ -389,6 +391,39 @@
   history.replaceState({ dir: S.dir }, '');
 
   function refresh() { return load().then(render); }
+
+  // ---- (01/10/2026) Dinh dang the FAT32 tren chinh panel (the > 32 GB ban ra la exFAT, panel khong doc duoc) ----
+  function formatState(box) {
+    var busy = S.fmt === 1 || (S.sd && S.sd.fmt === 1);
+    var w = el('div', 'rwv-state');
+    var ic = el('div', 'ic'); ic.append(svg('sd')); w.append(ic);
+    if (busy) {
+      w.append(el('div', 't', 'Đang định dạng thẻ…'), el('div', 's', 'Thẻ 64 GB mất khoảng 10–60 giây. Đừng rút thẻ.'));
+    } else {
+      w.append(el('div', 't', 'Thẻ chưa đúng định dạng'),
+        el('div', 's', 'Màn hình đọc được thẻ nhưng thẻ đang ở định dạng khác (thẻ trên 32 GB thường bán ra là exFAT). Định dạng FAT32 ngay tại đây — toàn bộ dữ liệu trên thẻ sẽ bị xoá.'));
+      var b = el('button', 'rwv-btn primary', 'Định dạng thẻ (FAT32)'); b.onclick = askFormat; w.append(b);
+    }
+    box.append(w);
+  }
+  function askFormat() {
+    sheet('Định dạng thẻ nhớ?', 'Thẻ sẽ được định dạng FAT32. MỌI ảnh, video và tệp trên thẻ bị xoá vĩnh viễn.', 'Định dạng', doFormat, true);
+  }
+  function doFormat() {
+    S.fmt = 1; render();
+    api('/sd/format?confirm=yes', 'POST').then(function () {
+      var t0 = Date.now();
+      (function poll() {
+        api('/cam/status').then(function (st) {
+          if (st.fmt === 1 && Date.now() - t0 < 180000) { setTimeout(poll, 2000); return; }
+          S.fmt = 0;
+          toast(st.fmt === 2 ? 'Đã định dạng thẻ — dung lượng ' + size(st.sd.total_mb * 1048576) : 'Định dạng không thành công: ' + (st.sd.err || 'lỗi'), 4500);
+          if (GALLERY || S.dir !== '/') { S.dir = GALLERY ? GDIR : '/'; }
+          refresh();
+        }, function () { setTimeout(poll, 3000); });
+      })();
+    }, function (e) { S.fmt = 0; toast(e.message, 4000); refresh(); });
+  }
 
   // ---- Xoa ----
   function sheet(title, text, okLabel, onOk, danger) {

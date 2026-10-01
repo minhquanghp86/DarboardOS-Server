@@ -1,3 +1,11 @@
+## V2.9.96
+### Định dạng thẻ SD ngay trên màn hình (P4)
+
+- Thẻ microSD trên 32 GB bán ra thường là **exFAT** — panel không đọc được. Nay ứng dụng **Tệp** / **Thư viện** nhận ra
+  "thẻ có nhưng chưa đúng định dạng" và có nút **Định dạng thẻ (FAT32)** (hỏi lại trước khi xoá, hiện tiến độ; thẻ 64 GB
+  ~10–60 giây) — không cần máy tính. Tệp: nút *Định dạng* ở thư mục gốc để định dạng lại thẻ đang dùng.
+- Cần firmware `fw-2026.10.01e`.
+
 ## V2.9.95
 ### Âm thanh kiểu điện thoại, ứng dụng Báo thức, tin nhắn thoại
 

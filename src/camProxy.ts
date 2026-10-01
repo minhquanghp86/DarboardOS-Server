@@ -22,7 +22,7 @@ export function cameraHost(): { ip: string; port: number } | undefined {
 }
 
 // (01/10/2026) + ung dung Tep / Thu vien: sd/ls (duyet), sd/get (tai, co Range de tua video), sd/rm (xoa), sd/thumb.
-const ALLOWED = /^\/(cam\/(status|photo|last\.jpg|rec)|sd\/(list|file|del|ls|get|rm|thumb))$/;
+const ALLOWED = /^\/(cam\/(status|photo|last\.jpg|rec)|sd\/(list|file|del|ls|get|rm|thumb|format))$/;
 
 // Panel chi mo 5 socket HTTP (cam_app) — luoi anh thu nho tai 30 o cung luc se day mat luong video dang phat. Hai hang
 // doi: yeu cau nho (ls/thumb/status...) toi da 2, tai tep (get) toi da 3.
