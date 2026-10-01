@@ -51,6 +51,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .snd-more svg { width: 60%; height: 60%; transition: transform .15s; }
 .snd-more.open svg { transform: rotate(180deg); }
 .snd-row { flex-basis: 100%; }
+.alarm { z-index: 3; }
 .alarm .al-btns { display: flex; gap: 4vmin; margin-top: 3vmin; }
 .alarm .al-btns .btn { margin-top: 0; }
 .alarm .btn.snz { background: rgba(255,255,255,0.14); }

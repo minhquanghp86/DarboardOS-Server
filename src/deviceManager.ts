@@ -3325,6 +3325,8 @@ export function screensaverTick(): void {
   for (const d of devices.values()) {
     const tab = d.tabs.get(d.activeTabKey);
     if (!tab || broadcaster.getClientCount(d.deviceId) === 0) continue;
+    // (02/10/2026) Bao thuc / hen gio dang reo: khong che man hinh bao thuc (do that: khung anh de len, khong thay nut Tat).
+    if (alarms.ringingOn(d.deviceId)) continue;
     if (!shouldShowSaver({
       // (27/09/2026) Khung anh da la man hinh cho — khong phu dong ho len.
       now, lastTouchMs: d.lastTouchMs, idleMs: panelPrefs.saverIdleS(d.deviceId, SCREENSAVER_IDLE_S) * 1000, mediaPlaying: tab.mediaPlaying || tab.kind === 'photos' ||
