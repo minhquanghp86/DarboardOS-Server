@@ -1897,6 +1897,22 @@ export function goBack(dev: DeviceSession): void {
     if (devices.get(dev.deviceId) !== dev) return;
     const tab = dev.tabs.get(dev.activeTabKey);
     if (!tab || tab.key === '__system') return;
+    // (01/10/2026) YouTube TV chi nghe phim remote: dang trong video / tim kiem... (hash khac "#/") -> phim Back (Escape,
+    // do that: tu #/watch ve #/); dang o trang chu YouTube TV -> ra man hinh chinh nhu ung dung tren dien thoai.
+    if (tab.kind === 'yttv') {
+      const r = await tab.session.send('Runtime.evaluate', { expression: 'location.hash', returnByValue: true }).catch(() => null) as
+        { result?: { value?: unknown } } | null;
+      const hash = typeof r?.result?.value === 'string' ? r.result.value : '';
+      if (hash && hash !== '#/' && hash !== '#') {
+        const ev = { key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 };
+        await tab.session.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...ev });
+        await tab.session.send('Input.dispatchKeyEvent', { type: 'keyUp', ...ev });
+        console.log(`[app] ${dev.deviceId}: quay lai trong YouTube TV (${hash.slice(0, 30)})`);
+        return;
+      }
+      await openAppNow(dev, '__system');
+      return;
+    }
     const h = await tab.session.send('Page.getNavigationHistory') as { currentIndex: number; entries: { id: number; url: string }[] };
     const prev = h.currentIndex > 0 ? h.entries[h.currentIndex - 1] : undefined;
     // Muc 'about:blank' dau lich su la trang trang luc tao tab (createTab), khong phai trang nguoi dung da xem.
