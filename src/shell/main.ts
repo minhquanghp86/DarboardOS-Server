@@ -16,7 +16,7 @@ declare global { interface Window { [k: string]: any } }
 type Motion = 'full' | 'reduced' | 'minimal';
 interface Cfg {
   apps: App[]; home?: HomeLayout; groups: [string, string][]; motion: Motion;
-  urls: { osHome: string; ha: string; weather: string; timer: string; cams: string; scenes: string };
+  urls: { osHome: string; ha: string; weather: string; timer: string; cams: string };
   bindings: { url: string; control: string };
 }
 interface DevState {
@@ -231,7 +231,6 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     // (01/10/2026) "Camera" = chup/quay cua CHINH panel (chi man co camera — P4); "Frigate" = camera nha.
     ['camera', 'Camera', 'camera', () => openApp('camera')],
     ['frigate', 'Frigate', 'cams', () => openApp('cams')],
-    ['scenes', 'Cảnh', 'scenes', () => openApp('scenes')],
     ['recents', 'Gần đây', null, openRecents],
     ['settings', 'Cài đặt', 'settings', () => openApp('settings')],
     ['mic', 'Trợ lý', '__va', () => { closeShade(false); sendControl({ assist: 1 }); }],

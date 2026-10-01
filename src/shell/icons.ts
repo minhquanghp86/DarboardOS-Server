@@ -35,7 +35,6 @@ export function appIcon(app: App, cls = 'app-ic'): HTMLElement {
     case 'cams':
       for (const [x, y] of [['2.5', '4'], ['13', '4'], ['2.5', '13'], ['13', '13']]) line('rect', { x, y, width: '8.5', height: '7', rx: '1.5' });
       break;
-    case 'scenes': line('path', { d: 'M12 3l2.2 5.2L20 9l-4.3 3.8L17 18.5 12 15.6 7 18.5l1.3-5.7L4 9l5.8-.8z' }); break;
     case 'energy': line('path', { d: 'M13 2L4 14h7l-1 8 9-12h-7z', fill: '#fff' }); break;
     case 'music': line('circle', { cx: '12', cy: '12', r: '9' }); line('path', { d: 'M10 8.5v7l5.5-3.5z', fill: '#fff' }); break;
     case 'radio':

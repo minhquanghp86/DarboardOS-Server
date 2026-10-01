@@ -110,7 +110,6 @@ Giọt nước ở giữa mép trên mọi trang hiện **giờ của chính mà
 | Nhà | Home Assistant | Dashboard HA (trang đặt trong thực thể *Home URL*) — đứng đầu dock |
 | | Camera P4 | Xem trực tiếp camera của màn hình P4 (go2rtc) |
 | | Camera nhà | Lưới ảnh tất cả camera trong go2rtc, cập nhật lần lượt vài giây/lần; chạm để xem trực tiếp |
-| | Cảnh | Nút chạy **cảnh (scene)** và **kịch bản (script)** của Home Assistant |
 | | Solar | Trang giám sát điện mặt trời (solar.example.com) |
 | Giải trí | YouTube, TikTok | Xem video có tiếng |
 | | Nhạc | YouTube Music |
@@ -126,7 +125,7 @@ Giọt nước ở giữa mép trên mọi trang hiện **giờ của chính mà
 
 - **Chạm giữ** một ứng dụng khoảng nửa giây → vào chế độ sắp xếp và ứng dụng dính theo ngón tay.
 - Kéo sang **cạnh** ứng dụng khác để đổi chỗ; thả vào **giữa** ứng dụng khác để tạo **thư mục** (thả vào thư mục có
-  sẵn để thêm). Kéo xuống **dock** (tối đa 5) hoặc kéo ra khỏi dock. Giữ sát mép trái/phải để sang trang.
+  sẵn để thêm). Kéo xuống **dock** (tối đa 6; mặc định Home Assistant, Camera, YouTube, Tin nhắn, NhacCuaTui, Google Maps) hoặc kéo ra khỏi dock. Giữ sát mép trái/phải để sang trang.
 - Chạm thư mục để mở. Trong chế độ sắp xếp: chạm một chip để đổi tên thư mục, kéo ứng dụng ra ngoài khung để lấy ra.
 - **Xong** hoặc chạm chỗ trống để thoát. **Đặt lại** (chạm 2 lần) trở về bố cục mặc định.
 - Bố cục dùng chung cho mọi màn hình. Ứng dụng mới thêm ở trang *Darboard › Menu ứng dụng* xuất hiện ở cuối.
@@ -427,7 +426,7 @@ luôn gửi giá trị riêng của từng màn hình (trong YAML ESPHome) khi k
 | Cổng | Dùng cho | Ai truy cập |
 |---|---|---|
 | 8081 | WebSocket ảnh/tiếng/cảm ứng | Màn hình ESP32 |
-| 18080 | `/metrics`, trang ứng dụng (`/weather.html`, `/calendar.html`, `/cams.html`, `/scenes.html`, `/radio.html`, `/timer.html`, `/cam.html`, `/chat.html`, `/alarm.html`, `/files.html`), Darboard | Trình duyệt của addon, mạng LAN, ingress HA |
+| 18080 | `/metrics`, trang ứng dụng (`/weather.html`, `/calendar.html`, `/cams.html`, `/radio.html`, `/timer.html`, `/cam.html`, `/chat.html`, `/alarm.html`, `/files.html`), Darboard | Trình duyệt của addon, mạng LAN, ingress HA |
 | 9222 | Chrome DevTools (chỉ khi bật) | Máy tính quản trị |
 | UDP 1900 + 56790 | Truyền YouTube (SSDP tìm thiết bị + DIAL) | Điện thoại trong mạng nhà |
 
@@ -447,8 +446,6 @@ luôn gửi giá trị riêng của từng màn hình (trong YAML ESPHome) khi k
 
 - Cổng **18080 chỉ nên dùng trong mạng nhà**. Đừng đưa nó ra Internet (reverse proxy, Cloudflare Tunnel, mở cổng
   router). Trang Darboard thì vào qua Home Assistant (đã có đăng nhập).
-- Ứng dụng **Cảnh** cho phép máy trong mạng nhà chạy scene/script của HA qua cổng 18080 (chỉ scene/script, không phải
-  dịch vụ tuỳ ý).
 - Addon có quyền đọc cấu hình HA (vị trí nhà, danh sách scene/script) bằng token riêng do Supervisor cấp — không cần
   mật khẩu hay token của bạn.
 - **Không đặt trang tự tạo trong `/config/www/`** của HA nếu HA được mở ra Internet: `/local/` phục vụ không cần đăng

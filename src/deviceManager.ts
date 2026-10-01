@@ -20,7 +20,7 @@ import { nudgeRepaintAsync } from "./browser.js";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildLauncherApps, listAllApps, GROUP_TITLES, LOCAL_ORIGIN, LAUNCHER_CAMS_URL, LAUNCHER_OS_HOME_URL, LAUNCHER_SCENES_URL, LAUNCHER_TIMER_URL, LAUNCHER_WEATHER_URL } from "./launcherApps.js";
+import { buildLauncherApps, listAllApps, GROUP_TITLES, LOCAL_ORIGIN, LAUNCHER_CAMS_URL, LAUNCHER_OS_HOME_URL, LAUNCHER_TIMER_URL, LAUNCHER_WEATHER_URL } from "./launcherApps.js";
 import { createRequire } from "node:module";
 import { getWeatherMini, onWeatherMiniUpdate } from "./weatherMini.js";
 import { SerialQueue, appKeyForUrl, nowPlaying, parseMeminfo, pickEvictions, pickIdleCloses, recentsList, tabBudget } from "./tabPolicy.js";
@@ -221,7 +221,7 @@ export type DeviceSession = {
 /** (26/09/2026 OS-2) Mot "ung dung" = mot Chromium target/session rieng cua MOT thiet bi. */
 interface Tab {
   /** 'home' (Home Assistant, ghim), '__system' (man hinh chinh /os/home, ghim), 'browser' (URL ngoai HA),
-   *  hoac id ung dung tu launcherApps.ts ('cams', 'scenes', 'radio', 'c_xxx'...). */
+   *  hoac id ung dung tu launcherApps.ts ('cams', 'radio', 'c_xxx'...). */
   key: string;
   kind: string;
   /** Ten hien thi (the "Đang phát" trong thanh trang thai). */
@@ -1853,7 +1853,7 @@ export function buildLauncherScript(homeUrl: string | undefined, devCfg?: Device
     motion: shellMotion(devCfg),
     urls: {
       osHome: LAUNCHER_OS_HOME_URL, ha: homeUrl || '', weather: LAUNCHER_WEATHER_URL, timer: LAUNCHER_TIMER_URL,
-      cams: LAUNCHER_CAMS_URL, scenes: LAUNCHER_SCENES_URL,
+      cams: LAUNCHER_CAMS_URL,
     },
     bindings: { url: URL_BINDING, control: CONTROL_BINDING },
   };

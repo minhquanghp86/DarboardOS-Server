@@ -1,3 +1,11 @@
+## V2.9.99
+### Dock 6 ứng dụng, bỏ ứng dụng Cảnh
+
+- **Dock** (thanh ứng dụng nhanh cuối màn hình chính) tối đa 6, mặc định: Home Assistant, Camera (màn có camera), YouTube,
+  Tin nhắn, NhacCuaTui, Google Maps. Vẫn kéo thả để đổi được.
+- **Bỏ hẳn ứng dụng Cảnh** (theo người dùng): khỏi menu, màn hình chính, thanh kéo xuống; gỡ luôn API `/ha/scenes`,
+  `/ha/run` (máy trong LAN không còn chạy scene/script qua addon).
+
 ## V2.9.98
 ### YouTube TV: vuốt để di chuyển
 

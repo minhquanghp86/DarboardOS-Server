@@ -11,12 +11,14 @@ export interface HomeFolder { f: string; n: string; a: string[] }
 export type HomeItem = string | HomeFolder;
 export interface HomeLayout { dock: string[]; items: HomeItem[] }
 
-export const DOCK_MAX = 5;
+// (01/10/2026) 5 -> 6: nguoi dung muon 6 ung dung nhanh tren dock.
+export const DOCK_MAX = 6;
 export const FOLDER_MAX = 16;
 const ID_RE = /^[a-z0-9_-]{1,40}$/i;
 const FOLDER_ID_RE = /^f_[a-z0-9]{1,12}$/i;
-/** Dock mac dinh (chua sap): Home Assistant roi 4 ung dung hay dung. */
-const DEFAULT_DOCK = ['home', 'cams', 'youtube', 'weather', 'radio'];
+/** Dock mac dinh (chua sap). (01/10/2026) Theo nguoi dung: Home Assistant, Camera (chi man co camera — S3 con 5),
+ *  YouTube, Tin nhan, NhacCuaTui, Google Maps. */
+export const DEFAULT_DOCK = ['home', 'camera', 'youtube', 'chat', 'nhaccuatui', 'giaothong'];
 
 export const isFolder = (x: HomeItem): x is HomeFolder => typeof x === 'object' && x !== null;
 

@@ -5,17 +5,21 @@ const apps = ["home", "cams", "youtube", "weather", "radio", "scenes", "timer", 
 
 describe("bo cuc man hinh chinh", () => {
   it("chua sap: dock mac dinh (HA + 4 hay dung), con lai theo thu tu Menu panel", () => {
-    expect(resolveLayout(null, apps)).toEqual({ dock: ["home", "cams", "youtube", "weather", "radio"], items: ["scenes", "timer", "calendar"] });
+    expect(resolveLayout(null, apps)).toEqual({ dock: ["home", "youtube"], items: ["cams", "weather", "radio", "scenes", "timer", "calendar"] });
+    // (01/10/2026) dock mac dinh 6 ung dung: HA, Camera, YouTube, Tin nhan, NhacCuaTui, Google Maps (S3 khong co Camera)
+    const all = ["home", "camera", "youtube", "chat", "nhaccuatui", "giaothong", "timer"];
+    expect(resolveLayout(null, all).dock).toEqual(["home", "camera", "youtube", "chat", "nhaccuatui", "giaothong"]);
+    expect(resolveLayout(null, all.filter((a) => a !== "camera")).dock).toEqual(["home", "youtube", "chat", "nhaccuatui", "giaothong"]);
     expect(resolveLayout(null, ["timer", "scenes"])).toEqual({ dock: [], items: ["timer", "scenes"] });
   });
 
-  it("kiem tra du lieu: bo id xau, trung lap, dock qua 5, thu muc sai; ten thu muc mac dinh", () => {
+  it("kiem tra du lieu: bo id xau, trung lap, dock qua 6, thu muc sai; ten thu muc mac dinh", () => {
     const l = sanitizeLayout({
-      dock: ["home", "home", "a b", "cams", "youtube", "weather", "radio", "timer"],
+      dock: ["home", "home", "a b", "cams", "youtube", "weather", "radio", "music", "timer"],
       items: ["scenes", { f: "f_1", n: "  <b>x</b>  ", a: ["timer", "scenes", 5] }, { f: "bad", a: ["calendar"] }, { f: "f_2", n: "", a: ["calendar"] }],
     });
     expect(l).toEqual({
-      dock: ["home", "cams", "youtube", "weather", "radio"],
+      dock: ["home", "cams", "youtube", "weather", "radio", "music"],
       items: ["scenes", { f: "f_1", n: "bx/b", a: ["timer"] }, { f: "f_2", n: "Thư mục", a: ["calendar"] }],
     });
     expect(sanitizeLayout(null)).toBeNull();

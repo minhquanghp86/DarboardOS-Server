@@ -17,7 +17,7 @@ export interface LauncherApp {
 export interface LauncherAppInfo extends LauncherApp { hidden: boolean; builtin: boolean; icon: string; baseKind: string; defaults?: { label: string; color: string; group: AppGroup; }; }
 /** Bieu tuong MDI gan nhat voi bieu tuong ve tay co san — de trang cau hinh xem truoc. */
 export const BUILTIN_PREVIEW: Record<string, string> = {
-  home: 'home-assistant', ha: 'home-assistant', camera: 'camera', cams: 'view-grid-outline', scenes: 'star-outline', energy: 'lightning-bolt',
+  home: 'home-assistant', ha: 'home-assistant', camera: 'camera', cams: 'view-grid-outline', energy: 'lightning-bolt',
   youtube: 'youtube', tiktok: 'music-note', music: 'play-circle-outline', radio: 'radio', news: 'newspaper-variant-outline',
   media: 'music', weather: 'weather-partly-cloudy', calendar: 'calendar-month-outline', timer: 'timer-outline', browser: 'web', settings: 'cog-outline',
   rooms: 'home-floor-1', remote: 'remote-tv', todo: 'format-list-checks', photos: 'image-multiple-outline',
@@ -26,7 +26,7 @@ export const BUILTIN_PREVIEW: Record<string, string> = {
 
 export const GROUP_TITLES: Record<AppGroup, string> = { nha: 'Nhà', giai_tri: 'Giải trí', tien_ich: 'Tiện ích' };
 /** Ten bieu tuong ve tay co san trong launcher. */
-export const KNOWN_ICONS = ['ha', 'home', 'camera', 'cams', 'scenes', 'energy', 'youtube', 'tiktok', 'music', 'radio', 'news',
+export const KNOWN_ICONS = ['ha', 'home', 'camera', 'cams', 'energy', 'youtube', 'tiktok', 'music', 'radio', 'news',
   'media', 'weather', 'calendar', 'timer', 'browser', 'settings', 'rooms', 'remote', 'todo', 'photos', 'today', 'board', 'solar', 'yttv'];
 
 const PORT = process.env.HEALTH_PORT || '18080';
@@ -40,7 +40,6 @@ export const LAUNCHER_TIMER_URL = `${LOCAL}/timer.html`;
 /** (25/09/2026) Home cua OS: man hinh chinh (Shell ve luoi ung dung). Vuot len tu mep duoi / nut Ung dung -> day. */
 export const LAUNCHER_OS_HOME_URL = `${LOCAL}/os/home`;
 export const LAUNCHER_CAMS_URL = `${LOCAL}/cams.html`;
-export const LAUNCHER_SCENES_URL = `${LOCAL}/scenes.html`;
 /** (01/10/2026) Google Maps lop giao thong. Mac dinh trung tam Hai Phong; doi bang bien moi truong LAUNCHER_TRAFFIC_URL. */
 export const LAUNCHER_TRAFFIC_URL = process.env.LAUNCHER_TRAFFIC_URL || 'https://www.google.com/maps/@20.8449,106.6881,13z/data=!5m1!1e1';
 
@@ -63,7 +62,6 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   // (01/10/2026) The SD cua panel co camera: Thu vien (anh/video da chup, trinh phat) va Tep (duyet / xoa ca the).
   add('nha', 'Thư viện', 'gallery', '#0d9488', `${LOCAL}/files.html?view=gallery`, undefined, 'gallery', 'mdi:image-album');
   add('tien_ich', 'Tệp', 'files', '#64748b', `${LOCAL}/files.html`, undefined, 'files', 'mdi:folder-outline');
-  add('nha', 'Cảnh', 'scenes', '#9333ea', LAUNCHER_SCENES_URL);
   // (27/09/2026) Ung dung Nha: dieu khien theo khu vuc, TV/loa (src/homeApi.ts).
   add('nha', 'Phòng', 'rooms', '#0284c7', `${LOCAL}/rooms.html`);
   add('nha', 'Điều khiển', 'remote', '#7c3aed', `${LOCAL}/remote.html`);
