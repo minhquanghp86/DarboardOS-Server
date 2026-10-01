@@ -11,12 +11,17 @@
 /** Giay khong cham truoc khi hien man hinh cho; 0 = tat. Addon: tuy chon screensaver_idle_s. */
 export const SCREENSAVER_IDLE_S = Math.max(0, parseInt(process.env.SCREENSAVER_IDLE_S ?? '120', 10) || 0);
 
+/** (01/10/2026) Sau khi tab ngung phat, cho bao lau moi duoc hien man hinh cho. */
+export const SAVER_MEDIA_GRACE_MS = 30_000;
+
 export interface SaverInput {
   now: number;
   lastTouchMs: number;
   idleMs: number;
   /** Tab dang hien dang phat <video>/<audio> (YouTube, camera, radio dang mo...). */
   mediaPlaying: boolean;
+  /** (01/10/2026) Luc tab dang hien ngung phat gan nhat (ms); undefined = chua tung phat. */
+  mediaStoppedMs?: number;
   /** Den nen dang sang (thiet bi bao qua DeviceState); chua biet -> coi nhu sang. */
   backlightOn: boolean | null;
   shown: boolean;
@@ -26,6 +31,9 @@ export interface SaverInput {
 export function shouldShowSaver(s: SaverInput): boolean {
   if (s.shown || s.idleMs <= 0) return false;
   if (s.mediaPlaying) return false;              // dang xem video / camera: khong che
+  // (01/10/2026) YouTube bao "tam dung" thoang qua (nap dem, doi chat luong) -> truoc day man hinh cho hien de len video
+  // dang phat roi tat sau 3-6 s, lap lai (log that P4). Phai ngung phat LIEN TUC SAVER_MEDIA_GRACE_MS moi hien.
+  if (s.mediaStoppedMs !== undefined && s.now - s.mediaStoppedMs < SAVER_MEDIA_GRACE_MS) return false;
   if (s.backlightOn === false) return false;     // man hinh da tat: ve cung khong ai thay, ton bang thong
   return s.now - s.lastTouchMs >= s.idleMs;
 }
