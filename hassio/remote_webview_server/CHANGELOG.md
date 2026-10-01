@@ -1,3 +1,21 @@
+## V2.9.95
+### Âm thanh kiểu điện thoại, ứng dụng Báo thức, tin nhắn thoại
+
+- **Ba loại âm lượng** (P4 — cần firmware mới, nhánh `feature/audio-alarm`):
+  - *Media*: YouTube, nhạc, radio, video, tin nhắn thoại… (thanh âm lượng sẵn có);
+  - *Thông báo*: chuông tin nhắn / thông báo, chuông cửa, lời đọc của HA, trợ lý;
+  - *Báo thức*: báo thức, hết giờ Hẹn giờ, cảnh báo khẩn (tối thiểu 20%).
+  Chuông do chính panel phát (tệp âm nhúng trong firmware) — không còn đi qua âm thanh trang web, nên **Im lặng** (nút
+  cũ "Tắt tiếng") **chỉ tắt media**, chuông vẫn kêu; đang phát nhạc thì nhạc tự nhỏ đi khi có chuông / TTS.
+  **Không làm phiền** = im lặng hoàn toàn (thông báo, báo thức, cảnh báo khẩn, lời đọc của HA) — màn hình vẫn hiện.
+  Điều chỉnh ở thanh kéo xuống (nút ⌄ cạnh thanh âm lượng) và **Cài đặt › Âm thanh** (có nút phát thử) — đồng bộ.
+- **Báo thức** (ứng dụng mới, mọi màn hình): lặp theo thứ hoặc một lần, nhãn, báo lại 5–30 phút, chọn màn hình reo (màn
+  này / mọi màn / chọn). Reo đúng giờ kể cả khi màn tắt; Tắt / Báo lại trên một màn là cả nhóm ngừng; 5 phút không ai tắt
+  -> thông báo "bị lỡ". Báo thức kế tiếp hiện ở thanh kéo xuống và màn hình chờ. Hẹn giờ dùng chung cơ chế này.
+- **Tin nhắn thoại**: nhấn giữ 🎤 để ghi, thả ra để gửi, vuốt lên (panel) / kéo ra ngoài (thanh bên) để huỷ, tối đa 60 s.
+  Panel P4 ghi bằng micro đã khử vọng (firmware mới); thanh bên HA ghi bằng micro trình duyệt (cần mở HA bằng https).
+  Màn không loa (S3) hiện tin nhưng không phát.
+
 ## V2.9.94
 ### Tin nhắn nội bộ, Thư viện + Tệp (thẻ SD của P4), trang thanh bên "Darboard"
 

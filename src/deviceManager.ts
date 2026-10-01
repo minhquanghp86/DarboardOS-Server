@@ -35,6 +35,8 @@ import { getToday, speakOnPanel } from "./todayData.js";
 import { parseDoorbell, unlockCall } from "./doorbell.js";
 import type { DialHooks } from "./dial.js";
 import { Notice, NoticeStore, NotifyRequest, noticeKind, parseNotify, shouldPopup, shouldWake } from "./notifications.js";
+import { Sound, soundForNotice, soundPrefs } from "./sound.js";
+import { alarms, type Ringing } from "./alarms.js";
 import { callService, getRegistry, getSettingsView, getStates, haReady } from "./haSettings.js";
 import { findDeviceByMac, findNoSleepSwitch, findPresenceSelect, isSaverPhotosSwitchId, macFromDeviceId, planSet } from "./settingsModel.js";
 import { getLauncherConfig, saveHomeLayout } from "./launcherConfig.js";
@@ -1296,6 +1298,18 @@ function handleMenuControl(id: string, payload: unknown, from?: Tab): void {
   // (02/10/2026) Mo thanh keo xuong (thay danh sach) = da xem thong bao thuong; tin nhan chi "da xem" khi doc trong Tin nhan.
   if (msg?.ntSeen) { if (noticesOf(id).markSeen('nt')) pushDeviceStateToPage(dev); return; }
   if (msg?.ntClear) { noticesOf(id).clear(); pushDeviceStateToPage(dev); return; }
+  // (02/10/2026) Am thanh: am luong Thong bao / Bao thuc (Shell, Cai dat), phat thu, tat / bao lai bao thuc.
+  if (msg?.f === 'alert' || msg?.f === 'alarm') {
+    soundPrefs.set(id, { [msg.f]: Number(msg.v) });
+    syncSoundToDevice(dev); pushDeviceStateToPage(dev); return;
+  }
+  if (msg?.sndTest === 'alert' || msg?.sndTest === 'alarm') {
+    if (canPlay(dev)) playSound(dev, msg.sndTest === 'alert' ? Sound.TestNotify : Sound.TestAlarm);
+    else evalShell(dev, `S.chime && S.chime(${msg.sndTest === 'alarm'})`);
+    return;
+  }
+  if (typeof msg?.alarmStop === 'string') { alarms.stop(msg.alarmStop); return; }
+  if (typeof msg?.alarmSnooze === 'string') { alarms.snooze(msg.alarmSnooze); return; }
   if (msg?.f === 'dnd') { setDnd(id, Number(msg?.v) === 1); for (const d of devices.values()) if (d.deviceId === id) pushDeviceStateToPage(d); return; }
   // (26/09/2026 OS-5) Nguoi dung cham tat man hinh cho.
   if (msg?.wake) { setSaver(dev, false); dev.lastTouchMs = Date.now(); return; }
@@ -1364,14 +1378,9 @@ function fireTimer(dev: DeviceSession): void {
   const label = dev.timer?.label || '';
   dev.timer = undefined;
   console.log(`[timer] ${dev.deviceId}: HET GIO${label ? ` (${label})` : ''}`);
-  if (dev.cfg.devControl) broadcaster.sendDeviceControl(dev.deviceId, ControlField.Brightness, dev.devState?.brightness ?? 100);
   pushDeviceStateToPage(dev);
-  // Doi den nen bat + remote_webview resume (~0,5 s) roi moi hien bao thuc, de man hinh nhan duoc khung do.
-  setTimeout(() => {
-    dev.cdp.send('Runtime.evaluate', {
-      expression: `(window.__rwvShell ? window.__rwvShell.alarm : window.__rwvAlarm || function(){})(${JSON.stringify(label)})`,
-    }).catch(() => { });
-  }, 1500);
+  // (02/10/2026) Dung chung co che reo cua Bao thuc (am Bao thuc, Khong lam phien, tat tren man hinh).
+  alarms.ringTimer(dev.deviceId, label);
 }
 
 // ── (26/09/2026 OS-5) THONG BAO + KHONG LAM PHIEN ─────────────────────────────────────────────────────────────────
@@ -1421,7 +1430,65 @@ function setDnd(id: string, on: boolean): void {
   dnd[id] = on;
   console.log(`[notify] ${id}: Khong lam phien ${on ? 'BAT' : 'TAT'}`);
   if (DND_FILE) fs.promises.writeFile(DND_FILE, JSON.stringify(dnd)).catch(() => { });
+  const dev = devices.get(id);
+  if (dev) syncSoundToDevice(dev);
 }
+
+// ── (02/10/2026) AM THANH KIEU DIEN THOAI (src/sound.ts) ─────────────────────────────────────────────────────────────
+/** Firmware tu phat am (?snd=1) VA co loa. */
+function canPlay(dev: DeviceSession): boolean { return !!dev.cfg.sound && !!dev.cfg.audioEnabled; }
+function playSound(dev: DeviceSession, s: Sound): void {
+  if (canPlay(dev)) broadcaster.sendDeviceControl(dev.deviceId, ControlField.PlaySound, s);
+}
+/** Gui am luong Thong bao / Bao thuc + Khong lam phien xuong firmware (luc ket noi va khi doi). */
+export function syncSoundToDevice(dev: DeviceSession): void {
+  if (!dev.cfg.sound) return;
+  const p = soundPrefs.get(dev.deviceId);
+  broadcaster.sendDeviceControl(dev.deviceId, ControlField.AlertVolume, p.alert);
+  broadcaster.sendDeviceControl(dev.deviceId, ControlField.AlarmVolume, p.alarm);
+  broadcaster.sendDeviceControl(dev.deviceId, ControlField.Dnd, dndOf(dev.deviceId) ? 1 : 0);
+}
+function evalShell(dev: DeviceSession, js: string): void {
+  dev.cdp.send('Runtime.evaluate', { expression: `window.__rwvShell && (function(S){ ${js} })(window.__rwvShell)` }).catch(() => { });
+}
+function ringingForShell(r: Ringing) {
+  return { id: r.id, l: r.label, t: r.time, sz: r.snooze, tm: r.timer };
+}
+
+// Bao thuc / Hen gio (src/alarms.ts): reo = danh thuc man hinh + man hinh bao thuc + am Bao thuc (firmware) hoac chuong
+// WebAudio cu (firmware khong ?snd). Khong lam phien: im lang, KHONG danh thuc (van hien man hinh bao thuc).
+alarms.hooks = {
+  tz: () => anyTzOffset(),
+  screens: () => [...devices.values()].filter((d) => broadcaster.getClientCount(d.deviceId) > 0).map((d) => d.deviceId),
+  ring(r) {
+    for (const id of r.devices) {
+      const dev = devices.get(id);
+      if (!dev) continue;
+      const quiet = dndOf(id);
+      const screenOff = dev.devState ? !dev.devState.backlightOn : false;
+      if (!quiet) {
+        if (dev.cfg.devControl) broadcaster.sendDeviceControl(id, ControlField.Brightness, dev.devState?.brightness ?? 100);
+        dev.lastTouchMs = Date.now(); setSaver(dev, false);
+      }
+      playSound(dev, Sound.Alarm);
+      const beep = !canPlay(dev) && !quiet;
+      const show = () => evalShell(dev, `S.alarm(${JSON.stringify(r.label)}, ${JSON.stringify({ ...ringingForShell(r), beep })})`);
+      if (!quiet && screenOff) setTimeout(show, 1500); else show();
+    }
+  },
+  stop(r) {
+    for (const id of r.devices) {
+      const dev = devices.get(id);
+      if (!dev) continue;
+      playSound(dev, Sound.AlarmStop);
+      evalShell(dev, `S.alarmClose && S.alarmClose(${JSON.stringify(r.id)})`);
+    }
+  },
+  missed(r) {
+    for (const id of r.devices) postNotify({ device: id, title: r.timer ? 'Hẹn giờ đã hết (không ai tắt)' : `Báo thức ${r.time} bị lỡ`, message: r.label || '', priority: 'normal', app: r.timer ? 'timer' : 'alarm' });
+  },
+  changed() { for (const d of devices.values()) pushDeviceStateToPage(d); },
+};
 /** Gon cho Shell: id, tieu de, noi dung, uu tien, thoi diem, anh, co hanh dong khi cham khong. */
 function noticeForShell(n: Notice) {
   return { id: n.id, t: n.title, m: n.message, p: n.priority, ts: n.ts, img: n.image ?? null, act: !!(n.app || n.url),
@@ -1449,8 +1516,13 @@ export function postNotify(body: NotifyRequest): { ok: boolean; error?: string; 
     if (wake && dev.cfg.devControl) broadcaster.sendDeviceControl(id, ControlField.Brightness, dev.devState?.brightness ?? 100);
     if (wake) { dev.lastTouchMs = Date.now(); setSaver(dev, false); }
     // Man hinh dang tat: doi den nen bat + remote_webview resume (~0,5 s) roi moi hien, de khung do toi duoc man hinh.
+    // (02/10/2026) Firmware tu phat am (?snd=1): am theo loai (tin nhan / uu tien / canh bao khan) voi am luong Thong bao
+    // hoac Bao thuc — khong qua luong am thanh trang (Im lang chi tat media). Khong lam phien: khong keu gi.
+    const snd = soundForNotice(n);
+    const webChime = !canPlay(dev) && wake && !quiet;
+    if (canPlay(dev) && snd != null && !quiet) playSound(dev, snd);
     const show = () => dev.cdp.send('Runtime.evaluate', {
-      expression: `window.__rwvShell && window.__rwvShell.notify && window.__rwvShell.notify(${JSON.stringify(noticeForShell(n))}, ${wake && !quiet})`,
+      expression: `window.__rwvShell && window.__rwvShell.notify && window.__rwvShell.notify(${JSON.stringify(noticeForShell(n))}, ${webChime})`,
     }).catch(() => { });
     if (wake && screenOff) setTimeout(show, 1500); else show();
   }
@@ -1616,9 +1688,9 @@ let noticeArgHook: ((deviceId: string, app: string, arg: string) => void) | null
 export function setNoticeArgHook(fn: (deviceId: string, app: string, arg: string) => void): void { noticeArgHook = fn; }
 
 /** (02/10/2026) Man hinh dang ket noi — cho Tin nhan (ten lay tu HA o index.ts). */
-export function connectedScreens(): { id: string; w: number; h: number; cam: boolean }[] {
+export function connectedScreens(): { id: string; w: number; h: number; cam: boolean; spk: boolean }[] {
   return [...devices.values()].filter((d) => broadcaster.getClientCount(d.deviceId) > 0)
-    .map((d) => ({ id: d.deviceId, w: d.cfg.width, h: d.cfg.height, cam: d.cfg.camPort > 0 }));
+    .map((d) => ({ id: d.deviceId, w: d.cfg.width, h: d.cfg.height, cam: d.cfg.camPort > 0, spk: !!d.cfg.audioEnabled }));
 }
 /** Ung dung `key` dang la tab hien tren man hinh (va den nen dang bat). */
 export function isAppShowing(deviceId: string, key: string): boolean {
@@ -1655,6 +1727,12 @@ function pushDeviceStateToPage(dev: DeviceSession): void {
     // (02/10/2026) So CHUA XEM rieng man hinh nay: cu = tin nhan chua doc, nu = thong bao thuong chua xem.
     cu: chatUnread(dev.deviceId).total,
     nu: noticesOf(dev.deviceId).unseen('nt'),
+    // (02/10/2026) Am thanh kieu dien thoai: snd = firmware tu phat am (co 3 loai am luong); sv = am luong Thong bao /
+    // Bao thuc (%); al = bao thuc ke tiep cua man hinh nay; rg = dang reo (Shell hien lai man hinh bao thuc neu trang tai lai).
+    snd: canPlay(dev),
+    sv: soundPrefs.get(dev.deviceId),
+    al: (() => { const nx = alarms.next(Date.now(), anyTzOffset(), dev.deviceId); return nx ? { t: nx.time, at: nx.at, l: nx.label } : null; })(),
+    rg: (() => { const r = alarms.ringingOn(dev.deviceId); return r ? ringingForShell(r) : null; })(),
     dnd: dndOf(dev.deviceId),
     va: !!dev.cfg.voice && !!dev.cfg.devControl,
     pr: dev.presence ?? null,
@@ -1846,7 +1924,7 @@ function resolveAppSpec(dev: DeviceSession, key: string): { kind: string; label:
   const app = listAllApps(dev.cfg.homeUrl).find((a) => a.id === key && !a.hidden);
   if (!app || !app.url) return null;
   // (02/10/2026) Tin nhan can biet DANG chay tren man hinh nao (src/chat.ts nhan dien bang ?dev=).
-  if (key === 'chat') return { kind: app.baseKind, label: app.label, url: app.url + (app.url.includes('?') ? '&' : '?') + 'dev=' + encodeURIComponent(dev.deviceId), pinned: false };
+  if (key === 'chat' || key === 'alarm') return { kind: app.baseKind, label: app.label, url: app.url + (app.url.includes('?') ? '&' : '?') + 'dev=' + encodeURIComponent(dev.deviceId), pinned: false };
   // baseKind, KHONG phai kind: nguoi dung doi bieu tuong o "Menu panel" thi kind thanh 'mdi' -> Radio/Nhac mat phat
   // nen, YouTube/TikTok khong tu dung khi roi tab (activateTab dua vao loai ung dung goc).
   return { kind: app.baseKind, label: app.label, url: app.url, pinned: false };
@@ -2019,13 +2097,15 @@ export function postDoorbell(body: unknown): { ok: boolean; error?: string; id?:
   const targets = b.device === 'all' ? [...devices.values()] : [devices.get(b.device)].filter((d): d is DeviceSession => !!d);
   for (const dev of targets) {
     const url = `${LOCAL_ORIGIN}/doorbell.html?cam=${encodeURIComponent(b.camera)}&title=${encodeURIComponent(b.title)}` +
-      `&id=${id}&u=${b.unlock ? 1 : 0}&t=${b.timeoutS}`;
+      `&id=${id}&u=${b.unlock ? 1 : 0}&t=${b.timeoutS}` + (canPlay(dev) || dndOf(dev.deviceId) ? '&quiet=1' : '');
     const prevKey = dev.doorbell?.prevKey ?? (dev.activeTabKey === '__doorbell' ? 'home' : dev.activeTabKey);
     if (dev.doorbell) clearTimeout(dev.doorbell.timer);
     dev.doorbell = { id, url, prevKey, unlock: b.unlock, timer: setTimeout(() => endDoorbell(dev, id, 'het gio'), b.timeoutS * 1000) };
     // Sang man hinh (nhu thong bao khan) roi mo trang chuong; da co tab chuong (bam lien tiep) thi tai lai trang moi.
     if (dev.cfg.devControl) broadcaster.sendDeviceControl(dev.deviceId, ControlField.Brightness, dev.devState?.brightness ?? 100);
     noteActivity(dev, 'chuong cua');
+    // (02/10/2026) Chuong cua = loai Thong bao: firmware tu phat "ding-dong" (Khong lam phien -> im); trang khong keu nua.
+    if (canPlay(dev)) playSound(dev, Sound.Doorbell);
     dev.tabOps.run(async () => {
       const t = dev.tabs.get('__doorbell');
       if (t) { await activateTab(dev, '__doorbell'); await navigateTab(dev, t, url); }
@@ -2681,12 +2761,12 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
       // OTA xong, phien duoc tao boi firmware CU (khong co half=1); firmware moi noi lai roi vao day va
       // halfScale ket o false vinh vien. Cung loai loi voi homeUrl ben duoi. Hai co nay khong can dung lai
       // gi (khong script/target nao phu thuoc) nen chi can gan lai.
-      if (device.cfg.halfScale !== cfg.halfScale || device.cfg.halfVideo !== cfg.halfVideo || device.cfg.camPort !== cfg.camPort || device.cfg.audioEnabled !== cfg.audioEnabled ||
+      if (device.cfg.halfScale !== cfg.halfScale || device.cfg.halfVideo !== cfg.halfVideo || device.cfg.camPort !== cfg.camPort || device.cfg.audioEnabled !== cfg.audioEnabled || device.cfg.sound !== cfg.sound ||
           device.cfg.urlSet !== cfg.urlSet || device.cfg.fbBands !== cfg.fbBands ||
           device.cfg.devControl !== cfg.devControl || device.cfg.voice !== cfg.voice) {
         console.log(`[device] ${id}: cap nhat co firmware half=${cfg.halfScale}${cfg.halfVideo ? "(video)" : ""} cam=${cfg.camPort} audio=${cfg.audioEnabled} urlset=${cfg.urlSet} fb=${cfg.fbBands}`);
         const camChanged = device.cfg.camPort !== cfg.camPort;
-        device.cfg = { ...device.cfg, halfScale: cfg.halfScale, halfVideo: cfg.halfVideo, camPort: cfg.camPort, audioEnabled: cfg.audioEnabled, urlSet: cfg.urlSet,
+        device.cfg = { ...device.cfg, halfScale: cfg.halfScale, halfVideo: cfg.halfVideo, camPort: cfg.camPort, sound: cfg.sound, audioEnabled: cfg.audioEnabled, urlSet: cfg.urlSet,
                        fbBands: cfg.fbBands, devControl: cfg.devControl, voice: cfg.voice };
         device.processor.setBandSplit(cfg.fbBands);
         // (01/10/2026) Firmware moi co / het ung dung Camera: dung lai launcher (hien / an bieu tuong Camera).

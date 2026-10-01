@@ -36,7 +36,15 @@ interface DevState {
   /** (02/10/2026) CHUA XEM tren chinh man hinh nay: cu = tin nhan chua doc, nu = thong bao thuong. Server < 2.9.94 khong gui. */
   cu?: number;
   nu?: number;
+  /** (02/10/2026) Am thanh kieu dien thoai (server >= 2.9.95): snd = firmware tu phat am (co am luong Thong bao / Bao
+   *  thuc); sv = hai am luong do (%); al = bao thuc ke tiep; rg = bao thuc / hen gio dang reo tren man hinh nay. */
+  snd?: boolean;
+  sv?: { alert: number; alarm: number };
+  al?: { t: string; at: number; l: string } | null;
+  rg?: AlarmInfo | null;
 }
+/** Bao thuc dang reo: id, nhan, gio "HH:MM", phut bao lai (0 = khong), tm = hen gio, beep = keu bang WebAudio (firmware cu). */
+interface AlarmInfo { id: string; l: string; t: string; sz: number; tm: boolean; beep?: boolean }
 /** s = da xem tren man hinh nay; k = loai (chat = tin nhan, nt = thong bao thuong). Server < 2.9.94 khong gui. */
 interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'critical'; ts: number; img: string | null; act: boolean;
   s?: boolean; k?: 'chat' | 'nt' }
@@ -116,8 +124,11 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   const wxChip = el('button', 'chip'); const wxIcoBox = el('span'); const wxTxt = el('span');
   wxChip.append(wxIcoBox, wxTxt);
   timerChip.addEventListener('click', () => openApp('timer'));
+  // (02/10/2026) Bao thuc ke tiep (trong 24 gio) — cham mo ung dung Bao thuc.
+  const alarmChip = el('button', 'chip alarmc'); alarmChip.append(mdi('alarm'), el('span'));
+  alarmChip.addEventListener('click', () => openApp('alarm'));
   wxChip.addEventListener('click', () => openApp('weather'));
-  info.append(infoL, el('div', 'spacer'), timerChip, wxChip);
+  info.append(infoL, el('div', 'spacer'), alarmChip, timerChip, wxChip);
 
   // O bat/tat nhanh
   interface Tile { el: HTMLElement; on: boolean; at: number; set(on: boolean): void }
@@ -133,19 +144,19 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   }
   // (26/09/2026) 'ns' (No Sleep cua firmware) doi ten thanh "Man hinh cho": BAT = khong tat den nen, ranh thi hien man
   // hinh cho (dong ho); TAT = tat den nen sau Sleep time. Cung cong tac, chi doi ten/bieu tuong cho dung y nghia.
-  const tiles = [makeTile('ns', 'Màn hình chờ', 'clock', '#fbbf24'), makeTile('mu', 'Tắt tiếng', 'mute', '#f87171'), makeTile('aec', 'Khử vọng', 'mic_aec', '#34d399')];
+  const tiles = [makeTile('ns', 'Màn hình chờ', 'clock', '#fbbf24'), makeTile('mu', 'Im lặng', 'mute', '#f87171'), makeTile('aec', 'Khử vọng', 'mic_aec', '#34d399')];
   // (26/09/2026 OS-5) Khong lam phien: o SERVER (khong can firmware ho tro) nen hien tren moi man hinh.
   const dndTile = makeTile('dnd', 'Không làm phiền', 'bell_off', '#a78bfa');
   const tilesBox = el('div', 'tiles'); tiles.forEach((t) => tilesBox.appendChild(t.el)); tilesBox.appendChild(dndTile.el);
 
   // Thanh truot
   interface Slider { el: HTMLElement; set(v: number | null): void }
-  function makeSlider(field: string, icon: string, color: string): Slider {
+  function makeSlider(field: string, icon: string, color: string, label = ''): Slider {
     const track = el('div', 'slider'); const fill = el('div', 'fill'); fill.style.background = color;
     const pct = el('div', 'pct');
     track.append(fill, mdi(icon), pct);
     let value = 0, dragging = false, releasedAt = 0, lastSent = 0, timer: number | undefined;
-    const show = (v: number) => { value = v; fill.style.width = v + '%'; pct.textContent = v + '%'; };
+    const show = (v: number) => { value = v; fill.style.width = v + '%'; pct.textContent = (label ? label + ' ' : '') + v + '%'; };
     const fromX = (x: number) => { const r = track.getBoundingClientRect(); return Math.max(0, Math.min(100, Math.round((x - r.left) / r.width * 100))); };
     const send = (final: boolean) => {
       const now = Date.now(); clearTimeout(timer);
@@ -165,7 +176,20 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   const bri = makeSlider('b', 'sun', '#f59e0b');
   const vol = makeSlider('v', 'vol', '#3b82f6');
   const sliders = el('div', 'sliders'); sliders.append(bri.el, vol.el);
-  const ctl = el('div', 'ctl'); ctl.append(tilesBox, sliders);
+  // (02/10/2026) Bang am luong kieu dien thoai: nut ⌄ canh thanh am luong mo them Thong bao / Bao thuc (chi man tu phat am
+  // — firmware ?snd=1). Thanh am luong san co = Media (YouTube, nhac, video...). Gia tri luu o server (src/sound.ts).
+  const sndMore = el('button', 'snd-more'); sndMore.append(mdi('chevdown')); sndMore.setAttribute('aria-label', 'Âm lượng khác');
+  const alertSl = makeSlider('alert', 'bell', '#f59e0b', 'Thông báo');
+  const alarmSl = makeSlider('alarm', 'alarm', '#6366f1', 'Báo thức');
+  const sndRow = el('div', 'sliders snd-row'); sndRow.append(alertSl.el, alarmSl.el); sndRow.style.display = 'none';
+  let sndOpen = false;
+  sndMore.addEventListener('click', (e) => {
+    e.stopPropagation(); sndOpen = !sndOpen;
+    sndRow.style.display = sndOpen ? '' : 'none'; sndMore.classList.toggle('open', sndOpen);
+    if (shadeVisible > 0) setVisible(fullH(), false);
+  });
+  sliders.appendChild(sndMore);
+  const ctl = el('div', 'ctl'); ctl.append(tilesBox, sliders, sndRow);
 
   // (30/09/2026) Hang "Phat hien nguoi": chon nguon danh thuc man hinh (select cua firmware P4 qua HA). "Tắt" dung dau.
   const psBox = el('div', 'ps'); psBox.style.display = 'none';
@@ -570,7 +594,8 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   function renderSaverBadges(): void {
     if (!saverEl) return;
     const u = unseenCounts();
-    const sig = u.chat + '|' + u.nt;
+    const al = st?.al && st.al.at - Date.now() < 24 * 3600_000 ? st.al : null;
+    const sig = u.chat + '|' + u.nt + '|' + (al ? al.t : '');
     if (sig === svBdgSig) return;
     svBdgSig = sig;
     const chip = (icon: string, text: string, go: () => void) => {
@@ -582,6 +607,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     const out: HTMLElement[] = [];
     if (u.chat) out.push(chip('message', u.chat + ' tin nhắn', () => { if (hasApp('chat')) openApp('chat'); else openShade(true); }));
     if (u.nt) out.push(chip('bell', u.nt + ' thông báo', () => openShade(true)));
+    if (al) { const c = chip('alarm', al.t, () => openApp('alarm')); c.classList.add('al'); out.push(c); }
     svBadges.replaceChildren(...out);
   }
   // Bieu tuong Tin nhan o man hinh chinh / dock: huy hieu so tin chua doc (style dong trong shadow — song qua moi lan ve lai).
@@ -652,14 +678,39 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   }
 
   // ── Bao thuc (het hen gio) ──────────────────────────────────────────
-  function alarm(label: string) {
-    shadow.querySelector('.alarm')?.remove();
-    const ov = el('div', 'alarm');
-    ov.append(mdi('timer'), el('div', 't1', 'Hết giờ!'), el('div', 't2', label || 'Hẹn giờ đã kết thúc'), el('div', 'btn', 'Tắt'));
+  // (02/10/2026) Man hinh BAO THUC dung chung cho Bao thuc + Hen gio (server src/alarms.ts): "Tat" / "Bao lai X phut"
+  // gui ve server -> ngung tren MOI man hinh cung reo. Am: firmware tu phat (loai Bao thuc); firmware cu (beep) -> WebAudio.
+  // Goi kieu cu alarm(label) (server < 2.9.95) = hen gio, keu WebAudio, cham dau cung tat.
+  let alarmId = '';
+  function alarmClose(id?: string) {
+    if (id && id !== alarmId) return;
+    (shadow.querySelector('.alarm') as (HTMLElement & { _stop?: () => void }) | null)?._stop?.();
+    shadow.querySelector('.alarm')?.remove(); alarmId = '';
+  }
+  function alarm(label: string, o?: AlarmInfo) {
+    alarmClose();
+    screensaver(false); closeShade(false);
+    const legacy = !o;
+    const info: AlarmInfo = o || { id: '', l: label, t: '', sz: 0, tm: true, beep: true };
+    alarmId = info.id;
+    const ov = el('div', 'alarm') as HTMLElement & { _stop?: () => void };
+    const t1 = info.tm ? 'Hết giờ!' : (info.t || 'Báo thức');
+    const t2 = label || (info.tm ? 'Hẹn giờ đã kết thúc' : 'Báo thức');
+    const btns = el('div', 'al-btns');
+    if (info.sz > 0) {
+      const sz = el('div', 'btn snz', `Báo lại ${info.sz} phút`);
+      sz.addEventListener('click', (e) => { e.stopPropagation(); sendControl({ alarmSnooze: info.id }); stop(); });
+      btns.appendChild(sz);
+    }
+    const off = el('div', 'btn', 'Tắt');
+    off.addEventListener('click', (e) => { e.stopPropagation(); if (info.id) sendControl({ alarmStop: info.id }); stop(); });
+    btns.appendChild(off);
+    ov.append(mdi(info.tm ? 'timer' : 'alarm'), el('div', 't1', t1), el('div', 't2', t2), btns);
     let ctx: AudioContext | null = null, beep: number | undefined;
     const stopAt = Date.now() + 120000;
-    const stop = () => { clearInterval(beep); try { ctx?.close(); } catch { /* */ } ov.remove(); };
-    try {
+    const stop = () => { clearInterval(beep); try { ctx?.close(); } catch { /* */ } ov.remove(); if (alarmId === info.id) alarmId = ''; };
+    ov._stop = () => { clearInterval(beep); try { ctx?.close(); } catch { /* */ } };
+    if (info.beep !== false) try {
       ctx = new AudioContext();
       beep = window.setInterval(() => {
         if (Date.now() > stopAt) { stop(); return; }
@@ -673,7 +724,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
         }
       }, 1500);
     } catch { /* khong co am thanh */ }
-    ov.addEventListener('click', (e) => { e.stopPropagation(); stop(); });
+    ov.addEventListener('click', (e) => { e.stopPropagation(); if (legacy) stop(); });
     root.appendChild(ov);
   }
 
@@ -686,6 +737,10 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
       clockEls.forEach((e) => setText(e, hm));
       const dt = dateText(t); dateEls.forEach((e) => setText(e, dt));
     } else { setText(pillT, ''); pillChev.style.display = ''; }
+    const al = st?.al;
+    if (al && al.at - Date.now() < 24 * 3600_000 && al.at > Date.now()) {
+      setText(alarmChip.lastChild as Element, al.t); alarmChip.classList.add('show');
+    } else alarmChip.classList.remove('show');
     const tm = st?.tm;
     if (tm && tm.endsAt > Date.now()) {
       const rem = Math.ceil((tm.endsAt - Date.now()) / 1000), h = Math.floor(rem / 3600), m = Math.floor(rem % 3600 / 60), s = rem % 60;
@@ -710,6 +765,12 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     // (30/09/2026) Thiet bi khong co loa (S3) bao am luong 'khong co' (null) -> an thanh am luong, do sang chiem ca hang.
     vol.el.style.display = s.v == null ? 'none' : '';
     bri.set(s.b); vol.set(s.v);
+    sndMore.style.display = s.snd ? '' : 'none';
+    if (!s.snd && sndOpen) { sndOpen = false; sndRow.style.display = 'none'; }
+    if (s.sv) { alertSl.set(s.sv.alert); alarmSl.set(s.sv.alarm); }
+    // Bao thuc dang reo (trang vua tai lai / man hinh vua noi lai): hien lai; server da ngung -> dong.
+    if (s.rg && s.rg.id !== alarmId) alarm(s.rg.l, { ...s.rg, beep: false });
+    else if (!s.rg && alarmId && s.rg !== undefined) alarmClose();
     if (s.tg) { tiles[0].set(s.tg.noSleep); tiles[1].set(s.tg.muted); tiles[2].set(s.tg.aec); }
     if (s.wx) {
       wxIcoBox.replaceChildren(weatherIcon(s.wx.code, s.wx.day));
@@ -787,6 +848,9 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     homeDrag,
     screensaver,
     notify,
+    alarmClose,
+    /** (02/10/2026) Phat thu chuong (Cai dat) tren man chua tu phat am: strong = kieu bao thuc. */
+    chime,
     close() { closeShade(true); },
     isOpen() { return shadeVisible > 0; },
     alarm,

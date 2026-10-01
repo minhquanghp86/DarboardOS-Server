@@ -131,6 +131,21 @@
   #toast { position: fixed; left: 50%; bottom: calc(var(--kb) + 70px); transform: translateX(-50%); background: rgba(17,24,39,.95); color: #f9fafb;
     padding: 9px 16px; border-radius: 999px; font-size: 14px; font-weight: 600; z-index: 50; max-width: 86vw; text-align: center; }
   .empty-thread { flex: 1; display: flex; }
+  /* (02/10/2026) Tin nhan thoai */
+  .aud { display: flex; align-items: center; gap: 8px; min-width: min(240px, 60vw); padding: 2px 0; }
+  .aud .pp { width: 36px; height: 36px; border-radius: 50%; border: none; background: rgba(255,255,255,.18); display: flex; align-items: center;
+    justify-content: center; cursor: pointer; flex: none; }
+  .b:not(.mine) .aud .pp { background: var(--accent); color: #fff; }
+  .aud .bar { flex: 1; height: 4px; border-radius: 2px; background: rgba(255,255,255,.25); overflow: hidden; }
+  .aud .bar i { display: block; height: 100%; width: 0; background: currentColor; }
+  .aud .d { font-size: .8em; font-variant-numeric: tabular-nums; opacity: .85; min-width: 34px; text-align: right; }
+  #comp .mic.hold { background: var(--err); color: #fff; }
+  #recBar { flex: none; display: flex; align-items: center; gap: 10px; padding: 8px calc(var(--pad) * .8); font-weight: 600; }
+  #recBar .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--err); }
+  #recBar .tm { font-variant-numeric: tabular-nums; }
+  #recBar .hint { color: var(--muted); font-weight: 500; margin-left: auto; }
+  #recBar.cancel { background: color-mix(in srgb, var(--err) 25%, transparent); }
+  #recBar.cancel .hint { color: #fecaca; }
   /* Man thap (480x272): de CUOI de thang cac khai bao goc o tren */
   @media (max-height: 300px) {
     #quick { display: none; } .meta { display: none; }
@@ -148,6 +163,7 @@
     <header id="thrHdr"></header>
     <div id="msgs"></div>
     <div id="quick"></div>
+    <div id="recBar" hidden><span class="dot"></span><span class="tm">0:00</span><span class="hint">Vuốt lên để huỷ · thả ra để gửi</span></div>
     <form id="comp" autocomplete="off"></form>
   </section>
 </div>
@@ -306,7 +322,7 @@
         col.append(el('div', 'who', g.from.name)); row.append(personAv(g.from), col); m.append(row); box = col;
       }
       g.msgs.forEach(function (msg) {
-        var b = el('div', 'b' + (msg.mine ? ' mine' : '') + (msg.media ? ' media' : ''));
+        var b = el('div', 'b' + (msg.mine ? ' mine' : '') + (msg.media && msg.media.kind !== 'audio' ? ' media' : ''));
         if (msg.media) b.append(mediaView(msg.media));
         if (msg.text) { if (msg.media) b.append(el('div', 'cap', msg.text)); else b.textContent = msg.text; }
         longPress(b, function () { askDelMsg(msg); });
@@ -344,7 +360,31 @@
     var names = c.members.map(function (id) { var s = S.screens.find(function (x) { return x.id === id; }); return s ? s.name : id; });
     return ['Home Assistant'].concat(names).join(', ');
   }
+  // Bong bong tin nhan thoai: phat / dung, tien do, thoi luong. Mot tin phat mot luc. Man khong loa (S3): bao.
+  var playing = null;
+  function audioView(md) {
+    var box = el('div', 'aud'), pp = el('button', 'pp'), bar = el('div', 'bar'), fill = el('i'), d = el('span', 'd', fmtDur(md.dur) || '0:00');
+    pp.type = 'button'; pp.setAttribute('aria-label', 'Nghe'); pp.append(svg('play')); bar.append(fill); box.append(pp, bar, d);
+    var a = null;
+    pp.onclick = function () {
+      var me = S.screens.find(function (s) { return s.id === DEV; });
+      if (me && me.spk === false) { toast('Màn hình này không có loa'); return; }
+      if (a && !a.paused) { a.pause(); return; }
+      if (playing && playing !== a) playing.pause();
+      if (!a) {
+        a = new Audio(media(md.file));
+        a.addEventListener('timeupdate', function () { if (a.duration) { fill.style.width = (a.currentTime / a.duration * 100) + '%'; d.textContent = fmtDur(a.currentTime) || '0:00'; } });
+        a.addEventListener('play', function () { pp.replaceChildren(svg('pause')); });
+        a.addEventListener('pause', function () { pp.replaceChildren(svg('play')); });
+        a.addEventListener('ended', function () { pp.replaceChildren(svg('play')); fill.style.width = '0'; d.textContent = fmtDur(md.dur) || '0:00'; });
+        a.addEventListener('error', function () { toast('Không phát được ghi âm này.'); });
+      }
+      playing = a; a.play().catch(function () { });
+    };
+    return box;
+  }
   function mediaView(md) {
+    if (md.kind === 'audio') return audioView(md);
     var b = el('button', 'mv'); b.type = 'button';
     if (md.thumb) { var i = el('img'); i.loading = 'lazy'; i.alt = ''; i.src = media(md.thumb); b.append(i); }
     else { var n = el('div', 'noimg'); n.append(svg(md.kind === 'video' ? 'video-outline' : 'image')); b.append(n); }
@@ -371,10 +411,58 @@
     if (S.cam) f.append(ib('paperclip', 'Đính kèm ảnh / video', attach));
     var t = el('input'); t.id = 'text'; t.type = 'text'; t.placeholder = 'Nhắn tin…'; t.maxLength = 2000; t.enterKeyHint = 'send';
     t.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); sendText(); } });
-    f.append(t, ib('send', 'Gửi', sendText, 'acc'));
+    f.append(t);
+    if (S.mic) f.append(micButton());
+    f.append(ib('send', 'Gửi', sendText, 'acc'));
     f.onsubmit = function (e) { e.preventDefault(); sendText(); };
     var qk = $('quick'); qk.replaceChildren();
     QUICK.forEach(function (w) { var b = el('button', '', w); b.type = 'button'; b.onclick = function () { send({ text: w }); }; qk.append(b); });
+  }
+  // (02/10/2026) TIN NHAN THOAI (man co micro — P4): nhan giu nut mic de ghi (micro da khu vong cua panel), tha ra = gui,
+  // vuot len = huy, toi da 60 s. Ghi am chay tren panel (cam_app /mic/rec), server lay WAV gui vao cuoc tro chuyen.
+  function micButton() {
+    var b = ib('microphone', 'Nhấn giữ để ghi âm', function () { }, 'mic');
+    var rec = null;  // { t0, y0, cancel, timer, started }
+    var bar = $('recBar');
+    function fin(cancel) {
+      if (!rec) return;
+      var r = rec; rec = null;
+      clearInterval(r.timer); b.classList.remove('hold'); bar.hidden = true; bar.classList.remove('cancel'); $('quick').hidden = false;
+      var short = Date.now() - r.t0 < 800;
+      var act = cancel || short ? 'cancel' : 'stop';
+      r.started.then(function (ok) {
+        if (!ok) return;
+        if (act === 'cancel') { if (short && !cancel) toast('Giữ nút để ghi âm'); return api('voice?c=' + r.conv + '&act=cancel', { method: 'POST' }).catch(function () { }); }
+        S.sending++; renderThread(true);
+        return api('voice?c=' + r.conv + '&act=stop', { method: 'POST' }).then(function () { S.sending--; return loadConv(true); })
+          .catch(function (e) { S.sending--; renderThread(); toast(e.message, 3500); });
+      });
+    }
+    b.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      if (rec || !S.cur) return;
+      try { b.setPointerCapture(e.pointerId); } catch (x) { }
+      var conv = S.cur;
+      rec = { t0: Date.now(), y0: e.clientY, cancel: false, conv: conv, timer: 0, started: null };
+      rec.started = api('voice?c=' + conv + '&act=start', { method: 'POST' }).then(function () { return true; }, function (er) { toast(er.message, 3500); fin(true); return false; });
+      b.classList.add('hold'); $('quick').hidden = true; bar.hidden = false;
+      var tm = bar.querySelector('.tm');
+      rec.timer = setInterval(function () {
+        if (!rec) return;
+        var s = Math.floor((Date.now() - rec.t0) / 1000);
+        tm.textContent = Math.floor(s / 60) + ':' + p2(s % 60);
+        if (s >= 60) fin(false);  // toi da 60 s
+      }, 250);
+    });
+    b.addEventListener('pointermove', function (e) {
+      if (!rec) return;
+      rec.cancel = rec.y0 - e.clientY > 60;
+      bar.classList.toggle('cancel', rec.cancel);
+      bar.querySelector('.hint').textContent = rec.cancel ? 'Thả ra để huỷ' : 'Vuốt lên để huỷ · thả ra để gửi';
+    });
+    b.addEventListener('pointerup', function () { if (rec) fin(rec.cancel); });
+    b.addEventListener('pointercancel', function () { fin(true); });
+    return b;
   }
   function sendText() {
     var t = $('text'); var v = (t.value || '').trim();
@@ -496,7 +584,14 @@
     S.rev = r.rev; S.me = r.me; S.convs = r.convs; S.screens = r.screens; S.people = r.people || {};
     var meScreen = S.screens.find(function (s) { return s.id === DEV; });
     var cam = !!(meScreen && meScreen.cam);
-    if (cam !== S.cam || !$('text')) { S.cam = cam; buildComposer(); }
+    if (cam !== S.cam || !$('text')) {
+      S.cam = cam; buildComposer();
+      // Micro (firmware cam_app api >= 3): hoi trang thai camera mot lan.
+      if (cam && S.mic === undefined) {
+        S.mic = false;
+        fetch('/api/cam/cam/status', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) { if (j && j.mic) { S.mic = true; buildComposer(); } }).catch(function () { });
+      }
+    }
     if (S.cur && !S.convs.some(function (c) { return c.id === S.cur; })) { toast('Cuộc trò chuyện đã bị xoá'); closeConv(); }
     renderList();
     if (r.open) openConv(r.open);

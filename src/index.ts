@@ -16,7 +16,8 @@ import { reloadAllLaunchers, broadcaster, ensureDeviceAsync, cleanupIdleAsync, r
 import type { DeviceSession } from './deviceManager.js';
 import { camFetch, handleCamProxy, noteCameraHost } from './camProxy.js';
 import { handleChatApi, requestOpenConv, setChatHooks, unreadForScreen } from './chat.js';
-import { chatChanged, connectedScreens, isAppShowing, setChatUnreadProvider, setNoticeArgHook } from './deviceManager.js';
+import { chatChanged, connectedScreens, isAppShowing, setChatUnreadProvider, setNoticeArgHook, syncSoundToDevice } from './deviceManager.js';
+import { handleAlarmApi } from './alarms.js';
 import { getRegistry, haFetch, haGetRaw } from './haSettings.js';
 import { findDeviceByMac, macFromDeviceId } from './settingsModel.js';
 import { InputRouter } from "./inputRouter.js";
@@ -147,6 +148,9 @@ wss.on("connection", async (ws, req) => {
     return;
   }
 
+  // (02/10/2026) Am luong Thong bao / Bao thuc + Khong lam phien xuong firmware (?snd=1) moi lan ket noi.
+  syncSoundToDevice(dev);
+
   // ── Flush các OpenURL message bị buffer trong khi await ──────────────────
   for (const buf of pendingOpenURLs) {
     routeMessage(dev, buf);
@@ -169,7 +173,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const STATIC_PAGES = ['cam.html', 'camera.html', 'weather.html', 'cams.html', 'scenes.html', 'calendar.html', 'radio.html', 'timer.html', 'lunar.js',
   'launcher-config.html', 'os-home.html', 'ui.css', 'ui.js', 'settings.html', 'rooms.html', 'todo.html', 'remote.html', 'photos.html', 'today.html', 'board.html', 'doorbell.html',
   // (02/10/2026) Thu vien / Tep (the SD cua P4), Tin nhan noi bo, bieu tuong dung chung.
-  'files.html', 'chat.html', 'icons.js'];
+  'files.html', 'chat.html', 'icons.js', 'alarm.html'];
 const staticCache = new Map<string, Buffer>();
 for (const name of STATIC_PAGES) {
   const p = path.join(__dirname, '..', 'public', name);
@@ -262,6 +266,8 @@ http.createServer((req, res) => {
   if (handleHomeApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
   if (handleLauncherApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
   if (handleChatApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
+  if (handleAlarmApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`), () => connectedScreens().map((s) => ({
+    id: s.id, name: screenNames.get(s.id) || `Màn hình ${s.w}×${s.h}`, spk: s.spk })))) return;
 
   // (25/09/2026) Vi tri nha trong Home Assistant cho weather.html (cung nguon goc 127.0.0.1:HEALTH_PORT).
   if (pathname === '/weather-location') {

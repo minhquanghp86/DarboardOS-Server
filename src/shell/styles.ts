@@ -45,6 +45,16 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   background: var(--surface-2); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .chip.show { display: flex; }
 .chip.timer { background: rgba(249,115,22,0.22); }
+.chip.alarmc { background: rgba(99,102,241,0.25); }
+.snd-more { flex: none; width: clamp(34px, 7vmin, 46px); border: none; border-radius: var(--r-md); background: rgba(255,255,255,0.08);
+  color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.snd-more svg { width: 60%; height: 60%; transition: transform .15s; }
+.snd-more.open svg { transform: rotate(180deg); }
+.snd-row { flex-basis: 100%; }
+.alarm .al-btns { display: flex; gap: 4vmin; margin-top: 3vmin; }
+.alarm .al-btns .btn { margin-top: 0; }
+.alarm .btn.snz { background: rgba(255,255,255,0.14); }
+.sv-b.al { background: rgba(99,102,241,0.22); color: #c7d2fe; }
 .wx-ic { width: 1.4em; height: 1.4em; flex: none; }
 
 .ctl { display: flex; flex-wrap: wrap; gap: var(--gap); align-items: stretch; }

@@ -168,6 +168,16 @@
   .drop { position: absolute; inset: 0; background: color-mix(in srgb, var(--primary) 18%, transparent); border: 2px dashed var(--primary);
     display: flex; align-items: center; justify-content: center; font-weight: 600; color: var(--primary); pointer-events: none; z-index: 3; }
   .cthread { position: relative; }
+  /* (02/10/2026) Tin nhan thoai */
+  .bub audio { display: block; width: min(300px, 60vw); height: 40px; }
+  .bub.aud { padding: 6px 8px; }
+  .comp .mic.hold { background: var(--danger); color: #fff; }
+  .recbar { flex: 1; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 14px; border-radius: 20px; background: var(--surface-2);
+    font-weight: 500; }
+  .recbar .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--danger); }
+  .recbar .tm { font-variant-numeric: tabular-nums; }
+  .recbar .hint { margin-left: auto; color: var(--muted); font-size: 13px; }
+  .recbar.cancel { background: color-mix(in srgb, var(--danger) 18%, var(--surface)); }
   .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.88); display: flex; align-items: center; justify-content: center; z-index: 20; cursor: zoom-out; }
   .lightbox img { max-width: 96vw; max-height: 94vh; }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -711,7 +721,11 @@
   }
   function bubble(msg) {
     var b = el('div', 'bub' + (msg.mine ? ' mine' : '') + (msg.media ? ' med' : ''));
-    if (msg.media) {
+    if (msg.media && msg.media.kind === 'audio') {
+      b.className = 'bub aud' + (msg.mine ? ' mine' : '');
+      var au = el('audio'); au.controls = true; au.preload = 'metadata'; au.src = 'chat/media/' + msg.media.file;
+      b.append(au);
+    } else if (msg.media) {
       var md = msg.media, url = 'chat/media/' + md.file;
       if (md.kind === 'image') {
         var im = el('img'); im.loading = 'lazy'; im.alt = 'Ảnh'; im.src = 'chat/media/' + (md.thumb || md.file);
@@ -812,6 +826,68 @@
     ta.value = ''; autosize();
     api('send', { c: S.cur, text: v }).then(function () { return loadConv(true); }).catch(function (e) { ta.value = v; alertBox(e.message); });
   }
+
+  // ── (02/10/2026) Tin nhan thoai: nhan giu nut mic (MediaRecorder cua trinh duyet). Can https (trinh duyet chi cho
+  // micro o "secure context") — mo HA bang dia chi http trong LAN thi bao ro ly do.
+  var micBtn = icBtn('microphone', 'Nhấn giữ để ghi âm', function () { }, 'mic');
+  $('comp').insertBefore(micBtn, $('sendBtn'));
+  var recUi = null, rec = null;
+  function recBar(on) {
+    if (on && !recUi) {
+      recUi = el('div', 'recbar'); recUi.append(el('span', 'dot'), el('span', 'tm', '0:00'), el('span', 'hint', 'Thả ra để gửi · kéo ra ngoài để huỷ'));
+      ta.hidden = true; $('comp').insertBefore(recUi, ta);
+    } else if (!on && recUi) { recUi.remove(); recUi = null; ta.hidden = false; }
+  }
+  function micStop(cancel) {
+    if (!rec) return;
+    var r = rec; rec = null;
+    clearInterval(r.timer); micBtn.classList.remove('hold'); recBar(false);
+    r.cancel = cancel || Date.now() - r.t0 < 800;
+    if (r.mr && r.mr.state !== 'inactive') r.mr.stop(); else if (r.stream) r.stream.getTracks().forEach(function (t) { t.stop(); });
+  }
+  micBtn.addEventListener('pointerdown', function (e) {
+    e.preventDefault();
+    if (rec || !S.cur) return;
+    if (!window.isSecureContext || !navigator.mediaDevices || !window.MediaRecorder) {
+      alertBox('Trình duyệt chỉ cho dùng micro khi mở Home Assistant bằng https (tên miền), không phải http://192.168.x.x. Trên app HA: cho phép quyền micro.');
+      return;
+    }
+    try { micBtn.setPointerCapture(e.pointerId); } catch (x) { }
+    var conv = S.cur, r = rec = { t0: Date.now(), conv: conv, cancel: false, chunks: [], timer: 0, mr: null, stream: null, down: true };
+    micBtn.classList.add('hold'); recBar(true);
+    r.timer = setInterval(function () {
+      var s = Math.floor((Date.now() - r.t0) / 1000);
+      if (recUi) recUi.querySelector('.tm').textContent = Math.floor(s / 60) + ':' + p2(s % 60);
+      if (s >= 60) micStop(false);
+    }, 250);
+    navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }).then(function (stream) {
+      r.stream = stream;
+      if (rec !== r) { stream.getTracks().forEach(function (t) { t.stop(); }); if (!r.cancel || Date.now() - r.t0 > 1500) flash('Đã có quyền micro — nhấn giữ để ghi âm.'); return; }
+      var type = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4'].filter(function (t) { return MediaRecorder.isTypeSupported(t); })[0];
+      var mr = r.mr = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
+      r.t0 = Date.now();
+      mr.ondataavailable = function (ev) { if (ev.data && ev.data.size) r.chunks.push(ev.data); };
+      mr.onstop = function () {
+        stream.getTracks().forEach(function (t) { t.stop(); });
+        if (r.cancel || !r.chunks.length) return;
+        var blob = new Blob(r.chunks, { type: mr.mimeType || type || 'audio/webm' }), dur = (Date.now() - r.t0) / 1000;
+        var pg = progressNode('ghi âm ' + Math.round(dur) + ' giây'), up = { conv: r.conv, node: pg.node };
+        S.ups.push(up); if (S.cur === r.conv) { $('msgs').append(pg.node); scrollEnd(); }
+        upload(blob).then(function (uid) { return api('send', { c: r.conv, upload: uid, kind: 'audio', dur: dur }); })
+          .then(function () { S.ups = S.ups.filter(function (x) { return x !== up; }); if (S.cur === r.conv) loadConv(true); },
+            function (er) { pg.fail('Không gửi được ghi âm: ' + er.message); setTimeout(function () { S.ups = S.ups.filter(function (x) { return x !== up; }); renderThread(); }, 8000); });
+      };
+      mr.start(250);
+    }).catch(function (er) { micStop(true); alertBox('Không mở được micro: ' + (er && er.message ? er.message : er)); });
+  });
+  micBtn.addEventListener('pointermove', function (e) {
+    if (!rec || !recUi) return;
+    var b = micBtn.getBoundingClientRect(), out = e.clientX < b.left - 60 || e.clientX > b.right + 60 || e.clientY < b.top - 60 || e.clientY > b.bottom + 60;
+    rec.out = out; recUi.classList.toggle('cancel', out);
+    recUi.querySelector('.hint').textContent = out ? 'Thả ra để huỷ' : 'Thả ra để gửi · kéo ra ngoài để huỷ';
+  });
+  micBtn.addEventListener('pointerup', function () { if (rec) micStop(!!rec.out); });
+  micBtn.addEventListener('pointercancel', function () { micStop(true); });
 
   // ── Anh / video: thu nho anh, tai video tung doan (768 KB — duoi gioi han than yeu cau cua ingress) ──
   $('attach').onclick = function () { $('files').click(); };

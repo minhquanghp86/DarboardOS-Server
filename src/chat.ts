@@ -23,7 +23,7 @@ import http from 'node:http';
 export type Side = 'ha' | 'screen';
 export interface Author { side: Side; id: string; name: string }
 export interface Media {
-  kind: 'image' | 'video';
+  kind: 'image' | 'video' | 'audio';  // audio (02/10/2026): tin nhan thoai
   file: string;        // ten tep trong thu muc media
   mime: string;
   size: number;
@@ -44,7 +44,7 @@ export interface Conv {
   nextId: number;
   msgs: Msg[];
 }
-export interface ScreenInfo { id: string; name: string; w: number; h: number; cam: boolean; online: boolean }
+export interface ScreenInfo { id: string; name: string; w: number; h: number; cam: boolean; online: boolean; spk?: boolean }
 
 export const MAX_CONVS = 100;
 export const MAX_MSGS = 500;        // moi cuoc tro chuyen; cu hon bi bo (ca tep)
@@ -317,7 +317,7 @@ function convTitle(c: Conv): string {
 function preview(m: Msg | undefined): string {
   if (!m) return '';
   if (m.text) return m.text.slice(0, 120);
-  return m.media?.kind === 'video' ? 'Video' : 'Ảnh';
+  return m.media?.kind === 'video' ? 'Video' : m.media?.kind === 'audio' ? '🎤 Tin nhắn thoại' : 'Ảnh';
 }
 function summary(c: Conv, me: Author) {
   const last = c.msgs[c.msgs.length - 1];
@@ -351,8 +351,14 @@ function afterSend(c: Conv, m: Msg): void {
 const viewing = new Map<string, { conv: string; at: number }>();
 
 // ── Tep dinh kem ──
-function sniff(b: Buffer): { kind: 'image' | 'video'; mime: string; ext: string } | null {
+function sniff(b: Buffer, hint?: string): { kind: 'image' | 'video' | 'audio'; mime: string; ext: string } | null {
   if (b.length < 12) return null;
+  // (02/10/2026) Tin nhan thoai: WAV (P4 ghi), Ogg/WebM Opus (trinh duyet), M4A (Safari), MP3.
+  if (b.subarray(0, 4).toString('latin1') === 'RIFF' && b.subarray(8, 12).toString('latin1') === 'WAVE') return { kind: 'audio', mime: 'audio/wav', ext: 'wav' };
+  if (b.subarray(0, 4).toString('latin1') === 'OggS') return { kind: 'audio', mime: 'audio/ogg', ext: 'ogg' };
+  if (b.subarray(0, 3).toString('latin1') === 'ID3' || (b[0] === 0xff && (b[1] & 0xe0) === 0xe0)) return { kind: 'audio', mime: 'audio/mpeg', ext: 'mp3' };
+  if (hint === 'audio' && b.readUInt32BE(0) === 0x1a45dfa3) return { kind: 'audio', mime: 'audio/webm', ext: 'weba' };
+  if (hint === 'audio' && b.subarray(4, 8).toString('latin1') === 'ftyp') return { kind: 'audio', mime: 'audio/mp4', ext: 'm4a' };
   if (b[0] === 0xff && b[1] === 0xd8) return { kind: 'image', mime: 'image/jpeg', ext: 'jpg' };
   if (b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return { kind: 'image', mime: 'image/png', ext: 'png' };
   if (b.subarray(0, 4).toString('latin1') === 'GIF8') return { kind: 'image', mime: 'image/gif', ext: 'gif' };
@@ -372,9 +378,34 @@ function sniff(b: Buffer): { kind: 'image' | 'video'; mime: string; ext: string 
 const newName = (ext: string) => `${Date.now().toString(36)}${crypto.randomBytes(6).toString('hex')}.${ext}`;
 
 /** Bien du lieu thanh Media: anh -> chuan hoa (JPEG <= 2048 px tru GIF) + anh thu nho; video -> giu nguyen (+ poster). */
-async function makeMedia(buf: Buffer, poster?: Buffer, meta: { w?: number; h?: number; dur?: number } = {}): Promise<Media> {
-  const t = sniff(buf);
-  if (!t) throw new Error('Chỉ nhận ảnh (JPEG, PNG, GIF, WebP) hoặc video (MP4, WebM, MKV, MOV).');
+/** WAV PCM 16 bit: nang muc to nhat ve ~-1 dBFS (toi da x8) — micro panel thu nho; tra ve do dai (s). */
+function normalizeWav(b: Buffer): number {
+  let off = 12, data = -1, len = 0, rate = 16000, ch = 1, bits = 16;
+  while (off + 8 <= b.length) {
+    const id = b.toString('latin1', off, off + 4), sz = b.readUInt32LE(off + 4);
+    if (id === 'fmt ') { ch = b.readUInt16LE(off + 10); rate = b.readUInt32LE(off + 12); bits = b.readUInt16LE(off + 22); }
+    if (id === 'data') { data = off + 8; len = Math.min(sz, b.length - data); break; }
+    off += 8 + sz + (sz & 1);
+  }
+  if (data < 0 || bits !== 16) return 0;
+  let peak = 1;
+  for (let i = data; i + 1 < data + len; i += 2) peak = Math.max(peak, Math.abs(b.readInt16LE(i)));
+  const g = Math.min(8, 29000 / peak);
+  if (g > 1.05) for (let i = data; i + 1 < data + len; i += 2) b.writeInt16LE(Math.max(-32768, Math.min(32767, Math.round(b.readInt16LE(i) * g))), i);
+  return len / (rate * ch * 2);
+}
+
+async function makeMedia(buf: Buffer, poster?: Buffer, meta: { w?: number; h?: number; dur?: number } = {}, hint?: string): Promise<Media> {
+  const t = sniff(buf, hint);
+  if (!t) throw new Error('Chỉ nhận ảnh (JPEG, PNG, GIF, WebP), video (MP4, WebM, MKV, MOV) hoặc ghi âm.');
+  if (t.kind === 'audio') {
+    if (buf.length > 10 * 1048576) throw new Error('Ghi âm quá lớn (tối đa 10 MB).');
+    const wavDur = t.ext === 'wav' ? normalizeWav(buf) : 0;
+    const file = newName(t.ext);
+    await fs.promises.writeFile(path.join(MEDIA, file), buf);
+    const d = wavDur || (typeof meta.dur === 'number' && Number.isFinite(meta.dur) && meta.dur > 0 && meta.dur < 3600 ? meta.dur : undefined);
+    return { kind: 'audio', file, mime: t.mime, size: buf.length, ...(d ? { dur: Math.round(d * 10) / 10 } : {}) };
+  }
   if (MEDIA_MAX_MB && mediaUsedBytes() + buf.length > MEDIA_MAX_MB * 1048576)
     throw new Error(`Bộ nhớ tin nhắn đã đầy (${MEDIA_MAX_MB} MB) — xoá bớt cuộc trò chuyện cũ.`);
   const sharp = (await import('sharp')).default;
@@ -426,12 +457,13 @@ setInterval(() => {
 }, 15 * 60_000).unref();
 
 function serveMedia(req: http.IncomingMessage, res: http.ServerResponse, name: string): void {
-  if (!/^[a-z0-9]+(_t)?\.(jpg|png|gif|webp|mp4|webm|mkv|mov|heic)$/.test(name)) { json(res, 404, { error: 'khong co' }); return; }
+  if (!/^[a-z0-9]+(_t)?\.(jpg|png|gif|webp|mp4|webm|mkv|mov|heic|wav|ogg|mp3|m4a|weba)$/.test(name)) { json(res, 404, { error: 'khong co' }); return; }
   const p = path.join(MEDIA, name);
   fs.stat(p, (err, st) => {
     if (err || !st.isFile()) { json(res, 404, { error: 'khong co' }); return; }
     const ext = name.split('.').pop()!;
-    const type = ({ jpg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', mp4: 'video/mp4', webm: 'video/webm', mkv: 'video/x-matroska', mov: 'video/quicktime', heic: 'image/heic' } as Record<string, string>)[ext];
+    const type = ({ jpg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', mp4: 'video/mp4', webm: 'video/webm', mkv: 'video/x-matroska', mov: 'video/quicktime', heic: 'image/heic',
+      wav: 'audio/wav', ogg: 'audio/ogg', mp3: 'audio/mpeg', m4a: 'audio/mp4', weba: 'audio/webm' } as Record<string, string>)[ext];
     const headers: http.OutgoingHttpHeaders = { 'content-type': type, 'accept-ranges': 'bytes', 'cache-control': 'private, max-age=31536000, immutable' };
     const m = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range || ''));
     if (m && (m[1] || m[2])) {
@@ -528,7 +560,7 @@ export function handleChatApi(req: http.IncomingMessage, res: http.ServerRespons
   }
 
   (async () => {
-    const body = route === 'snap' || route === 'del' || route === 'read' || route === 'msgdel' ? {} : await readJson(req);
+    const body = route === 'snap' || route === 'del' || route === 'read' || route === 'msgdel' || route === 'voice' ? {} : await readJson(req);
     switch (route) {
       case 'new': {
         const c = chat.create(me, body.title, Array.isArray(body.members) ? body.members : [], body.all === true);
@@ -560,7 +592,8 @@ export function handleChatApi(req: http.IncomingMessage, res: http.ServerRespons
         const c = conv(body.c);
         let media: Media | undefined;
         const up = await takeUpload(body.upload);
-        if (up) media = await makeMedia(up, await takeUpload(body.poster).catch(() => undefined), { w: body.w, h: body.h, dur: body.dur });
+        if (up) media = await makeMedia(up, await takeUpload(body.poster).catch(() => undefined), { w: body.w, h: body.h, dur: body.dur },
+          body.kind === 'audio' ? 'audio' : undefined);
         const m = chat.add(c, me, body.text, media);
         afterSend(c, m);
         return json(res, 200, { ok: true, id: m.id });
@@ -574,6 +607,24 @@ export function handleChatApi(req: http.IncomingMessage, res: http.ServerRespons
         const th = await hooks.camFetch('/sd/thumb?p=' + encodeURIComponent(body.p)).catch(() => null);
         const media = await makeMedia(f.body, th && th.code === 200 ? th.body : undefined, { w: body.w, h: body.h, dur: body.dur });
         const m = chat.add(c, me, body.text, media);
+        afterSend(c, m);
+        return json(res, 200, { ok: true, id: m.id });
+      }
+      // (02/10/2026) Tin nhan thoai tren man co micro (P4 — cam_app /mic/rec): nhan giu = start, tha = stop (gui), vuot huy.
+      case 'voice': {
+        const c = conv(q.get('c'));
+        if (!hooks || me.side !== 'screen') throw new Error('Chỉ ghi âm được trên màn hình có micro.');
+        const act = q.get('act');
+        if (act === 'start') {
+          const r = await hooks.camFetch('/mic/rec?on=1', 'POST');
+          if (r.code !== 200) throw new Error(r.code === 404 ? 'Màn hình chưa có micro (cần firmware mới).' : 'Micro đang bận — thử lại.');
+          return json(res, 200, { ok: true });
+        }
+        if (act === 'cancel') { await hooks.camFetch('/mic/rec?on=2', 'POST').catch(() => null); return json(res, 200, { ok: true }); }
+        const r = await hooks.camFetch('/mic/rec?on=0', 'POST');
+        if (r.code !== 200 || !/wav/.test(r.type)) throw new Error('Không lấy được bản ghi âm.');
+        if (r.body.length < 44 + 16000) throw new Error('Ghi âm quá ngắn — giữ nút lâu hơn.');
+        const m = chat.add(c, me, '', await makeMedia(r.body, undefined, {}, 'audio'));
         afterSend(c, m);
         return json(res, 200, { ok: true, id: m.id });
       }

@@ -177,6 +177,40 @@
     return s;
   }
 
+  // (02/10/2026) "Âm thanh" kieu dien thoai — DONG BO voi thanh keo xuong (cung trang thai server, cung lenh __rwvControl):
+  // Media (thanh am luong san co), Thong bao / Bao thuc (firmware tu phat am — snd), Im lang (chi tat media), Khong lam
+  // phien (im lang hoan toan chuong, bao thuc, canh bao khan). Phat thu tung loai.
+  function audioSec() {
+    var st = window.__rwvLastState;
+    if (!st) return null;
+    var s = el('section'); s.append(el('h2', '', 'Âm thanh'));
+    var line = function (title, sub, node) { var r = el('div', 'row col'); r.append(label({ label: title }, sub)); if (node) r.append(node); return r; };
+    var withTest = function (sl, kind) {
+      var box = el('div', 'txt'); sl.style.flex = '1';
+      var b = el('button', 'btn', 'Phát thử'); b.addEventListener('click', function () { ctl({ sndTest: kind }); });
+      box.append(sl, b); return box;
+    };
+    if (st.v != null) s.append(line('Media', 'YouTube, nhạc, radio, video, tin nhắn thoại', slider(st.v, 0, 100, 5, '%', function (v) { ctl({ f: 'v', v: v }); })));
+    else s.append(line('Màn hình này không có loa', 'Chỉ hiện thông báo / báo thức trên màn hình'));
+    if (st.snd && st.sv) {
+      s.append(line('Thông báo', 'Tin nhắn, thông báo, chuông cửa, lời đọc của HA và trợ lý',
+        withTest(slider(st.sv.alert, 0, 100, 5, '%', function (v) { ctl({ f: 'alert', v: v }); }), 'alert')));
+      s.append(line('Báo thức', 'Báo thức, hết giờ Hẹn giờ, cảnh báo khẩn (tối thiểu 20%)',
+        withTest(slider(st.sv.alarm, 20, 100, 5, '%', function (v) { ctl({ f: 'alarm', v: v }); }), 'alarm')));
+    } else if (st.v != null) {
+      s.append(line('Thông báo / Báo thức', 'Firmware này chưa tách âm lượng — chuông theo âm lượng Media'));
+    }
+    var tog = function (title, sub, on, f) {
+      var r = el('div', 'row'), tg = el('div', 'tg' + (on ? ' on' : '')); tg.setAttribute('role', 'switch');
+      tg.addEventListener('click', function () { tg.classList.toggle('on'); ctl({ f: f, v: tg.classList.contains('on') ? 1 : 0 }); });
+      r.append(label({ label: title }, sub), tg); return r;
+    };
+    if (st.tg && st.v != null) s.append(tog('Im lặng', 'Chỉ tắt Media — chuông và báo thức vẫn kêu', !!st.tg.muted, 'mu'));
+    if (st.dnd != null) s.append(tog('Không làm phiền', 'Im lặng hoàn toàn: thông báo, báo thức, cảnh báo khẩn', !!st.dnd, 'dnd'));
+    return s;
+  }
+  window.addEventListener('rwv-state', function () { if (last && !editing && !touching) render(last); });
+
   // (27/09/2026) Muc cua addon (server luu): "Màn hình" va "Khung ảnh" (man hinh cho dang khung anh so).
   function panelSec(d, sec) { return (d.panel || []).filter(function (i) { return (i.sec || 'screen') === sec; }); }
 
@@ -193,15 +227,16 @@
       var box = el('div');
       main.replaceChildren(head, box);
       RwvUI.state(box, { kind: 'err', title: 'Chưa đọc được cài đặt', text: d.error, retry: function () { ctl({ settings: 'get' }); } });
-      var g0 = el('div', 'grid'); [section('Màn hình', panelSec(d, 'screen')), section('Khung ảnh', panelSec(d, 'frame'))].forEach(function (s) { if (s) g0.append(s); });
+      var g0 = el('div', 'grid'); [audioSec(), section('Màn hình', panelSec(d, 'screen')), section('Khung ảnh', panelSec(d, 'frame'))].forEach(function (s) { if (s) g0.append(s); });
       g0.append(diag([], d.server)); main.append(g0);
       return;
     }
     var items = d.view.items;
-    var by = function (g) { return items.filter(function (i) { return i.group === g; }); };
+    // Am luong media cua firmware da nam trong muc "Âm thanh" -> khong lap lai o "Điều khiển".
+    var by = function (g) { return items.filter(function (i) { return i.group === g && !/Âm lượng Video Web|Âm lượng media/i.test(i.label); }); };
     var grid = el('div', 'grid');
     // (27/09/2026) "Màn hình": cai dat cua addon cho rieng man hinh nay (server luu), vd man hinh cho hien anh.
-    [section('Điều khiển', by('control')), section('Màn hình', panelSec(d, 'screen')), section('Khung ảnh', panelSec(d, 'frame')),
+    [audioSec(), section('Điều khiển', by('control')), section('Màn hình', panelSec(d, 'screen')), section('Khung ảnh', panelSec(d, 'frame')),
      section('Cấu hình', by('config')), diag(by('diag'), d.server)]
       .forEach(function (s) { if (s) grid.append(s); });
     main.replaceChildren(head, grid);

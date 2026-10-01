@@ -90,6 +90,8 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   add('tien_ich', 'Thời tiết', 'weather', '#0ea5e9', LAUNCHER_WEATHER_URL);
   add('tien_ich', 'Lịch', 'calendar', '#dc2626', `${LOCAL}/calendar.html`);
   add('tien_ich', 'Hẹn giờ', 'timer', '#f97316', LAUNCHER_TIMER_URL);
+  // (02/10/2026) Bao thuc (giu o server — src/alarms.ts): lap theo thu, bao lai, reo tren man hinh chon.
+  add('tien_ich', 'Báo thức', 'alarm', '#4f46e5', `${LOCAL}/alarm.html`, undefined, 'alarm', 'mdi:alarm');
   add('tien_ich', 'Việc cần làm', 'todo', '#16a34a', `${LOCAL}/todo.html`);
   add('tien_ich', 'Hôm nay', 'today', '#f59e0b', `${LOCAL}/today.html`);
   add('tien_ich', 'Bảng tin', 'board', '#ca8a04', `${LOCAL}/board.html`);

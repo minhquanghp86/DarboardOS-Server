@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Báo thức</title>
+<!--
+  (02/10/2026) UNG DUNG BAO THUC cua panel. Bao thuc giu o server (src/alarms.ts) — reo dung gio ke ca khi man hinh tat
+  hay dang mo ung dung khac. Lap theo thu hoac mot lan, nhan, bao lai, chon man hinh reo (man nay / moi man / chon).
+  Am: loai "Bao thuc" (Cai dat > Am thanh, thanh keo xuong). Khong lam phien: im lang (van hien man hinh bao thuc).
+  ?dev=<id> do server them khi mo ung dung. Chon gio bang nut ▲▼ (khong dung <input type=time>: popup cua Chrome headless
+  khong nam trong anh truyen xuong panel).
+-->
+<link rel="stylesheet" href="/ui.css">
+<script src="/ui.js"></script>
+<script src="/icons.js"></script>
+<style>
+  :root { --accent: #6366f1; --fs: clamp(13px, 3vmin, 17px); }
+  html, body { height: 100%; }
+  body { overflow-y: auto; font-size: var(--fs); }
+  svg { width: 24px; height: 24px; fill: currentColor; flex: none; }
+  button { font: inherit; color: inherit; }
+  main { max-width: 900px; margin: 0 auto; padding: calc(var(--pad) + 18px) var(--pad) calc(var(--pad) * 2); }
+  header { display: flex; align-items: center; gap: var(--gap); margin-bottom: var(--gap); }
+  header .t { flex: 1; min-width: 0; }
+  h1 { margin: 0; font-size: clamp(20px, 5.4vmin, 32px); }
+  .sub { color: var(--muted); margin-top: 2px; }
+  .add { width: clamp(44px, 10vmin, 56px); height: clamp(44px, 10vmin, 56px); border-radius: 50%; border: none; background: var(--accent);
+    color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; flex: none; }
+  .list { display: grid; gap: var(--gap); grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+  .al { display: flex; align-items: center; gap: var(--gap); background: var(--surface); border-radius: var(--r-lg); padding: calc(var(--pad) * .7) var(--pad);
+    border: none; text-align: left; cursor: pointer; }
+  .al .tx { flex: 1; min-width: 0; }
+  .al .tm { font-size: clamp(30px, 8vmin, 46px); font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.05; letter-spacing: -0.5px; }
+  .al .ds { color: var(--muted); font-size: .9em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .al .snz { color: #a5b4fc; font-size: .85em; }
+  .al.off .tm, .al.off .ds { opacity: .45; }
+  .tg { flex: none; width: clamp(48px, 11vmin, 60px); height: clamp(28px, 6.4vmin, 34px); border-radius: 999px; background: var(--surface-3); position: relative; cursor: pointer; }
+  .tg::after { content: ''; position: absolute; top: 3px; left: 3px; height: calc(100% - 6px); aspect-ratio: 1; border-radius: 50%; background: #fff; transition: transform 120ms; }
+  .tg.on { background: var(--accent); }
+  .tg.on::after { transform: translateX(calc(clamp(48px, 11vmin, 60px) - clamp(28px, 6.4vmin, 34px))); }
+
+  /* Trinh sua */
+  #ed { position: fixed; inset: 0; background: var(--bg); z-index: 10; overflow-y: auto; }
+  #ed .in { max-width: 720px; margin: 0 auto; padding: calc(var(--pad) + 10px) var(--pad) var(--pad); display: flex; flex-direction: column; gap: calc(var(--gap) * 1.2); }
+  .edh { display: flex; align-items: center; gap: 10px; }
+  .edh h2 { flex: 1; margin: 0; font-size: 1.25em; }
+  .pick { display: flex; align-items: center; justify-content: center; gap: clamp(8px, 3vmin, 24px); }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .col button { width: clamp(64px, 16vmin, 96px); height: clamp(34px, 8vmin, 46px); border: none; border-radius: 12px; background: var(--surface-2);
+    display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .col .v { font-size: clamp(44px, 14vmin, 84px); font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; }
+  .colon { font-size: clamp(40px, 12vmin, 76px); font-weight: 600; padding-bottom: .1em; }
+  .lbl { color: var(--muted); font-size: .85em; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; margin-bottom: 6px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chips button { border: none; border-radius: 999px; padding: 8px 14px; background: var(--surface-2); font-weight: 600; cursor: pointer; min-width: 44px; }
+  .chips button.on { background: var(--accent); color: #fff; }
+  .chips.small button { padding: 6px 12px; font-size: .9em; }
+  .fld { width: 100%; box-sizing: border-box; height: clamp(40px, 9vmin, 48px); border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2);
+    color: var(--text); padding: 0 14px; font: inherit; -webkit-user-select: text; user-select: text; }
+  .note { color: var(--muted); font-size: .85em; }
+  .acts { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+  .tb { border: none; border-radius: 999px; padding: 11px 22px; font-weight: 650; cursor: pointer; background: var(--surface-2); }
+  .tb.pri { background: var(--accent); color: #fff; }
+  .tb.danger { background: var(--err); color: #fff; }
+  #toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: rgba(17,24,39,.95); color: #f9fafb; padding: 9px 16px;
+    border-radius: 999px; font-weight: 600; z-index: 30; max-width: 86vw; text-align: center; }
+  @media (max-height: 320px) { main { padding-top: 26px; } .col button { height: 30px; } }
+</style>
+</head>
+<body class="rwv-app">
+<main id="main"></main>
+<div id="ed" hidden></div>
+<div id="toast" hidden></div>
+<script>
+(function () {
+  'use strict';
+  var IC = window.RwvIcons || {};
+  var DEV = new URLSearchParams(location.search).get('dev') || '';
+  var $ = function (id) { return document.getElementById(id); };
+  function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; }
+  function svg(n) { var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24');
+    var p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', IC[n] || ''); s.appendChild(p); return s; }
+  var tT = 0;
+  function toast(m) { var t = $('toast'); t.textContent = m; t.hidden = false; clearTimeout(tT); tT = setTimeout(function () { t.hidden = true; }, 2600); }
+  function api(p, body) {
+    var init = { cache: 'no-store' };
+    if (body !== undefined) { init.method = 'POST'; init.headers = { 'content-type': 'application/json' }; init.body = JSON.stringify(body || {}); }
+    return fetch('/alarm/' + p, init).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || 'Lỗi ' + r.status); return j; }); });
+  }
+  var p2 = function (n) { return String(n).padStart(2, '0'); };
+  // Thu: 0 = CN. Hien theo thu tu T2..CN nhu lich Viet.
+  var ORDER = [1, 2, 3, 4, 5, 6, 0];
+  var SHORT = { 0: 'CN', 1: 'T2', 2: 'T3', 3: 'T4', 4: 'T5', 5: 'T6', 6: 'T7' };
+  function daysText(a) {
+    var d = a.days.slice().sort();
+    if (!d.length) {
+      if (!a.next) return 'Một lần';
+      var nx = new Date(a.next + S.tz * 60000), now = new Date(Date.now() + S.tz * 60000);
+      var diff = Math.round((Date.UTC(nx.getUTCFullYear(), nx.getUTCMonth(), nx.getUTCDate()) - Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())) / 86400000);
+      return 'Một lần · ' + (diff === 0 ? 'Hôm nay' : diff === 1 ? 'Ngày mai' : p2(nx.getUTCDate()) + '/' + p2(nx.getUTCMonth() + 1));
+    }
+    var k = d.join(',');
+    if (k === '0,1,2,3,4,5,6') return 'Hằng ngày';
+    if (k === '1,2,3,4,5') return 'Thứ 2 – Thứ 6';
+    if (k === '0,6') return 'Cuối tuần';
+    return ORDER.filter(function (x) { return d.indexOf(x) >= 0; }).map(function (x) { return SHORT[x]; }).join(', ');
+  }
+  function inText(ms) {
+    var m = Math.max(1, Math.round(ms / 60000)), h = Math.floor(m / 60), d = Math.floor(h / 24);
+    if (d >= 1) return d + ' ngày ' + (h % 24) + ' giờ';
+    return h ? h + ' giờ ' + (m % 60) + ' phút' : m + ' phút';
+  }
+  function screensText(a) {
+    if (a.devices === 'all') return 'Mọi màn hình';
+    if (a.devices.length === 1 && a.devices[0] === DEV) return 'Màn này';
+    return a.devices.map(function (id) { var s = S.screens.find(function (x) { return x.id === id; }); return s ? s.name : id; }).join(', ');
+  }
+
+  var S = { alarms: [], screens: [], next: null, tz: 420 };
+  function load() { return api('list?dev=' + encodeURIComponent(DEV)).then(function (r) { S = r; render(); }).catch(function (e) { RwvUI.state($('main'), { kind: 'err', title: 'Không đọc được báo thức', text: e.message, retry: load }); }); }
+
+  function render() {
+    var m = $('main'); m.replaceChildren();
+    var h = el('header'), t = el('div', 't');
+    t.append(el('h1', '', 'Báo thức'));
+    var nx = S.alarms.filter(function (a) { return a.next; }).sort(function (x, y) { return x.next - y.next; })[0];
+    t.append(el('div', 'sub', nx ? 'Báo thức tiếp theo sau ' + inText(nx.next - Date.now()) : 'Không có báo thức nào đang bật'));
+    var add = el('button', 'add'); add.setAttribute('aria-label', 'Thêm báo thức'); add.append(svg('plus'));
+    add.onclick = function () { edit(null); };
+    h.append(t, add); m.append(h);
+    if (!S.alarms.length) {
+      var e = el('div'); m.append(e);
+      RwvUI.state(e, { kind: 'empty', title: 'Chưa có báo thức', text: 'Chạm ＋ để đặt. Báo thức reo đúng giờ kể cả khi màn hình đang tắt.' });
+      return;
+    }
+    var list = el('div', 'list');
+    S.alarms.slice().sort(function (a, b) { return a.time < b.time ? -1 : 1; }).forEach(function (a) {
+      var b = el('div', 'al' + (a.enabled ? '' : ' off')); b.setAttribute('role', 'button');
+      var tx = el('div', 'tx');
+      tx.append(el('div', 'tm', a.time), el('div', 'ds', [a.label, daysText(a), screensText(a)].filter(Boolean).join(' · ')));
+      if (a.snoozed && a.next) { var d = new Date(a.next + S.tz * 60000); tx.append(el('div', 'snz', 'Báo lại lúc ' + p2(d.getUTCHours()) + ':' + p2(d.getUTCMinutes()))); }
+      var tg = el('div', 'tg' + (a.enabled ? ' on' : '')); tg.setAttribute('role', 'switch'); tg.setAttribute('aria-checked', String(a.enabled));
+      tg.onclick = function (ev) {
+        ev.stopPropagation(); tg.classList.toggle('on');
+        api('toggle?id=' + a.id + '&on=' + (tg.classList.contains('on') ? 1 : 0), {}).then(function (r) {
+          return load().then(function () {
+            var x = S.alarms.find(function (y) { return y.id === a.id; });
+            if (r.alarm && r.alarm.enabled && x && x.next) toast('Báo thức sẽ reo sau ' + inText(x.next - Date.now()));
+          });
+        }).catch(function (e) { toast(e.message); load(); });
+      };
+      b.append(tx, tg); b.onclick = function () { edit(a); };
+      list.append(b);
+    });
+    m.append(list);
+  }
+
+  // ── Trinh sua ──
+  function edit(a) {
+    var d = a ? JSON.parse(JSON.stringify(a)) : { time: '06:30', days: [1, 2, 3, 4, 5], label: '', enabled: true, devices: DEV ? [DEV] : 'all', snooze: 10 };
+    var hh = Number(d.time.slice(0, 2)), mm = Number(d.time.slice(3));
+    var ed = $('ed'), inn = el('div', 'in'); ed.replaceChildren(inn); ed.hidden = false;
+    var head = el('div', 'edh'); head.append(el('h2', '', a ? 'Sửa báo thức' : 'Báo thức mới')); inn.append(head);
+    // Gio: cot gio / phut voi nut len xuong (phut buoc 5, giu nut: tang nhanh); cham so phut: buoc 1.
+    var pick = el('div', 'pick');
+    function col(get, set, step) {
+      var c = el('div', 'col'), up = el('button'), v = el('div', 'v'), dn = el('button');
+      up.append(svg('chevron-left')); dn.append(svg('chevron-left'));
+      up.firstChild.style.transform = 'rotate(90deg)'; dn.firstChild.style.transform = 'rotate(-90deg)';
+      up.setAttribute('aria-label', 'Tăng'); dn.setAttribute('aria-label', 'Giảm');
+      var show = function () { v.textContent = p2(get()); };
+      var rep = 0;
+      [[up, step], [dn, -step]].forEach(function (x) {
+        x[0].addEventListener('pointerdown', function () { set(x[1]); show(); clearInterval(rep); var n = 0; rep = setInterval(function () { if (++n > 3) { set(x[1]); show(); } }, 140); });
+        ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (ev) { x[0].addEventListener(ev, function () { clearInterval(rep); }); });
+      });
+      v.addEventListener('click', function () { set(1); show(); });
+      show(); c.append(up, v, dn); return c;
+    }
+    pick.append(col(function () { return hh; }, function (k) { hh = (hh + (k > 0 ? 1 : -1) + 24) % 24; }, 1),
+      el('div', 'colon', ':'),
+      col(function () { return mm; }, function (k) { mm = (mm + k + 60) % 60; }, 5));
+    inn.append(pick);
+    var hint = el('div', 'note', 'Chạm vào số phút để tăng 1 phút · giữ nút để tăng nhanh'); hint.style.textAlign = 'center'; inn.append(hint);
+    // Ngay
+    var dbox = el('div'); dbox.append(el('div', 'lbl', 'Lặp lại'));
+    var dch = el('div', 'chips'), quick = el('div', 'chips small'); quick.style.marginTop = '6px';
+    function drawDays() {
+      dch.replaceChildren();
+      ORDER.forEach(function (x) {
+        var b = el('button', d.days.indexOf(x) >= 0 ? 'on' : '', SHORT[x]);
+        b.onclick = function () { var i = d.days.indexOf(x); if (i >= 0) d.days.splice(i, 1); else d.days.push(x); drawDays(); };
+        dch.append(b);
+      });
+    }
+    [['Một lần', []], ['Hằng ngày', [0, 1, 2, 3, 4, 5, 6]], ['Ngày thường', [1, 2, 3, 4, 5]], ['Cuối tuần', [0, 6]]].forEach(function (q) {
+      var b = el('button', '', q[0]); b.onclick = function () { d.days = q[1].slice(); drawDays(); }; quick.append(b);
+    });
+    drawDays(); dbox.append(dch, quick); inn.append(dbox);
+    // Nhan
+    var lb = el('div'); lb.append(el('div', 'lbl', 'Nhãn'));
+    var inp = el('input', 'fld'); inp.type = 'text'; inp.maxLength = 40; inp.placeholder = 'vd: Dậy đi học'; inp.value = d.label; inp.id = 'alLabel';
+    lb.append(inp); inn.append(lb);
+    // Bao lai
+    var sb = el('div'); sb.append(el('div', 'lbl', 'Báo lại sau'));
+    var sch = el('div', 'chips');
+    [5, 10, 15, 30].forEach(function (n) {
+      var b = el('button', d.snooze === n ? 'on' : '', n + ' phút');
+      b.onclick = function () { d.snooze = n; sch.querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); }); b.classList.add('on'); };
+      sch.append(b);
+    });
+    sb.append(sch); inn.append(sb);
+    // Man hinh reo
+    var rb = el('div'); rb.append(el('div', 'lbl', 'Reo trên'));
+    var rch = el('div', 'chips'), rnote = el('div', 'note');
+    function drawScreens() {
+      rch.replaceChildren();
+      var all = el('button', d.devices === 'all' ? 'on' : '', 'Mọi màn hình');
+      all.onclick = function () { d.devices = d.devices === 'all' ? (DEV ? [DEV] : []) : 'all'; drawScreens(); };
+      rch.append(all);
+      S.screens.forEach(function (s) {
+        var on = d.devices !== 'all' && d.devices.indexOf(s.id) >= 0;
+        var b = el('button', on ? 'on' : '', (s.id === DEV ? 'Màn này' : s.name));
+        b.onclick = function () {
+          if (d.devices === 'all') d.devices = [];
+          var i = d.devices.indexOf(s.id); if (i >= 0) d.devices.splice(i, 1); else d.devices.push(s.id);
+          if (!d.devices.length) d.devices = 'all';
+          drawScreens();
+        };
+        rch.append(b);
+      });
+      var mute = (d.devices === 'all' ? S.screens : S.screens.filter(function (s) { return d.devices.indexOf(s.id) >= 0; })).filter(function (s) { return !s.spk; });
+      rnote.textContent = mute.length ? (mute.map(function (s) { return s.id === DEV ? 'Màn này' : s.name; }).join(', ') + ' không có loa — chỉ hiện báo thức trên màn hình.') : '';
+    }
+    drawScreens(); rb.append(rch, rnote); inn.append(rb);
+    // Nut
+    var acts = el('div', 'acts');
+    if (a) {
+      var del = el('button', 'tb danger', 'Xoá'), armed = 0; del.style.marginRight = 'auto';
+      del.onclick = function () {
+        if (Date.now() - armed > 3000) { armed = Date.now(); del.textContent = 'Chạm lần nữa để xoá'; return; }
+        api('del?id=' + a.id, {}).then(function () { ed.hidden = true; toast('Đã xoá báo thức'); load(); }).catch(function (e) { toast(e.message); });
+      };
+      acts.append(del);
+    }
+    var cancel = el('button', 'tb', 'Huỷ'); cancel.onclick = function () { ed.hidden = true; };
+    var save = el('button', 'tb pri', 'Lưu');
+    save.onclick = function () {
+      d.time = p2(hh) + ':' + p2(mm); d.label = inp.value; d.enabled = true;
+      api('save', d).then(function (r) {
+        ed.hidden = true;
+        return load().then(function () {
+          var x = S.alarms.find(function (y) { return y.id === r.alarm.id; });
+          if (x && x.next) toast('Báo thức sẽ reo sau ' + inText(x.next - Date.now()));
+        });
+      }).catch(function (e) { toast(e.message); });
+    };
+    acts.append(cancel, save); inn.append(acts);
+  }
+
+  load();
+  // Bao thuc reo / bao lai / doi o man khac -> server day trang thai (rwv-state) -> doc lai; them 30 s/lan cho "sau X phut".
+  var lt = 0;
+  window.addEventListener('rwv-state', function () { clearTimeout(lt); lt = setTimeout(function () { if ($('ed').hidden) load(); }, 800); });
+  setInterval(function () { if ($('ed').hidden && document.visibilityState === 'visible') render(); }, 30000);
+})();
+</script>
+</body>
+</html>
