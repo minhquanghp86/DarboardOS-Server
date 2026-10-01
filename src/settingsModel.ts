@@ -9,7 +9,9 @@
 // "esp32-<mac>" ma firmware gui len), roi lay MOI thuc the cua thiet bi do — cung ma chay cho ca P4 lan hai S3.
 
 export type SettingKind = 'switch' | 'light' | 'number' | 'select' | 'text' | 'button' | 'value';
-export type SettingGroup = 'control' | 'config' | 'diag';
+// (01/10/2026) 'stream' = muc "Luong camera" (tieng luong Frigate / tieng khi quay video — firmware P4 fw-2026.10.01f).
+export type SettingGroup = 'control' | 'config' | 'diag' | 'stream';
+const STREAM_LABEL = /^Tiếng (luồng camera|khi quay video)$/i;
 
 export interface HaDevice { id: string; name?: string | null; name_by_user?: string | null; connections?: [string, string][];
   model?: string | null; sw_version?: string | null; manufacturer?: string | null; }
@@ -23,6 +25,8 @@ export interface SettingItem {
   group: SettingGroup;
   label: string;
   value: string;
+  /** (01/10/2026) Dong goi y duoi nhan (Cai dat). */
+  hint?: string;
   unit?: string;
   on?: boolean;
   /** light: do sang 0..100 */
@@ -84,8 +88,10 @@ export function buildSettingsView(dev: HaDevice, entities: HaEntity[], states: M
     const a = st?.attributes ?? {};
     const label = labelOf(st, e.entity_id, deviceName);
     if (DANGEROUS.test(label.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '_'))) continue;
-    const group: SettingGroup = e.entity_category === 'diagnostic' ? 'diag' : e.entity_category === 'config' ? 'config'
+    const group: SettingGroup = STREAM_LABEL.test(label) ? 'stream'
+      : e.entity_category === 'diagnostic' ? 'diag' : e.entity_category === 'config' ? 'config'
       : kind === 'value' ? 'diag' : 'control';
+
     const state = st?.state ?? 'unavailable';
     const it: SettingItem = { id: e.entity_id, kind, group, label, value: state,
       unavailable: state === 'unavailable' || state === 'unknown' && kind !== 'value' && kind !== 'button' };
@@ -95,6 +101,9 @@ export function buildSettingsView(dev: HaDevice, entities: HaEntity[], states: M
     if (kind === 'number') { it.min = Number(a.min ?? 0); it.max = Number(a.max ?? 100); it.step = Number(a.step ?? 1); }
     if (kind === 'select') it.options = Array.isArray(a.options) ? a.options.map(String) : [];
     if (kind === 'text') it.maxLength = Number(a.max ?? 255);
+    if (group === 'stream') it.hint = /luồng/i.test(label)
+      ? 'Tiếng trong luồng camera gửi Frigate / go2rtc. Đang phát video trên màn này thì tạm không lấy tiếng.'
+      : 'Ghi tiếng micro khi quay video bằng ứng dụng Camera (áp dụng từ lần quay sau).';
     if (kind === 'button') it.confirm = a.device_class === 'restart' || /restart|khoi_dong_lai/i.test(e.entity_id);
     items.push(it);
   }

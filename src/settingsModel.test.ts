@@ -100,3 +100,23 @@ describe("bat/tat anh man hinh cho -> No Sleep", () => {
     expect(isSaverPhotosSwitchId('switch.p4_man_hinh_cho')).toBe(false);
   });
 });
+
+describe('muc Luong camera (01/10/2026)', () => {
+  it('hai cong tac tieng camera vao nhom stream, kem goi y', () => {
+    const e: HaEntity[] = [
+      { entity_id: 'switch.p4_tieng_luong_camera', device_id: 'd1', entity_category: 'config' },
+      { entity_id: 'switch.p4_tieng_khi_quay_video', device_id: 'd1', entity_category: 'config' },
+      { entity_id: 'switch.p4_man_hinh_cho', device_id: 'd1' },
+    ];
+    const st = new Map<string, HaState>([
+      ['switch.p4_tieng_luong_camera', { entity_id: 'switch.p4_tieng_luong_camera', state: 'off', attributes: { friendly_name: '7.0 Guition JC1060P470C Tiếng luồng camera' } }],
+      ['switch.p4_tieng_khi_quay_video', { entity_id: 'switch.p4_tieng_khi_quay_video', state: 'on', attributes: { friendly_name: '7.0 Guition JC1060P470C Tiếng khi quay video' } }],
+      ['switch.p4_man_hinh_cho', { entity_id: 'switch.p4_man_hinh_cho', state: 'on', attributes: { friendly_name: '7.0 Guition JC1060P470C Màn hình chờ' } }],
+    ]);
+    const v = buildSettingsView(dev, e, st);
+    const s = v.items.filter((i) => i.group === 'stream');
+    expect(s.map((i) => i.label).sort()).toEqual(['Tiếng khi quay video', 'Tiếng luồng camera']);
+    expect(s.every((i) => !!i.hint)).toBe(true);
+    expect(v.items.find((i) => i.label === 'Màn hình chờ')?.group).toBe('control');
+  });
+});

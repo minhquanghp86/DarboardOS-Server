@@ -1,3 +1,13 @@
+## V2.9.97
+### Tiếng cho video quay + mục "Luồng camera" trong Cài đặt (P4)
+
+- Video quay bằng ứng dụng Camera **có tiếng** (micro đã khử vọng của panel; tắt được).
+- **Cài đặt › Luồng camera** (mục mới): *Tiếng luồng camera* — thêm tiếng vào luồng camera gửi Frigate / go2rtc (mặc
+  định TẮT; đang phát video trên màn này thì tạm không lấy tiếng để giữ độ mượt; đổi lúc Frigate đang xem thì luồng tự
+  kết nối lại) và *Tiếng khi quay video* (mặc định BẬT).
+- Cần firmware `fw-2026.10.01f` (micro đếm người dùng: tự đánh thức, trợ lý, tin nhắn thoại, luồng camera dùng chung
+  micro mà không tắt của nhau).
+
 ## V2.9.96
 ### Định dạng thẻ SD ngay trên màn hình (P4)
 

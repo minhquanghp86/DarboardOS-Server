@@ -236,7 +236,7 @@
     var by = function (g) { return items.filter(function (i) { return i.group === g && !/Âm lượng Video Web|Âm lượng media/i.test(i.label); }); };
     var grid = el('div', 'grid');
     // (27/09/2026) "Màn hình": cai dat cua addon cho rieng man hinh nay (server luu), vd man hinh cho hien anh.
-    [audioSec(), section('Điều khiển', by('control')), section('Màn hình', panelSec(d, 'screen')), section('Khung ảnh', panelSec(d, 'frame')),
+    [audioSec(), section('Luồng camera', by('stream')), section('Điều khiển', by('control')), section('Màn hình', panelSec(d, 'screen')), section('Khung ảnh', panelSec(d, 'frame')),
      section('Cấu hình', by('config')), diag(by('diag'), d.server)]
       .forEach(function (s) { if (s) grid.append(s); });
     main.replaceChildren(head, grid);
