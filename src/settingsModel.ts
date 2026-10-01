@@ -115,6 +115,15 @@ export function findPresenceSelect(view: SettingsView): SettingItem | undefined 
     (/nguon_phat_hien_nguoi$/.test(i.id) || norm(i.label) === 'nguon phat hien nguoi'));
 }
 
+/**
+ * (01/10/2026) Cong tac "No Sleep" cua firmware (P4 + S3; Shell goi la "Màn hình chờ"): giu den nen sang, ranh thi hien
+ * man hinh cho. Tim theo entity_id hoac nhan.
+ */
+export function findNoSleepSwitch(view: SettingsView): SettingItem | undefined {
+  return view.items.find((i) => i.kind === 'switch' && !i.unavailable &&
+    (/_no_sleep$/.test(i.id) || i.label.trim().toLowerCase() === 'no sleep'));
+}
+
 export interface ServiceCall { domain: string; service: string; data: Record<string, unknown> }
 
 /**

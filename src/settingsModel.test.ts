@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HaEntity, HaState, buildSettingsView, findDeviceByMac, findPresenceSelect, macFromDeviceId, planSet } from "./settingsModel.js";
+import { HaEntity, HaState, buildSettingsView, findDeviceByMac, findNoSleepSwitch, findPresenceSelect, macFromDeviceId, planSet } from "./settingsModel.js";
 
 const dev = { id: "d1", name: "7.0 Guition JC1060P470C", model: "esp32-p4-evboard", sw_version: "2026.9.0",
   connections: [["mac", "28:37:2F:8A:02:18"]] as [string, string][] };
@@ -82,5 +82,16 @@ describe("thanh trang thai: select nguon phat hien nguoi", () => {
     expect(findPresenceSelect(view([sel('select.xoay', 'Xoay màn hình')]))).toBeUndefined();
     expect(findPresenceSelect(view([sel('select.abc', 'Nguồn phát hiện người', { unavailable: true })]))).toBeUndefined();
     expect(findPresenceSelect(view([]))).toBeUndefined();
+  });
+});
+
+describe("bat/tat anh man hinh cho -> No Sleep", () => {
+  const view = (items: any[]) => ({ device: { name: 'x' }, items });
+  const sw = (id: string, label: string, extra: any = {}) => ({ id, kind: 'switch', group: 'control', label, value: 'off', on: false, ...extra });
+  it("tim theo entity_id (P4) hoac nhan (S3), bo qua khi khong dung duoc", () => {
+    expect(findNoSleepSwitch(view([sw('switch.7_0_guition_jc1060p470c_no_sleep', 'No Sleep')]))?.id).toBe('switch.7_0_guition_jc1060p470c_no_sleep');
+    expect(findNoSleepSwitch(view([sw('switch.abc', 'No Sleep')]))?.id).toBe('switch.abc');
+    expect(findNoSleepSwitch(view([sw('switch.amp', 'Audio Amplifier')]))).toBeUndefined();
+    expect(findNoSleepSwitch(view([sw('switch.x_no_sleep', 'No Sleep', { unavailable: true })]))).toBeUndefined();
   });
 });

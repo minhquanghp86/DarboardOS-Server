@@ -36,7 +36,7 @@ import { parseDoorbell, unlockCall } from "./doorbell.js";
 import type { DialHooks } from "./dial.js";
 import { Notice, NoticeStore, NotifyRequest, parseNotify, shouldPopup, shouldWake } from "./notifications.js";
 import { callService, getSettingsView } from "./haSettings.js";
-import { findPresenceSelect, planSet } from "./settingsModel.js";
+import { findNoSleepSwitch, findPresenceSelect, planSet } from "./settingsModel.js";
 import { getLauncherConfig, saveHomeLayout } from "./launcherConfig.js";
 import { HomeLayout, resolveLayout } from "./homeLayout.js";
 import { ControlField, DeviceEventKind, DeviceStateInfo, Encoding, VoiceState, FRAME_HEADER_BYTES, TILE_HEADER_BYTES, parseDeviceStatePacket } from "./protocol.js";
@@ -895,14 +895,25 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
     if(activeInput&&activeInput.scrollIntoView) activeInput.scrollIntoView({behavior:'auto',block:'center'});
   }
 
-  function hideKeyboard(){
-    // Cải tiến: dùng _shield thay window.__vkbClosingShield
-    _shield.closing=Date.now();
+  // (01/10/2026) outsideTap = cham RA NGOAI ban phim (khong phai nut an/Enter). Truoc day moi lan an deu bat tam chan
+  // 400 ms (chan ca mousedown/mouseup/click cua CHINH cu cham do) va blur o nhap NGAY -> cu cham dau tien sau khi go chu
+  // luon mat: bam dong goi y tim kiem YouTube khong an (nguoi dung bao 01/10), YouTube dong danh sach goi y vi o nhap mat
+  // focus. Cham ngoai: khong tam chan, blur sau 350 ms (click da toi dong goi y). Nut an/Enter van chan nhu cu (cu cham
+  // khong lot xuong trang ben duoi ban phim vua bien mat).
+  function hideKeyboard(outsideTap){
+    if(!outsideTap) _shield.closing=Date.now();
     if(keyboardContainer){
       keyboardContainer.classList.remove('vkb-visible');
       if(keyboardContainer.hidePopover&&keyboardContainer.matches(':popover-open')) keyboardContainer.hidePopover();
     }
-    if(activeInput&&activeInput.blur) activeInput.blur();
+    var el=activeInput;
+    if(el&&el.blur){
+      if(outsideTap) setTimeout(function(){
+        var vis=keyboardContainer&&keyboardContainer.classList.contains('vkb-visible');
+        if(!vis&&document.activeElement===el) el.blur();
+      },350);
+      else el.blur();
+    }
     activeInput=null; isShifted=false; currentLayout='default';
   }
 
@@ -968,7 +979,7 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
         }
         if(ev==='pointerdown'){
           var p2=e.composedPath?e.composedPath():[e.target];
-          if(!resolveInput(p2)) hideKeyboard();
+          if(!resolveInput(p2)) hideKeyboard(true);
         }
       }
     },true);
@@ -1425,7 +1436,14 @@ async function handleSettings(dev: DeviceSession, tab: Tab, msg: any): Promise<v
   if (msg.id.startsWith('rwv.')) {
     const ok = panelPrefs.set(dev.deviceId, msg.id, msg.v);
     console.log(`[settings] ${dev.deviceId}: ${msg.id} = ${JSON.stringify(msg.v)} ${ok ? 'OK' : 'TU CHOI'}`);
-    if (ok && msg.id === 'rwv.saver_photos') { dev.saverPhotoAt = 0; if (!msg.v) { dev.saverPhoto = null; showSaverPhoto(dev, null); } }
+    if (ok && msg.id === 'rwv.saver_photos') {
+      dev.saverPhotoAt = 0;
+      if (!msg.v) { dev.saverPhoto = null; showSaverPhoto(dev, null); }
+      // (01/10/2026, nguoi dung yeu cau) Khung anh chi co y nghia khi man con sang: bat anh -> bat "No Sleep" (Màn hình
+      // chờ), tat anh -> tat. Chi tac dong LUC GAT; sau do van doi rieng duoc. Qua HA nen chay ca firmware S3 (khong co
+      // on_set_no_sleep).
+      setNoSleepViaHa(dev, !!msg.v).catch(() => { });
+    }
     // Doi nguon / album / kieu hien thi: ap dung ngay o lan doi anh ke tiep; album moi -> tai danh sach ngay.
     if (ok && (msg.id === 'rwv.gphotos_url' || msg.id === 'rwv.photo_source')) {
       dev.saverNav = undefined;
@@ -1444,6 +1462,17 @@ async function handleSettings(dev: DeviceSession, tab: Tab, msg: any): Promise<v
   console.log(`[settings] ${dev.deviceId}: ${plan.domain}.${plan.service} ${msg.id} -> ${ok ? 'OK' : 'LOI'}`);
   // Doi thiet bi ESPHome ap dung + HA cap nhat trang thai roi moi doc lai.
   setTimeout(() => { pushSettings(dev, tab, ok ? undefined : { ok: false, msg: 'Home Assistant không nhận thay đổi.' }).catch(() => { }); }, 600);
+}
+
+async function setNoSleepViaHa(dev: DeviceSession, on: boolean): Promise<void> {
+  const r = await getSettingsView(dev.deviceId);
+  if (!r.ok) return;
+  const it = findNoSleepSwitch(r.view);
+  if (!it || it.on === on) return;
+  const plan = planSet(r.view, it.id, on);
+  if (typeof plan === 'string') return;
+  const ok = await callService(plan).catch(() => false);
+  console.log(`[settings] ${dev.deviceId}: anh man hinh cho ${on ? 'bat' : 'tat'} -> No Sleep ${on ? 'bat' : 'tat'} (${it.id}) ${ok ? 'OK' : 'LOI'}`);
 }
 
 // (30/09/2026) Doc lai select "Nguon phat hien nguoi" tu HA (moi lan mo thanh trang thai, toi da moi `minAgeMs`).
@@ -2087,6 +2116,10 @@ function isCameraTab(t: Tab): boolean {
   return !t.pinned && (t.kind === 'camera' || t.kind === 'cams' || /\/cams?\.html(\?|$)/.test(t.url));
 }
 
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([p, new Promise<never>((_, rej) => setTimeout(() => rej(new Error(`Chrome khong tra loi sau ${ms} ms`)), ms))]);
+}
+
 const PAUSE_ALL_MEDIA_JS = "document.querySelectorAll('video,audio').forEach(function(m){try{m.pause();}catch(e){}});";
 
 function freezeTab(dev: DeviceSession, tab: Tab): void {
@@ -2096,10 +2129,12 @@ function freezeTab(dev: DeviceSession, tab: Tab): void {
   // (01/10/2026) Debugger.pause chi dung JAVASCRIPT — bo giai ma <video>/<audio> cua Chrome VAN CHAY (truoc day chi
   // YouTube/TikTok duoc dung video khi roi tab: trang web khac co video van phat ngam). Dung MOI media truoc khi dong
   // bang. Tab radio/nhac dang phat nen khong bao gio toi day (dieu kien o tren).
-  tab.session.send('Runtime.evaluate', { expression: PAUSE_ALL_MEDIA_JS }).catch(() => { })
+  // (01/10/2026) Moi buoc co han 3 s: Chrome khong tra loi -> truoc day ca chuoi treo IM LANG, tab o lai "frozen" nhung
+  // JS + video van chay ngam (do that: tab YouTube P4 phat nen toi khi bi dong sau 5 phut, khong mot dong log).
+  withTimeout(tab.session.send('Runtime.evaluate', { expression: PAUSE_ALL_MEDIA_JS }), 3000).catch(() => { })
     // Debugger.enable ngay truoc khi dung (khong de bat thuong truc: moi script trang nap se ban su kien ve server).
-    .then(() => tab.frozen ? tab.session.send('Debugger.enable', {}) : undefined)
-    .then(() => tab.frozen ? tab.session.send('Debugger.pause') : undefined)
+    .then(() => tab.frozen ? withTimeout(tab.session.send('Debugger.enable', {}), 3000) : undefined)
+    .then(() => tab.frozen ? withTimeout(tab.session.send('Debugger.pause'), 3000) : undefined)
     .then(() => console.log(`[app] ${dev.deviceId}: dong bang tab nen "${tab.key}"`))
     .catch((e: unknown) => { tab.frozen = false; console.warn(`[app] ${dev.deviceId}: khong dong bang duoc "${tab.key}":`, e); });
 }
@@ -2473,6 +2508,12 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
         st.minFrameIntervalMs = Math.min(st.minFrameIntervalMs, Math.max(cfg.minFrameInterval, SAFE_START_INTERVAL_MS));
         device.tunedMinFrameIntervalMs = st.minFrameIntervalMs;
       }
+      // (01/10/2026) Dinh ton dong + uoc luong bang thong cung la cua socket CU. Do that: P4 noi lai 01:46:32, nhip ke tiep
+      // (01:46:34) doc dinh 1,66 MB cua socket da chet -> ghi lai nguong tranh nghen 300 ms -> YouTube 7,7 fps, moi 35 s
+      // moi nhich 17 ms (~5 phut moi toi nhip binh thuong) sau MOI lan khoi dong lai / OTA.
+      device.backlogSkipPeak = 0;
+      device.netHalfUntilMs = undefined;
+      linkEstimates.delete(id);
 
       // (24/09/2026) halfScale / audioEnabled cung KHONG nam trong deviceConfigsEqual() (co dinh theo
       // firmware) -> nhanh nay tu giu gia tri cua LAN KET NOI DAU. Do that: server khoi dong lai truoc khi P4
