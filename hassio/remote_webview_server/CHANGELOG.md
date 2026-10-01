@@ -1,7 +1,7 @@
 ## V2.9.95
 ### Âm thanh kiểu điện thoại, ứng dụng Báo thức, tin nhắn thoại
 
-- **Ba loại âm lượng** (P4 — cần firmware mới, nhánh `feature/audio-alarm`):
+- **Ba loại âm lượng** (P4 — cần firmware `fw-2026.10.01d`):
   - *Media*: YouTube, nhạc, radio, video, tin nhắn thoại… (thanh âm lượng sẵn có);
   - *Thông báo*: chuông tin nhắn / thông báo, chuông cửa, lời đọc của HA, trợ lý;
   - *Báo thức*: báo thức, hết giờ Hẹn giờ, cảnh báo khẩn (tối thiểu 20%).
@@ -13,7 +13,8 @@
   này / mọi màn / chọn). Reo đúng giờ kể cả khi màn tắt; Tắt / Báo lại trên một màn là cả nhóm ngừng; 5 phút không ai tắt
   -> thông báo "bị lỡ". Báo thức kế tiếp hiện ở thanh kéo xuống và màn hình chờ. Hẹn giờ dùng chung cơ chế này.
 - **Tin nhắn thoại**: nhấn giữ 🎤 để ghi, thả ra để gửi, vuốt lên (panel) / kéo ra ngoài (thanh bên) để huỷ, tối đa 60 s.
-  Panel P4 ghi bằng micro đã khử vọng (firmware mới); thanh bên HA ghi bằng micro trình duyệt (cần mở HA bằng https).
+  Panel P4 ghi bằng micro đã khử vọng (`fw-2026.10.01d` — sửa luôn lỗi micro P4 đọc toàn 0 khiến tự đánh thức / trợ lý
+  không nghe được); thanh bên HA ghi bằng micro trình duyệt (cần mở HA bằng https).
   Màn không loa (S3) hiện tin nhưng không phát.
 
 ## V2.9.94
@@ -38,7 +39,7 @@
 - **Thư viện** (P4): ảnh/video trong DCIM theo ngày, lọc Ảnh/Video, xem ảnh (vuốt, chạm đúp phóng to), trình phát video
   (tua, ±10 s), chọn nhiều để xoá. Nút thư viện trong ứng dụng Camera mở thẳng vào đây.
 - **Tệp** (P4): duyệt toàn bộ thẻ SD (tên tiếng Việt), sắp xếp Tên/Ngày/Cỡ, xem ảnh/video/văn bản, xoá tệp hoặc thư mục.
-- Cần firmware P4 mới (nhánh thử `feature/files-chat`): API thẻ SD mới, ảnh thu nhỏ khi chụp/quay, video quay có độ dài +
+- Cần firmware P4 `fw-2026.10.01d`: API thẻ SD mới, ảnh thu nhỏ khi chụp/quay, video quay có độ dài +
   mục lục (tua được), và sửa lỗi ESPHome tắt VFS thư mục khiến thẻ SD không đọc được thư mục.
 
 ## V2.9.93

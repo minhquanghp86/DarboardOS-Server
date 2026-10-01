@@ -1295,10 +1295,10 @@ function handleMenuControl(id: string, payload: unknown, from?: Tab): void {
   // (26/09/2026 OS-5) Thong bao: mo (cham the), xoa mot, xoa het; bat/tat Khong lam phien.
   if (msg?.ntOpen != null) { openNotice(dev, Number(msg.ntOpen)); return; }
   if (msg?.ntDel != null) { noticesOf(id).remove(Number(msg.ntDel)); pushDeviceStateToPage(dev); return; }
-  // (02/10/2026) Mo thanh keo xuong (thay danh sach) = da xem thong bao thuong; tin nhan chi "da xem" khi doc trong Tin nhan.
+  // (01/10/2026) Mo thanh keo xuong (thay danh sach) = da xem thong bao thuong; tin nhan chi "da xem" khi doc trong Tin nhan.
   if (msg?.ntSeen) { if (noticesOf(id).markSeen('nt')) pushDeviceStateToPage(dev); return; }
   if (msg?.ntClear) { noticesOf(id).clear(); pushDeviceStateToPage(dev); return; }
-  // (02/10/2026) Am thanh: am luong Thong bao / Bao thuc (Shell, Cai dat), phat thu, tat / bao lai bao thuc.
+  // (01/10/2026) Am thanh: am luong Thong bao / Bao thuc (Shell, Cai dat), phat thu, tat / bao lai bao thuc.
   if (msg?.f === 'alert' || msg?.f === 'alarm') {
     soundPrefs.set(id, { [msg.f]: Number(msg.v) });
     syncSoundToDevice(dev); pushDeviceStateToPage(dev); return;
@@ -1379,14 +1379,14 @@ function fireTimer(dev: DeviceSession): void {
   dev.timer = undefined;
   console.log(`[timer] ${dev.deviceId}: HET GIO${label ? ` (${label})` : ''}`);
   pushDeviceStateToPage(dev);
-  // (02/10/2026) Dung chung co che reo cua Bao thuc (am Bao thuc, Khong lam phien, tat tren man hinh).
+  // (01/10/2026) Dung chung co che reo cua Bao thuc (am Bao thuc, Khong lam phien, tat tren man hinh).
   alarms.ringTimer(dev.deviceId, label);
 }
 
 // ── (26/09/2026 OS-5) THONG BAO + KHONG LAM PHIEN ─────────────────────────────────────────────────────────────────
 // Lich su va Khong lam phien giu theo deviceId (khong theo phien) — thiet bi noi lai / bi don khi ranh van con.
 const noticeStores = new Map<string, NoticeStore>();
-// (02/10/2026) Luu thong bao (kem trang thai da xem) ra /data: cap nhat / khoi dong lai addon khong lam mat "chuong" chua xem.
+// (01/10/2026) Luu thong bao (kem trang thai da xem) ra /data: cap nhat / khoi dong lai addon khong lam mat "chuong" chua xem.
 const NOTICES_FILE = process.env.NOTICES_FILE || path.join(fs.existsSync('/data') ? '/data' : path.join(process.cwd(), 'data'), 'rwv-notices.json');
 let noticeSaveT: NodeJS.Timeout | null = null;
 function saveNoticesSoon(): void {
@@ -1406,7 +1406,7 @@ function noticesOf(id: string): NoticeStore {
   return s;
 }
 
-// (02/10/2026) Tin nhan (src/chat.ts) cho biet so tin CHUA DOC cua tung man hinh (theo cuoc tro chuyen). Bao "tin nhan" cua
+// (01/10/2026) Tin nhan (src/chat.ts) cho biet so tin CHUA DOC cua tung man hinh (theo cuoc tro chuyen). Bao "tin nhan" cua
 // mot cuoc tro chuyen tu mat khi man hinh do da doc het (mo cuoc tro chuyen trong ung dung Tin nhan) hoac cuoc do bi xoa.
 type ChatUnread = (deviceId: string) => { total: number; byConv: Record<string, number> };
 let chatUnread: ChatUnread = () => ({ total: 0, byConv: {} });
@@ -1434,7 +1434,7 @@ function setDnd(id: string, on: boolean): void {
   if (dev) syncSoundToDevice(dev);
 }
 
-// ── (02/10/2026) AM THANH KIEU DIEN THOAI (src/sound.ts) ─────────────────────────────────────────────────────────────
+// ── (01/10/2026) AM THANH KIEU DIEN THOAI (src/sound.ts) ─────────────────────────────────────────────────────────────
 /** Firmware tu phat am (?snd=1) VA co loa. */
 function canPlay(dev: DeviceSession): boolean { return !!dev.cfg.sound && !!dev.cfg.audioEnabled; }
 function playSound(dev: DeviceSession, s: Sound): void {
@@ -1516,7 +1516,7 @@ export function postNotify(body: NotifyRequest): { ok: boolean; error?: string; 
     if (wake && dev.cfg.devControl) broadcaster.sendDeviceControl(id, ControlField.Brightness, dev.devState?.brightness ?? 100);
     if (wake) { dev.lastTouchMs = Date.now(); setSaver(dev, false); }
     // Man hinh dang tat: doi den nen bat + remote_webview resume (~0,5 s) roi moi hien, de khung do toi duoc man hinh.
-    // (02/10/2026) Firmware tu phat am (?snd=1): am theo loai (tin nhan / uu tien / canh bao khan) voi am luong Thong bao
+    // (01/10/2026) Firmware tu phat am (?snd=1): am theo loai (tin nhan / uu tien / canh bao khan) voi am luong Thong bao
     // hoac Bao thuc — khong qua luong am thanh trang (Im lang chi tat media). Khong lam phien: khong keu gi.
     const snd = soundForNotice(n);
     const webChime = !canPlay(dev) && wake && !quiet;
@@ -1683,11 +1683,11 @@ function openNotice(dev: DeviceSession, id: number): void {
   else if (n.url) navigateToUrl(dev, n.url).catch(() => { });
 }
 
-// (02/10/2026) Cham thong bao co tham so (Tin nhan: id cuoc tro chuyen) -> ung dung tu mo dung muc (src/chat.ts).
+// (01/10/2026) Cham thong bao co tham so (Tin nhan: id cuoc tro chuyen) -> ung dung tu mo dung muc (src/chat.ts).
 let noticeArgHook: ((deviceId: string, app: string, arg: string) => void) | null = null;
 export function setNoticeArgHook(fn: (deviceId: string, app: string, arg: string) => void): void { noticeArgHook = fn; }
 
-/** (02/10/2026) Man hinh dang ket noi — cho Tin nhan (ten lay tu HA o index.ts). */
+/** (01/10/2026) Man hinh dang ket noi — cho Tin nhan (ten lay tu HA o index.ts). */
 export function connectedScreens(): { id: string; w: number; h: number; cam: boolean; spk: boolean }[] {
   return [...devices.values()].filter((d) => broadcaster.getClientCount(d.deviceId) > 0)
     .map((d) => ({ id: d.deviceId, w: d.cfg.width, h: d.cfg.height, cam: d.cfg.camPort > 0, spk: !!d.cfg.audioEnabled }));
@@ -1724,10 +1724,10 @@ function pushDeviceStateToPage(dev: DeviceSession): void {
     tm: dev.timer ? { endsAt: dev.timer.endsAt, label: dev.timer.label } : null,
     np: nowPlaying(dev.tabs.values(), dev.activeTabKey),
     nt: noticesOf(dev.deviceId).list(8).map(noticeForShell),
-    // (02/10/2026) So CHUA XEM rieng man hinh nay: cu = tin nhan chua doc, nu = thong bao thuong chua xem.
+    // (01/10/2026) So CHUA XEM rieng man hinh nay: cu = tin nhan chua doc, nu = thong bao thuong chua xem.
     cu: chatUnread(dev.deviceId).total,
     nu: noticesOf(dev.deviceId).unseen('nt'),
-    // (02/10/2026) Am thanh kieu dien thoai: snd = firmware tu phat am (co 3 loai am luong); sv = am luong Thong bao /
+    // (01/10/2026) Am thanh kieu dien thoai: snd = firmware tu phat am (co 3 loai am luong); sv = am luong Thong bao /
     // Bao thuc (%); al = bao thuc ke tiep cua man hinh nay; rg = dang reo (Shell hien lai man hinh bao thuc neu trang tai lai).
     snd: canPlay(dev),
     sv: soundPrefs.get(dev.deviceId),
@@ -1923,7 +1923,7 @@ function resolveAppSpec(dev: DeviceSession, key: string): { kind: string; label:
   if (key === 'yttv') return { kind: 'yttv', label: 'YouTube TV', url: dev.castUrl ?? YT_TV_URL, pinned: false };
   const app = listAllApps(dev.cfg.homeUrl).find((a) => a.id === key && !a.hidden);
   if (!app || !app.url) return null;
-  // (02/10/2026) Tin nhan can biet DANG chay tren man hinh nao (src/chat.ts nhan dien bang ?dev=).
+  // (01/10/2026) Tin nhan can biet DANG chay tren man hinh nao (src/chat.ts nhan dien bang ?dev=).
   if (key === 'chat' || key === 'alarm') return { kind: app.baseKind, label: app.label, url: app.url + (app.url.includes('?') ? '&' : '?') + 'dev=' + encodeURIComponent(dev.deviceId), pinned: false };
   // baseKind, KHONG phai kind: nguoi dung doi bieu tuong o "Menu panel" thi kind thanh 'mdi' -> Radio/Nhac mat phat
   // nen, YouTube/TikTok khong tu dung khi roi tab (activateTab dua vao loai ung dung goc).
@@ -2104,7 +2104,7 @@ export function postDoorbell(body: unknown): { ok: boolean; error?: string; id?:
     // Sang man hinh (nhu thong bao khan) roi mo trang chuong; da co tab chuong (bam lien tiep) thi tai lai trang moi.
     if (dev.cfg.devControl) broadcaster.sendDeviceControl(dev.deviceId, ControlField.Brightness, dev.devState?.brightness ?? 100);
     noteActivity(dev, 'chuong cua');
-    // (02/10/2026) Chuong cua = loai Thong bao: firmware tu phat "ding-dong" (Khong lam phien -> im); trang khong keu nua.
+    // (01/10/2026) Chuong cua = loai Thong bao: firmware tu phat "ding-dong" (Khong lam phien -> im); trang khong keu nua.
     if (canPlay(dev)) playSound(dev, Sound.Doorbell);
     dev.tabOps.run(async () => {
       const t = dev.tabs.get('__doorbell');
@@ -3325,7 +3325,7 @@ export function screensaverTick(): void {
   for (const d of devices.values()) {
     const tab = d.tabs.get(d.activeTabKey);
     if (!tab || broadcaster.getClientCount(d.deviceId) === 0) continue;
-    // (02/10/2026) Bao thuc / hen gio dang reo: khong che man hinh bao thuc (do that: khung anh de len, khong thay nut Tat).
+    // (01/10/2026) Bao thuc / hen gio dang reo: khong che man hinh bao thuc (do that: khung anh de len, khong thay nut Tat).
     if (alarms.ringingOn(d.deviceId)) continue;
     if (!shouldShowSaver({
       // (27/09/2026) Khung anh da la man hinh cho — khong phu dong ho len.

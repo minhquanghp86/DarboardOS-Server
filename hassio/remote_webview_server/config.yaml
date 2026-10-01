@@ -17,7 +17,7 @@ homeassistant_api: true
 ingress: true
 ingress_port: 18080
 ingress_entry: launcher-config.html
-# (02/10/2026) Trang thanh ben gio co hai the: Tin nhan (noi bo voi cac man hinh) + Menu ung dung -> ten "Darboard".
+# (01/10/2026) Trang thanh ben gio co hai the: Tin nhan (noi bo voi cac man hinh) + Menu ung dung -> ten "Darboard".
 panel_icon: mdi:tablet-dashboard
 panel_title: Darboard
 

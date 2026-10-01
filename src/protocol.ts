@@ -81,7 +81,7 @@ export enum ControlField {
   Media = 7,
   /** (30/09/2026) Man hinh cho dang hien (1) / tat (0) — P4 dung de phat hien khuon mat + ve trang chu. */
   Saver = 8,
-  /** (02/10/2026) Am thanh kieu dien thoai (firmware ?snd=1): phat am (value = loai, xem src/sound.ts Sound), am luong
+  /** (01/10/2026) Am thanh kieu dien thoai (firmware ?snd=1): phat am (value = loai, xem src/sound.ts Sound), am luong
    *  Thong bao / Bao thuc (0..100), Khong lam phien (0/1 — firmware im lang hoan toan, ke ca TTS HA). Firmware cu bo qua. */
   PlaySound = 9,
   AlertVolume = 10,

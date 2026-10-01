@@ -21,7 +21,7 @@ export function cameraHost(): { ip: string; port: number } | undefined {
   return hosts.values().next().value;
 }
 
-// (02/10/2026) + ung dung Tep / Thu vien: sd/ls (duyet), sd/get (tai, co Range de tua video), sd/rm (xoa), sd/thumb.
+// (01/10/2026) + ung dung Tep / Thu vien: sd/ls (duyet), sd/get (tai, co Range de tua video), sd/rm (xoa), sd/thumb.
 const ALLOWED = /^\/(cam\/(status|photo|last\.jpg|rec)|sd\/(list|file|del|ls|get|rm|thumb))$/;
 
 // Panel chi mo 5 socket HTTP (cam_app) — luoi anh thu nho tai 30 o cung luc se day mat luong video dang phat. Hai hang
@@ -82,7 +82,7 @@ async function serveThumb(h: { ip: string; port: number }, search: string, res: 
   cacheThumb(key, out); send(out);
 }
 
-/** (02/10/2026) Cho server (Tin nhan: gui anh tu the SD / chup ngay). Toi da 200 MB. */
+/** (01/10/2026) Cho server (Tin nhan: gui anh tu the SD / chup ngay). Toi da 200 MB. */
 export async function camFetch(pathAndQuery: string, method = 'GET'): Promise<{ code: number; type: string; body: Buffer }> {
   const h = cameraHost();
   if (!h) throw new Error('Màn hình có camera chưa kết nối.');

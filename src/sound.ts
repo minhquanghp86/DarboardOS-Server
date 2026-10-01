@@ -3,7 +3,7 @@
 // Copyright (c) 2026 minhquanghp86
 // Licensed under the Apache License, Version 2.0 (see LICENSE).
 
-// (02/10/2026) AM THANH KIEU DIEN THOAI — ba loai am luong cua moi man hinh:
+// (01/10/2026) AM THANH KIEU DIEN THOAI — ba loai am luong cua moi man hinh:
 //   Media     : moi am thanh trang web/ung dung (YouTube, nhac, radio, video Thu vien/Tin nhan, tin nhan thoai...) — chinh
 //               la "Am luong Video Web" cua firmware (DeviceControl Volume, thanh truot san co). "Im lang" chi tat loai nay.
 //   Thong bao : chuong tin nhan / thong bao HA / Bang tin, chuong cua, loi doc TTS cua HA, tro ly giong noi.

@@ -47,7 +47,7 @@ describe("lich su thong bao", () => {
   });
 });
 
-describe('NoticeStore — da xem rieng tung man hinh (02/10/2026)', () => {
+describe('NoticeStore — da xem rieng tung man hinh (01/10/2026)', () => {
   it('mo thanh keo xuong chi danh dau thong bao thuong; tin nhan van chua xem', () => {
     const s = new NoticeStore();
     s.add({ title: 'Cua mo', message: '', priority: 'high' });

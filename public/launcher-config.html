@@ -3,7 +3,7 @@
   (25/09/2026) Trang "Menu panel" (ingress Home Assistant — thanh ben HA). Cau hinh menu ung dung cua cac panel:
   an/hien, thu tu, doi ten/bieu tuong (MDI, giong HA)/mau/nhom, them ung dung. Luu -> server nap lai launcher ngay.
   Duong dan API TUONG DOI ("launcher/config") vi ingress them tien to vao URL.
-  (02/10/2026) THIET KE LAI thanh trang "Darboard" hai the: #tin-nhan (nhan tin noi bo voi cac man hinh — src/chat.ts) va
+  (01/10/2026) THIET KE LAI thanh trang "Darboard" hai the: #tin-nhan (nhan tin noi bo voi cac man hinh — src/chat.ts) va
   #menu (cau hinh menu ung dung nhu cu, ma giu nguyen). The mac dinh: Tin nhan.
 -->
 <html lang="vi">
@@ -73,7 +73,7 @@
   .bar .status.ok { color: var(--ok); }
   .bar .status.err { color: var(--danger); }
 
-  /* (02/10/2026) Thanh tren + hai the */
+  /* (01/10/2026) Thanh tren + hai the */
   .top { position: sticky; top: 0; z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line); }
   .top .in { max-width: 1280px; margin: 0 auto; display: flex; align-items: center; gap: 18px; padding: 0 16px; height: 52px; }
   .brand { font-weight: 700; font-size: 17px; letter-spacing: .2px; display: flex; align-items: center; gap: 8px; }
@@ -168,7 +168,7 @@
   .drop { position: absolute; inset: 0; background: color-mix(in srgb, var(--primary) 18%, transparent); border: 2px dashed var(--primary);
     display: flex; align-items: center; justify-content: center; font-weight: 600; color: var(--primary); pointer-events: none; z-index: 3; }
   .cthread { position: relative; }
-  /* (02/10/2026) Tin nhan thoai */
+  /* (01/10/2026) Tin nhan thoai */
   .bub audio { display: block; width: min(300px, 60vw); height: 40px; }
   .bub.aud { padding: 6px 8px; }
   .comp .mic.hold { background: var(--danger); color: #fff; }
@@ -563,7 +563,7 @@
 })();
 </script>
 <script>
-// (02/10/2026) The "Tin nhan" + dieu huong hai the. Rieng mot khoi script de khong dung vao ma Menu ung dung o tren.
+// (01/10/2026) The "Tin nhan" + dieu huong hai the. Rieng mot khoi script de khong dung vao ma Menu ung dung o tren.
 (function () {
   'use strict';
   var IC = window.RwvIcons || {};
@@ -827,7 +827,7 @@
     api('send', { c: S.cur, text: v }).then(function () { return loadConv(true); }).catch(function (e) { ta.value = v; alertBox(e.message); });
   }
 
-  // ── (02/10/2026) Tin nhan thoai: nhan giu nut mic (MediaRecorder cua trinh duyet). Can https (trinh duyet chi cho
+  // ── (01/10/2026) Tin nhan thoai: nhan giu nut mic (MediaRecorder cua trinh duyet). Can https (trinh duyet chi cho
   // micro o "secure context") — mo HA bang dia chi http trong LAN thi bao ro ly do.
   var micBtn = icBtn('microphone', 'Nhấn giữ để ghi âm', function () { }, 'mic');
   $('comp').insertBefore(micBtn, $('sendBtn'));

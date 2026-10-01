@@ -25,9 +25,9 @@ export interface Notice {
   url?: string;
   /** Anh kem theo (vd anh chup camera cong qua go2rtc). */
   image?: string;
-  /** (02/10/2026) Tham so cho ung dung `app` khi cham (vd id cuoc tro chuyen cua Tin nhan). */
+  /** (01/10/2026) Tham so cho ung dung `app` khi cham (vd id cuoc tro chuyen cua Tin nhan). */
   arg?: string;
-  /** (02/10/2026) Nguoi dung DA XEM tren chinh man hinh nay (cham the / mo thanh keo xuong). The noi tu hien khi khong
+  /** (01/10/2026) Nguoi dung DA XEM tren chinh man hinh nay (cham the / mo thanh keo xuong). The noi tu hien khi khong
    *  ai nhin KHONG tinh la da xem — cham bao (chuong) con cho toi khi co nguoi xem tren dung man hinh do. */
   seen?: boolean;
 }
@@ -84,7 +84,7 @@ export function shouldWake(n: Pick<Notice, 'priority'>, dnd: boolean): boolean {
 export class NoticeStore {
   private items: Notice[] = [];
   private nextId = 1;
-  /** (02/10/2026) Goi sau moi thay doi — server luu ra dia (thong bao chua xem con sau khi cap nhat addon). */
+  /** (01/10/2026) Goi sau moi thay doi — server luu ra dia (thong bao chua xem con sau khi cap nhat addon). */
   onChange: () => void = () => { };
   constructor(private max = 30) { }
 

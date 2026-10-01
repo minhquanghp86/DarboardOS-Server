@@ -1,4 +1,4 @@
-// (02/10/2026) Bieu tuong MDI 7.4.47 (Apache-2.0, Pictogrammers) dung chung cho files.html, chat.html, launcher-config.html.
+// (01/10/2026) Bieu tuong MDI 7.4.47 (Apache-2.0, Pictogrammers) dung chung cho files.html, chat.html, launcher-config.html.
 // Them bieu tuong: lay thuoc tinh d cua https://cdn.jsdelivr.net/npm/@mdi/svg@7.4.47/svg/<ten>.svg
 window.RwvIcons = {
   "microphone": "M12,2A3,3 0 0,1 15,5V11A3,3 0 0,1 12,14A3,3 0 0,1 9,11V5A3,3 0 0,1 12,2M19,11C19,14.53 16.39,17.44 13,17.93V21H11V17.93C7.61,17.44 5,14.53 5,11H7A5,5 0 0,0 12,16A5,5 0 0,0 17,11H19Z",

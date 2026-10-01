@@ -60,7 +60,7 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   // public/camera.html). "Frigate" (truoc la "Camera nha") = luoi camera Frigate, logo Frigate lay tu chinh add-on Frigate.
   add('nha', 'Camera', 'camera', '#16a34a', LAUNCHER_CAMERA_URL);
   add('nha', 'Frigate', 'cams', '#1e3a8a', LAUNCHER_CAMS_URL, undefined, undefined, undefined, FRIGATE_ICON_PATH);
-  // (02/10/2026) The SD cua panel co camera: Thu vien (anh/video da chup, trinh phat) va Tep (duyet / xoa ca the).
+  // (01/10/2026) The SD cua panel co camera: Thu vien (anh/video da chup, trinh phat) va Tep (duyet / xoa ca the).
   add('nha', 'Thư viện', 'gallery', '#0d9488', `${LOCAL}/files.html?view=gallery`, undefined, 'gallery', 'mdi:image-album');
   add('tien_ich', 'Tệp', 'files', '#64748b', `${LOCAL}/files.html`, undefined, 'files', 'mdi:folder-outline');
   add('nha', 'Cảnh', 'scenes', '#9333ea', LAUNCHER_SCENES_URL);
@@ -90,12 +90,12 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   add('tien_ich', 'Thời tiết', 'weather', '#0ea5e9', LAUNCHER_WEATHER_URL);
   add('tien_ich', 'Lịch', 'calendar', '#dc2626', `${LOCAL}/calendar.html`);
   add('tien_ich', 'Hẹn giờ', 'timer', '#f97316', LAUNCHER_TIMER_URL);
-  // (02/10/2026) Bao thuc (giu o server — src/alarms.ts): lap theo thu, bao lai, reo tren man hinh chon.
+  // (01/10/2026) Bao thuc (giu o server — src/alarms.ts): lap theo thu, bao lai, reo tren man hinh chon.
   add('tien_ich', 'Báo thức', 'alarm', '#4f46e5', `${LOCAL}/alarm.html`, undefined, 'alarm', 'mdi:alarm');
   add('tien_ich', 'Việc cần làm', 'todo', '#16a34a', `${LOCAL}/todo.html`);
   add('tien_ich', 'Hôm nay', 'today', '#f59e0b', `${LOCAL}/today.html`);
   add('tien_ich', 'Bảng tin', 'board', '#ca8a04', `${LOCAL}/board.html`);
-  // (02/10/2026) Nhan tin noi bo: panel <-> trang "Darboard" tren thanh ben HA (src/chat.ts, public/chat.html).
+  // (01/10/2026) Nhan tin noi bo: panel <-> trang "Darboard" tren thanh ben HA (src/chat.ts, public/chat.html).
   add('tien_ich', 'Tin nhắn', 'chat', '#2563eb', `${LOCAL}/chat.html`, undefined, 'chat', 'mdi:message-text-outline');
   add('tien_ich', 'Báo Mới', 'baomoi', '#15803d', 'https://baomoi.com', undefined, 'baomoi', 'mdi:newspaper-variant-multiple');
   add('tien_ich', 'Giá vàng', 'giavang', '#ca8a04', 'https://webgia.com', undefined, 'giavang', 'mdi:gold');

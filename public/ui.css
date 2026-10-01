@@ -11,7 +11,7 @@
   --gap: clamp(6px, 1.8vmin, 14px); --pad: clamp(8px, 2.6vmin, 22px);
   color-scheme: dark;
 }
-/* (02/10/2026) Thuoc tinh hidden luon thang CSS cua trang (#sheet, #recBar... dat display rieng — do that: lop phu toi
+/* (01/10/2026) Thuoc tinh hidden luon thang CSS cua trang (#sheet, #recBar... dat display rieng — do that: lop phu toi
    cua Thu vien hien san, thanh ghi am cua Tin nhan hien san). */
 [hidden] { display: none !important; }
 html, body { margin: 0; background: var(--bg); color: var(--text);

@@ -7,7 +7,7 @@
 <!--
   (01/10/2026) UNG DUNG CAMERA cua panel (chi man co camera — P4). Xem truc tiep luong go2rtc cua chinh panel (MSE, nhu
   cam.html), chup anh 1920x1080 / quay video H.264 (.mkv) luu the SD cua panel; o thu vien mo files.html?view=gallery
-  (02/10/2026 — xem, phat, xoa). Moi lenh qua
+  (01/10/2026 — xem, phat, xoa). Moi lenh qua
   /api/cam/* cua server -> firmware cam_app (src/camProxy.ts). Khong co the SD: van chup duoc, anh chi xem tam.
   Tham so: src (luong go2rtc, mac dinh p4_panel), host (go2rtc, mac dinh 192.168.1.2:1984).
 -->
@@ -166,7 +166,7 @@
     busy = false; $('shutter').disabled = false; poll();
   };
 
-  // ---- Thu vien: ung dung files.html (02/10/2026) — xem / phat / xoa; nut quay lai ve Camera ----
+  // ---- Thu vien: ung dung files.html (01/10/2026) — xem / phat / xoa; nut quay lai ve Camera ----
   $('thumb').onclick = () => { location.href = '/files.html?view=gallery&from=camera'; };
 </script>
 </body>

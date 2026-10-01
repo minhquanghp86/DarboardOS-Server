@@ -148,7 +148,7 @@ wss.on("connection", async (ws, req) => {
     return;
   }
 
-  // (02/10/2026) Am luong Thong bao / Bao thuc + Khong lam phien xuong firmware (?snd=1) moi lan ket noi.
+  // (01/10/2026) Am luong Thong bao / Bao thuc + Khong lam phien xuong firmware (?snd=1) moi lan ket noi.
   syncSoundToDevice(dev);
 
   // ── Flush các OpenURL message bị buffer trong khi await ──────────────────
@@ -172,7 +172,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // (25/09/2026) + cac ung dung launcher: camera nha, canh, lich am duong, radio, hen gio; lunar.js dung chung.
 const STATIC_PAGES = ['cam.html', 'camera.html', 'weather.html', 'cams.html', 'scenes.html', 'calendar.html', 'radio.html', 'timer.html', 'lunar.js',
   'launcher-config.html', 'os-home.html', 'ui.css', 'ui.js', 'settings.html', 'rooms.html', 'todo.html', 'remote.html', 'photos.html', 'today.html', 'board.html', 'doorbell.html',
-  // (02/10/2026) Thu vien / Tep (the SD cua P4), Tin nhan noi bo, bieu tuong dung chung.
+  // (01/10/2026) Thu vien / Tep (the SD cua P4), Tin nhan noi bo, bieu tuong dung chung.
   'files.html', 'chat.html', 'icons.js', 'alarm.html'];
 const staticCache = new Map<string, Buffer>();
 for (const name of STATIC_PAGES) {
@@ -295,7 +295,7 @@ http.createServer((req, res) => {
 
 setInterval(() => cleanupIdleAsync(), 60_000);
 
-// (02/10/2026) Tin nhan noi bo (src/chat.ts): ten man hinh lay tu so dang ky thiet bi HA (ten nguoi dung dat), 5 phut/lan.
+// (01/10/2026) Tin nhan noi bo (src/chat.ts): ten man hinh lay tu so dang ky thiet bi HA (ten nguoi dung dat), 5 phut/lan.
 const screenNames = new Map<string, string>();
 async function refreshScreenNames(): Promise<void> {
   try {

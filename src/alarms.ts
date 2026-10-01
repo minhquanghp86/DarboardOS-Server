@@ -3,7 +3,7 @@
 // Copyright (c) 2026 minhquanghp86
 // Licensed under the Apache License, Version 2.0 (see LICENSE).
 
-// (02/10/2026) UNG DUNG BAO THUC (public/alarm.html). Bao thuc giu o SERVER (/data/rwv-alarms.json) — man hinh tat, mat
+// (01/10/2026) UNG DUNG BAO THUC (public/alarm.html). Bao thuc giu o SERVER (/data/rwv-alarms.json) — man hinh tat, mat
 // ket noi hay mo ung dung khac van reo dung gio. Gio tinh theo mui gio cua man hinh (anyTzOffset — moi panel cung nha).
 //   - Lap theo thu (days 0 = Chu nhat .. 6 = Thu bay) hoac mot lan (days rong -> tu tat sau khi reo).
 //   - Reo tren man hinh chon (hoac moi man hinh); TAT / BAO LAI tren bat ky man nao = ca nhom ngung (mot bao thuc).

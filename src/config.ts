@@ -42,7 +42,7 @@ export type DeviceConfig = {
   // (01/10/2026) ?cam=<cong>: firmware co ung dung Camera (cam_app, chi P4). 0 = khong co -> an ung dung Camera. Co dinh
   // theo firmware, KHONG dua vao deviceConfigsEqual().
   camPort: number;
-  // (02/10/2026) ?snd=1: firmware tu phat chuong / bao thuc (DeviceControl PlaySound, am luong rieng Thong bao / Bao thuc,
+  // (01/10/2026) ?snd=1: firmware tu phat chuong / bao thuc (DeviceControl PlaySound, am luong rieng Thong bao / Bao thuc,
   // Khong lam phien tren thiet bi). Khong co -> chuong qua luong am thanh trang web nhu cu. Co dinh theo firmware.
   sound: boolean;
   // (25/09/2026) Thiet bi co trigger on_url_entered (bao ?urlset=1): URL nguoi dung nhap o nut mo rong duoc GUI

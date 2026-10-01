@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Tin nhắn</title>
 <!--
-  (02/10/2026) UNG DUNG TIN NHAN cua panel — nhan tin noi bo voi trang "Darboard" tren thanh ben Home Assistant va voi
+  (01/10/2026) UNG DUNG TIN NHAN cua panel — nhan tin noi bo voi trang "Darboard" tren thanh ben Home Assistant va voi
   man hinh khac (src/chat.ts). Man rong (P4 1024x600): 2 cot (danh sach | cuoc tro chuyen). Man hep (S3 480x480,
   480x272): mot cot, cham de vao, nut quay lai de ra. Chu, anh, video; tra loi nhanh; man co camera (P4) gui duoc anh
   chup ngay hoac anh/video tu Thu vien (the SD).
@@ -66,7 +66,7 @@
     overscroll-behavior: contain; }
   .sep { align-self: center; color: var(--muted); font-size: .78em; font-weight: 600; padding: 10px 0 4px; }
   .who { font-size: .76em; color: var(--muted); margin: 0 0 1px 10px; }
-  /* (02/10/2026) Nhom tin cua nguoi khac: anh dai dien (anh tai khoan HA / chu cai dau / bieu tuong man hinh) ben trai */
+  /* (01/10/2026) Nhom tin cua nguoi khac: anh dai dien (anh tai khoan HA / chu cai dau / bieu tuong man hinh) ben trai */
   .grp { display: flex; gap: 8px; align-items: flex-start; align-self: flex-start; max-width: 88%; margin-top: 6px; }
   .gcol { display: flex; flex-direction: column; gap: 3px; min-width: 0; align-items: flex-start; }
   .gcol .b { max-width: 100%; }
@@ -131,7 +131,7 @@
   #toast { position: fixed; left: 50%; bottom: calc(var(--kb) + 70px); transform: translateX(-50%); background: rgba(17,24,39,.95); color: #f9fafb;
     padding: 9px 16px; border-radius: 999px; font-size: 14px; font-weight: 600; z-index: 50; max-width: 86vw; text-align: center; }
   .empty-thread { flex: 1; display: flex; }
-  /* (02/10/2026) Tin nhan thoai */
+  /* (01/10/2026) Tin nhan thoai */
   .aud { display: flex; align-items: center; gap: 8px; min-width: min(240px, 60vw); padding: 2px 0; }
   .aud .pp { width: 36px; height: 36px; border-radius: 50%; border: none; background: rgba(255,255,255,.18); display: flex; align-items: center;
     justify-content: center; cursor: pointer; flex: none; }
@@ -419,7 +419,7 @@
     var qk = $('quick'); qk.replaceChildren();
     QUICK.forEach(function (w) { var b = el('button', '', w); b.type = 'button'; b.onclick = function () { send({ text: w }); }; qk.append(b); });
   }
-  // (02/10/2026) TIN NHAN THOAI (man co micro — P4): nhan giu nut mic de ghi (micro da khu vong cua panel), tha ra = gui,
+  // (01/10/2026) TIN NHAN THOAI (man co micro — P4): nhan giu nut mic de ghi (micro da khu vong cua panel), tha ra = gui,
   // vuot len = huy, toi da 60 s. Ghi am chay tren panel (cam_app /mic/rec), server lay WAV gui vao cuoc tro chuyen.
   function micButton() {
     var b = ib('microphone', 'Nhấn giữ để ghi âm', function () { }, 'mic');

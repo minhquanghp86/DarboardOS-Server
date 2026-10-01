@@ -3,7 +3,7 @@
 // Copyright (c) 2026 minhquanghp86
 // Licensed under the Apache License, Version 2.0 (see LICENSE).
 
-// (02/10/2026) NHAN TIN NOI BO giua trang "Darboard" tren thanh ben Home Assistant (ingress) va cac panel.
+// (01/10/2026) NHAN TIN NOI BO giua trang "Darboard" tren thanh ben Home Assistant (ingress) va cac panel.
 //
 // Thanh vien cua mot cuoc tro chuyen: phia 'ha' (moi nguoi dung HA mo trang thanh ben — ten tung nguoi lay tu header
 // ingress) LUON co mat, cong mot so man hinh (hoac "moi man hinh"). Tin nhan: chu, anh, video. Xoa cuoc tro chuyen
@@ -23,7 +23,7 @@ import http from 'node:http';
 export type Side = 'ha' | 'screen';
 export interface Author { side: Side; id: string; name: string }
 export interface Media {
-  kind: 'image' | 'video' | 'audio';  // audio (02/10/2026): tin nhan thoai
+  kind: 'image' | 'video' | 'audio';  // audio (01/10/2026): tin nhan thoai
   file: string;        // ten tep trong thu muc media
   mime: string;
   size: number;
@@ -166,11 +166,11 @@ export interface ChatHooks {
   haEvent(data: Record<string, unknown>): void;
   /** Panel co camera: goi cam_app (duong dan nhu /sd/get?p=..), tra ve noi dung. */
   camFetch(pathAndQuery: string, method?: string): Promise<{ code: number; type: string; body: Buffer }>;
-  /** (02/10/2026) Nguoi trong HA (thuc the person co user_id): ten + duong anh dai dien (entity_picture). */
+  /** (01/10/2026) Nguoi trong HA (thuc the person co user_id): ten + duong anh dai dien (entity_picture). */
   people(): Promise<{ userId: string; name: string; pic: string | null }[]>;
   /** Tai anh tu HA (duong /api/image/serve/... cua entity_picture). */
   haImage(path: string): Promise<Buffer | null>;
-  /** (02/10/2026) Sau moi thay doi: server cap nhat so tin chua doc tren man hinh (chuong, man hinh cho, bieu tuong). */
+  /** (01/10/2026) Sau moi thay doi: server cap nhat so tin chua doc tren man hinh (chuong, man hinh cho, bieu tuong). */
   changed(): void;
 }
 let hooks: ChatHooks | null = null;
@@ -195,7 +195,7 @@ chat.onChange = () => {
 };
 let changedT: NodeJS.Timeout | null = null;
 
-/** (02/10/2026) Tin CHUA DOC cua mot man hinh: tong + theo cuoc tro chuyen (rieng tung man hinh — man nao doc man do het). */
+/** (01/10/2026) Tin CHUA DOC cua mot man hinh: tong + theo cuoc tro chuyen (rieng tung man hinh — man nao doc man do het). */
 export function unreadForScreen(deviceId: string): { total: number; byConv: Record<string, number> } {
   const me: Author = { side: 'screen', id: deviceId, name: '' };
   const byConv: Record<string, number> = {};
@@ -226,7 +226,7 @@ function screens(): ScreenInfo[] {
 }
 const screenName = (id: string) => known.get(id)?.name || id;
 
-// ── (02/10/2026) Anh dai dien nguoi dung HA: anh cua thuc the person gan voi tai khoan (user_id) ──
+// ── (01/10/2026) Anh dai dien nguoi dung HA: anh cua thuc the person gan voi tai khoan (user_id) ──
 // Danh ba lam moi 10 phut; anh thu nho 128 px giu trong bo nho, tai lai khi duong anh doi (nguoi dung doi anh).
 const people = new Map<string, { name: string; pic: string | null }>();
 let peopleAt = 0, peopleBusy: Promise<void> | null = null;
@@ -353,7 +353,7 @@ const viewing = new Map<string, { conv: string; at: number }>();
 // ── Tep dinh kem ──
 function sniff(b: Buffer, hint?: string): { kind: 'image' | 'video' | 'audio'; mime: string; ext: string } | null {
   if (b.length < 12) return null;
-  // (02/10/2026) Tin nhan thoai: WAV (P4 ghi), Ogg/WebM Opus (trinh duyet), M4A (Safari), MP3.
+  // (01/10/2026) Tin nhan thoai: WAV (P4 ghi), Ogg/WebM Opus (trinh duyet), M4A (Safari), MP3.
   if (b.subarray(0, 4).toString('latin1') === 'RIFF' && b.subarray(8, 12).toString('latin1') === 'WAVE') return { kind: 'audio', mime: 'audio/wav', ext: 'wav' };
   if (b.subarray(0, 4).toString('latin1') === 'OggS') return { kind: 'audio', mime: 'audio/ogg', ext: 'ogg' };
   if (b.subarray(0, 3).toString('latin1') === 'ID3' || (b[0] === 0xff && (b[1] & 0xe0) === 0xe0)) return { kind: 'audio', mime: 'audio/mpeg', ext: 'mp3' };
@@ -610,7 +610,7 @@ export function handleChatApi(req: http.IncomingMessage, res: http.ServerRespons
         afterSend(c, m);
         return json(res, 200, { ok: true, id: m.id });
       }
-      // (02/10/2026) Tin nhan thoai tren man co micro (P4 — cam_app /mic/rec): nhan giu = start, tha = stop (gui), vuot huy.
+      // (01/10/2026) Tin nhan thoai tren man co micro (P4 — cam_app /mic/rec): nhan giu = start, tha = stop (gui), vuot huy.
       case 'voice': {
         const c = conv(q.get('c'));
         if (!hooks || me.side !== 'screen') throw new Error('Chỉ ghi âm được trên màn hình có micro.');

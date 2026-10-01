@@ -32,7 +32,7 @@ Dự án gồm hai phần, dùng cùng nhau:
  │   Chrome ẩn ──► chụp khung ──► chia ô JPEG ──► WS :8081 ├─────────►│  remote_webview        │
  │        ▲                                              │  ảnh+tiếng│   giải mã, vẽ, phát loa │
  │        └───────── chạm / bấm / trạng thái ◄───────────┤◄─────────┤   gửi cảm ứng, giờ,     │
- │   Trang ứng dụng + Menu panel ── cổng :18080 (LAN)     │          │   độ sáng, âm lượng     │
+ │   Trang ứng dụng + Darboard ──── cổng :18080 (LAN)     │          │   độ sáng, âm lượng     │
  └────────────────────────────────────────────────────────┘          └─────────────────────────┘
 ```
 
@@ -68,7 +68,7 @@ Màn hình ESP32-S3/P4 khác (có PSRAM, màn hình ESPHome hỗ trợ) thườn
 
 1. **Thêm kho addon**: Cài đặt → Addon → Cửa hàng addon → ⋮ → Kho lưu trữ → thêm
    `https://github.com/minhquanghp86/HA-Darboard-Server`.
-2. **Cài addon "Remote WebView Server"** → Khởi động. Bật *Hiện trên thanh bên* nếu muốn (mục **Menu panel**). Xem tab
+2. **Cài addon "Remote WebView Server"** → Khởi động. Bật *Hiện trên thanh bên* nếu muốn (mục **Darboard**). Xem tab
    *Nhật ký*: có dòng `WebSocket listening on :8081` là sẵn sàng.
 3. **Tạo tài khoản HA riêng cho màn hình** (khuyến nghị): Cài đặt → Người & Khu vực → Người → thêm người, *không* cho
    quyền quản trị. Màn hình sẽ đăng nhập bằng tài khoản này.
@@ -87,7 +87,7 @@ Màn hình ESP32-S3/P4 khác (có PSRAM, màn hình ESPHome hỗ trợ) thườn
    Việt, gõ Telex) → đăng nhập bằng tài khoản ở bước 3, tích *Ghi nhớ*. Đăng nhập được lưu trong thư mục hồ sơ của
    addon (`/data/pw-data`), không mất khi cập nhật.
 7. **Vuốt từ mép trên xuống** để mở thanh trạng thái, **vuốt lên từ mép dưới** để vào màn hình chính (các ứng dụng).
-   Vào **Menu panel** trên thanh bên HA để sắp xếp ứng dụng theo ý bạn.
+   Vào **Darboard › Menu ứng dụng** trên thanh bên HA để sắp xếp ứng dụng theo ý bạn.
 
 ## Sử dụng hằng ngày
 
@@ -129,7 +129,7 @@ Giọt nước ở giữa mép trên mọi trang hiện **giờ của chính mà
   sẵn để thêm). Kéo xuống **dock** (tối đa 5) hoặc kéo ra khỏi dock. Giữ sát mép trái/phải để sang trang.
 - Chạm thư mục để mở. Trong chế độ sắp xếp: chạm một chip để đổi tên thư mục, kéo ứng dụng ra ngoài khung để lấy ra.
 - **Xong** hoặc chạm chỗ trống để thoát. **Đặt lại** (chạm 2 lần) trở về bố cục mặc định.
-- Bố cục dùng chung cho mọi màn hình. Ứng dụng mới thêm ở trang *Menu panel* xuất hiện ở cuối.
+- Bố cục dùng chung cho mọi màn hình. Ứng dụng mới thêm ở trang *Darboard › Menu ứng dụng* xuất hiện ở cuối.
 
 ### Ứng dụng cho ngôi nhà
 
@@ -209,14 +209,14 @@ rest_command:
 ### Ứng dụng Camera (2.9.93, chỉ P4)
 
 - Mở từ menu hoặc nút **Camera** trên thanh trạng thái: hình trực tiếp, nút chụp (chế độ ẢNH) / quay (chế độ VIDEO), ô
-  **Thư viện** (xem, phát, xoá — chạm *Xoá* hai lần để xác nhận). Ảnh 1920×1080, video H.264 `.mkv` (không tiếng, tự dừng
+  **Thư viện** (ứng dụng Thư viện — xem, phát, xoá). Ảnh 1920×1080, video H.264 `.mkv` (không tiếng, tự dừng
   sau 30 phút) lưu `DCIM/` trên thẻ SD của P4 (FAT32; cắm lúc nào cũng được, tự nhận). Ứng dụng **Frigate** là lưới camera nhà.
 
 ### Tiện ích web (2.9.91)
 
 - Giải trí: **VTVgo** (lần đầu bấm *Đồng ý & tiếp tục* điều khoản), **Zing MP3**, **NhacCuaTui** (phát nền như Nhạc/Radio).
 - Tiện ích: **Báo Mới**, **Giá vàng** (WebGiá), **Xổ số** (Minh Ngọc), **Giao thông** (Google Maps lớp giao thông;
-  đổi vị trí: biến `LAUNCHER_TRAFFIC_URL`). Ẩn/sắp xếp ở trang *Menu panel*.
+  đổi vị trí: biến `LAUNCHER_TRAFFIC_URL`). Ẩn/sắp xếp ở trang *Darboard › Menu ứng dụng*.
 
 ### Truyền YouTube từ điện thoại (như Smart TV)
 
@@ -234,9 +234,22 @@ rest_command:
 
 Tự hiện khi chạm vào ô nhập chữ trên bất kỳ trang nào; có chế độ tiếng Việt (Telex), số và ký hiệu. Phím ▼ để ẩn.
 
-### Trang "Menu panel" (thanh bên Home Assistant)
+### Trang "Darboard" (thanh bên Home Assistant)
 
-Nơi chỉnh menu bằng giao diện — không phải sửa cấu hình:
+Mục **Darboard** trên thanh bên HA (trước 2.9.94 tên "Menu panel") có hai thẻ:
+
+**Tin nhắn** (mặc định) — nhắn tin nội bộ với các màn hình:
+
+- **＋ Mới**: đặt tên (không bắt buộc) và chọn màn hình nhận (hoặc *Mọi màn hình*). Home Assistant luôn có mặt.
+- Gõ chữ (Enter gửi, Shift+Enter xuống dòng); **ảnh / video** bằng nút ghim, kéo thả hoặc dán (ảnh tự thu nhỏ ≤ 2048 px,
+  video ≤ 200 MB, tải lên từng đoạn có tiến độ); **tin nhắn thoại**: nhấn giữ 🎤, thả ra để gửi, kéo ra ngoài để huỷ
+  (tối đa 60 s — trình duyệt chỉ cho dùng micro khi mở HA bằng **https**, không phải `http://192.168.x.x`).
+- Mỗi người nhà dùng tài khoản HA riêng: tin của mình bên phải, của người khác bên trái kèm **ảnh đại diện** (ảnh của
+  *person* gắn với tài khoản — Cài đặt › Mọi người). "Đã xem: …" cho biết màn nào đã đọc.
+- Bút chì: đổi tên / thành viên; thùng rác: xoá cuộc trò chuyện (xoá trên mọi màn hình, kể cả tệp đính kèm).
+- Tệp đính kèm lưu `/data/rwv-chat/` của addon (tối đa 2 GB, xem chân danh sách).
+
+**Menu ứng dụng** — chỉnh menu của panel bằng giao diện:
 
 - **Hiện/Ẩn** từng ứng dụng bằng công tắc; **↑↓** đổi thứ tự trong nhóm.
 - **Sửa**: đổi tên, nhóm, **biểu tượng** (bộ Material Design Icons giống Home Assistant — gõ từ khoá tiếng Anh như
@@ -244,7 +257,64 @@ Nơi chỉnh menu bằng giao diện — không phải sửa cấu hình:
 - **＋ Thêm ứng dụng**: tên, địa chỉ web (dashboard HA khác, trang web bất kỳ…), nhóm, biểu tượng, màu.
 - **Lưu** → menu trên mọi màn hình đổi ngay, không cần khởi động lại. Cấu hình lưu ở `/data/launcher.json` của addon.
 
-Chỉ lưu được từ trang này bên trong Home Assistant (đã đăng nhập); máy khác trong mạng gọi thẳng vào addon thì bị từ chối.
+Chỉ dùng được từ trang này bên trong Home Assistant (đã đăng nhập); máy khác trong mạng gọi thẳng vào addon thì bị từ chối.
+
+### Tin nhắn trên màn hình (2.9.94)
+
+Ứng dụng **Tin nhắn** (mọi màn hình): danh sách cuộc trò chuyện + trang nhắn tin kiểu điện thoại (P4 hai cột, S3 một
+cột). Trả lời nhanh (👍, OK, Đã nhận…), gõ chữ bằng bàn phím ảo; giữ ngón tay trên tin của mình để xoá; ＋ tạo cuộc trò
+chuyện mới với Home Assistant (và màn hình khác nếu muốn). Màn có camera (P4): 📎 gửi ảnh chụp ngay hoặc ảnh/video từ thẻ
+SD; nhấn giữ 🎤 ghi tin nhắn thoại (vuốt lên để huỷ). Màn không có loa (S3) hiện tin thoại nhưng không phát.
+
+Tin mới: màn hình sáng lên + chuông + thẻ thông báo kèm ảnh người gửi; chạm mở đúng cuộc trò chuyện. Màn hình gửi tin →
+Home Assistant nhận **sự kiện** `darboard_chat_message` (`conversation`, `from`, `text`, `kind`) — ví dụ báo về điện thoại:
+
+```yaml
+automation:
+  - alias: Tin nhắn từ màn hình
+    triggers:
+      - trigger: event
+        event_type: darboard_chat_message
+    actions:
+      - action: notify.mobile_app_dien_thoai
+        data:
+          title: "{{ trigger.event.data.from }} · {{ trigger.event.data.conversation }}"
+          message: "{{ trigger.event.data.text or 'Ảnh / video / tin thoại' }}"
+```
+
+**Đã xem riêng từng màn hình**: chấm trên nút kéo và dòng "2 tin nhắn · 1 thông báo" trên màn hình chờ còn tới khi có
+người xem trên CHÍNH màn đó (chạm thẻ, mở thanh kéo xuống, đọc cuộc trò chuyện). Biểu tượng Tin nhắn có huy hiệu số tin
+chưa đọc. Nhiều tin cùng cuộc trò chuyện gộp một thông báo.
+
+### Thư viện + Tệp (2.9.94, chỉ P4 — thẻ SD)
+
+- **Thư viện**: ảnh/video đã chụp theo ngày, lọc Ảnh/Video, xem ảnh (vuốt, chạm đúp phóng to), trình phát video (tua,
+  ±10 s), *Chọn* (hoặc giữ ngón tay) để xoá nhiều. Nút thư viện trong ứng dụng Camera mở thẳng vào đây.
+- **Tệp**: duyệt toàn bộ thẻ (tên tiếng Việt), sắp xếp Tên/Ngày/Cỡ, xem ảnh/video/văn bản, xoá tệp hoặc cả thư mục.
+- Cần firmware `fw-2026.10.01d` trở lên (API thẻ SD mới, ảnh thu nhỏ khi chụp/quay, video có độ dài + mục lục để tua).
+- Thẻ microSD đến 64 GB (hoặc lớn hơn) dùng được nhưng phải **format FAT32** — thẻ > 32 GB bán ra thường là exFAT, firmware
+  không đọc được. Windows: Rufus / guiformat (công cụ có sẵn của Windows không cho FAT32 với thẻ > 32 GB); Linux:
+  `mkfs.vfat -F 32`. Mỗi tệp tối đa 4 GB (video tự dừng sau 30 phút, không vượt).
+
+### Âm thanh: Media / Thông báo / Báo thức (2.9.95, P4)
+
+| Loại | Gồm | Chỉnh ở |
+|---|---|---|
+| **Media** | YouTube, nhạc, radio, video, tin nhắn thoại | thanh âm lượng trên thanh kéo xuống |
+| **Thông báo** | chuông tin nhắn / thông báo, chuông cửa, lời đọc TTS của HA, trợ lý | nút ⌄ cạnh thanh âm lượng; Cài đặt › Âm thanh |
+| **Báo thức** | báo thức, hết giờ Hẹn giờ, cảnh báo khẩn (`priority: critical`) — tối thiểu 20% | như trên |
+
+- Chuông do chính panel phát (tệp âm trong firmware) → **Im lặng** chỉ tắt Media, chuông / báo thức vẫn kêu. Đang phát
+  nhạc mà có chuông / TTS: nhạc tự nhỏ lại.
+- **Không làm phiền** = im lặng hoàn toàn: thông báo, báo thức, cảnh báo khẩn, lời đọc của HA (màn hình vẫn hiện).
+- *Cài đặt › Âm thanh* có nút **Phát thử** cho từng loại. Firmware cũ / màn không loa: như trước (chuông theo Media).
+
+### Báo thức (2.9.95, mọi màn hình)
+
+Ứng dụng **Báo thức**: ＋ đặt giờ (▲▼), lặp theo thứ (hoặc *Một lần*, *Hằng ngày*, *Ngày thường*, *Cuối tuần*), nhãn,
+báo lại 5–30 phút, **reo trên** màn này / mọi màn hình / màn chọn. Báo thức giữ ở addon: reo đúng giờ kể cả khi màn hình
+tắt. **Tắt** / **Báo lại** trên một màn → mọi màn cùng ngừng; 5 phút không ai tắt → thông báo "bị lỡ". Báo thức kế tiếp
+hiện trên thanh kéo xuống và màn hình chờ. Màn không loa: chỉ hiện màn hình báo thức.
 
 ## Điều khiển màn hình từ Home Assistant
 
@@ -342,7 +412,7 @@ luôn gửi giá trị riêng của từng màn hình (trong YAML ESPHome) khi k
 |---|---|---|
 | Ngôn ngữ trình duyệt (`browser_locale`) | `en-US` | Đặt `vi-VN` để trang web hiện tiếng Việt |
 | Cổng WebSocket (`ws_port`) | `8081` | Cổng màn hình kết nối tới — phải khớp `server:` trong YAML |
-| Cổng nội bộ (`health_port`) | `18080` | Trạng thái, trang ứng dụng, Menu panel |
+| Cổng nội bộ (`health_port`) | `18080` | Trạng thái, trang ứng dụng, Darboard |
 | Giảm hiệu ứng chuyển động | tắt | Bật để trang bớt hiệu ứng → ít khung hình phải truyền |
 | Thư mục hồ sơ trình duyệt (`user_data_dir`) | `/data/pw-data` | Nơi lưu đăng nhập; giữ trong `/data` |
 | Mở DevTools ra mạng LAN (`expose_debug_proxy`) | tắt | Xem mục *Nâng cao* — chỉ bật khi cần |
@@ -357,7 +427,7 @@ luôn gửi giá trị riêng của từng màn hình (trong YAML ESPHome) khi k
 | Cổng | Dùng cho | Ai truy cập |
 |---|---|---|
 | 8081 | WebSocket ảnh/tiếng/cảm ứng | Màn hình ESP32 |
-| 18080 | `/metrics`, trang ứng dụng (`/weather.html`, `/calendar.html`, `/cams.html`, `/scenes.html`, `/radio.html`, `/timer.html`, `/cam.html`), Menu panel | Trình duyệt của addon, mạng LAN, ingress HA |
+| 18080 | `/metrics`, trang ứng dụng (`/weather.html`, `/calendar.html`, `/cams.html`, `/scenes.html`, `/radio.html`, `/timer.html`, `/cam.html`, `/chat.html`, `/alarm.html`, `/files.html`), Darboard | Trình duyệt của addon, mạng LAN, ingress HA |
 | 9222 | Chrome DevTools (chỉ khi bật) | Máy tính quản trị |
 | UDP 1900 + 56790 | Truyền YouTube (SSDP tìm thiết bị + DIAL) | Điện thoại trong mạng nhà |
 
@@ -376,7 +446,7 @@ luôn gửi giá trị riêng của từng màn hình (trong YAML ESPHome) khi k
 ## Bảo mật
 
 - Cổng **18080 chỉ nên dùng trong mạng nhà**. Đừng đưa nó ra Internet (reverse proxy, Cloudflare Tunnel, mở cổng
-  router). Menu panel thì vào qua Home Assistant (đã có đăng nhập).
+  router). Trang Darboard thì vào qua Home Assistant (đã có đăng nhập).
 - Ứng dụng **Cảnh** cho phép máy trong mạng nhà chạy scene/script của HA qua cổng 18080 (chỉ scene/script, không phải
   dịch vụ tuỳ ý).
 - Addon có quyền đọc cấu hình HA (vị trí nhà, danh sách scene/script) bằng token riêng do Supervisor cấp — không cần
@@ -397,7 +467,7 @@ luôn gửi giá trị riêng của từng màn hình (trong YAML ESPHome) khi k
 | Menu không có thanh trượt / đồng hồ | Firmware màn hình cũ — nạp lại theo cấu hình mẫu mới nhất |
 | Camera nhà trống | Cần go2rtc ở cổng 1984 trên máy HA và đã có luồng camera |
 | Thời tiết sai nơi | Chạm tên nơi chốn → chọn tỉnh/thành, hoặc sửa *Vị trí nhà* trong Cài đặt → Hệ thống → Chung của HA |
-| Menu panel báo không lưu được | Mở trang từ thanh bên Home Assistant (không mở thẳng `http://…:18080`) |
+| Darboard báo không lưu được / không gửi được tin | Mở trang từ thanh bên Home Assistant (không mở thẳng `http://…:18080`) |
 | Addon không cài được | Máy HA phải là x86-64; không hỗ trợ ARM (Raspberry Pi) |
 | Hình màu sai | Đổi `big_endian` trong YAML ESPHome |
 | Ô ảnh bị đỏ | Ô lớn hơn `max_bytes_per_msg` — tăng giá trị đó hoặc giảm `tile_size`/`jpeg_quality` trong YAML |

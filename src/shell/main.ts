@@ -33,10 +33,10 @@ interface DevState {
   va?: boolean;
   /** (30/09/2026) Select "Nguon phat hien nguoi" cua thiet bi (chi P4 co). Server < 2.9.81 khong gui. */
   ps?: { v: string; o: string[] } | null;
-  /** (02/10/2026) CHUA XEM tren chinh man hinh nay: cu = tin nhan chua doc, nu = thong bao thuong. Server < 2.9.94 khong gui. */
+  /** (01/10/2026) CHUA XEM tren chinh man hinh nay: cu = tin nhan chua doc, nu = thong bao thuong. Server < 2.9.94 khong gui. */
   cu?: number;
   nu?: number;
-  /** (02/10/2026) Am thanh kieu dien thoai (server >= 2.9.95): snd = firmware tu phat am (co am luong Thong bao / Bao
+  /** (01/10/2026) Am thanh kieu dien thoai (server >= 2.9.95): snd = firmware tu phat am (co am luong Thong bao / Bao
    *  thuc); sv = hai am luong do (%); al = bao thuc ke tiep; rg = bao thuc / hen gio dang reo tren man hinh nay. */
   snd?: boolean;
   sv?: { alert: number; alarm: number };
@@ -124,7 +124,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   const wxChip = el('button', 'chip'); const wxIcoBox = el('span'); const wxTxt = el('span');
   wxChip.append(wxIcoBox, wxTxt);
   timerChip.addEventListener('click', () => openApp('timer'));
-  // (02/10/2026) Bao thuc ke tiep (trong 24 gio) — cham mo ung dung Bao thuc.
+  // (01/10/2026) Bao thuc ke tiep (trong 24 gio) — cham mo ung dung Bao thuc.
   const alarmChip = el('button', 'chip alarmc'); alarmChip.append(mdi('alarm'), el('span'));
   alarmChip.addEventListener('click', () => openApp('alarm'));
   wxChip.addEventListener('click', () => openApp('weather'));
@@ -176,7 +176,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   const bri = makeSlider('b', 'sun', '#f59e0b');
   const vol = makeSlider('v', 'vol', '#3b82f6');
   const sliders = el('div', 'sliders'); sliders.append(bri.el, vol.el);
-  // (02/10/2026) Bang am luong kieu dien thoai: nut ⌄ canh thanh am luong mo them Thong bao / Bao thuc (chi man tu phat am
+  // (01/10/2026) Bang am luong kieu dien thoai: nut ⌄ canh thanh am luong mo them Thong bao / Bao thuc (chi man tu phat am
   // — firmware ?snd=1). Thanh am luong san co = Media (YouTube, nhac, video...). Gia tri luu o server (src/sound.ts).
   const sndMore = el('button', 'snd-more'); sndMore.append(mdi('chevdown')); sndMore.setAttribute('aria-label', 'Âm lượng khác');
   const alertSl = makeSlider('alert', 'bell', '#f59e0b', 'Thông báo');
@@ -281,7 +281,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     else box.appendChild(mdi(ic));
     return box;
   }
-  // (02/10/2026) So CHUA XEM cua man hinh nay. Server cu (khong gui cu/nu): coi moi thong bao con lai la chua xem.
+  // (01/10/2026) So CHUA XEM cua man hinh nay. Server cu (khong gui cu/nu): coi moi thong bao con lai la chua xem.
   function unseenCounts(): { chat: number; nt: number } {
     if (st && st.nu != null) return { chat: st.cu || 0, nt: st.nu };
     return { chat: 0, nt: (st?.nt || []).length };
@@ -331,7 +331,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   }
   function openShade(animate: boolean) {
     hideToast(); tick(); setVisible(fullH(), animate); if (st?.ps) sendControl({ ps: 'get' });
-    // (02/10/2026) Nhin thay danh sach = DA XEM thong bao thuong tren man hinh nay (tin nhan: phai doc trong Tin nhan).
+    // (01/10/2026) Nhin thay danh sach = DA XEM thong bao thuong tren man hinh nay (tin nhan: phai doc trong Tin nhan).
     if ((st?.nt || []).some((n) => n.s === false && n.k !== 'chat')) sendControl({ ntSeen: 1 });
   }
   function closeShade(animate: boolean) { setVisible(0, animate); }
@@ -554,7 +554,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   }
   function screensaver(on: boolean): void {
     if (!on) { saverEl?.remove(); saverEl = null; return; }
-    if (alarmId || shadow.querySelector('.alarm')) return;  // (02/10/2026) dang bao thuc: khong che
+    if (alarmId || shadow.querySelector('.alarm')) return;  // (01/10/2026) dang bao thuc: khong che
     // (01/10/2026) Ban phim ao (script tiem rieng, lop popover tren cung) tung nam de len man hinh cho.
     try { if (typeof window.__vkbHide === 'function') window.__vkbHide(); } catch { /* */ }
     if (saverEl || !deviceNow()) return;
@@ -589,7 +589,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     svShiftMin = -1; svWxSig = '';
     updateSaver();
   }
-  // (02/10/2026) Man hinh cho: "2 tin nhắn · 1 thông báo" CHUA XEM tren chinh man hinh nay. Cham tin nhan -> mo Tin nhan,
+  // (01/10/2026) Man hinh cho: "2 tin nhắn · 1 thông báo" CHUA XEM tren chinh man hinh nay. Cham tin nhan -> mo Tin nhan,
   // cham thong bao -> mo thanh keo xuong. Chi doi DOM khi so dem doi (moi khung ve lai la bang thong WiFi).
   let svBadges: HTMLElement, svBdgSig = '';
   function renderSaverBadges(): void {
@@ -679,7 +679,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   }
 
   // ── Bao thuc (het hen gio) ──────────────────────────────────────────
-  // (02/10/2026) Man hinh BAO THUC dung chung cho Bao thuc + Hen gio (server src/alarms.ts): "Tat" / "Bao lai X phut"
+  // (01/10/2026) Man hinh BAO THUC dung chung cho Bao thuc + Hen gio (server src/alarms.ts): "Tat" / "Bao lai X phut"
   // gui ve server -> ngung tren MOI man hinh cung reo. Am: firmware tu phat (loai Bao thuc); firmware cu (beep) -> WebAudio.
   // Goi kieu cu alarm(label) (server < 2.9.95) = hen gio, keu WebAudio, cham dau cung tat.
   let alarmId = '';
@@ -850,7 +850,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     screensaver,
     notify,
     alarmClose,
-    /** (02/10/2026) Phat thu chuong (Cai dat) tren man chua tu phat am: strong = kieu bao thuc. */
+    /** (01/10/2026) Phat thu chuong (Cai dat) tren man chua tu phat am: strong = kieu bao thuc. */
     chime,
     close() { closeShade(true); },
     isOpen() { return shadeVisible > 0; },
