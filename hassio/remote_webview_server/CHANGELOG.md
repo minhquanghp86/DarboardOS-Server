@@ -1,3 +1,13 @@
+## V2.9.85
+### Sửa: P4 đứng hình khi WiFi yếu lúc xem YouTube
+
+- Log thật 01/10 sáng: YouTube thường trên P4 gửi khung đủ độ phân giải ~42 KB (500–600 KB/s); WiFi P4 yếu đi → tồn đọng
+  200 → 934 KB, ping P4 2 s (S3 bình thường), WebSocket rơi/nối lại, đứng hình ~40 s mỗi lần.
+- **P4 (`half=1`)**: tồn đọng vượt nửa ngưỡng bỏ khung (~96 KB) → gửi khung **nửa độ phân giải** (¼ byte, P4 phóng ×2 bằng
+  PPA) tới 15 s sau lần nghẽn cuối, rồi tự về đủ độ phân giải. Chỉ khi đang có video — dashboard không bao giờ mờ.
+  `NET_HALF_HOLD_MS=0` tắt tính năng.
+- **S3 (`half=2`)**: không đổi (đã luôn dùng khung nửa khi phát video). Thiết bị không báo `half`: không đổi.
+
 ## V2.9.84
 ### Sửa: S3 kẹt ở 3 khung/giây khi phát YouTube
 
