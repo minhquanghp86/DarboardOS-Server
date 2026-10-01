@@ -1,3 +1,13 @@
+## V2.9.92
+### Sửa: cả 3 màn đen khi máy chủ hết RAM (P4 + S3)
+
+- Sự cố thật 01/10: máy chủ HASS hết RAM + swap, kernel (OOM killer) giết tiến trình Chrome chứa trang dashboard Home
+  Assistant — dùng chung cho cả 3 màn → **cả 3 màn đen 42 phút** (đèn nền vẫn sáng), chạm không ăn ("Failed to dispatch touch
+  event"). Server không biết tab đã chết nên không làm gì.
+- Nay server nghe sự kiện **renderer chết** của từng tab: tab đang hiện → tải lại trang + bật lại luồng hình ngay; tab nền →
+  tải lại rồi đóng băng như cũ. Log ghi rõ RAM/swap máy chủ lúc đó.
+- Nạp lại Shell không còn bị huỷ vì lỗi "Script not found" (mã script cũ đã mất sau khi renderer chết).
+
 ## V2.9.91
 ### Thực thể "Ảnh màn hình chờ" và "Màn hình chờ" trên Home Assistant
 
