@@ -118,10 +118,10 @@ describe("ngan sach RAM (dong tab nen nhan roi)", () => {
     expect(pickIdleCloses(tabs, "cur", 30 * M, 20 * M)).toEqual(["weather"]);
     expect(pickIdleCloses(tabs, "cur", 30 * M, 0)).toEqual([]);
   });
-  it("thieu RAM -> 1 tab nen, 3 phut", () => {
+  it("thieu RAM -> 1 tab nen, 2 phut", () => {
     expect(tabBudget(3700, 600, 2, 20 * M)).toEqual({ maxAppTabs: 2, idleMs: 20 * M, low: false });
-    expect(tabBudget(400, 600, 2, 20 * M)).toEqual({ maxAppTabs: 1, idleMs: 3 * M, low: true });
-    expect(tabBudget(400, 600, 2, 0)).toEqual({ maxAppTabs: 1, idleMs: 3 * M, low: true });
+    expect(tabBudget(400, 600, 2, 20 * M)).toEqual({ maxAppTabs: 1, idleMs: 2 * M, low: true });
+    expect(tabBudget(400, 600, 2, 0)).toEqual({ maxAppTabs: 1, idleMs: 2 * M, low: true });
     expect(tabBudget(null, 600, 2, 20 * M).low).toBe(false);
   });
   it("doc /proc/meminfo", () => {

@@ -14,9 +14,10 @@ describe("man hinh cho", () => {
     expect(shouldShowSaver({ ...base, shown: true })).toBe(false);
     expect(shouldShowSaver({ ...base, idleMs: 0 })).toBe(false);
   });
-  it("vua ngung phat (YouTube nap dem) -> cho du 30 s moi hien", () => {
+  it("ngung phat cung tinh la vua dung: dem ranh tu luc video ngung (YouTube nap dem thoang qua khong lam hien)", () => {
     expect(shouldShowSaver({ ...base, mediaStoppedMs: 195_000 })).toBe(false);
-    expect(shouldShowSaver({ ...base, mediaStoppedMs: 170_000 })).toBe(true);
+    expect(shouldShowSaver({ ...base, mediaStoppedMs: 100_000 })).toBe(false);
+    expect(shouldShowSaver({ ...base, mediaStoppedMs: 70_000 })).toBe(true);
   });
   it("chua biet trang thai den nen -> coi nhu sang", () => {
     expect(shouldShowSaver({ ...base, backlightOn: null })).toBe(true);
