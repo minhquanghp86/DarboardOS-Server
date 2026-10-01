@@ -20,7 +20,7 @@ Dự án gồm hai phần, dùng cùng nhau:
 - **Xem video có tiếng**: YouTube đủ độ phân giải trên ESP32-P4 (~28 hình/giây đo thực tế), âm thanh phát ra loa của
   màn hình.
 - **Giao diện kiểu điện thoại**: vuốt từ mép trên xuống mở thanh trạng thái (độ sáng/âm lượng, bật/tắt nhanh, thời
-  tiết, lịch âm); vuốt lên từ mép dưới về màn hình chính với các ứng dụng (camera, radio, hẹn giờ, cảnh HA…).
+  tiết, lịch âm); vuốt lên từ mép dưới về màn hình chính với các ứng dụng (camera, radio, hẹn giờ, tin nhắn, báo thức…).
 - **Camera trên màn hình** (ESP32-P4 có camera): gửi hình 1080p vào Frigate để nhận diện người / ghi hình.
 - **Loa thông báo**: màn hình có loa là một `media_player` trong HA — dùng cho TTS, thông báo.
 
@@ -451,7 +451,7 @@ luôn gửi giá trị riêng của từng màn hình (trong YAML ESPHome) khi k
 
 - Cổng **18080 chỉ nên dùng trong mạng nhà**. Đừng đưa nó ra Internet (reverse proxy, Cloudflare Tunnel, mở cổng
   router). Trang Darboard thì vào qua Home Assistant (đã có đăng nhập).
-- Addon có quyền đọc cấu hình HA (vị trí nhà, danh sách scene/script) bằng token riêng do Supervisor cấp — không cần
+- Addon có quyền đọc cấu hình HA (vị trí nhà, người dùng/ảnh đại diện, thực thể của màn hình) bằng token riêng do Supervisor cấp — không cần
   mật khẩu hay token của bạn.
 - **Không đặt trang tự tạo trong `/config/www/`** của HA nếu HA được mở ra Internet: `/local/` phục vụ không cần đăng
   nhập. Các trang của addon được phục vụ ở cổng 18080 chính vì lý do này.
