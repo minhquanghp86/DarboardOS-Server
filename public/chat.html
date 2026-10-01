@@ -94,10 +94,6 @@
   #text { flex: 1; min-width: 0; height: clamp(38px, 8vmin, 46px); border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2);
     color: var(--text); padding: 0 16px; font: inherit; outline: none; -webkit-user-select: text; user-select: text; }
   #text:focus { border-color: var(--accent); }
-  @media (max-height: 300px) {
-    #quick { display: none; } .meta { display: none; }
-    .sheet .box { padding: 10px 14px 8px; gap: 4px; } .chk { padding: 3px 4px; } .fld { height: 34px; } .tb { padding: 7px 16px; }
-  }
 
   /* Tam phu (tao, xoa, dinh kem, xem) */
   .sheet { position: fixed; inset: 0 0 var(--kb) 0; background: rgba(0,0,0,.55); display: flex; align-items: flex-end; justify-content: center; z-index: 30; }
@@ -127,6 +123,11 @@
   #toast { position: fixed; left: 50%; bottom: calc(var(--kb) + 70px); transform: translateX(-50%); background: rgba(17,24,39,.95); color: #f9fafb;
     padding: 9px 16px; border-radius: 999px; font-size: 14px; font-weight: 600; z-index: 50; max-width: 86vw; text-align: center; }
   .empty-thread { flex: 1; display: flex; }
+  /* Man thap (480x272): de CUOI de thang cac khai bao goc o tren */
+  @media (max-height: 300px) {
+    #quick { display: none; } .meta { display: none; }
+    .sheet .box { padding: 10px 14px 8px; gap: 4px; } .chk { padding: 3px 4px; } .fld { height: 34px; } .tb { padding: 7px 16px; }
+  }
 </style>
 </head>
 <body class="rwv-app">
