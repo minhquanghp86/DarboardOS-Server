@@ -72,7 +72,7 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   add('giai_tri', 'TikTok', 'tiktok', '#161616', 'https://www.tiktok.com');
   // (27/09/2026) Giao dien YouTube cho TV (tab UA Smart TV) — dien thoai truyen toi day; mo tay de lien ket bang ma TV.
   add('giai_tri', 'YouTube TV', 'yttv', '#cc0000', process.env.YT_TV_URL || 'https://www.youtube.com/tv');
-  add('giai_tri', 'Nhạc', 'music', '#e11d48', 'https://music.youtube.com');
+  add('giai_tri', 'YouTube Music', 'music', '#e11d48', 'https://music.youtube.com');
   add('giai_tri', 'Radio', 'radio', '#ea580c', `${LOCAL}/radio.html`);
   add('giai_tri', 'Tin tức', 'news', '#b91c1c', 'https://vnexpress.net');
   // (01/10/2026) Tien ich web moi (nguoi dung chon). Do 01/10 trong tab Chrome rieng: deu tai duoc; VTVgo phat VTV1 truc
@@ -93,7 +93,8 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   add('tien_ich', 'Báo Mới', 'baomoi', '#15803d', 'https://baomoi.com', undefined, 'baomoi', 'mdi:newspaper-variant-multiple');
   add('tien_ich', 'Giá vàng', 'giavang', '#ca8a04', 'https://webgia.com', undefined, 'giavang', 'mdi:gold');
   add('tien_ich', 'Xổ số', 'xoso', '#dc2626', 'https://www.minhngoc.net.vn', undefined, 'xoso', 'mdi:ticket-confirmation-outline');
-  add('tien_ich', 'Giao thông', 'giaothong', '#0d9488', LAUNCHER_TRAFFIC_URL, undefined, 'giaothong', 'mdi:traffic-light');
+  // (01/10/2026) Nguoi dung: dat ten Google Maps + bieu tuong Google Maps (mo san lop giao thong). id giu 'giaothong'.
+  add('tien_ich', 'Google Maps', 'giaothong', '#4285f4', LAUNCHER_TRAFFIC_URL, undefined, 'giaothong', 'mdi:google-maps');
   add('tien_ich', 'Trình duyệt', 'browser', '#0891b2', undefined, 'url');
   // (26/09/2026 OS-4) Cai dat cua CHINH man hinh nay (thuc the ESPHome qua HA API) — public/settings.html.
   add('tien_ich', 'Cài đặt', 'settings', '#475569', `${LOCAL}/settings.html`);

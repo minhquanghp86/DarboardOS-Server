@@ -199,7 +199,9 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   const SC: [string, string, string | null, () => void][] = [
     ['apps', 'Ứng dụng', null, () => openApp('__system')],
     ['ha', 'Home Assistant', 'home', () => openApp('home')],
-    ['cams', 'Camera', 'cams', () => openApp('cams')],
+    // (01/10/2026) "Camera" = chup/quay cua CHINH panel (chi man co camera — P4); "Frigate" = camera nha.
+    ['camera', 'Camera', 'camera', () => openApp('camera')],
+    ['frigate', 'Frigate', 'cams', () => openApp('cams')],
     ['scenes', 'Cảnh', 'scenes', () => openApp('scenes')],
     ['recents', 'Gần đây', null, openRecents],
     ['settings', 'Cài đặt', 'settings', () => openApp('settings')],
