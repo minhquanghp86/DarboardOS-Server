@@ -200,6 +200,18 @@ rest_command:
 - Camera **Ảnh người phát hiện**: ảnh chụp lúc phát hiện người gần nhất (khung xanh quanh mặt), trống đến lần phát hiện
   đầu sau khi khởi động. Camera tự chạy khi có bộ dò cần hình (firmware P4 từ `fw-2026.10.01`), không còn phụ thuộc Frigate.
 
+### Màn hình chờ và khung ảnh trên Home Assistant (2.9.91 + firmware `fw-2026.10.01b`)
+
+- Mỗi màn hình có công tắc **"Màn hình chờ"** (trước là *No Sleep*: bật = màn luôn sáng, rảnh thì hiện màn hình chờ) và
+  **"Ảnh màn hình chờ"** (màn hình chờ hiện khung ảnh). Gạt "Ảnh màn hình chờ" trên HA hay mục *Màn hình chờ hiện ảnh*
+  trong Cài đặt trên màn đều như nhau, và kéo theo "Màn hình chờ" (bật ảnh → bật, tắt ảnh → tắt).
+
+### Tiện ích web (2.9.91)
+
+- Giải trí: **VTVgo** (lần đầu bấm *Đồng ý & tiếp tục* điều khoản), **Zing MP3**, **NhacCuaTui** (phát nền như Nhạc/Radio).
+- Tiện ích: **Báo Mới**, **Giá vàng** (WebGiá), **Xổ số** (Minh Ngọc), **Giao thông** (Google Maps lớp giao thông;
+  đổi vị trí: biến `LAUNCHER_TRAFFIC_URL`). Ẩn/sắp xếp ở trang *Menu panel*.
+
 ### Truyền YouTube từ điện thoại (như Smart TV)
 
 - Điện thoại và màn hình **cùng mạng WiFi/LAN** (cùng dải với máy chạy HA). Mở app **YouTube** (hoặc YouTube Music) →
