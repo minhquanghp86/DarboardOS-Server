@@ -1627,8 +1627,10 @@ async function reloadLauncherTab(device: DeviceSession, tab: Tab): Promise<boole
   try {
     // (26/09/2026 OS-2) launcherScriptId gio la CUA TUNG TAB (moi tab la mot session/target rieng) — xem
     // reloadAllLaunchers() ben duoi, goi ham nay cho MOI tab dang mo cua thiet bi.
+    // (01/10/2026) "Script not found" (ma script cu da mat — vd renderer vua chet/noi lai) truoc day lam HUY ca lan nap
+    // lai (log that 01/10). Bo qua loi go script cu, van dang ky script moi.
     if (tab.launcherScriptId) {
-      await tab.session.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: tab.launcherScriptId });
+      await tab.session.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: tab.launcherScriptId }).catch(() => { });
     }
     const src = buildLauncherScript(device.cfg.homeUrl, device.cfg);
     const { identifier } = await tab.session.send('Page.addScriptToEvaluateOnNewDocument', { source: src });
@@ -2338,8 +2340,46 @@ async function createTab(dev: DeviceSession, key: string, kind: string, pinned: 
   session.on('Page.navigatedWithinDocument', (evt: any) => {
     handleTabNavigation(dev, tab, evt?.url);
   });
+  // (01/10/2026) RENDERER CHET: do that 01/10 — may chu het RAM, OOM killer cua kernel giet tien trinh Chrome chua trang
+  // dashboard HA (dung chung cho ca 3 man) -> ca 3 man DEN 42 phut, server khong biet (tab van "con", khong khung nao,
+  // cham bao "Failed to dispatch touch event"). Nay nghe su kien crash cua tung tab va tu nap lai.
+  session.on('Inspector.targetCrashed', () => { onTabCrashed(dev, tab).catch(() => { }); });
+  session.send('Inspector.enable').catch(() => { });
 
   return tab;
+}
+
+async function onTabCrashed(dev: DeviceSession, tab: Tab): Promise<void> {
+  if (devices.get(dev.deviceId) !== dev || dev.tabs.get(tab.key) !== tab) return;
+  const active = dev.activeTabKey === tab.key;
+  const mem = hostMem();
+  console.warn(`[app] ${dev.deviceId}: renderer cua tab "${tab.key}" CHET (may chu con ${mem?.availMb ?? '?'} MB RAM, swap ` +
+    `${mem?.swapUsedMb ?? '?'}/${mem?.swapTotalMb ?? '?'} MB) -> nap lai${active ? ' + bat lai screencast' : ''}`);
+  tab.frozen = false;            // debugger da mat cung renderer
+  tab.screencastOn = false;
+  tab.mediaPlaying = false;
+  tab.mediaKnown = false;
+  await tab.session.send('Page.reload', {}).catch((e: unknown) => console.warn(`[app] ${dev.deviceId}: nap lai tab "${tab.key}" loi:`, e));
+  if (dev.activeTabKey !== tab.key) {
+    if (!active) setTimeout(() => freezeTab(dev, tab), 5000);  // tab nen: chay lai roi dong bang nhu cu
+    return;
+  }
+  const canPassthrough = PASSTHROUGH_MIN_FPS > 0 && dev.cfg.maxBytesPerMessage >= 131072;
+  const q = canPassthrough ? dev.cfg.jpegQuality : SCREENCAST_JPEG_QUALITY;
+  for (let attempt = 1; attempt <= 6 && !tab.screencastOn && dev.activeTabKey === tab.key; attempt++) {
+    await new Promise((r) => setTimeout(r, 500 * attempt));
+    try {
+      await tab.session.send('Page.stopScreencast').catch(() => { });
+      await tab.session.send('Page.startScreencast', {
+        format: 'jpeg', quality: q, maxWidth: dev.cfg.width, maxHeight: dev.cfg.height, everyNthFrame: dev.cfg.everyNthFrame,
+      });
+      tab.screencastOn = true;
+      tab.scQuality = q;
+    } catch (e) {
+      if (attempt === 6) console.warn(`[app] ${dev.deviceId}: khong bat lai duoc screencast sau crash:`, e);
+    }
+  }
+  requestFullFrameFor(dev);
 }
 
 /**
