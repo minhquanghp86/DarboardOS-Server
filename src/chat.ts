@@ -154,17 +154,22 @@ const DB = path.join(ROOT, 'chats.json');
 const MEDIA_MAX_MB = Number(process.env.CHAT_MEDIA_MAX_MB) || 2048;
 const IMG_MAX = 25 * 1024 * 1024, VID_MAX = 200 * 1024 * 1024, CHUNK_MAX = 1024 * 1024;
 const INGRESS_IP = '172.30.32.2';
+const LOCAL_URL = `http://127.0.0.1:${process.env.HEALTH_PORT || '18080'}`;
 
 export interface ChatHooks {
   screens(): ScreenInfo[];
   /** Thong bao tren man hinh (postNotify). `conv` -> cham the thong bao mo dung cuoc tro chuyen. */
-  notify(device: string, title: string, message: string, conv: string): void;
+  notify(device: string, title: string, message: string, conv: string, image?: string): void;
   /** Man hinh dang mo ung dung Tin nhan (tab dang hien)? */
   chatActive(device: string): boolean;
   /** Bao HA (su kien) khi man hinh gui tin. */
   haEvent(data: Record<string, unknown>): void;
   /** Panel co camera: goi cam_app (duong dan nhu /sd/get?p=..), tra ve noi dung. */
   camFetch(pathAndQuery: string, method?: string): Promise<{ code: number; type: string; body: Buffer }>;
+  /** (02/10/2026) Nguoi trong HA (thuc the person co user_id): ten + duong anh dai dien (entity_picture). */
+  people(): Promise<{ userId: string; name: string; pic: string | null }[]>;
+  /** Tai anh tu HA (duong /api/image/serve/... cua entity_picture). */
+  haImage(path: string): Promise<Buffer | null>;
 }
 let hooks: ChatHooks | null = null;
 export function setChatHooks(h: ChatHooks): void { hooks = h; }
@@ -207,6 +212,44 @@ function screens(): ScreenInfo[] {
   return [...known.values()].sort((a, b) => a.name.localeCompare(b.name, 'vi'));
 }
 const screenName = (id: string) => known.get(id)?.name || id;
+
+// ── (02/10/2026) Anh dai dien nguoi dung HA: anh cua thuc the person gan voi tai khoan (user_id) ──
+// Danh ba lam moi 10 phut; anh thu nho 128 px giu trong bo nho, tai lai khi duong anh doi (nguoi dung doi anh).
+const people = new Map<string, { name: string; pic: string | null }>();
+let peopleAt = 0, peopleBusy: Promise<void> | null = null;
+const avatars = new Map<string, { pic: string; img: Buffer | null }>();
+function refreshPeople(force = false): Promise<void> {
+  if (!hooks || (!force && Date.now() - peopleAt < 10 * 60_000)) return Promise.resolve();
+  if (peopleBusy) return peopleBusy;
+  peopleBusy = hooks.people().then((list) => {
+    people.clear();
+    for (const p of list) people.set(p.userId, { name: p.name, pic: p.pic });
+    peopleAt = Date.now();
+  }).catch(() => { peopleAt = Date.now() - 9 * 60_000; /* thu lai sau 1 phut */ }).finally(() => { peopleBusy = null; });
+  return peopleBusy;
+}
+async function avatarOf(userId: string): Promise<Buffer | null> {
+  await refreshPeople();
+  const p = people.get(userId);
+  if (!p?.pic || !hooks) return null;
+  const c = avatars.get(userId);
+  if (c && c.pic === p.pic) return c.img;
+  let img: Buffer | null = null;
+  try {
+    const raw = await hooks.haImage(p.pic);
+    if (raw) img = await (await import('sharp')).default(raw, { failOn: 'none' }).rotate().resize(128, 128, { fit: 'cover' }).jpeg({ quality: 80 }).toBuffer();
+  } catch { img = null; }
+  avatars.set(userId, { pic: p.pic, img });
+  return img;
+}
+/** userId -> co anh khong (trang chi xin anh cua nguoi co anh; con lai ve chu cai dau). */
+function peopleView(): Record<string, { name: string; pic: boolean }> {
+  const o: Record<string, { name: string; pic: boolean }> = {};
+  for (const [id, p] of people) o[id] = { name: p.name, pic: !!p.pic };
+  return o;
+}
+/** Tin "cua minh": phia HA tinh theo TUNG nguoi dung (nhieu nguoi nha dung chung HA), man hinh theo id. */
+const isMine = (from: Author, me: Author) => from.side === me.side && from.id === me.id;
 
 // Mo dung cuoc tro chuyen khi cham thong bao: trang chat.html nhan qua state.open.
 const pendingOpen = new Map<string, string>();
@@ -268,7 +311,7 @@ function summary(c: Conv, me: Author) {
   return {
     id: c.id, title: convTitle(c), custom: !!c.title, members: c.members, all: c.all, updated: c.updated,
     unread: chat.unread(c, me), createdBy: c.createdBy.name,
-    last: last ? { from: last.from.name, mine: memberKey(last.from) === memberKey(me), text: preview(last), kind: last.media?.kind ?? 'text', ts: last.ts } : null,
+    last: last ? { from: last.from.name, mine: isMine(last.from, me), text: preview(last), kind: last.media?.kind ?? 'text', ts: last.ts } : null,
   };
 }
 
@@ -282,7 +325,8 @@ function afterSend(c: Conv, m: Msg): void {
   const title = c.title ? `${m.from.name} · ${c.title}` : m.from.name;
   for (const id of screenRecipients(c, m.from)) {
     if (viewing.get(id)?.conv === c.id && Date.now() - (viewing.get(id)?.at ?? 0) < 40_000 && hooks?.chatActive(id)) continue;
-    hooks?.notify(id, title, preview(m), c.id);
+    const pic = m.from.side === 'ha' && people.get(m.from.id)?.pic ? `${LOCAL_URL}/chat/avatar?u=${encodeURIComponent(m.from.id)}` : undefined;
+    hooks?.notify(id, title, preview(m), c.id, pic);
   }
   if (m.from.side === 'screen') {
     hooks?.haEvent({ conversation_id: c.id, conversation: convTitle(c), from: m.from.name, device_id: m.from.id, text: m.text ?? '', kind: m.media?.kind ?? 'text' });
@@ -392,6 +436,17 @@ function serveMedia(req: http.IncomingMessage, res: http.ServerResponse, name: s
 /** true = da xu ly. Duong dan /chat/... (trang thanh ben goi tuong doi "chat/..." — ingress them tien to). */
 export function handleChatApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL): boolean {
   if (!url.pathname.startsWith('/chat/')) return false;
+  // Anh dai dien: trang thanh ben (ingress) va moi trang/the thong bao tren panel (127.0.0.1, khong can ?dev=).
+  if (url.pathname === '/chat/avatar' && req.method === 'GET') {
+    const ip = (req.socket.remoteAddress || '').replace(/^::ffff:/, '');
+    if (ip !== INGRESS_IP && ip !== '127.0.0.1' && ip !== '::1') { json(res, 403, { error: 'cam' }); return true; }
+    avatarOf(url.searchParams.get('u') || '').then((img) => {
+      if (!img) { res.writeHead(404, { 'cache-control': 'max-age=300' }); res.end(); return; }
+      res.writeHead(200, { 'content-type': 'image/jpeg', 'content-length': img.length, 'cache-control': 'private, max-age=600' });
+      res.end(img);
+    }).catch(() => json(res, 500, { error: 'loi' }));
+    return true;
+  }
   const me = who(req, url);
   if (!me) { json(res, 403, { error: 'Chỉ dùng được từ màn hình hoặc trang Darboard trong Home Assistant.' }); return true; }
   const route = url.pathname.slice(6);
@@ -406,6 +461,7 @@ export function handleChatApi(req: http.IncomingMessage, res: http.ServerRespons
   if (route.startsWith('media/') && req.method === 'GET') { serveMedia(req, res, route.slice(6)); return true; }
 
   if (route === 'state' && req.method === 'GET') {
+    refreshPeople();
     const since = Number(q.get('rev')) || 0;
     if (me.side === 'screen') {
       const v = q.get('viewing') || '';
@@ -413,7 +469,7 @@ export function handleChatApi(req: http.IncomingMessage, res: http.ServerRespons
     }
     const reply = () => {
       const out: Record<string, unknown> = {
-        rev: chat.rev, me, convs: chat.listFor(me).map((c) => summary(c, me)), screens: screens(),
+        rev: chat.rev, me, convs: chat.listFor(me).map((c) => summary(c, me)), screens: screens(), people: peopleView(),
       };
       if (me.side === 'ha') out.storage = { usedMb: Math.round(mediaUsedBytes() / 1048576), maxMb: MEDIA_MAX_MB };
       if (me.side === 'screen' && pendingOpen.has(me.id)) { out.open = pendingOpen.get(me.id); pendingOpen.delete(me.id); }
@@ -433,7 +489,7 @@ export function handleChatApi(req: http.IncomingMessage, res: http.ServerRespons
       const c = conv(q.get('c'));
       json(res, 200, {
         conv: { id: c.id, title: convTitle(c), custom: !!c.title, members: c.members, all: c.all, createdAt: c.createdAt, createdBy: c.createdBy.name },
-        msgs: c.msgs.map((m) => ({ ...m, mine: memberKey(m.from) === memberKey(me) })),
+        msgs: c.msgs.map((m) => ({ ...m, mine: isMine(m.from, me) })),
         read: c.read, rev: chat.rev,
       });
     } catch (e) { fail(e, (e as any).code || 400); }

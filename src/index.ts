@@ -17,7 +17,7 @@ import type { DeviceSession } from './deviceManager.js';
 import { camFetch, handleCamProxy, noteCameraHost } from './camProxy.js';
 import { handleChatApi, requestOpenConv, setChatHooks } from './chat.js';
 import { connectedScreens, isAppShowing, setNoticeArgHook } from './deviceManager.js';
-import { getRegistry, haFetch } from './haSettings.js';
+import { getRegistry, haFetch, haGetRaw } from './haSettings.js';
 import { findDeviceByMac, macFromDeviceId } from './settingsModel.js';
 import { InputRouter } from "./inputRouter.js";
 import { bootstrapAsync } from './browser.js';
@@ -308,7 +308,16 @@ setChatHooks({
     if (!screenNames.has(s.id)) refreshScreenNames();
     return { ...s, name: screenNames.get(s.id) || '', online: true };  // '' = chua co ten HA -> chat.ts dung ten da luu
   }),
-  notify: (device, title, message, conv) => { postNotify({ device, title, message, priority: 'high', app: 'chat', arg: conv }); },
+  notify: (device, title, message, conv, image) => { postNotify({ device, title, message, priority: 'high', app: 'chat', arg: conv, ...(image ? { image } : {}) }); },
+  people: async () => {
+    const r = await haFetch('/states');
+    if (!r.ok) throw new Error(`HA ${r.status}`);
+    return ((await r.json()) as { entity_id: string; attributes?: Record<string, any> }[])
+      .filter((s) => s.entity_id.startsWith('person.') && typeof s.attributes?.user_id === 'string')
+      .map((s) => ({ userId: s.attributes!.user_id as string, name: String(s.attributes!.friendly_name || s.entity_id.slice(7)),
+        pic: typeof s.attributes!.entity_picture === 'string' && s.attributes!.entity_picture.startsWith('/') ? s.attributes!.entity_picture as string : null }));
+  },
+  haImage: async (p) => { const r = await haGetRaw(p); return r.ok ? Buffer.from(await r.arrayBuffer()) : null; },
   chatActive: (device) => isAppShowing(device, 'chat'),
   haEvent: (data) => { haFetch('/events/darboard_chat_message', { method: 'POST', body: JSON.stringify(data) }).catch(() => { }); },
   camFetch,

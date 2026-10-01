@@ -6,6 +6,10 @@
   cuộc trò chuyện, tạo mới / xoá (giữ ngón tay hoặc nút thùng rác), trang nhắn tin kiểu điện thoại, trả lời nhanh;
   màn có camera (P4) gửi được ảnh chụp ngay hoặc ảnh/video từ thẻ SD. Tin mới: màn hình sáng lên + thẻ thông báo,
   chạm vào mở đúng cuộc trò chuyện. Màn hình gửi tin -> sự kiện HA `darboard_chat_message` (tự động hoá báo về điện thoại…).
+- **Ảnh đại diện**: mỗi người nhà nhắn từ Home Assistant hiện ảnh trong tài khoản HA của mình (ảnh của thực thể *person*;
+  chưa đặt ảnh -> chữ cái đầu trên nền màu riêng), màn hình hiện biểu tượng màn hình; tin gom nhóm theo người gửi như ứng
+  dụng chat. Trên trang thanh bên, tin của người nhà KHÁC (cùng dùng HA) nằm bên trái kèm ảnh. Thẻ thông báo trên panel
+  hiện ảnh người gửi.
 - **Trang thanh bên** đổi tên "Menu panel" -> **Darboard**, hai thẻ: *Tin nhắn* (mặc định) và *Menu ứng dụng* (như cũ).
   Gửi ảnh/video bằng nút ghim, kéo thả hoặc dán; ảnh tự thu nhỏ (≤ 2048 px), video ≤ 200 MB tải lên từng đoạn có tiến độ.
 - **Thư viện** (P4): ảnh/video trong DCIM theo ngày, lọc Ảnh/Video, xem ảnh (vuốt, chạm đúp phóng to), trình phát video
