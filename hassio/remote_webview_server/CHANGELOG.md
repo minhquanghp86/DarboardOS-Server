@@ -3,6 +3,9 @@
 
 - Bỏ nút **Gần đây** cố định ở cuối dock (theo người dùng) — dock chỉ còn 6 ứng dụng. Màn hình Gần đây vẫn mở bằng
   **vuốt lên từ mép dưới rồi giữ** hoặc nút **Gần đây** trên thanh kéo xuống.
+- **Sửa: thời tiết ở màn hình chính biến mất** sau khi addon khởi động lại nếu Open-Meteo lỗi tạm (503) — trước đây phải
+  đợi 15 phút mới thử lại. Nay lỗi thì thử lại sau 1 phút, và lưu số liệu cuối (`/data/rwv-weather-mini.json`) để
+  khởi động lại hiện ngay (nếu chưa quá 3 giờ).
 
 ## V2.9.99
 ### Dock 6 ứng dụng, bỏ ứng dụng Cảnh
