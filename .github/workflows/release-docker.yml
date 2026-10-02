@@ -67,3 +67,31 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # (02/10/2026) ANH ADDON DUNG SAN: Supervisor keo anh nay (config.yaml `image:` + tag = `version:`) thay vi tu build
+      # tren may HA. Add-on build tai cho bi Supervisor xuat ca anh Docker (~3 GB, ~1,1 GB sau nen) vao MOI ban sao luu;
+      # anh keo tu ghcr thi khong. Anh addon = anh goc vua build (tag sha-*) + run.sh (hassio/remote_webview_server/Dockerfile).
+      #  - main: tag = version trong config.yaml (Supervisor can dung tag nay de cai/cap nhat).
+      #  - nhanh feature/** co "[thu-may-that]": tag `addon-test` (thu tren may that: docker pull + docker tag thanh version
+      #    dang cai + ha apps restart — xem DOCS "Nang cao"); khong ghi de tag version da phat hanh.
+      - name: Addon image tag
+        id: addon
+        if: github.ref == 'refs/heads/main' || (startsWith(github.ref, 'refs/heads/feature/') && contains(github.event.head_commit.message, '[thu-may-that]'))
+        run: |
+          REPO="${GITHUB_REPOSITORY,,}"
+          VER=$(sed -n 's/^version: *"\{0,1\}\([^"]*\)"\{0,1\}$/\1/p' hassio/remote_webview_server/config.yaml)
+          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then TAG="$VER"; else TAG="addon-test"; fi
+          echo "base=${REGISTRY}/${REPO}:sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "tags=${REGISTRY}/${REPO}:${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Addon image: ${REGISTRY}/${REPO}:${TAG} (from sha-${GITHUB_SHA::7}, version ${VER})"
+
+      - name: Build & Push addon image
+        if: steps.addon.outputs.tags != ''
+        uses: docker/build-push-action@v6
+        with:
+          context: hassio/remote_webview_server
+          push: true
+          platforms: linux/amd64
+          build-args: BUILD_FROM=${{ steps.addon.outputs.base }}
+          tags: ${{ steps.addon.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
