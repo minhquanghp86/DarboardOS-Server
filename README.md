@@ -7,10 +7,10 @@ chính, dock, thanh trạng thái kéo xuống, thông báo, tin nhắn nội b�
 
 Dự án gồm hai repo dùng cùng nhau:
 
-| Repo | Vai trò | Phiên bản hiện tại (01/10/2026) |
+| Repo | Vai trò | Phiên bản hiện tại (02/10/2026) |
 |---|---|---|
-| **HA-Darboard-Server** (repo này) | Máy chủ — addon Home Assistant (hoặc container Docker) | **2.9.103** |
-| [HA-Darboard-Client](https://github.com/minhquanghp86/HA-Darboard-Client) | Firmware màn hình (ESPHome) + cấu hình mẫu đang chạy thật | tag **`fw-2026.10.01g`** |
+| **HA-Darboard-Server** (repo này) | Máy chủ — addon Home Assistant (hoặc container Docker) | **2.9.104** |
+| [HA-Darboard-Client](https://github.com/minhquanghp86/HA-Darboard-Client) | Firmware màn hình (ESPHome) + cấu hình mẫu đang chạy thật | tag **`fw-2026.10.02`** |
 
 Đã chạy thật hằng ngày trên ba màn hình: **ESP32-P4 1024×600** (Guition JC1060P470C — có camera, micro, loa),
 **ESP32-S3 480×480** (Guition 4848S040) và **ESP32-S3 480×272** (Guition JC4827W543C) — hai màn S3 không có loa/camera.
@@ -60,11 +60,11 @@ Nhật ký thay đổi từng phiên bản: [`CHANGELOG.md`](hassio/remote_webvi
 
 | Nhóm | Ứng dụng |
 |---|---|
-| Nhà | Home Assistant, **Camera** (chụp/quay của chính P4), **Frigate** (lưới camera go2rtc), **Thư viện** + **Tệp** (thẻ SD của P4), Phòng, Điều khiển, Solar |
+| Nhà | Home Assistant, **Camera** (chụp/quay của chính P4), **Frigate** (lưới camera go2rtc), **Thư viện** + **Quản lý file** (thẻ SD của P4), Phòng, Điều khiển, Solar |
 | Giải trí | YouTube, YouTube TV, YouTube Music, TikTok, Radio VOV, Tin tức, VTVgo, Zing MP3, NhacCuaTui, Media, Khung ảnh |
 | Tiện ích | **Tin nhắn**, **Báo thức**, Hẹn giờ, Thời tiết, Lịch âm dương, Việc cần làm, Hôm nay, Bảng tin, Báo Mới, Giá vàng, Xổ số, Google Maps, Trình duyệt, **Cài đặt** |
 
-Ứng dụng Camera/Thư viện/Tệp chỉ hiện trên màn có camera (P4). Thêm/ẩn/sắp xếp/đổi biểu tượng ở trang **Darboard**
+Ứng dụng Camera/Thư viện/Quản lý file chỉ hiện trên màn có camera (P4). Thêm/ẩn/sắp xếp/đổi biểu tượng ở trang **Darboard**
 trên thanh bên Home Assistant.
 
 ### Tin nhắn nội bộ
@@ -75,6 +75,13 @@ trên thanh bên Home Assistant.
 - "Đang xem" chỉ khi ứng dụng đang hiện, không có màn hình chờ đè lên và có người chạm trong 2 phút — không thì tin mới
   vẫn có chuông + thẻ thông báo.
 - Tin từ màn hình bắn sự kiện HA `darboard_chat_message` (dùng cho tự động hoá).
+
+### Quản lý file (thẻ SD của P4) trên trang Darboard
+
+- Thẻ **Quản lý file** trên trang Darboard (thanh bên HA, qua đăng nhập HA — dùng được cả ngoài nhà): duyệt thẻ, xem ảnh /
+  phát video, **tải về** (tệp gốc hoặc **MP4** — máy chủ đổi .mkv sang MP4 trong vài giây, không nén lại hình), **tải lên**
+  từ điện thoại / máy tính (tuỳ chọn **tối ưu video 720p** cho màn hình, nhận cả HEVC của điện thoại), đổi tên, tạo thư mục,
+  xoá nhiều. Chép vào thẻ ~0,7–0,85 MB/s, **tạm dừng khi màn hình đang phát video**.
 
 ### Âm thanh kiểu điện thoại
 
@@ -189,7 +196,7 @@ màn hình (loa, framebuffer P4, khung nửa, camera, phát âm trên chip…).
 npm ci
 npm run build        # TypeScript -> dist/ (+ bundle Shell bằng esbuild)
 npm run typecheck    # kiểm kiểu toàn bộ, kể cả file test
-npm run test:run     # unit test (155 test: giao thức, điều tiết, màn hình chờ, chat, báo thức, cử chỉ, menu…)
+npm run test:run     # unit test (157 test: giao thức, điều tiết, màn hình chờ, chat, báo thức, cử chỉ, menu…)
 npm run test:integration   # server thật + Chromium thật + panel giả qua WebSocket (~1 phút)
 ```
 
