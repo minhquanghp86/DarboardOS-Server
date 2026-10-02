@@ -9,7 +9,7 @@ Dự án gồm hai repo dùng cùng nhau:
 
 | Repo | Vai trò | Phiên bản hiện tại (02/10/2026) |
 |---|---|---|
-| **HA-Darboard-Server** (repo này) | Máy chủ — addon Home Assistant (hoặc container Docker) | **2.9.105** |
+| **HA-Darboard-Server** (repo này) | Máy chủ — addon Home Assistant (hoặc container Docker) | **2.9.106** |
 | [HA-Darboard-Client](https://github.com/minhquanghp86/HA-Darboard-Client) | Firmware màn hình (ESPHome) + cấu hình mẫu đang chạy thật | tag **`fw-2026.10.02`** |
 
 Đã chạy thật hằng ngày trên ba màn hình: **ESP32-P4 1024×600** (Guition JC1060P470C — có camera, micro, loa),
@@ -213,10 +213,13 @@ npm run test:integration   # server thật + Chromium thật + panel giả qua W
 
 ### Quy trình phát hành
 
-1. Việc mới làm trên nhánh `feature/*`. Commit có chữ `[thu-may-that]` → GitHub Actions dựng image `chrome-h264` từ
-   nhánh đó để chạy thử trên addon thật (`ha apps rebuild`).
-2. Thử xong, được duyệt → gộp `main`, tăng `version` trong `config.yaml`, đẩy → Actions dựng image → `ha store reload`
-   rồi `ha apps update`. Xoá nhánh.
+1. Việc mới làm trên nhánh `feature/*`. Commit có chữ `[thu-may-that]` → GitHub Actions dựng image `chrome-h264` và
+   ảnh addon tag `addon-test` từ nhánh đó. Chạy thử trên addon thật (từ 2.9.106 addon cài từ ảnh dựng sẵn, không còn
+   `ha apps rebuild`): `docker pull ghcr.io/minhquanghp86/ha-darboard-server:addon-test`, `docker tag` thành
+   `ghcr.io/minhquanghp86/ha-darboard-server:<version đang cài>`, rồi `ha apps restart`. Bỏ thử: `docker pull` lại đúng tag
+   version rồi `ha apps restart`.
+2. Thử xong, được duyệt → gộp `main`, tăng `version` trong `config.yaml`, đẩy → Actions dựng ảnh addon tag
+   `<version>` (Supervisor tải đúng tag này) → **đợi Actions xong** → `ha store reload` rồi `ha apps update`. Xoá nhánh.
 3. Bản Ổn định (đường lui đã kiểm chứng): tag `ban-on-dinh-*` ở cả hai repo.
 
 ## Bảo mật

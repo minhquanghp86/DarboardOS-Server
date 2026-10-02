@@ -441,7 +441,8 @@ luôn gửi giá trị riêng của từng màn hình (trong YAML ESPHome) khi k
 | Cổng DIAL (`dial_port`) | `56790` | HTTP cho điện thoại khi truyền (SSDP luôn UDP 1900) |
 | Cỡ ô, chất lượng JPEG, nhịp khung… | — | Dự phòng, xem trên |
 
-**Sao lưu (2.9.105):** bản sao lưu Home Assistant của addon **không chứa bộ đệm**: bộ đệm trang / mã JavaScript / GPU
+**Sao lưu (2.9.105, 2.9.106):** addon cài từ ảnh dựng sẵn nên ảnh Docker không nằm trong bản sao lưu (khôi phục xong
+Supervisor tự tải lại ảnh). Bản sao lưu cũng **không chứa bộ đệm**: bộ đệm trang / mã JavaScript / GPU
 của Chrome (thường 1–2 GB), mô hình Chrome tải về, bộ đệm MP4 và tệp tải lên tạm của Quản lý file. Các thứ này tự tạo
 lại. Đăng nhập các trang, cài đặt, tin nhắn, menu ứng dụng vẫn được sao lưu. Khôi phục xong, lần đầu mở mỗi trang tải
 chậm hơn một chút.

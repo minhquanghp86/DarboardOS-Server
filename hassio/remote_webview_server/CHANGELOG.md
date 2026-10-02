@@ -1,3 +1,10 @@
+## V2.9.106
+### Cài addon từ ảnh dựng sẵn, bản sao lưu nhỏ thêm ~1,1 GB
+
+- Addon nay **tải ảnh dựng sẵn** từ ghcr thay vì tự dựng trên máy Home Assistant. Supervisor đưa ảnh Docker của add-on
+  tự dựng vào **mỗi** bản sao lưu (~1,1 GB sau nén); ảnh tải về thì không. Bản sao lưu của addon còn vài chục MB.
+- Cập nhật cũng nhanh hơn: chỉ tải ảnh, không dựng lại trên máy. Chức năng, cấu hình, dữ liệu giữ nguyên.
+
 ## V2.9.105
 ### Bản sao lưu Home Assistant nhỏ hơn ~1,6 GB
 
