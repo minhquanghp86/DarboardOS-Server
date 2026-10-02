@@ -301,6 +301,11 @@ function kick(): void {
   })().finally(() => { worker = null; });
 }
 
+/** Viec dang chay + viec xong trong 30 phut gan nhat (moi nhat truoc) — danh sach "Tai len" khong giu mai. */
+export function visibleJobs(now = Date.now()): Job[] {
+  return jobs.filter((j) => !j.finished || now - j.finished < 30 * 60_000).slice(-20).reverse();
+}
+
 // ── API (chi ingress) ────────────────────────────────────────────────────────────────────────────────────────────────
 /** true = da xu ly (duong /fm/...). */
 export function handleFileManager(req: http.IncomingMessage, res: http.ServerResponse, url: URL): boolean {
@@ -315,7 +320,7 @@ export function handleFileManager(req: http.IncomingMessage, res: http.ServerRes
       if (!dev || !cameraHost()) return json(res, 200, { ok: true, online: false });
       const st = await cam('/cam/status').catch(() => null);
       return json(res, 200, { ok: true, online: !!st, device: dev, busy: !!hooks?.mediaBusy(dev), sd: st?.j?.sd ?? null,
-        rec: st?.j?.rec ?? null, jobs: jobs.slice(-20).reverse() });
+        rec: st?.j?.rec ?? null, jobs: visibleJobs() });
     }
     if (route === 'ls' && req.method === 'GET') {
       const p = cleanSdPath(q.get('p') || '/');

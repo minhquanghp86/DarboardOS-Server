@@ -1355,8 +1355,10 @@
   function rid() { var a = new Uint8Array(12); crypto.getRandomValues(a); return Array.prototype.map.call(a, function (x) { return ('0' + x.toString(16)).slice(-2); }).join(''); }
   var pending = [];
   $('fmFile').onchange = function () {
-    pending = Array.prototype.slice.call($('fmFile').files || []); $('fmFile').value = '';
-    if (!pending.length) return;
+    // Su kien change khong kem tep (vd value vua bi xoa) thi bo qua — khong xoa danh sach dang cho trong hop thoai.
+    var picked = Array.prototype.slice.call($('fmFile').files || []);
+    if (!picked.length) return;
+    pending = picked; $('fmFile').value = '';
     var list = $('fmUpList'); list.replaceChildren();
     pending.forEach(function (f) { var li = el('li'); li.append(el('span', '', f.name), el('span', '', fsize(f.size))); list.append(li); });
     $('fmUpDest').textContent = 'Chép ' + pending.length + ' tệp vào: Thẻ SD' + (F.dir === '/' ? '' : F.dir.replace(/\//g, ' › '));
