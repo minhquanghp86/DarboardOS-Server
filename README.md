@@ -18,6 +18,7 @@ Dự án gồm hai repo dùng cùng nhau:
 📖 **Hướng dẫn sử dụng đầy đủ** (cài từ đầu, dùng hằng ngày, tự động hoá, xử lý sự cố):
 [`hassio/remote_webview_server/DOCS.md`](hassio/remote_webview_server/DOCS.md) — cũng ở tab *Tài liệu* của addon.
 Nhật ký thay đổi từng phiên bản: [`CHANGELOG.md`](hassio/remote_webview_server/CHANGELOG.md).
+Vấn đề còn mở / cần điều tra: [`docs/VAN-DE-CAN-DIEU-TRA.md`](docs/VAN-DE-CAN-DIEU-TRA.md).
 
 <p align="center">
   <img src="images/menu.png" width="49%" alt="Menu ứng dụng trên màn hình ESP32-P4">
