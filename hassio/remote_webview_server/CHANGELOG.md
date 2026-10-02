@@ -1,3 +1,11 @@
+## V2.9.105
+### Bản sao lưu Home Assistant nhỏ hơn ~1,6 GB
+
+- Bản sao lưu của addon không còn chứa **bộ đệm** của Chrome (bộ đệm trang, bộ đệm mã JavaScript, bộ đệm GPU, mô hình
+  tải về) và bộ đệm MP4 / tệp tải lên tạm của Quản lý file — đều tự tạo lại. Hồ sơ Chrome thật (đăng nhập các trang,
+  Local Storage, IndexedDB, Service Worker) vẫn được sao lưu như cũ.
+- Khôi phục từ bản sao lưu: lần đầu mở mỗi trang tải chậm hơn một chút (tải lại từ mạng), sau đó như bình thường.
+
 ## V2.9.104
 ### Quản lý file (thẻ SD của P4) trên trang Darboard
 
