@@ -1,3 +1,12 @@
+## V2.9.107
+### Tự ngắt kết nối khi màn hình ngừng đọc dữ liệu
+
+- Sự cố P4 đứng không phản hồi chạm (02/10): màn hình ngừng đọc WebSocket, trong khi máy chủ vẫn gửi âm thanh không giới hạn
+  (dồn tới 17 MB RAM) và không bao giờ cắt kết nối chết.
+- Nay máy chủ **ngắt kết nối** của màn hình có dữ liệu ứ đọng mà **không byte nào rời máy chủ trong 30 giây**; màn hình tự
+  nối lại. Ghi log `[broadcaster] … socket ket …`. Đổi ngưỡng bằng biến môi trường `CCR_WS_STALL_MS` (mili giây).
+- Âm thanh bị bỏ khi dữ liệu ứ đọng của socket vượt 512 KB (`CCR_WS_AUDIO_HIGH_WATER`); khung video vẫn theo ngưỡng cũ.
+
 ## V2.9.106
 ### Cài addon từ ảnh dựng sẵn, bản sao lưu nhỏ thêm ~1,1 GB
 

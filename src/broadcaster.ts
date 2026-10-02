@@ -13,12 +13,53 @@ import { metrics } from "./metrics.js";
 type OutFrame = { frameId: number; packets: Buffer[] };
 type BroadcasterState = { queue: OutFrame[]; sending: boolean };
 
+// (02/10/2026) Su co P4 dung 12:40: thiet bi ngung DOC WebSocket, am thanh (gui vo dieu kien) don 17 MB trong RAM Node
+// va khong ai cat socket chet. Hai chot chan:
+//  - am thanh bi bo khi socket ton dong qua AUDIO_HIGH_WATER (512 KB: khung video 196 KB van lot, chi cat ca nang that su; am thanh cu vo nghia);
+//  - socket co byte ton dong nhung 0 byte roi khoi server trong STALL_MS -> terminate de thiet bi noi lai.
+const AUDIO_HIGH_WATER = parseInt(process.env.CCR_WS_AUDIO_HIGH_WATER ?? "", 10) || 524_288;
+const STALL_MS = parseInt(process.env.CCR_WS_STALL_MS ?? "", 10) || 30_000;
+const STALL_CHECK_MS = 5_000;
+
+export type StallTrack = { drained: number; since: number };
+
+/** Socket "chet doc": con byte ton dong ma luong byte da roi khoi server khong tang trong `stallMs`. */
+export function trackStall(prev: StallTrack | undefined, sent: number, backlog: number, now: number, stallMs: number):
+  { track: StallTrack; stalled: boolean } {
+  const drained = sent - backlog;
+  if (!prev || backlog <= 0 || drained > prev.drained) return { track: { drained, since: now }, stalled: false };
+  return { track: prev, stalled: now - prev.since >= stallMs };
+}
+
 export class DeviceBroadcaster {
   private _clients = new Map<string, Set<WebSocket>>();
   private _state = new Map<string, BroadcasterState>();
   // (24/09/2026) Tong byte DA GIAO cho tung socket. Tru di bufferedAmount ra so byte
   // da THUC SU roi khoi server — dung de uoc luong bang thong that cua duong truyen.
   private _sentBytes = new WeakMap<WebSocket, number>();
+  private _stall = new WeakMap<WebSocket, StallTrack>();
+
+  constructor() {
+    const t = setInterval(() => this._checkStalls(), STALL_CHECK_MS);
+    t.unref?.();
+  }
+
+  private _checkStalls(): void {
+    const now = Date.now();
+    for (const [id, peers] of this._clients) {
+      for (const ws of peers) {
+        if (ws.readyState !== WebSocket.OPEN) continue;
+        const backlog = ws.bufferedAmount;
+        const r = trackStall(this._stall.get(ws), this._sentBytes.get(ws) ?? 0, backlog, now, STALL_MS);
+        this._stall.set(ws, r.track);
+        if (r.stalled) {
+          console.warn(`[broadcaster] ${id}: socket ket ${Math.round((now - r.track.since) / 1000)} s (ton dong ${backlog}B, 0 byte roi server) -> ngat de thiet bi noi lai`);
+          this._stall.delete(ws);
+          try { ws.terminate(); } catch {}
+        }
+      }
+    }
+  }
 
   private _send(ws: WebSocket, buf: Buffer): void {
     ws.send(buf, { binary: true });
@@ -180,6 +221,7 @@ export class DeviceBroadcaster {
     const pkt = buildAudioFramePacket(pcm);
     for (const ws of peers) {
       if (ws.readyState !== WebSocket.OPEN) continue;
+      if (ws.bufferedAmount > AUDIO_HIGH_WATER) continue;
       try { this._send(ws, pkt); } catch { }
     }
   }
