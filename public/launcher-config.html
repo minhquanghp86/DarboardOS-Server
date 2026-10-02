@@ -224,6 +224,82 @@
   .preview .cap { font-size: 15px; }
   .hint { color: var(--muted); font-size: 12px; }
   .err { color: var(--danger); font-size: 13px; }
+
+  /* (02/10/2026) Quan ly file — the SD cua man hinh co camera (src/fileManager.ts) */
+  #filesView { max-width: 1100px; margin: 0 auto; padding: 16px 16px 110px; display: flex; flex-direction: column; gap: 12px; }
+  .fm-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .crumbs { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 2px; font-size: 17px; font-weight: 500; }
+  .crumbs button { border: none; background: none; font: inherit; color: var(--primary); cursor: pointer; padding: 4px 6px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; }
+  .crumbs button:hover { background: var(--surface-2); }
+  .crumbs button:disabled { color: var(--text); cursor: default; background: none; }
+  .crumbs button svg { width: 20px; height: 20px; fill: currentColor; }
+  .crumbs .sep { color: var(--muted); padding: 0 1px; }
+  .fm-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .btn svg { width: 18px; height: 18px; fill: currentColor; vertical-align: -4px; margin-right: 6px; }
+  .fm-sub { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+  .fm-store { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 5px; color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .fm-store .meter { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; max-width: 420px; }
+  .fm-store .meter i { display: block; height: 100%; background: var(--primary); }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .seg button { border: none; background: none; font: inherit; font-size: 13px; padding: 6px 12px; color: var(--muted); cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button.on { background: color-mix(in srgb, var(--primary) 12%, var(--surface)); color: var(--primary); font-weight: 500; }
+  .fm-note { padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); display: flex; gap: 10px; align-items: flex-start; }
+  .fm-note svg { width: 20px; height: 20px; flex: none; fill: var(--muted); margin-top: 1px; }
+  .fm-note.warn { border-color: color-mix(in srgb, var(--danger) 35%, var(--line)); background: color-mix(in srgb, var(--danger) 7%, var(--surface)); }
+  .fm-note.warn svg { fill: var(--danger); }
+  .fm-jobs .row2 { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+  .fm-jobs .row2:last-child { border-bottom: none; }
+  .fm-jobs .jn { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fm-jobs .js { grid-column: 1; color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .fm-jobs .js.err { color: var(--danger); } .fm-jobs .js.ok { color: var(--ok); }
+  .fm-jobs .pb { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+  .fm-jobs .pb i { display: block; height: 100%; background: var(--primary); transition: width .4s; }
+  .fm-jobs .row2 .ic { grid-row: 1 / span 2; grid-column: 2; }
+  .fm-list .frow { display: flex; align-items: center; gap: 12px; padding: 8px 6px 8px 12px; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .fm-list .frow:last-child { border-bottom: none; }
+  .fm-list .frow:hover { background: var(--surface-2); }
+  .fm-list .frow.sel { background: color-mix(in srgb, var(--primary) 12%, var(--surface)); }
+  .fm-list .frow:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+  .fthumb { width: 46px; height: 46px; border-radius: 8px; flex: none; background: var(--surface-2); display: flex; align-items: center; justify-content: center; overflow: hidden; color: var(--muted); position: relative; }
+  .fthumb img { width: 100%; height: 100%; object-fit: cover; }
+  .fthumb svg { width: 26px; height: 26px; fill: currentColor; }
+  .fthumb.dir { color: #d99a06; background: color-mix(in srgb, #d99a06 12%, var(--surface)); }
+  .fthumb .play { position: absolute; width: 22px; height: 22px; fill: #fff; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+  .fmeta { flex: 1; min-width: 0; }
+  .fmeta .n { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fmeta .s { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .fchk { width: 20px; height: 20px; flex: none; accent-color: var(--primary); margin: 0; }
+  .fm-empty { padding: 44px 16px; text-align: center; color: var(--muted); }
+  .fm-selbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; background: var(--surface); border-top: 1px solid var(--line); padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); }
+  .fm-selbar .in { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .fm-selbar .t { flex: 1; font-weight: 500; }
+  .sheet-list { display: flex; flex-direction: column; }
+  .sheet-list button { display: flex; align-items: center; gap: 14px; border: none; background: none; font: inherit; color: var(--text); padding: 12px 18px; cursor: pointer; text-align: left; }
+  .sheet-list button:hover { background: var(--surface-2); }
+  .sheet-list button svg { width: 22px; height: 22px; fill: var(--muted); }
+  .sheet-list button.danger { color: var(--danger); } .sheet-list button.danger svg { fill: var(--danger); }
+  .fview { position: fixed; inset: 0; z-index: 30; background: rgba(8,10,14,.94); display: flex; flex-direction: column; color: #fff; }
+  .fview .vh { display: flex; align-items: center; gap: 8px; padding: 8px 10px calc(8px) 14px; }
+  .fview .vh .t { flex: 1; min-width: 0; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fview .vh .ic { color: #fff; } .fview .vh .ic:hover { background: rgba(255,255,255,.12); }
+  .fview .vb { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; position: relative; padding: 0 8px 12px; }
+  .fview img, .fview video { max-width: 100%; max-height: 100%; }
+  .fview audio { width: min(520px, 100%); }
+  .fview .vmsg { position: absolute; inset: auto 16px 50%; text-align: center; color: #cfd6e0; }
+  .fview .nav { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 50%; border: none; background: rgba(255,255,255,.12); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .fview .nav svg { width: 26px; height: 26px; fill: currentColor; }
+  .fview .nav.l { left: 12px; } .fview .nav.r { right: 12px; }
+  .fm-up-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }
+  .fm-up-list li { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+  .fm-up-list li span:last-child { color: var(--muted); font-variant-numeric: tabular-nums; flex: none; }
+  .optrow { display: flex; gap: 12px; align-items: flex-start; }
+  .optrow .switch { margin-top: 2px; }
+  .optrow .hint { margin-top: 2px; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field input[type=text] { font: inherit; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); }
+  .field input[type=text]:focus { outline: 2px solid var(--primary); outline-offset: -1px; border-color: transparent; }
+  @media (max-width: 600px) { .fm-actions .btn .lbl { display: none; } .fm-actions .btn svg { margin-right: 0; } }
 </style>
 </head>
 <body>
@@ -231,6 +307,7 @@
   <div class="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="brandPath" d=""/></svg><span>Darboard</span></div>
   <div class="tabs" role="tablist">
     <a href="#tin-nhan" id="tabChat" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="tabChatPath" d=""/></svg>Tin nhắn<span class="cnt" id="tabCnt" hidden></span></a>
+    <a href="#quan-ly-file" id="tabFiles" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="tabFilesPath" d=""/></svg>Quản lý file</a>
     <a href="#menu" id="tabApps" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="tabAppsPath" d=""/></svg>Menu ứng dụng</a>
   </div>
 </div></nav>
@@ -253,6 +330,79 @@
     </form>
   </section>
 </main>
+
+<main id="filesView" hidden>
+  <div class="fm-head">
+    <nav class="crumbs" id="fmCrumbs" aria-label="Thư mục"></nav>
+    <div class="fm-actions">
+      <button class="btn primary" id="fmUpload" type="button"></button>
+      <button class="btn" id="fmNewDir" type="button"></button>
+      <button class="btn" id="fmSelect" type="button"></button>
+      <button class="ic" id="fmRefresh" type="button" title="Làm mới" aria-label="Làm mới"></button>
+    </div>
+  </div>
+  <div class="fm-sub">
+    <div class="fm-store" id="fmStore"></div>
+    <div class="seg" id="fmSort" role="group" aria-label="Sắp xếp"></div>
+  </div>
+  <div id="fmNote" hidden></div>
+  <section class="card fm-jobs" id="fmJobs" hidden>
+    <div class="card-head"><h2>Tải lên</h2><button class="btn" id="fmClearJobs" type="button">Xoá danh sách</button></div>
+    <div id="fmJobList"></div>
+  </section>
+  <section class="card fm-list" id="fmList"></section>
+  <div class="fm-selbar" id="fmSelBar" hidden><div class="in">
+    <span class="t" id="fmSelN"></span>
+    <button class="btn" id="fmSelAll" type="button">Chọn hết</button>
+    <button class="btn" id="fmSelDl" type="button">Tải về</button>
+    <button class="btn danger" id="fmSelDel" type="button">Xoá</button>
+    <button class="btn" id="fmSelCancel" type="button">Xong</button>
+  </div></div>
+  <input type="file" id="fmFile" multiple hidden>
+</main>
+
+<dialog id="fmUpDlg">
+  <form class="dlg" method="dialog">
+    <div class="dlg-head"><h3>Tải lên thẻ SD</h3></div>
+    <div class="dlg-body">
+      <div class="hint" id="fmUpDest"></div>
+      <ul class="fm-up-list" id="fmUpList"></ul>
+      <label class="optrow" id="fmUpOptRow">
+        <span class="switch"><input type="checkbox" id="fmUpOpt" checked><span></span></span>
+        <span><b>Tối ưu video cho màn hình</b><div class="hint">Chuyển video sang MP4 720p (H.264 + AAC, ≤ 3 Mbps) trước khi chép — phát mượt trên màn hình, nhẹ thẻ. Nên bật cho video quay bằng điện thoại (kể cả iPhone/HEVC).</div></span>
+      </label>
+      <div class="hint">Tệp được gửi lên máy chủ trước, rồi chép dần vào thẻ. Khi màn hình đang phát video, việc chép tạm dừng để video không giật.</div>
+    </div>
+    <div class="dlg-foot"><button type="button" class="btn" id="fmUpNo">Huỷ</button><button type="button" class="btn primary" id="fmUpYes">Tải lên</button></div>
+  </form>
+</dialog>
+
+<dialog id="fmNameDlg">
+  <form class="dlg" method="dialog" id="fmNameForm">
+    <div class="dlg-head"><h3 id="fmNameTitle"></h3></div>
+    <div class="dlg-body">
+      <label class="field"><span id="fmNameLbl">Tên</span><input type="text" id="fmNameIn" maxlength="120" autocomplete="off" spellcheck="false"></label>
+      <div class="err" id="fmNameErr"></div>
+    </div>
+    <div class="dlg-foot"><button type="button" class="btn" id="fmNameNo">Huỷ</button><button type="submit" class="btn primary" id="fmNameYes">Lưu</button></div>
+  </form>
+</dialog>
+
+<dialog id="fmAskDlg">
+  <form class="dlg" method="dialog">
+    <div class="dlg-head"><h3 id="fmAskTitle"></h3></div>
+    <div class="dlg-body"><p id="fmAskText" style="margin:0;color:var(--muted)"></p></div>
+    <div class="dlg-foot"><button type="button" class="btn" id="fmAskNo">Huỷ</button><button type="button" class="btn primary" id="fmAskYes" style="background:var(--danger);border-color:var(--danger)">Xoá</button></div>
+  </form>
+</dialog>
+
+<dialog id="fmMenuDlg">
+  <form class="dlg" method="dialog">
+    <div class="dlg-head"><h3 id="fmMenuTitle" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></h3></div>
+    <div class="sheet-list" id="fmMenuList"></div>
+    <div class="dlg-foot"><button type="button" class="btn" id="fmMenuNo">Đóng</button></div>
+  </form>
+</dialog>
 
 <dialog id="convDlg">
   <form class="dlg" method="dialog" id="convForm">
@@ -575,15 +725,18 @@
   $('brandPath').setAttribute('d', IC['tablet-dashboard'] || '');
   $('tabChatPath').setAttribute('d', IC['message-text-outline'] || '');
   $('tabAppsPath').setAttribute('d', IC['view-grid-plus-outline'] || '');
+  $('tabFilesPath').setAttribute('d', IC['folder-outline'] || '');
   $('attach').append(svg('paperclip')); $('sendBtn').append(svg('send'));
 
   // ── Hai the (#tin-nhan | #menu) ──
+  // (02/10/2026) + the #quan-ly-file (khoi script rieng o cuoi trang nghe hashchange).
   function route() {
-    var apps = location.hash === '#menu';
-    $('chatView').hidden = apps; $('appsView').hidden = !apps;
-    $('tabChat').classList.toggle('on', !apps); $('tabApps').classList.toggle('on', apps);
-    $('tabChat').setAttribute('aria-selected', String(!apps)); $('tabApps').setAttribute('aria-selected', String(apps));
-    if (!apps) setTimeout(scrollEnd, 0);
+    var apps = location.hash === '#menu', files = location.hash === '#quan-ly-file', chat = !apps && !files;
+    $('chatView').hidden = !chat; $('appsView').hidden = !apps; $('filesView').hidden = !files;
+    [['tabChat', chat], ['tabFiles', files], ['tabApps', apps]].forEach(function (t) {
+      $(t[0]).classList.toggle('on', t[1]); $(t[0]).setAttribute('aria-selected', String(t[1]));
+    });
+    if (chat) setTimeout(scrollEnd, 0);
   }
   window.addEventListener('hashchange', route); route();
 
@@ -1007,6 +1160,356 @@
     var b = $('convList'); b.textContent = ''; var x = el('div', 'cempty'); x.append(el('b', '', 'Không kết nối được server'), document.createTextNode(e.message)); b.append(x);
     setTimeout(loop, 5000);
   });
+})();
+</script>
+<script>
+// (02/10/2026) THE "QUAN LY FILE" — the SD cua man hinh co camera (P4). API: src/fileManager.ts (duong tuong doi "fm/...",
+// ingress them tien to). Tai len: tung khuc 768 KB len may chu -> may chu (tuy chon) toi uu video roi chep dan vao the.
+(function () {
+  'use strict';
+  var IC = window.RwvIcons || {};
+  var $ = function (id) { return document.getElementById(id); };
+  function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; }
+  function svg(n) { var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true');
+    var p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', IC[n] || ''); s.appendChild(p); return s; }
+  function icBtn(icon, label, fn) { var b = el('button', 'ic'); b.type = 'button'; b.title = label; b.setAttribute('aria-label', label); b.append(svg(icon)); b.onclick = fn; return b; }
+  function label(btn, icon, text) { btn.textContent = ''; btn.append(svg(icon), el('span', 'lbl', text)); }
+
+  var IMG = /\.(jpe?g|png|gif|webp|bmp)$/i, VID = /\.(mkv|mp4|m4v|webm|mov)$/i, AUD = /\.(mp3|wav|m4a|aac|ogg|opus|flac)$/i;
+  var MP4ABLE = /\.(mkv|mov|webm)$/i, CH = 768 * 1024;
+  var F = { dir: '/', items: [], total: 0, free: 0, sort: 'date', sel: new Set(), selMode: false, info: null, ups: [], loaded: false, busy: false, lastJobs: '' };
+  try { F.sort = localStorage.getItem('fmSort') || 'date'; } catch (e) { /* */ }
+
+  function api(path, body) {
+    var init = { cache: 'no-store' };
+    if (body !== undefined) { init.method = 'POST'; init.headers = { 'content-type': 'application/json' }; init.body = JSON.stringify(body); }
+    return fetch('fm/' + path, init).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) throw new Error(j.error || j.err || ('Lỗi ' + r.status)); return j; });
+    });
+  }
+  var enc = encodeURIComponent;
+  function join(dir, name) { return (dir === '/' ? '' : dir) + '/' + name; }
+  function fsize(b) {
+    if (b < 1024) return b + ' B';
+    var u = ['KB', 'MB', 'GB'], v = b / 1024, i = 0;
+    while (v >= 1024 && i < 2) { v /= 1024; i++; }
+    return v.toLocaleString('vi-VN', { maximumFractionDigits: v < 10 ? 1 : 0 }) + ' ' + u[i];
+  }
+  function fdate(t) {
+    if (!t) return '';
+    var d = new Date(t * 1000), p = function (n) { return String(n).padStart(2, '0'); };
+    return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+  function kind(n) { return IMG.test(n) ? 'img' : VID.test(n) ? 'vid' : AUD.test(n) ? 'aud' : 'file'; }
+  function visible() { return !$('filesView').hidden; }
+  function toast(msg) { var n = $('fmNote'); n.className = 'fm-note'; n.hidden = false; n.replaceChildren(svg('information-outline'), el('div', '', msg)); clearTimeout(toast.t); toast.t = setTimeout(renderNote, 4000); }
+  function fail(e) { var n = $('fmNote'); n.className = 'fm-note warn'; n.hidden = false; n.replaceChildren(svg('alert-circle-outline'), el('div', '', e.message || String(e))); clearTimeout(toast.t); toast.t = setTimeout(renderNote, 6000); }
+  function download(url) { var a = el('a'); a.href = url; a.download = ''; document.body.append(a); a.click(); a.remove(); }
+  function urlGet(p, dl) { return 'fm/get?p=' + enc(p) + (dl ? '&dl=1' : ''); }
+  function urlMp4(it, dl) { return 'fm/mp4?p=' + enc(it.p) + '&s=' + it.s + '&t=' + it.t + (dl ? '&dl=1' : ''); }
+
+  // ── Nap thu muc ──
+  function load(dir, keepSel) {
+    F.busy = true;
+    return api('ls?p=' + enc(dir)).then(function (r) {
+      F.dir = dir; F.loaded = true;
+      F.total = (r.total_mb || 0) * 1048576; F.free = (r.free_mb || 0) * 1048576;
+      F.items = (r.items || []).filter(function (i) { return i.n[0] !== '.' && !/\.part$/i.test(i.n); })
+        .map(function (i) { return { n: i.n, d: !!i.d, s: i.s || 0, t: i.t || 0, p: join(dir, i.n) }; });
+      if (!keepSel) F.sel.clear();
+      render();
+    }).catch(function (e) { F.loaded = true; F.items = []; render(); fail(e); }).then(function () { F.busy = false; });
+  }
+  function sorted() {
+    var a = F.items.slice();
+    a.sort(function (x, y) {
+      if (x.d !== y.d) return x.d ? -1 : 1;
+      if (F.sort === 'name') return x.n.localeCompare(y.n, 'vi', { numeric: true });
+      if (F.sort === 'size') return y.s - x.s || x.n.localeCompare(y.n);
+      return y.t - x.t || x.n.localeCompare(y.n);
+    });
+    return a;
+  }
+
+  // ── Ve ──
+  function renderCrumbs() {
+    var c = $('fmCrumbs'); c.replaceChildren();
+    var parts = F.dir === '/' ? [] : F.dir.slice(1).split('/');
+    var root = el('button'); root.type = 'button'; root.append(svg('sd'), document.createTextNode('Thẻ SD'));
+    root.disabled = !parts.length; root.onclick = function () { load('/'); };
+    c.append(root);
+    parts.forEach(function (seg, i) {
+      c.append(el('span', 'sep', '›'));
+      var b = el('button', '', seg); b.type = 'button';
+      var target = '/' + parts.slice(0, i + 1).join('/');
+      b.disabled = i === parts.length - 1; b.onclick = function () { load(target); };
+      c.append(b);
+    });
+  }
+  function renderStore() {
+    var s = $('fmStore'); s.replaceChildren();
+    if (!F.total) return;
+    var used = F.total - F.free;
+    s.append(el('span', '', 'Đã dùng ' + fsize(used) + ' / ' + fsize(F.total) + ' · còn trống ' + fsize(F.free)));
+    var m = el('div', 'meter'), i = el('i'); i.style.width = Math.min(100, used / F.total * 100).toFixed(1) + '%'; m.append(i); s.append(m);
+  }
+  function renderSort() {
+    var g = $('fmSort'); g.replaceChildren();
+    [['date', 'Ngày'], ['name', 'Tên'], ['size', 'Cỡ']].forEach(function (o) {
+      var b = el('button', F.sort === o[0] ? 'on' : '', o[1]); b.type = 'button'; b.setAttribute('aria-pressed', String(F.sort === o[0]));
+      b.onclick = function () { F.sort = o[0]; try { localStorage.setItem('fmSort', o[0]); } catch (e) { /* */ } render(); };
+      g.append(b);
+    });
+  }
+  function renderNote() {
+    var n = $('fmNote'), i = F.info;
+    if (!i) { n.hidden = true; return; }
+    var msg = null, warn = true;
+    if (!i.online) msg = 'Màn hình có thẻ SD (P4) đang không kết nối với máy chủ.';
+    else if (i.sd && !i.sd.ok) msg = i.sd.unformatted ? 'Thẻ SD chưa định dạng FAT32 — định dạng trong ứng dụng Quản lý file trên màn hình.' : 'Chưa có thẻ SD trong màn hình.';
+    else if (i.busy && F.ups.length + (i.jobs || []).filter(function (j) { return j.stage === 'wait'; }).length) { msg = 'Màn hình đang phát video — việc chép vào thẻ tạm dừng để video không giật.'; warn = false; }
+    n.hidden = !msg; if (!msg) return;
+    n.className = 'fm-note' + (warn ? ' warn' : '');
+    n.replaceChildren(svg(warn ? 'alert-circle-outline' : 'information-outline'), el('div', '', msg));
+  }
+  function thumbFor(it) {
+    var b = el('div', 'fthumb' + (it.d ? ' dir' : ''));
+    if (it.d) { b.append(svg('folder')); return b; }
+    var k = kind(it.n);
+    b.append(svg(k === 'vid' ? 'file-video-outline' : k === 'img' ? 'image' : k === 'aud' ? 'file-music-outline' : 'file-outline'));
+    if (k === 'img' || k === 'vid') {
+      var im = el('img'); im.loading = 'lazy'; im.alt = '';
+      im.src = 'fm/thumb?p=' + enc(it.p) + '&s=' + it.s + '&t=' + it.t;
+      im.onload = function () { b.replaceChildren(im); if (k === 'vid') { var pl = svg('play'); pl.classList.add('play'); b.append(pl); } };
+      im.onerror = function () { im.remove(); };
+    }
+    return b;
+  }
+  function renderList() {
+    var box = $('fmList'); box.replaceChildren();
+    if (!F.loaded) { box.append(el('div', 'fm-empty', 'Đang đọc thẻ…')); return; }
+    var a = sorted();
+    if (!a.length) { box.append(el('div', 'fm-empty', F.dir === '/' ? 'Thẻ trống. Chạm “Tải lên” để chép tệp vào thẻ.' : 'Thư mục trống.')); return; }
+    a.forEach(function (it) {
+      var row = el('div', 'frow' + (F.sel.has(it.p) ? ' sel' : '')); row.tabIndex = 0; row.setAttribute('role', 'button');
+      if (F.selMode) {
+        var c = el('input', 'fchk'); c.type = 'checkbox'; c.checked = F.sel.has(it.p); c.setAttribute('aria-label', 'Chọn ' + it.n);
+        c.onclick = function (e) { e.stopPropagation(); toggleSel(it); };
+        row.append(c);
+      }
+      var m = el('div', 'fmeta'); m.append(el('div', 'n', it.n), el('div', 's', it.d ? 'Thư mục' + (it.t ? ' · ' + fdate(it.t) : '') : fsize(it.s) + (it.t ? ' · ' + fdate(it.t) : '')));
+      row.append(thumbFor(it), m);
+      if (!F.selMode) { var mb = icBtn('dots-vertical', 'Thao tác với ' + it.n, function (e) { e.stopPropagation(); menu(it); }); row.append(mb); }
+      row.onclick = function () { if (F.selMode) toggleSel(it); else if (it.d) load(it.p); else preview(it); };
+      row.onkeydown = function (e) { if (e.key === 'Enter') row.onclick(); };
+      box.append(row);
+    });
+  }
+  function renderSelBar() {
+    $('fmSelBar').hidden = !F.selMode;
+    $('fmSelN').textContent = F.sel.size ? 'Đã chọn ' + F.sel.size : 'Chạm để chọn tệp / thư mục';
+    $('fmSelDel').disabled = $('fmSelDl').disabled = !F.sel.size;
+    label($('fmSelect'), 'check-all', F.selMode ? 'Bỏ chọn' : 'Chọn');
+  }
+  function render() { renderCrumbs(); renderStore(); renderSort(); renderList(); renderSelBar(); renderNote(); }
+  function toggleSel(it) { if (F.sel.has(it.p)) F.sel.delete(it.p); else F.sel.add(it.p); renderList(); renderSelBar(); }
+
+  // ── Viec tai len (may chu) + dang gui (trang) ──
+  var STAGE = { queue: 'Đang chờ', convert: 'Đang tối ưu video', push: 'Đang chép vào thẻ', wait: 'Tạm dừng — màn hình đang phát video', done: 'Đã chép vào thẻ', error: 'Lỗi', cancel: 'Đã huỷ' };
+  function renderJobs() {
+    var list = $('fmJobList'); list.replaceChildren();
+    var jobs = (F.info && F.info.jobs) || [];
+    var rows = F.ups.map(function (u) { return { name: u.name, txt: 'Đang gửi lên máy chủ · ' + u.pct + '%', pct: u.pct, cls: '', up: u }; })
+      .concat(jobs.map(function (j) {
+        var active = ['queue', 'convert', 'push', 'wait'].indexOf(j.stage) >= 0;
+        var t = STAGE[j.stage] + (j.stage === 'convert' || j.stage === 'push' ? ' · ' + j.pct + '%' : '') + (j.err ? ': ' + j.err : '') +
+          (j.stage === 'done' ? ' · ' + j.dest + ' · ' + fsize(j.size) : '');
+        return { name: j.name, txt: t, pct: j.stage === 'done' ? 100 : j.pct, cls: j.stage === 'error' ? 'err' : j.stage === 'done' ? 'ok' : '', job: active ? j : null };
+      }));
+    $('fmJobs').hidden = !rows.length;
+    $('fmClearJobs').hidden = !jobs.some(function (j) { return ['done', 'error', 'cancel'].indexOf(j.stage) >= 0; });
+    rows.forEach(function (r) {
+      var row = el('div', 'row2');
+      row.append(el('div', 'jn', r.name));
+      if (r.job || r.up) row.append(icBtn('close', 'Huỷ', function () {
+        if (r.up) r.up.cancel = true; else api('cancel', { id: r.job.id }).then(poll).catch(fail);
+      }));
+      row.append(el('div', 'js ' + r.cls, r.txt));
+      var pb = el('div', 'pb'), i = el('i'); i.style.width = (r.pct || 0) + '%'; pb.append(i); row.append(pb);
+      list.append(row);
+    });
+  }
+  function poll() {
+    if (!visible() || document.hidden) return Promise.resolve();
+    return api('info').then(function (i) {
+      F.info = i;
+      var sig = JSON.stringify((i.jobs || []).map(function (j) { return [j.id, j.stage]; }));
+      if (F.lastJobs && sig !== F.lastJobs && (i.jobs || []).some(function (j) { return j.stage === 'done'; })) load(F.dir, true);
+      F.lastJobs = sig;
+      renderJobs(); renderNote();
+    }).catch(function () { /* thu lai lan sau */ });
+  }
+  setInterval(poll, 3000);
+
+  // ── Tai len ──
+  function rid() { var a = new Uint8Array(12); crypto.getRandomValues(a); return Array.prototype.map.call(a, function (x) { return ('0' + x.toString(16)).slice(-2); }).join(''); }
+  var pending = [];
+  $('fmFile').onchange = function () {
+    pending = Array.prototype.slice.call($('fmFile').files || []); $('fmFile').value = '';
+    if (!pending.length) return;
+    var list = $('fmUpList'); list.replaceChildren();
+    pending.forEach(function (f) { var li = el('li'); li.append(el('span', '', f.name), el('span', '', fsize(f.size))); list.append(li); });
+    $('fmUpDest').textContent = 'Chép ' + pending.length + ' tệp vào: Thẻ SD' + (F.dir === '/' ? '' : F.dir.replace(/\//g, ' › '));
+    var hasVid = pending.some(function (f) { return /\.(mkv|mp4|m4v|mov|webm|avi|3gp|ts|mts|m2ts|wmv|flv|hevc)$/i.test(f.name) || /^video\//.test(f.type); });
+    $('fmUpOptRow').hidden = !hasVid;
+    var big = pending.filter(function (f) { return f.size > 4 * 1024 * 1024 * 1024 - 1; });
+    $('fmUpYes').disabled = big.length > 0 && !hasVid;
+    $('fmUpDlg').showModal();
+  };
+  $('fmUpNo').onclick = function () { $('fmUpDlg').close(); pending = []; };
+  $('fmUpYes').onclick = function () {
+    var files = pending, opt = !$('fmUpOptRow').hidden && $('fmUpOpt').checked, dir = F.dir; pending = [];
+    $('fmUpDlg').close();
+    files.reduce(function (chain, f) { return chain.then(function () { return sendOne(f, dir, opt); }); }, Promise.resolve());
+  };
+  function sendOne(f, dir, opt) {
+    var u = { name: f.name, pct: 0, cancel: false }, id = rid(), off = 0;
+    F.ups.push(u); renderJobs();
+    function step() {
+      if (u.cancel) return Promise.reject(new Error('Đã huỷ ' + f.name));
+      if (off >= f.size && !(f.size === 0 && off === 0)) return Promise.resolve();
+      return fetch('fm/up?u=' + id + '&off=' + off, { method: 'POST', body: f.slice(off, off + CH) }).then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (j) {
+          if (r.status === 409 && typeof j.have === 'number') { off = j.have; return; }
+          if (!r.ok) throw new Error(j.error || ('Lỗi ' + r.status));
+          off = j.size;
+        });
+      }).then(function () { u.pct = f.size ? Math.round(off / f.size * 100) : 100; renderJobs(); if (f.size === 0) return; return step(); });
+    }
+    return step().then(function () {
+      return api('commit', { u: id, dir: dir, name: f.name, size: f.size, opt: opt });
+    }).then(function () { return poll(); }).catch(fail).then(function () {
+      F.ups.splice(F.ups.indexOf(u), 1); renderJobs();
+    });
+  }
+  $('fmClearJobs').onclick = function () { api('clear-jobs', {}).then(poll).catch(fail); };
+
+  // ── Thao tac ──
+  var askFn = null;
+  function ask(title, text, onYes) { $('fmAskTitle').textContent = title; $('fmAskText').textContent = text; askFn = onYes; $('fmAskDlg').showModal(); }
+  $('fmAskNo').onclick = function () { $('fmAskDlg').close(); };
+  $('fmAskYes').onclick = function () { $('fmAskDlg').close(); if (askFn) askFn(); };
+
+  var nameFn = null;
+  function askName(title, lbl, value, onOk) {
+    $('fmNameTitle').textContent = title; $('fmNameLbl').textContent = lbl; $('fmNameIn').value = value; $('fmNameErr').textContent = '';
+    nameFn = onOk; $('fmNameDlg').showModal();
+    setTimeout(function () { var i = $('fmNameIn'); i.focus(); var dot = value.lastIndexOf('.'); i.setSelectionRange(0, dot > 0 ? dot : value.length); }, 30);
+  }
+  $('fmNameNo').onclick = function () { $('fmNameDlg').close(); };
+  $('fmNameForm').onsubmit = function (e) {
+    e.preventDefault();
+    var v = $('fmNameIn').value.trim();
+    if (!v || /[\\/:*?"<>|]/.test(v) || /^\.+$/.test(v)) { $('fmNameErr').textContent = 'Tên không được trống và không chứa \\ / : * ? " < > |'; return; }
+    $('fmNameYes').disabled = true;
+    Promise.resolve(nameFn(v)).then(function () { $('fmNameDlg').close(); }).catch(function (er) { $('fmNameErr').textContent = er.message; })
+      .then(function () { $('fmNameYes').disabled = false; });
+  };
+
+  function rename(it) {
+    askName(it.d ? 'Đổi tên thư mục' : 'Đổi tên tệp', 'Tên mới', it.n, function (v) {
+      if (v === it.n) return;
+      return api('mv', { p: it.p, to: join(F.dir, v) }).then(function () { toast('Đã đổi tên thành “' + v + '”'); return load(F.dir); });
+    });
+  }
+  function del(paths) {
+    var n = paths.length, one = n === 1 ? paths[0].slice(paths[0].lastIndexOf('/') + 1) : '';
+    ask(n === 1 ? 'Xoá “' + one + '”?' : 'Xoá ' + n + ' mục đã chọn?', 'Xoá khỏi thẻ SD (thư mục bị xoá cùng mọi thứ bên trong). Không hoàn tác được.', function () {
+      api('rm', { paths: paths }).then(function (r) {
+        if (r.failed && r.failed.length) fail(new Error('Không xoá được ' + r.failed.length + ' mục: ' + r.failed[0].err));
+        else toast('Đã xoá ' + n + ' mục');
+        F.selMode = false; return load(F.dir);
+      }).catch(fail);
+    });
+  }
+  function menu(it) {
+    $('fmMenuTitle').textContent = it.n;
+    var L = $('fmMenuList'); L.replaceChildren();
+    function add(icon, text, fn, cls) { var b = el('button', cls || ''); b.type = 'button'; b.append(svg(icon), el('span', '', text)); b.onclick = function () { $('fmMenuDlg').close(); fn(); }; L.append(b); }
+    if (it.d) add('folder-outline', 'Mở', function () { load(it.p); });
+    else {
+      var k = kind(it.n);
+      if (k !== 'file') add(k === 'img' ? 'image' : 'play', k === 'img' ? 'Xem' : 'Phát', function () { preview(it); });
+      add('download', 'Tải về (tệp gốc)', function () { download(urlGet(it.p, true)); });
+      if (MP4ABLE.test(it.n)) add('download', 'Tải về dạng MP4 (xem được trên mọi điện thoại)', function () { toast('Đang chuẩn bị bản MP4 — tải về sẽ tự bắt đầu…'); download(urlMp4(it, true)); });
+    }
+    add('pencil-outline', 'Đổi tên', function () { rename(it); });
+    add('delete-outline', 'Xoá', function () { del([it.p]); }, 'danger');
+    $('fmMenuDlg').showModal();
+  }
+  $('fmMenuNo').onclick = function () { $('fmMenuDlg').close(); };
+
+  // ── Xem truoc ──
+  var V = null;
+  function preview(it) {
+    var k = kind(it.n);
+    if (k === 'file') { download(urlGet(it.p, true)); return; }
+    closeView();
+    var media = sorted().filter(function (x) { return !x.d && kind(x.n) === k; });
+    var idx = media.findIndex(function (x) { return x.p === it.p; });
+    var o = el('div', 'fview'); o.setAttribute('role', 'dialog'); o.setAttribute('aria-label', it.n);
+    var head = el('div', 'vh'), body = el('div', 'vb');
+    head.append(el('div', 't', it.n + ' · ' + fsize(it.s)));
+    head.append(icBtn('download', 'Tải về', function () { download(urlGet(it.p, true)); }));
+    head.append(icBtn('close', 'Đóng', closeView));
+    o.append(head, body);
+    if (k === 'img') { var im = el('img'); im.alt = it.n; im.src = urlGet(it.p); body.append(im); }
+    else {
+      var m = el(k === 'vid' ? 'video' : 'audio'); m.controls = true; m.autoplay = true; m.playsInline = true;
+      var mp4 = k === 'vid' && MP4ABLE.test(it.n);
+      var msg = el('div', 'vmsg', mp4 ? 'Đang chuẩn bị bản MP4 để xem (video dài có thể mất vài chục giây)…' : 'Đang tải…');
+      m.src = mp4 ? urlMp4(it) : urlGet(it.p);
+      m.addEventListener('loadeddata', function () { msg.remove(); });
+      m.addEventListener('error', function () { msg.textContent = 'Trình duyệt không phát được tệp này — hãy tải về.'; });
+      body.append(m, msg);
+    }
+    if (media.length > 1) {
+      var l = el('button', 'nav l'), r = el('button', 'nav r'); l.type = r.type = 'button';
+      l.append(svg('chevron-left')); r.append(svg('chevron-right')); l.setAttribute('aria-label', 'Trước'); r.setAttribute('aria-label', 'Sau');
+      l.onclick = function () { preview(media[(idx - 1 + media.length) % media.length]); };
+      r.onclick = function () { preview(media[(idx + 1) % media.length]); };
+      body.append(l, r);
+    }
+    document.body.append(o); V = o;
+  }
+  function closeView() { if (!V) return; var m = V.querySelector('video,audio'); if (m) { m.pause(); m.removeAttribute('src'); m.load(); } V.remove(); V = null; }
+  document.addEventListener('keydown', function (e) { if (V && e.key === 'Escape') closeView(); });
+
+  // ── Nut ──
+  label($('fmUpload'), 'upload', 'Tải lên'); label($('fmNewDir'), 'folder-plus-outline', 'Thư mục mới');
+  $('fmRefresh').append(svg('refresh'));
+  $('fmUpload').onclick = function () { $('fmFile').click(); };
+  $('fmNewDir').onclick = function () {
+    askName('Thư mục mới', 'Tên thư mục', '', function (v) {
+      return api('mkdir', { p: join(F.dir, v) }).then(function () { toast('Đã tạo thư mục “' + v + '”'); return load(F.dir); });
+    });
+  };
+  $('fmRefresh').onclick = function () { load(F.dir, true); poll(); };
+  $('fmSelect').onclick = function () { F.selMode = !F.selMode; F.sel.clear(); render(); };
+  $('fmSelCancel').onclick = function () { F.selMode = false; F.sel.clear(); render(); };
+  $('fmSelAll').onclick = function () { F.items.forEach(function (i) { F.sel.add(i.p); }); render(); };
+  $('fmSelDel').onclick = function () { if (F.sel.size) del(Array.from(F.sel)); };
+  $('fmSelDl').onclick = function () {
+    var files = F.items.filter(function (i) { return F.sel.has(i.p) && !i.d; });
+    if (!files.length) { fail(new Error('Chỉ tải về được tệp (không tải cả thư mục).')); return; }
+    files.slice(0, 10).forEach(function (it, i) { setTimeout(function () { download(urlGet(it.p, true)); }, i * 700); });
+    if (files.length > 10) toast('Mỗi lần tải tối đa 10 tệp.');
+  };
+
+  function enter() { if (!visible()) return; if (!F.loaded && !F.busy) load(F.dir); poll(); }
+  window.addEventListener('hashchange', enter);
+  document.addEventListener('visibilitychange', enter);
+  render(); enter();
 })();
 </script>
 </body>

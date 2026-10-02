@@ -61,7 +61,7 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   add('nha', 'Frigate', 'cams', '#1e3a8a', LAUNCHER_CAMS_URL, undefined, undefined, undefined, FRIGATE_ICON_PATH);
   // (01/10/2026) The SD cua panel co camera: Thu vien (anh/video da chup, trinh phat) va Tep (duyet / xoa ca the).
   add('nha', 'Thư viện', 'gallery', '#0d9488', `${LOCAL}/files.html?view=gallery`, undefined, 'gallery', 'mdi:image-album');
-  add('tien_ich', 'Tệp', 'files', '#64748b', `${LOCAL}/files.html`, undefined, 'files', 'mdi:folder-outline');
+  add('tien_ich', 'Quản lý file', 'files', '#64748b', `${LOCAL}/files.html`, undefined, 'files', 'mdi:folder-outline');
   // (27/09/2026) Ung dung Nha: dieu khien theo khu vuc, TV/loa (src/homeApi.ts).
   add('nha', 'Phòng', 'rooms', '#0284c7', `${LOCAL}/rooms.html`);
   add('nha', 'Điều khiển', 'remote', '#7c3aed', `${LOCAL}/remote.html`);

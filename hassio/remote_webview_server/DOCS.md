@@ -300,6 +300,21 @@ không có màn hình chờ đè lên và có người chạm màn hình trong 2
   rồi mở **Tệp**: màn hình báo "Thẻ chưa đúng định dạng" → **Định dạng thẻ (FAT32)** (2.9.96 + `fw-2026.10.01e`, không
   cần máy tính). Mỗi tệp tối đa 4 GB (video tự dừng sau 30 phút, không vượt).
 
+### Quản lý file trên trang Darboard (2.9.104, thẻ SD của P4)
+
+Trang **Darboard** (thanh bên Home Assistant) › thẻ **Quản lý file**:
+
+- Duyệt thư mục trên thẻ SD, ảnh thu nhỏ, sắp xếp theo ngày / tên / cỡ, thanh dung lượng.
+- Chạm ảnh/video để xem (mũi tên chuyển tệp kế). Menu ⋮ của từng tệp: **Tải về (tệp gốc)**, **Tải về dạng MP4**
+  (video .mkv/.mov/.webm — máy chủ đổi nhanh, không nén lại hình; bản MP4 giữ tạm ở máy chủ tối đa 3 ngày / 3 GB),
+  **Đổi tên**, **Xoá**. Nút **Chọn**: chọn nhiều để xoá hoặc tải về.
+- **Tải lên**: chọn tệp từ điện thoại / máy tính → tệp lên máy chủ trước, rồi chép dần vào thẻ (WiFi P4 ~1–2 MB/s;
+  phim 500 MB mất vài phút). Khi màn hình đang phát video, việc chép **tạm dừng** để video không giật. Bật **Tối ưu
+  video cho màn hình** (mặc định) để đổi video sang MP4 720p H.264 + AAC — nên dùng cho video quay bằng điện thoại
+  (HEVC/H.265 không phát được trên màn hình nếu không đổi). Mỗi tệp tối đa 4 GB (giới hạn FAT32).
+- Màn hình **phát được**: .mp4 / .m4v / .mkv / .webm / .mov với hình **H.264** (tốt nhất), VP9, AV1 và tiếng AAC, MP3,
+  Opus, Vorbis, FLAC. **Không** phát được: H.265/HEVC, .avi / .wmv / .flv / .ts, tiếng AC3/DTS. Nên dùng 720p, 2–4 Mbps.
+
 ### Âm thanh: Media / Thông báo / Báo thức (2.9.95, P4)
 
 | Loại | Gồm | Chỉnh ở |

@@ -1693,6 +1693,11 @@ export function connectedScreens(): { id: string; w: number; h: number; cam: boo
     .map((d) => ({ id: d.deviceId, w: d.cfg.width, h: d.cfg.height, cam: d.cfg.camPort > 0, spk: !!d.cfg.audioEnabled }));
 }
 /** Ung dung `key` dang la tab hien tren man hinh (va den nen dang bat). */
+/** (02/10/2026) Man hinh dang phat video/am thanh — Quan ly file tam dung day tep len the de video khong giat. */
+export function isMediaPlaying(deviceId: string): boolean {
+  return devices.get(deviceId)?.mediaSent === true;
+}
+
 export function isAppShowing(deviceId: string, key: string): boolean {
   const d = devices.get(deviceId);
   return !!d && d.activeTabKey === key && (d.devState ? d.devState.backlightOn : true);

@@ -21,6 +21,11 @@ export function cameraHost(): { ip: string; port: number } | undefined {
   return hosts.values().next().value;
 }
 
+/** (02/10/2026) Id thiet bi co camera/the SD (Quan ly file). */
+export function cameraDeviceId(): string | undefined {
+  return hosts.keys().next().value;
+}
+
 // (01/10/2026) + ung dung Tep / Thu vien: sd/ls (duyet), sd/get (tai, co Range de tua video), sd/rm (xoa), sd/thumb.
 const ALLOWED = /^\/(cam\/(status|photo|last\.jpg|rec)|sd\/(list|file|del|ls|get|rm|thumb|format))$/;
 
@@ -36,7 +41,7 @@ class Gate {
     try { return await fn(); } finally { this.busy--; this.q.shift()?.(); }
   }
 }
-const smallGate = new Gate(2), fileGate = new Gate(3);
+export const smallGate = new Gate(2), fileGate = new Gate(3);
 
 // Anh thu nho tu tao (sharp) cho anh KHONG co .thumb tren the (chep tu may tinh...). Bo nho dem nho theo duong+co+gio.
 const thumbCache = new Map<string, Buffer | null>();
@@ -60,7 +65,7 @@ function fetchBuf(h: { ip: string; port: number }, path: string, max: number, me
   });
 }
 
-async function serveThumb(h: { ip: string; port: number }, search: string, res: http.ServerResponse): Promise<void> {
+export async function serveThumb(h: { ip: string; port: number }, search: string, res: http.ServerResponse): Promise<void> {
   const q = new URLSearchParams(search);
   const p = q.get('p') || '';
   const key = `${p}|${q.get('s') || ''}|${q.get('t') || ''}`;

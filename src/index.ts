@@ -15,8 +15,9 @@ import { makeConfigFromParams, setConfigFor, logDeviceConfig } from "./config.js
 import { reloadAllLaunchers, broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick, refreshDisplaysTick, markInteraction, screensaverTick, postNotify, repaintRect, onDeviceStatePacket, onDeviceEvent, anyTzOffset, postDoorbell, closeDoorbell, unlockDoorbell, dialHooks, YT_TV_URL, hostMem, pipelineStats } from './deviceManager.js';
 import type { DeviceSession } from './deviceManager.js';
 import { camFetch, handleCamProxy, noteCameraHost } from './camProxy.js';
+import { handleFileManager, setFileManagerHooks } from './fileManager.js';
 import { handleChatApi, requestOpenConv, setChatHooks, unreadForScreen } from './chat.js';
-import { chatChanged, connectedScreens, isUserViewing, setChatUnreadProvider, setNoticeArgHook, syncSoundToDevice } from './deviceManager.js';
+import { chatChanged, connectedScreens, isMediaPlaying, isUserViewing, setChatUnreadProvider, setNoticeArgHook, syncSoundToDevice } from './deviceManager.js';
 import { handleAlarmApi } from './alarms.js';
 import { getRegistry, haFetch, haGetRaw } from './haSettings.js';
 import { findDeviceByMac, macFromDeviceId } from './settingsModel.js';
@@ -189,6 +190,8 @@ http.createServer((req, res) => {
   const pathname = reqUrl.pathname;
   // (01/10/2026) Ung dung Camera: chuyen tiep toi cam_app cua panel co camera (src/camProxy.ts).
   if (handleCamProxy(req, res, pathname, reqUrl.search)) return;
+  // (02/10/2026) Quan ly file (the SD cua P4) tu trang Darboard — chi ingress.
+  if (handleFileManager(req, res, reqUrl)) return;
 
   // (14/09/2026) /metrics: số liệu thật để đo hiệu năng (GĐ0)
   if (pathname.startsWith('/metrics')) {
@@ -331,6 +334,7 @@ setChatHooks({
 });
 setNoticeArgHook((device, app, arg) => { if (app === 'chat') requestOpenConv(device, arg); });
 setChatUnreadProvider(unreadForScreen);
+setFileManagerHooks({ mediaBusy: (device) => isMediaPlaying(device) });
 startWeatherMini();
 // (27/09/2026) Truyen YouTube tu dien thoai: panel hien nhu mot TV trong nut truyen (DIAL). Tat: tuy chon cast_enabled.
 if (!['0', 'false'].includes(process.env.CAST_ENABLED ?? '')) {

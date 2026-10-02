@@ -1,3 +1,16 @@
+## V2.9.104
+### Quản lý file (thẻ SD của P4) trên trang Darboard
+
+- Thẻ mới **Quản lý file** trên trang Darboard (thanh bên Home Assistant): duyệt thẻ SD của màn hình có camera (P4),
+  xem ảnh / phát video ngay trên trang, **tải về**, **tải lên** (từ điện thoại / máy tính), **đổi tên**, **tạo thư mục**,
+  **xoá** (chọn nhiều), thanh dung lượng. Dùng được cả khi ở ngoài nhà (qua đăng nhập HA).
+- **Tải về dạng MP4**: video quay là .mkv (iPhone không phát được) — máy chủ chép nguyên hình, đổi tiếng sang AAC
+  (vài giây), tệp gốc trên thẻ giữ nguyên. Xem trước video .mkv trên trang cũng dùng bản MP4 này.
+- **Tối ưu video cho màn hình** khi tải lên: máy chủ đổi sang MP4 720p H.264 + AAC (≤ 3 Mbps) trước khi chép vào thẻ —
+  phát mượt trên P4, nhận cả video HEVC của điện thoại. Tệp lên máy chủ trước rồi chép dần vào thẻ; màn hình đang phát
+  video thì tạm dừng chép. Cần firmware P4 có `/sd/put`, `/sd/mv`, `/sd/mkdir` (cam_app, từ `fw-2026.10.02`).
+- Ứng dụng **Tệp** trên màn hình đổi tên thành **Quản lý file**.
+
 ## V2.9.103
 ### Tin nhắn: màn hình chờ đè lên thì tin mới vẫn thông báo
 
