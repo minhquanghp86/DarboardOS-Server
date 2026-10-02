@@ -262,7 +262,9 @@
   .fm-list .frow.sel { background: color-mix(in srgb, var(--primary) 12%, var(--surface)); }
   .fm-list .frow:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
   .fthumb { width: 46px; height: 46px; border-radius: 8px; flex: none; background: var(--surface-2); display: flex; align-items: center; justify-content: center; overflow: hidden; color: var(--muted); position: relative; }
-  .fthumb img { width: 100%; height: 100%; object-fit: cover; }
+  .fthumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .2s; }
+  .fthumb.has-img img { opacity: 1; }
+  .fthumb.has-img > svg:not(.play) { visibility: hidden; }
   .fthumb svg { width: 26px; height: 26px; fill: currentColor; }
   .fthumb.dir { color: #d99a06; background: color-mix(in srgb, #d99a06 12%, var(--surface)); }
   .fthumb .play { position: absolute; width: 22px; height: 22px; fill: #fff; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
@@ -1278,10 +1280,12 @@
     var k = kind(it.n);
     b.append(svg(k === 'vid' ? 'file-video-outline' : k === 'img' ? 'image' : k === 'aud' ? 'file-music-outline' : 'file-outline'));
     if (k === 'img' || k === 'vid') {
+      // Gan vao o NGAY (an, de len bieu tuong): anh loading=lazy chua nam trong trang thi trinh duyet khong bao gio tai.
       var im = el('img'); im.loading = 'lazy'; im.alt = '';
-      im.src = 'fm/thumb?p=' + enc(it.p) + '&s=' + it.s + '&t=' + it.t;
-      im.onload = function () { b.replaceChildren(im); if (k === 'vid') { var pl = svg('play'); pl.classList.add('play'); b.append(pl); } };
+      im.onload = function () { b.classList.add('has-img'); if (k === 'vid') { var pl = svg('play'); pl.classList.add('play'); b.append(pl); } };
       im.onerror = function () { im.remove(); };
+      im.src = 'fm/thumb?p=' + enc(it.p) + '&s=' + it.s + '&t=' + it.t;
+      b.append(im);
     }
     return b;
   }
