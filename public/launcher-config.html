@@ -86,7 +86,10 @@
   .tabs .cnt { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--danger); color: #fff; font-size: 11px;
     font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
   .tabs svg { width: 18px; height: 18px; fill: currentColor; }
+  .tabs a { white-space: nowrap; }
   @media (max-width: 520px) { .brand span { display: none; } .tabs a { padding: 0 8px; } }
+  /* (02/10/2026) Ba the (+ Quan ly file): man hep bo bieu tuong, chu nho; van thieu cho thi cuon ngang. */
+  @media (max-width: 480px) { .top .in { gap: 10px; } .tabs { overflow-x: auto; scrollbar-width: none; } .tabs a { padding: 0 7px; font-size: 13px; gap: 0; } .tabs a > svg { display: none; } }
 
   /* Tin nhan */
   #chatView { height: calc(100vh - 53px); display: grid; grid-template-columns: minmax(260px, 340px) 1fr; max-width: 1280px; margin: 0 auto; }
