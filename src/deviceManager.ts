@@ -213,7 +213,7 @@ export type DeviceSession = {
   /** (30/09/2026) Gia tri 'dang phat media' da gui thiet bi gan nhat (ControlField.Media) — undefined = chua gui. */
   mediaSent?: boolean;
   /** (30/09/2026) Trang thai man hinh cho da bao thiet bi (ControlField.Saver). */
-  saverSent?: boolean;
+  saverSent?: number;  // (07/10/2026) 0/1/2 — 2 = man hinh KHOA (xem syncSaver)
   castPrev?: string;
   /**
    * (26/09/2026) Ton dong socket LON NHAT tai cac lan PHAI BO KHUNG vi nghen, ke tu tick dieu tiet truoc. Vong dieu
@@ -2130,6 +2130,11 @@ export function onDeviceEvent(dev: DeviceSession, kind: number, value: number, t
     console.log(`[presence] ${dev.deviceId}: ${on ? 'CO nguoi' : 'khong con nguoi'}`);
     pushDeviceStateToPage(dev);
     if (on) maybeMorning(dev);
+    // (07/10/2026) Dang KHOA (nguoi dung chon "chi sang man, giu khoa"): co nguoi -> sang ve muc nguoi dung va giu suot luc
+    // con nguoi (dimForSaver bo qua); het nguoi -> 15 s sau toi lai. P4 fw-2026.10.06 nhan Saver = 2 nen khong ve trang chu.
+    if (dev.locked && dev.saverOn && dev.lockDim) {
+      if (on) wakeBrightWhileLocked(dev); else scheduleLockDim(dev);
+    }
   }
 }
 
@@ -3385,6 +3390,7 @@ function dimForSaver(dev: DeviceSession): void {
     lockBrightSave(dev.deviceId, cur);
   }
   clearTimeout(dev.lockWakeTimer); dev.lockWakeTimer = undefined;
+  if (dev.locked && dev.presence?.on === true) return;  // (07/10/2026) con nguoi truoc man: giu sang, het nguoi moi toi
   broadcaster.sendDeviceControl(dev.deviceId, ControlField.Brightness, pct);
 }
 /** Ra khoi man hinh khoa / cho: tra lai do sang nguoi dung. */
@@ -3400,6 +3406,10 @@ function restoreBright(dev: DeviceSession): void {
 function wakeBrightWhileLocked(dev: DeviceSession): void {
   if (!dev.lockDim || !dev.cfg.devControl) return;
   broadcaster.sendDeviceControl(dev.deviceId, ControlField.Brightness, dev.lockDim.prev);
+  scheduleLockDim(dev);
+}
+/** Hen 15 s nua toi lai ve "Độ sáng khi khóa" (van khoa; con nguoi truoc man thi dimForSaver bo qua). */
+function scheduleLockDim(dev: DeviceSession): void {
   clearTimeout(dev.lockWakeTimer);
   dev.lockWakeTimer = setTimeout(() => {
     dev.lockWakeTimer = undefined;
@@ -3412,10 +3422,12 @@ function saverOptsJs(dev: DeviceSession): string {
 }
 
 function syncSaver(dev: DeviceSession, force = false): void {
-  const on = !!dev.saverOn;
-  if (!force && dev.saverSent === on) return;
-  dev.saverSent = on;
-  if (dev.cfg.devControl) broadcaster.sendDeviceControl(dev.deviceId, ControlField.Saver, on ? 1 : 0);
+  // (07/10/2026) 0 = tat, 1 = man hinh cho, 2 = man hinh KHOA: P4 fw-2026.10.06 thay nguoi luc khoa chi sang man (khong ve
+  // trang chu); firmware cu coi 2 nhu 1.
+  const v = dev.saverOn ? (dev.locked ? 2 : 1) : 0;
+  if (!force && dev.saverSent === v) return;
+  dev.saverSent = v;
+  if (dev.cfg.devControl) broadcaster.sendDeviceControl(dev.deviceId, ControlField.Saver, v);
 }
 
 function syncMediaPlaying(dev: DeviceSession, force = false): void {
