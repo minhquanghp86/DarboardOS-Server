@@ -7,6 +7,11 @@
   Vuốt ngang trên lưới để đổi tháng, trên lịch ngày để đổi ngày.
 - Màn vuông (S3): chạm một ngày để mở lịch ngày toàn màn hình.
 
+### Sửa lỗi
+- Màn hình khóa / chờ đôi khi không hiện (máy chủ tưởng đã hiện, màn hình đứng ở trang HA, chạm chỉ làm sáng): máy chủ
+  nay 30 giây kiểm một lần, mất lớp khóa thì tự vẽ lại; Shell không còn bỏ qua khi chưa nhận giờ của thiết bị.
+- Ước lượng băng thông đường truyền không còn tăng vô hạn khi lâu không nghẽn (trần 20 MB/s).
+
 ## V2.9.113
 ### IPTV: kênh đổi khoá tự lấy khoá mới
 - Kênh mã hoá ClearKey (TV360, VTVPrime…) mà nguồn vừa đổi khoá: ứng dụng tự tải lại danh sách (lấy khoá mới nếu tác

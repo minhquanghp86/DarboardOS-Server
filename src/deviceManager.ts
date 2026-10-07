@@ -212,6 +212,9 @@ export type DeviceSession = {
   netHalfUntilMs?: number;
   /** (30/09/2026) Gia tri 'dang phat media' da gui thiet bi gan nhat (ControlField.Media) — undefined = chua gui. */
   mediaSent?: boolean;
+  /** (07/10/2026) Lan cuoi hoi trang "lop man hinh cho con khong" (xem screensaverTick — tu lanh). */
+  saverCheckAt?: number;
+  saverCheckBusy?: boolean;
   /** (30/09/2026) Trang thai man hinh cho da bao thiet bi (ControlField.Saver). */
   saverSent?: number;  // (07/10/2026) 0/1/2 — 2 = man hinh KHOA (xem syncSaver)
   castPrev?: string;
@@ -3455,6 +3458,24 @@ export function screensaverTick(): void {
     if (!tab || broadcaster.getClientCount(d.deviceId) === 0) continue;
     // (01/10/2026) Bao thuc / hen gio dang reo: khong che man hinh bao thuc (do that: khung anh de len, khong thay nut Tat).
     if (alarms.ringingOn(d.deviceId)) continue;
+    // (07/10/2026) TU LANH: server tuong dang man hinh cho / khoa ma LOP PHU khong con tren trang (trang tu nap lai, Shell
+    // bo qua lenh, bao thuc / tro ly go...) -> 30 s hoi trang mot lan, mat thi ve lai. Do that P4 07/10 14:51: log
+    // "hien man hinh khoa" nhung trang khong co lop khoa — ket o trang HA (sang 10%) hon 3 gio, cham chi lam sang man.
+    if (d.saverOn && !d.saverCheckBusy && now - (d.saverCheckAt ?? 0) > 30_000 && tab.key !== '__doorbell') {
+      d.saverCheckAt = now; d.saverCheckBusy = true;
+      const sess = d.cdp;
+      withTimeout(sess.send('Runtime.evaluate', { expression: '!!window.__rwvSaverOn', returnByValue: true }) as Promise<{ result?: { value?: unknown } }>, 1500)
+        .then((r) => {
+          if (r?.result?.value !== false || !d.saverOn || d.cdp !== sess || devices.get(d.deviceId) !== d) return;
+          console.log(`[saver] ${d.deviceId}: lop ${d.locked ? 'man hinh khoa' : 'man hinh cho'} khong con tren trang — ve lai`);
+          d.saverPhotoAt = 0;
+          sess.send('Runtime.evaluate', {
+            expression: `window.__rwvShell && window.__rwvShell.screensaver && window.__rwvShell.screensaver(${saverOptsJs(d)})`,
+          }).catch(() => { });
+        })
+        .catch(() => { })
+        .finally(() => { d.saverCheckBusy = false; });
+    }
     // (07/10/2026) Dang KHOA (vd vua xong bao thuc / chuong cua / thong bao): hien lai lop khoa ngay, bo qua thoi gian cho
     // va cam bien co nguoi — van nhuong video dang phat, bao thuc, den nen tat.
     const locked = !!d.locked;
