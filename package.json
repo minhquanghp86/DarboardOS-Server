@@ -1,6 +1,6 @@
 {
   "name": "remotewebviewserver",
-  "version": "2.9.112",
+  "version": "2.9.113",
   "type": "module",
   "scripts": {
     "dev": "tsx src/index.ts",

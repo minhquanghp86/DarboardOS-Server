@@ -1,3 +1,9 @@
+## V2.9.113
+### IPTV: kênh đổi khoá tự lấy khoá mới
+- Kênh mã hoá ClearKey (TV360, VTVPrime…) mà nguồn vừa đổi khoá: ứng dụng tự tải lại danh sách (lấy khoá mới nếu tác
+  giả danh sách đã cập nhật) rồi thử lại một lần, không báo lỗi ngay. Cũng tự qua được lỗi khoá thoáng qua khi nguồn
+  chèn đoạn mã hoá khác.
+
 ## V2.9.112
 ### Hình mượt lại nhanh sau khi mạng hết nghẽn
 - Khi đường truyền tới màn hình từng nghẽn (WiFi kém, đặt sát nguồn nhiễu…), bộ điều tiết nhớ "ngưỡng tránh nghẽn" rất
