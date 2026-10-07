@@ -7,6 +7,9 @@
 - Phát được HLS (m3u8), MPEG-TS / FLV qua HTTP, mp4, **DASH và kênh mã hoá ClearKey** (TV360, VTVPrime… trong các danh
   sách VN); dùng được User-Agent / Referer riêng của từng kênh. Không phát được: DRM Widevine / PlayReady.
 - Máy chủ chuyển tiếp luồng (không vướng CORS); rời ứng dụng là ngắt luồng, quay lại thì phát tiếp kênh đang xem.
+- Kênh 1080p (VTV…) gửi khung **nửa độ phân giải** khi khung đầy đủ quá lớn (như YouTube TV) — đo P4: khung đầy đủ
+  ~100 KB làm đường truyền nghẽn còn 2,5 fps. Kênh nhiều mức chất lượng tự chọn ≤ 720p.
+- Kênh ClearKey có khoá đã cũ (nguồn đổi khoá) báo rõ "cần danh sách mới" thay vì lỗi chung.
 
 ## V2.9.110
 ### Màn hình khóa: có người thì sáng màn, vẫn giữ khóa (P4)

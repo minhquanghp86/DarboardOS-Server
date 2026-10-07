@@ -211,14 +211,14 @@
   </div>
   <div class="ed-body">
     <div id="edUrlPane">
-      <label class="fld">Địa chỉ danh sách (M3U)
+      <label class="fld"><span>Địa chỉ danh sách (M3U)</span>
         <input id="edUrl" type="url" placeholder="https://…/danh-sach.m3u" autocomplete="off" spellcheck="false"></label>
     </div>
     <div id="edSdPane" hidden>
       <nav class="crumbs" id="sdCrumbs" aria-label="Thư mục thẻ nhớ"></nav>
       <div class="sdl" id="sdList"></div>
     </div>
-    <label class="fld">Tên hiển thị <i>(không bắt buộc)</i>
+    <label class="fld"><span>Tên hiển thị <i>(không bắt buộc)</i></span>
       <input id="edName" type="text" maxlength="60" placeholder="Ví dụ: Kênh nhà mình" autocomplete="off"></label>
     <div class="ed-err" id="edErr" role="alert"></div>
     <div class="hint" id="edHint"></div>
@@ -274,9 +274,19 @@
   var K_LAST = 'rwv_iptv_last_' + DEV, K_GRP = 'rwv_iptv_grp_' + DEV;
   var PAGE = 120;
   var v = $('v');
+  /** (07/10/2026) MOI LAN MO KENH MOT THE <video> MOI: do that P4 — shaka huy bat dong bo (co luc ~2 phut) va de lai
+   *  MediaKeys / MediaSource tren the cu -> trinh phat ke tiep gan vao the do bi treo hoac loi 4012. The cu go khoi trang,
+   *  huy o nen; su kien cua the cu bi bo qua (el !== v). */
+  function freshVideo() {
+    var old = v, nv = document.createElement('video');
+    nv.playsInline = true; nv.preload = 'none';
+    old.removeAttribute('id'); nv.id = 'v';
+    old.parentNode.insertBefore(nv, old); old.remove();
+    v = nv; bindVideo(nv);
+  }
   var S = {
     token: '', all: [], lists: [], groups: [], favs: new Set(), sel: '__all', q: '', view: [], shown: PAGE, cfg: [], cfgOk: false,
-    cur: null, nav: [], seq: 0, playingSeq: -1, failedSeq: -1, hls: null, ts: null, shaka: null, gone: Promise.resolve(),
+    cur: null, nav: [], seq: 0, playingSeq: -1, failedSeq: -1, hls: null, ts: null, shaka: null,
     retries: 0, recovered: false, t0: 0, kind: '', resumeOnThaw: false, lastT: -1, stall: 0, osdTimer: 0
   };
   try { S.sel = localStorage.getItem(K_GRP) || '__all'; } catch (e) { /* */ }
@@ -662,8 +672,8 @@
     S.playingSeq = -1; S.lastT = -1; S.stall = 0;
     if (S.hls) { try { S.hls.destroy(); } catch (e) { /* */ } S.hls = null; }
     if (S.ts) { try { S.ts.pause(); S.ts.unload(); S.ts.detachMediaElement(); S.ts.destroy(); } catch (e) { /* */ } S.ts = null; }
-    // shaka huy BAT DONG BO (go the video sau): trinh phat ke tiep phai doi xong (S.gone) moi gan vao the video.
-    if (S.shaka) { var sp = S.shaka; S.shaka = null; S.gone = Promise.resolve(sp.destroy()).catch(function () { }); }
+    // shaka huy BAT DONG BO — khong doi: lan mo ke tiep dung the <video> moi (freshVideo).
+    if (S.shaka) { var sp = S.shaka; S.shaka = null; Promise.resolve(sp.destroy()).catch(function () { }); }
     try { v.pause(); v.removeAttribute('src'); v.load(); } catch (e) { /* */ }
   }
   function play(c, nav) {
@@ -673,6 +683,7 @@
   }
   function start(c) {
     teardown();
+    freshVideo();
     S.cur = c; S.recovered = false; S.resumeOnThaw = false; S.t0 = Date.now(); S.kind = c.kind;
     var seq = ++S.seq;
     try { localStorage.setItem(K_LAST, JSON.stringify({ id: c.id, name: c.name })); } catch (e) { /* */ }
@@ -693,13 +704,11 @@
   }
   function begin(c, kind, seq) {
     S.kind = c.ck ? kind + '+ck' : kind;
-    S.gone.then(function () {
-      if (seq !== S.seq) return;
-      if (c.ck || kind === 'dash') startShaka(c, kind, seq);
-      else if (kind === 'hls') startHls(px(c), seq);
-      else if (kind === 'ts' || kind === 'flv') startTs(px(c), kind, seq);
-      else { v.src = px(c); v.play().catch(function () { }); }
-    });
+    if (seq !== S.seq) return;
+    if (c.ck || kind === 'dash') startShaka(c, kind, seq);
+    else if (kind === 'hls') startHls(px(c), seq);
+    else if (kind === 'ts' || kind === 'flv') startTs(px(c), kind, seq);
+    else { v.src = px(c); v.play().catch(function () { }); }
   }
   function httpReason(code) {
     if (code === 401) return 'Nguồn đòi đăng nhập (401) — tài khoản trong danh sách đã hết hạn.';
@@ -786,10 +795,12 @@
       else if (c.ck && c.ck.url) drm.servers = { 'org.w3.clearkey': c.ck.url };
       p.configure({
         drm: drm,
+        // Trang chuyen tiep (vd vmttv.../tv360) lay ma moi moi lan — co luc cham hon 10 s mac dinh cua shaka.
         streaming: { bufferingGoal: 20, rebufferingGoal: 2, bufferBehind: 10,
-          retryParameters: { maxAttempts: 4, baseDelay: 1000, backoffFactor: 2, timeout: 20000 } },
-        manifest: { retryParameters: { maxAttempts: 2, baseDelay: 1000, backoffFactor: 2, timeout: 20000 } },
-        abr: { restrictToElementSize: true }
+          retryParameters: { maxAttempts: 4, baseDelay: 1000, backoffFactor: 2, timeout: 30000, connectionTimeout: 15000, stallTimeout: 10000 } },
+        manifest: { retryParameters: { maxAttempts: 3, baseDelay: 1000, backoffFactor: 2, timeout: 30000, connectionTimeout: 30000, stallTimeout: 15000 } },
+        // <= 720p (muc mem: nguon chi co 1080p van phat): man 1024x600 khong can hon, bot giai ma + khung nhe hon.
+        abr: { restrictions: { maxHeight: 720 } }
       });
       p.addEventListener('error', function (ev) {
         var e = ev.detail;
@@ -808,8 +819,15 @@
   function shakaReason(e) {
     var c = e.code;
     if (c === 1001) { var st = e.data && e.data[1]; return st ? httpReason(st) : 'Nguồn kênh trả lỗi.'; }
-    if (c === 1002 || c === 1003) return 'Mất kết nối tới nguồn kênh.';
+    if (c === 1002 || c === 1003) return 'Mất kết nối tới nguồn kênh (mã ' + c + ').';
     if (e.category === 6) return 'Không giải mã được kênh (khoá ClearKey sai hoặc đã đổi) — mã ' + c + '.';
+    if (c === 4012) {  // RESTRICTIONS_CANNOT_BE_MET: thieu khoa (danh sach cu) hay bi gioi han
+      var d = (e.data && e.data[0]) || {};
+      if ((d.missingKeys && d.missingKeys.length) || (d.restrictedKeyStatuses && d.restrictedKeyStatuses.length)) {
+        return 'Khoá ClearKey trong danh sách không khớp kênh (nguồn đã đổi khoá) — cần danh sách mới (mã 4012).';
+      }
+      return 'Không có chất lượng nào phát được (mã 4012).';
+    }
     if (c === 4032 || c === 3016) return 'Định dạng video không hỗ trợ.';
     if (e.category === 4) return 'Nguồn không phải luồng DASH / HLS hợp lệ (mã ' + c + ').';
     return 'Lỗi phát (mã ' + c + ').';
@@ -854,7 +872,9 @@
     osd(true, 4000);
   }
 
-  v.addEventListener('playing', function () {
+  function bindVideo(el) {
+  el.addEventListener('playing', function () {
+    if (el !== v) return;
     var first = S.playingSeq !== S.seq;
     S.playingSeq = S.seq; S.retries = 0; S.lastT = -1; S.stall = 0;
     msg(null); live(true);
@@ -863,20 +883,22 @@
       report('dang phat sau ' + ((Date.now() - S.t0) / 1000).toFixed(1) + ' s (' + S.kind + ', ' + v.videoWidth + 'x' + v.videoHeight + ')');
     }
   });
-  v.addEventListener('waiting', function () { if (S.playingSeq === S.seq) live(false); });
+  el.addEventListener('waiting', function () { if (el === v && S.playingSeq === S.seq) live(false); });
   // Server tam dung <video> khi roi ung dung (dong bang tab nen) hoac tab khac phat: NGAT luong (khong ton mang / RAM),
   // nho de mo lai khi quay lai — xem nhip tim duoi.
-  v.addEventListener('pause', function () {
-    if (S.playingSeq !== S.seq || v.ended) return;
+  el.addEventListener('pause', function () {
+    if (el !== v || S.playingSeq !== S.seq || v.ended) return;
     S.seq++; teardown();
     S.resumeOnThaw = true;
     msg('paused', 'Đã tạm dừng', 'Chạm để xem tiếp.'); osd(true, 0);
   });
-  v.addEventListener('ended', function () { if (S.playingSeq === S.seq) fail('Luồng đã kết thúc.', true); });
-  v.addEventListener('error', function () {
-    if (S.hls || S.ts || S.shaka || !S.cur || !v.getAttribute('src')) return;
+  el.addEventListener('ended', function () { if (el === v && S.playingSeq === S.seq) fail('Luồng đã kết thúc.', true); });
+  el.addEventListener('error', function () {
+    if (el !== v || S.hls || S.ts || S.shaka || !S.cur || !v.getAttribute('src')) return;
     fail('Không phát được (mã lỗi ' + (v.error ? v.error.code : '?') + ').', true);
   });
+  }
+  bindVideo(v);
 
   // Nhip tim 1 s: (1) tab vua duoc server "danh thuc" (JS bi dung > 2,5 s) ma dang xem do -> phat lai; (2) luong dung
   // (thoi gian khong tang 15 s) -> mo lai.
