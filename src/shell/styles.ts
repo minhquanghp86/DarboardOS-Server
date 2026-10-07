@@ -295,7 +295,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .wc-hp { color: #93c5fd; font-size: 0.85em; }
 @media (min-aspect-ratio: 4/3) {
   /* Dong ho + the cung hang: thang co rieng de tong be rong <= 94vw (do that P4: xl 44vmin + the tran mep phai). */
-  .saver.hascard .sv-box { flex-direction: row; align-items: center; gap: clamp(16px, 4vw, 48px); max-width: 94vw; }
+  .saver.hascard .sv-box { flex-direction: row; align-items: center; gap: clamp(16px, 4vw, 48px); max-width: 92vw; }
   .saver.hascard .sv-main { align-items: flex-start; flex: 0 1 auto; min-width: 0; }
   .saver.hascard .sv-card { flex: 0 1 auto; max-width: 40vw; }
   .saver.hascard.ck-m .sv-clock { font-size: min(32vmin, 21vw); }
