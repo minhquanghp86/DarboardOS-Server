@@ -9,6 +9,7 @@ import { CSS } from './styles';
 import { el, mdi, pad2, setText, svgEl } from './dom';
 import { App, appIcon, weatherIcon } from './icons';
 import { HomeApi, mountHome } from './home';
+import { classifyLockGesture } from './lockGesture';
 import type { HomeLayout } from '../homeLayout';
 
 declare global { interface Window { [k: string]: any } }
@@ -22,7 +23,9 @@ interface Cfg {
 interface DevState {
   b: number | null; v: number | null; on: boolean; ctl: boolean; tv: boolean; skewMs: number; tz: number;
   tg: { noSleep: boolean; muted: boolean; aec: boolean } | null;
-  wx: { t: number; code: number; day: boolean; pp: number | null; name: string } | null;
+  /** (07/10/2026) fl..hr: chi tiet cho man hinh khoa (server >= 2.9.109; co the thieu). */
+  wx: { t: number; code: number; day: boolean; pp: number | null; name: string; fl?: number | null; rh?: number | null; ws?: number | null;
+    hi?: number | null; lo?: number | null; aqi?: number | null; pm?: number | null; hr?: { h: number; t: number; c: number; p: number | null }[] } | null;
   tm: { endsAt: number; label: string } | null;
   /** (26/09/2026) Tab nen dang phat (Radio/Nhac): k = khoa tab o server, l = ten ung dung. Server < 2.9.49 khong gui. */
   np?: { k: string; l: string }[];
@@ -525,6 +528,58 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   // (27/09/2026) KHUNG ANH SO: server gui {url, cap, fx, dir, clock}. Hieu ung chuyen (mo dan / truot theo huong vuot /
   // thu phong / khong) chay MOT lan moi lan doi anh (~0,7 s) — man S3 luon 'khong' (moi khung dong ton bang thong).
   let svPh: HTMLElement[] = [], svTop = 0, svCap: HTMLElement;
+  // (07/10/2026) MAN HINH KHOA: server goi screensaver({lock, clock, wx}). lock = chi VUOT LEN moi mo (lockGesture.ts),
+  // cham chi hien goi y + bao server sang man; chip thong bao bam luc khoa -> nho viec, lam sau khi mo. Khong co chuyen
+  // dong lap lien tuc (moi khung doi la mot khung gui qua WiFi) — goi y chi nhay mot lan khi cham.
+  type SaverOpts = { lock?: boolean; clock?: 'm' | 'l' | 'xl'; wx?: boolean };
+  let svOpts: SaverOpts = {}, svHint: HTMLElement | null = null, svCard: HTMLElement, svCardSig = '';
+  let svPending: (() => void) | null = null;
+  const WMO: Record<number, string> = { 0: 'Trời quang', 1: 'Ít mây', 2: 'Có mây', 3: 'Nhiều mây', 45: 'Sương mù', 48: 'Sương mù',
+    51: 'Mưa phùn', 53: 'Mưa phùn', 55: 'Mưa phùn', 56: 'Mưa phùn lạnh', 57: 'Mưa phùn lạnh', 61: 'Mưa nhỏ', 63: 'Mưa', 65: 'Mưa to',
+    66: 'Mưa lạnh', 67: 'Mưa lạnh', 71: 'Tuyết', 73: 'Tuyết', 75: 'Tuyết', 77: 'Tuyết', 80: 'Mưa rào', 81: 'Mưa rào',
+    82: 'Mưa rào lớn', 85: 'Tuyết', 86: 'Tuyết', 95: 'Dông', 96: 'Dông, mưa đá', 99: 'Dông, mưa đá' };
+  function applySaverOpts(): void {
+    if (!saverEl) return;
+    saverEl.classList.toggle('lock', !!svOpts.lock);
+    saverEl.classList.remove('ck-m', 'ck-l', 'ck-xl'); saverEl.classList.add('ck-' + (svOpts.clock || 'l'));
+    if (svOpts.lock && !svHint) {
+      svHint = el('div', 'sv-hint'); svHint.append(mdi('chevup'), el('span', '', 'Vuốt lên để mở khóa'));
+      saverEl.append(svHint);
+    } else if (!svOpts.lock && svHint) { svHint.remove(); svHint = null; }
+    svCardSig = '~'; svWxSig = '';
+  }
+  function hintPulse(): void {
+    if (!svHint) return;
+    svHint.classList.remove('pulse'); void svHint.offsetWidth; svHint.classList.add('pulse');
+  }
+  function unlockNow(): void {
+    const go = svPending; svPending = null;
+    const done = () => { screensaver(false); sendControl({ unlock: 1 }); if (go) go(); };
+    if (saverEl && CFG.motion === 'full') { saverEl.classList.add('unlocking'); setTimeout(done, 260); } else done();
+  }
+  function aqiCls(a: number): string { return a <= 50 ? 'a1' : a <= 100 ? 'a2' : a <= 150 ? 'a3' : 'a4'; }
+  function renderCard(w: DevState['wx']): void {
+    if (!w) { svCard.replaceChildren(); return; }
+    const now = el('div', 'wc-now');
+    const desc = el('div', 'wc-desc');
+    const sub = [w.fl != null ? `Cảm giác ${w.fl}°` : '', w.hi != null && w.lo != null ? `${w.lo}° – ${w.hi}°` : ''].filter(Boolean).join(' · ');
+    desc.append(el('div', 'wc-name', WMO[w.code] ?? ''), el('div', 'wc-sub', sub));
+    now.append(weatherIcon(w.code, w.day), el('div', 'wc-t', `${w.t}°`), desc);
+    const row = el('div', 'wc-row');
+    const item = (icon: string, text: string, cls = '') => { const s = el('span', 'wc-i' + (cls ? ' ' + cls : '')); s.append(mdi(icon), el('span', '', text)); return s; };
+    if (w.rh != null) row.append(item('drop', `${w.rh}%`));
+    if (w.ws != null) row.append(item('wind', `${w.ws} km/h`));
+    if (w.pp != null) row.append(item('umbrella', `${w.pp}%`));
+    if (w.aqi != null) row.append(item('leaf', `AQI ${w.aqi}`, aqiCls(w.aqi)));
+    const hrs = el('div', 'wc-hr');
+    for (const h of w.hr || []) {
+      const c = el('div', 'wc-h');
+      c.append(el('span', 'wc-hh', `${h.h}h`), weatherIcon(h.c, h.h >= 6 && h.h < 18), el('span', 'wc-ht', `${h.t}°`));
+      if (h.p != null && h.p >= 20) c.append(el('span', 'wc-hp', `${h.p}%`));
+      hrs.append(c);
+    }
+    svCard.replaceChildren(now, row, hrs);
+  }
   type SaverPhotoMsg = { url: string; cap?: string; fx?: string; dir?: number; clock?: boolean };
   function saverPhoto(o: SaverPhotoMsg | string | null): void {
     if (!saverEl) return;
@@ -557,38 +612,53 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     window.__rwvSaverOn = on;
     try { window.dispatchEvent(new CustomEvent('rwv-saver', { detail: on })); } catch { /* */ }
   }
-  function screensaver(on: boolean): void {
-    if (!on) { saverEl?.remove(); saverEl = null; saverSignal(false); return; }
+  function screensaver(on: boolean | SaverOpts): void {
+    if (!on) { saverEl?.remove(); saverEl = null; svHint = null; svPending = null; saverSignal(false); return; }
+    svOpts = typeof on === 'object' ? on : {};
+    if (saverEl) { applySaverOpts(); updateSaver(); return; }  // dang hien: chi doi kieu (vd nguoi dung vua doi Cai dat)
     if (alarmId || shadow.querySelector('.alarm')) return;  // (01/10/2026) dang bao thuc: khong che
     // (01/10/2026) Ban phim ao (script tiem rieng, lop popover tren cung) tung nam de len man hinh cho.
     try { if (typeof window.__vkbHide === 'function') window.__vkbHide(); } catch { /* */ }
-    if (saverEl || !deviceNow()) return;
+    if (!deviceNow()) return;
     closeShade(false); closeRecents();
     saverEl = el('div', 'saver'); svBox = el('div', 'sv-box');
     saverSignal(true);
     svClock = el('div', 'sv-clock'); svDate = el('div', 'sv-date'); svWx = el('div', 'sv-wx');
-    svCap = el('div', 'sv-cap');
+    svCap = el('div', 'sv-cap'); svCard = el('div', 'sv-card');
     svBadges = el('div', 'sv-bdg'); svBdgSig = '';
-    svBox.append(svClock, svDate, svWx, svBadges, svCap);
+    const main = el('div', 'sv-main');
+    main.append(svClock, svDate, svWx, svBadges, svCap);
+    svBox.append(main, svCard);
     svPh = [el('div', 'sv-ph'), el('div', 'sv-ph')]; svTop = 0;
     saverEl.append(svPh[0], svPh[1], svBox);
     if (CFG.motion === 'full') saverEl.classList.add('anim');
+    applySaverOpts();
     // Tat o 'click' (khong phai pointerdown): neu go lop phu ngay luc cham xuong thi 'click' sau do roi xuong trang.
-    // (27/09/2026) Dang hien anh: VUOT trai/phai = anh sau/truoc (khung anh so), cham = thoat.
+    // (27/09/2026) Dang hien anh: VUOT trai/phai = anh sau/truoc (khung anh so). (07/10/2026) Khoa: chi vuot len moi mo.
     // touch-action: none (styles) — neu khong trinh duyet coi vuot la cuon trang va huy (pointercancel).
-    let sx = 0, sy = 0, lx = 0, ly = 0, swiped = false;
-    saverEl.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); sx = lx = e.clientX; sy = ly = e.clientY; swiped = false; });
-    saverEl.addEventListener('pointermove', (e) => { lx = e.clientX; ly = e.clientY; });
-    saverEl.addEventListener('pointerup', () => {
-      const dx = lx - sx, dy = ly - sy;
-      if (saverEl?.classList.contains('photo') && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.3) {
-        swiped = true;
-        sendControl({ saver: dx < 0 ? 'next' : 'prev' });
-      }
+    let sx = 0, sy = 0, lx = 0, ly = 0, t0 = 0, swiped = false, down = false;
+    const drag = (dy: number) => {
+      if (saverEl && svOpts.lock && CFG.motion === 'full') saverEl.style.transform = dy < 0 ? `translateY(${Math.round(dy * 0.5)}px)` : '';
+    };
+    saverEl.addEventListener('pointerdown', (e) => {
+      e.preventDefault(); e.stopPropagation(); sx = lx = e.clientX; sy = ly = e.clientY; t0 = Date.now(); swiped = false; down = true;
     });
+    saverEl.addEventListener('pointermove', (e) => { if (!down) return; lx = e.clientX; ly = e.clientY; drag(ly - sy); });
+    saverEl.addEventListener('pointerup', () => {
+      if (!down) return;
+      down = false;
+      const g = classifyLockGesture({ sx, sy, ex: lx, ey: ly, ms: Date.now() - t0, w: innerWidth, h: innerHeight,
+        photo: !!saverEl?.classList.contains('photo') });
+      if (g === 'unlock' && svOpts.lock) { swiped = true; unlockNow(); return; }
+      drag(0);
+      if (g === 'next' || g === 'prev') { swiped = true; sendControl({ saver: g }); return; }
+      if (svOpts.lock) { swiped = true; hintPulse(); sendControl({ lockTap: 1 }); }
+    });
+    saverEl.addEventListener('pointercancel', () => { down = false; drag(0); });
     saverEl.addEventListener('click', (e) => {
       e.stopPropagation();
       if (swiped) { swiped = false; return; }
+      if (svOpts.lock) return;
       screensaver(false); sendControl({ wake: 1 });
     });
     root.appendChild(saverEl);
@@ -608,7 +678,11 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     const chip = (icon: string, text: string, go: () => void) => {
       const c = el('button', 'sv-b'); c.append(mdi(icon), el('span', '', text));
       c.addEventListener('pointerdown', (e) => e.stopPropagation());
-      c.addEventListener('click', (e) => { e.stopPropagation(); screensaver(false); sendControl({ wake: 1 }); go(); });
+      c.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (svOpts.lock) { svPending = go; hintPulse(); sendControl({ lockTap: 1 }); return; }  // khoa: mo sau khi vuot
+        screensaver(false); sendControl({ wake: 1 }); go();
+      });
       return c;
     };
     const out: HTMLElement[] = [];
@@ -643,6 +717,10 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
       svWxSig = sig;
       svWx.replaceChildren(...(w ? [weatherIcon(w.code, w.day), el('span', '', `${w.t}° · ${w.name}`)] : []));
     }
+    // (07/10/2026) The thoi tiet chi tiet (khong hien khi dang anh nen — anh la chinh; dem van hien nhung toi mau).
+    const card = svOpts.wx !== false && !saverEl.classList.contains('photo') && w && w.hr ? w : null;
+    const csig = card ? JSON.stringify([card.code, card.day, card.t, card.fl, card.rh, card.ws, card.hi, card.lo, card.pp, card.aqi, card.hr]) : '';
+    if (csig !== svCardSig) { svCardSig = csig; renderCard(card); saverEl.classList.toggle('hascard', !!card); }
     if (m !== svShiftMin) {  // moi phut mot vi tri moi — cung khung voi luc doi so phut, khong ton them khung nao
       svShiftMin = m;
       // Dang khung anh: dong ho o goc duoi trai -> chi dich vao trong (khong ra ngoai mep).
@@ -670,8 +748,12 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   }
   function notify(n: Notice, sound: boolean): void {
     window.__rwvLastNotice = n;
-    hideToast(); screensaver(false);
+    // (07/10/2026) Dang KHOA: giu man hinh khoa, the thong bao hien de len nhung chi de xem (cham roi xuong lop khoa ->
+    // goi y vuot len) — khong mo thang ung dung khi chua mo khoa.
+    const onLock = !!(saverEl && svOpts.lock);
+    hideToast(); if (!onLock) screensaver(false);
     const t = el('div', 'toast ' + n.p); if (CFG.motion === 'full') t.classList.add('anim');
+    if (onLock) t.classList.add('onlock');
     const txt = el('div', 'to-txt'); txt.append(el('div', 'to-t', n.t || n.m));
     if (n.t && n.m) txt.appendChild(el('div', 'to-m', n.m));
     const x = el('button', 'to-x', '✕'); x.setAttribute('aria-label', 'Đóng');

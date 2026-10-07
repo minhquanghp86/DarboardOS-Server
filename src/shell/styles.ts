@@ -262,6 +262,56 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .saver.photo .sv-box { align-items: flex-start; gap: 2px; }
 .saver.photo .sv-clock { font-size: min(15vmin, 12vw); font-weight: 400; text-shadow: 0 2px 14px rgba(0,0,0,0.75); }
 .saver.photo .sv-date, .saver.photo .sv-wx { color: #fff; text-shadow: 0 1px 8px rgba(0,0,0,0.8); }
+/* (07/10/2026) Man hinh khoa: 3 co dong ho, the thoi tiet chi tiet (ngang: dong ho trai / the phai; vuong: xep doc), goi y
+   vuot len o day. KHONG co hoat anh lap lien tuc (moi khung doi = mot khung gui qua WiFi). */
+.sv-main { display: flex; flex-direction: column; align-items: center; gap: clamp(4px, 1.6vmin, 14px); }
+.saver.photo .sv-main { align-items: flex-start; gap: 2px; }
+.saver.ck-m .sv-clock { font-size: min(30vmin, 21vw); }
+.saver.ck-l .sv-clock { font-size: min(40vmin, 26vw); }
+.saver.ck-xl .sv-clock { font-size: min(50vmin, 31vw); }
+.saver.photo.ck-m .sv-clock { font-size: min(15vmin, 12vw); }
+.saver.photo.ck-l .sv-clock { font-size: min(20vmin, 15vw); }
+.saver.photo.ck-xl .sv-clock { font-size: min(26vmin, 19vw); }
+.saver.hascard .sv-wx { display: none; }
+.sv-card:empty { display: none; }
+.sv-card { display: flex; flex-direction: column; gap: clamp(8px, 2vmin, 16px); color: #dfe6f2; box-sizing: border-box;
+  padding: clamp(10px, 2.4vmin, 20px) clamp(12px, 3vmin, 24px); border-radius: clamp(14px, 3vmin, 24px); background: rgba(255,255,255,0.06); }
+.wc-now { display: flex; align-items: center; gap: clamp(8px, 2vmin, 16px); }
+.wc-now .wx-ic { width: clamp(44px, 12vmin, 92px); height: clamp(44px, 12vmin, 92px); }
+.wc-t { font-size: clamp(34px, 11vmin, 84px); font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; }
+.wc-desc { display: flex; flex-direction: column; gap: 2px; }
+.wc-name { font-size: clamp(14px, 3.6vmin, 26px); font-weight: 600; }
+.wc-sub { font-size: clamp(12px, 2.8vmin, 20px); color: var(--muted); }
+.wc-row { display: flex; flex-wrap: wrap; gap: clamp(10px, 2.4vmin, 20px); font-size: clamp(12px, 3vmin, 21px); }
+.wc-i { display: inline-flex; align-items: center; gap: 0.3em; }
+.wc-i .ic { width: 1.2em; height: 1.2em; opacity: 0.8; }
+.wc-i.a1 { color: #86efac; } .wc-i.a2 { color: #fde047; } .wc-i.a3 { color: #fdba74; } .wc-i.a4 { color: #fca5a5; }
+.wc-hr { display: flex; justify-content: space-between; gap: clamp(6px, 1.6vmin, 14px); }
+.wc-h { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: clamp(11px, 2.6vmin, 18px); color: #cfd6e4; font-variant-numeric: tabular-nums; }
+.wc-h .wx-ic { width: clamp(20px, 5vmin, 36px); height: clamp(20px, 5vmin, 36px); }
+.wc-hp { color: #93c5fd; font-size: 0.85em; }
+@media (min-aspect-ratio: 4/3) {
+  .saver.hascard .sv-box { flex-direction: row; align-items: center; gap: clamp(20px, 6vw, 72px); }
+  .saver.hascard .sv-main { align-items: flex-start; }
+  .saver.hascard.ck-xl .sv-clock { font-size: min(44vmin, 27vw); }
+}
+@media (max-aspect-ratio: 4/3) {
+  .saver.hascard .sv-card { padding: 8px 12px; gap: 6px; }
+  .saver.hascard .wc-h:nth-child(n+5) { display: none; }
+  .saver.hascard.ck-xl .sv-clock { font-size: min(34vmin, 30vw); }
+}
+.sv-hint { position: absolute; left: 0; right: 0; bottom: clamp(8px, 2.6vmin, 22px); display: flex; flex-direction: column; align-items: center;
+  gap: 2px; color: rgba(226,232,240,0.5); font: 500 clamp(12px, 2.8vmin, 18px)/1.2 "Be Vietnam Pro", Roboto, sans-serif; pointer-events: none; }
+.sv-hint .ic { width: clamp(20px, 4.4vmin, 30px); height: clamp(20px, 4.4vmin, 30px); }
+.sv-hint.pulse { color: #fff; }
+.saver.anim .sv-hint.pulse { animation: sv-pulse 700ms ease-out; }
+@keyframes sv-pulse { 0% { transform: translateY(0); } 35% { transform: translateY(-10px); } 100% { transform: translateY(0); } }
+.saver.night .sv-hint { color: rgba(154,106,88,0.55); }
+.saver.night .sv-card { background: rgba(120,80,60,0.12); color: #9a6a58; }
+.saver.night .wc-h, .saver.night .wc-sub, .saver.night .wc-hp { color: #7a5848; }
+.saver.night .sv-card .wx-ic { opacity: 0.4; filter: sepia(1); }
+.saver.unlocking { transform: translateY(-100%) !important; opacity: 0; transition: transform 260ms ease-in, opacity 260ms ease-in; }
+.saver.lock.photo { padding-bottom: clamp(40px, 9vmin, 70px); }
 
 /* ── Thong bao (OS-5) ────────────────────────────────────────────────── */
 .pill.unread::after { content: ''; position: absolute; top: 6px; right: 26px; width: 7px; height: 7px; border-radius: 50%; background: #f59e0b; }
@@ -288,6 +338,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   display: flex; align-items: center; gap: clamp(8px, 2vmin, 14px); padding: clamp(8px, 2vmin, 14px); border-radius: var(--r-lg);
   background: rgba(23,26,34,0.97); box-shadow: 0 10px 34px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.08); pointer-events: auto; cursor: pointer; }
 .toast.anim { animation: to-in 200ms cubic-bezier(.2,.8,.2,1); }
+.toast.onlock { pointer-events: none; }
 @keyframes to-in { from { transform: translate(-50%, -130%); } }
 .toast.critical { box-shadow: 0 10px 34px rgba(0,0,0,0.5), inset 0 0 0 2px rgba(239,68,68,0.8); }
 .toast .to-ic { width: clamp(44px, 12vmin, 76px); height: clamp(44px, 12vmin, 76px); }

@@ -6,7 +6,38 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { getHaLocation } from './haLocation.js';
 
-export interface WeatherMini { t: number; code: number; day: boolean; pp: number | null; name: string; at: number; }
+export interface WeatherHour { h: number; t: number; c: number; p: number | null; }
+/** (07/10/2026) Them truong CHI TIET cho man hinh khoa (deu co the null — Open-Meteo thieu / API khong khi loi):
+ *  fl cam giac, rh do am %, ws gio km/h, hi/lo cao/thap trong ngay, aqi (US AQI) + pm (PM2.5), hr = 6 gio toi. */
+export interface WeatherMini {
+  t: number; code: number; day: boolean; pp: number | null; name: string; at: number;
+  fl?: number | null; rh?: number | null; ws?: number | null; hi?: number | null; lo?: number | null;
+  aqi?: number | null; pm?: number | null; hr?: WeatherHour[];
+}
+
+const num = (x: unknown): number | null => (typeof x === 'number' && Number.isFinite(x) ? Math.round(x) : null);
+
+/** Ket qua Open-Meteo forecast (+ air-quality neu co) -> WeatherMini. Ham thuan (xem weatherMini.test.ts). */
+export function parseWeatherMini(j: any, aq: any, name: string, now = Date.now()): WeatherMini {
+  const c = j?.current ?? {};
+  const hr: WeatherHour[] = [];
+  const ht: unknown[] = j?.hourly?.time ?? [];
+  const curH = typeof c.time === 'string' ? c.time.slice(0, 13) : '';
+  for (let i = 0; i < ht.length && hr.length < 6; i++) {
+    const tm = String(ht[i]);
+    if (curH && tm.slice(0, 13) <= curH) continue;  // bo gio hien tai (da la "bay gio")
+    const t = num(j.hourly.temperature_2m?.[i]);
+    if (t === null) continue;
+    hr.push({ h: parseInt(tm.slice(11, 13), 10), t, c: j.hourly.weather_code?.[i] ?? 0, p: num(j.hourly.precipitation_probability?.[i]) });
+  }
+  return {
+    t: Math.round(c.temperature_2m), code: c.weather_code, day: c.is_day === 1,
+    pp: j?.daily?.precipitation_probability_max?.[0] ?? null, name, at: now,
+    fl: num(c.apparent_temperature), rh: num(c.relative_humidity_2m), ws: num(c.wind_speed_10m),
+    hi: num(j?.daily?.temperature_2m_max?.[0]), lo: num(j?.daily?.temperature_2m_min?.[0]),
+    aqi: num(aq?.current?.us_aqi), pm: num(aq?.current?.pm2_5), hr,
+  };
+}
 
 const REFRESH_MS = 15 * 60 * 1000;
 const RETRY_MS = 60 * 1000;
@@ -31,15 +62,18 @@ async function refresh(): Promise<boolean> {
   const loc = await getHaLocation();
   if (!loc) return false;
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&timezone=auto` +
-      `&current=temperature_2m,weather_code,is_day&daily=precipitation_probability_max&forecast_days=1`;
+    const base = `latitude=${loc.lat}&longitude=${loc.lon}&timezone=auto`;
+    const url = `https://api.open-meteo.com/v1/forecast?${base}` +
+      `&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code,is_day` +
+      `&daily=precipitation_probability_max,temperature_2m_max,temperature_2m_min&forecast_days=1` +
+      `&hourly=temperature_2m,weather_code,precipitation_probability&forecast_hours=8`;
     const r = await fetch(url, { signal: AbortSignal.timeout(10000) });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const j = await r.json() as any;
-    current = {
-      t: Math.round(j.current.temperature_2m), code: j.current.weather_code, day: j.current.is_day === 1,
-      pp: j.daily?.precipitation_probability_max?.[0] ?? null, name: loc.name, at: Date.now(),
-    };
+    // Khong khi: API rieng, loi thi bo qua (van co thoi tiet).
+    const aq = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?${base}&current=us_aqi,pm2_5`,
+      { signal: AbortSignal.timeout(8000) }).then((x) => (x.ok ? x.json() : null)).catch(() => null);
+    current = parseWeatherMini(j, aq, loc.name);
     fs.promises.writeFile(CACHE_FILE, JSON.stringify(current)).catch(() => { });
     for (const fn of listeners) { try { fn(); } catch { } }
     return true;

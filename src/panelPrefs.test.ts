@@ -15,8 +15,7 @@ describe("cai dat addon theo tung man hinh", () => {
   it("chao buoi sang + thoi gian cho", () => {
     const p = new PanelPrefsStore(null);
     expect(p.items("esp32-0a0b0c0d0002", D).filter((i) => i.sec === "screen").map((i) => [i.id, i.on, i.value])).toEqual([
-      ["rwv.saver_idle", true, "2 phút"], ["rwv.saver_photos", true, ""], ["rwv.morning", true, ""],
-      ["rwv.cast", true, ""], ["rwv.cast_name", true, "Darboard 0218"]]);
+      ["rwv.morning", true, ""], ["rwv.cast", true, ""], ["rwv.cast_name", true, "Darboard 0218"]]);
     expect(p.set("a", "rwv.morning", false)).toBe(true);
     expect(p.morning("a", true)).toBe(false);
     expect(p.set("a", "rwv.saver_idle", "Tắt")).toBe(true);
@@ -25,7 +24,31 @@ describe("cai dat addon theo tung man hinh", () => {
     expect(p.saverIdleS("a", 120)).toBe(300);
     expect(p.set("a", "rwv.saver_idle", "7 phút")).toBe(false);
     // Tuy chon addon la (vd 45 s) van hien duoc trong danh sach
-    expect(new PanelPrefsStore(null).items("b", { ...D, saverIdleS: 45 })[0].options).toContain("1 phút");
+    expect(new PanelPrefsStore(null).items("b", { ...D, saverIdleS: 45 }).find((i) => i.id === "rwv.saver_idle")?.options).toContain("1 phút");
+  });
+});
+
+describe("man hinh khoa (07/10/2026)", () => {
+  it("mac dinh: tat khoa, giu do sang, dong ho lon, thoi tiet chi tiet; nhom 'lock' du muc", () => {
+    const p = new PanelPrefsStore(null);
+    expect([p.lockMode("a"), p.lockBrightness("a"), p.clockSize("a"), p.wxDetail("a")]).toEqual([false, 0, "l", true]);
+    expect(p.items("a", D).filter((i) => i.sec === "lock").map((i) => [i.id, i.value || i.on])).toEqual([
+      ["rwv.lock", false], ["rwv.saver_idle", "2 phút"], ["rwv.lock_bright", "Giữ nguyên"], ["rwv.clock_size", "Lớn"],
+      ["rwv.wx_detail", true], ["rwv.saver_photos", true], ["rwv.photo_interval", "1 phút"]]);
+  });
+  it("doi tung muc, tu choi gia tri la", () => {
+    const p = new PanelPrefsStore(null);
+    expect(p.set("a", "rwv.lock", true)).toBe(true);
+    expect(p.set("a", "rwv.lock_bright", "10%")).toBe(true);
+    expect(p.set("a", "rwv.clock_size", "Rất lớn")).toBe(true);
+    expect(p.set("a", "rwv.wx_detail", false)).toBe(true);
+    expect(p.set("a", "rwv.saver_idle", "30 giây")).toBe(true);
+    expect([p.lockMode("a"), p.lockBrightness("a"), p.clockSize("a"), p.wxDetail("a"), p.saverIdleS("a", 120)]).toEqual([true, 10, "xl", false, 30]);
+    expect(p.items("a", D).find((i) => i.id === "rwv.saver_idle")?.value).toBe("30 giây");
+    expect(p.set("a", "rwv.lock", "co")).toBe(false);
+    expect(p.set("a", "rwv.lock_bright", "15%")).toBe(false);
+    expect(p.set("a", "rwv.clock_size", "Khổng lồ")).toBe(false);
+    expect(p.lockMode("b")).toBe(false);
   });
 });
 

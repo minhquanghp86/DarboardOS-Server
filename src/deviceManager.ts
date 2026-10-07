@@ -176,6 +176,11 @@ export type DeviceSession = {
   /** (26/09/2026 OS-5) Lan cham cuoi (moc cho man hinh cho) va man hinh cho dang hien tren tab active hay khong. */
   lastTouchMs: number;
   saverOn: boolean;
+  /** (07/10/2026) MAN HINH KHOA: dang khoa (chi vuot len tren Shell moi xoa — tin "unlock"). Bao thuc / chuong cua / thong
+   *  bao chi tam hien de len, xong lai khoa ngay. lockDim = da giam sang khi khoa, prev = do sang nguoi dung de tra lai. */
+  locked?: boolean;
+  lockDim?: { prev: number } | null;
+  lockWakeTimer?: ReturnType<typeof setTimeout>;
   /** (01/10/2026) Dang hoi trang co video dang chay khong truoc khi hien man hinh cho. */
   saverProbeBusy?: boolean;
   /** (01/10/2026) Trang thai cong tac HA "Ảnh màn hình chờ" lan dong bo cuoi (undefined = chua thay). */
@@ -1312,7 +1317,14 @@ function handleMenuControl(id: string, payload: unknown, from?: Tab): void {
   if (typeof msg?.alarmSnooze === 'string') { alarms.snooze(msg.alarmSnooze); return; }
   if (msg?.f === 'dnd') { setDnd(id, Number(msg?.v) === 1); for (const d of devices.values()) if (d.deviceId === id) pushDeviceStateToPage(d); return; }
   // (26/09/2026 OS-5) Nguoi dung cham tat man hinh cho.
-  if (msg?.wake) { setSaver(dev, false); dev.lastTouchMs = Date.now(); return; }
+  if (msg?.wake) { dev.locked = false; setSaver(dev, false); dev.lastTouchMs = Date.now(); return; }
+  // (07/10/2026) Man hinh khoa: vuot len = mo khoa; cham = chi sang lai 15 s (khong mo).
+  if (msg?.unlock) {
+    dev.locked = false; setSaver(dev, false); dev.lastTouchMs = Date.now();
+    console.log(`[saver] ${id}: mo khoa (vuot len)`);
+    return;
+  }
+  if (msg?.lockTap) { dev.lastTouchMs = Date.now(); wakeBrightWhileLocked(dev); return; }
   // (26/09/2026) Trang cua MOT tab bao dang phat / da dung (buildAudioGuardScript). Chi tin tab con thuoc thiet bi.
   if (msg?.media != null) {
     if (from && dev.tabs.get(from.key) === from) onTabMedia(dev, from, !!msg.media);
@@ -1467,7 +1479,7 @@ alarms.hooks = {
       const quiet = dndOf(id);
       const screenOff = dev.devState ? !dev.devState.backlightOn : false;
       if (!quiet) {
-        if (dev.cfg.devControl) broadcaster.sendDeviceControl(id, ControlField.Brightness, dev.devState?.brightness ?? 100);
+        if (dev.cfg.devControl) broadcaster.sendDeviceControl(id, ControlField.Brightness, userBrightness(dev));
         dev.lastTouchMs = Date.now(); setSaver(dev, false);
       }
       playSound(dev, Sound.Alarm);
@@ -1513,8 +1525,9 @@ export function postNotify(body: NotifyRequest): { ok: boolean; error?: string; 
     if (!shouldPopup(n, quiet)) continue;
     const wake = shouldWake(n, quiet);
     const screenOff = dev.devState ? !dev.devState.backlightOn : false;
-    if (wake && dev.cfg.devControl) broadcaster.sendDeviceControl(id, ControlField.Brightness, dev.devState?.brightness ?? 100);
-    if (wake) { dev.lastTouchMs = Date.now(); setSaver(dev, false); }
+    if (wake && dev.cfg.devControl) broadcaster.sendDeviceControl(id, ControlField.Brightness, userBrightness(dev));
+    if (wake && dev.locked && dev.saverOn) { dev.lastTouchMs = Date.now(); wakeBrightWhileLocked(dev); }  // (07/10/2026) giu khoa
+    else if (wake) { dev.lastTouchMs = Date.now(); setSaver(dev, false); }
     // Man hinh dang tat: doi den nen bat + remote_webview resume (~0,5 s) roi moi hien, de khung do toi duoc man hinh.
     // (01/10/2026) Firmware tu phat am (?snd=1): am theo loai (tin nhan / uu tien / canh bao khan) voi am luong Thong bao
     // hoac Bao thuc — khong qua luong am thanh trang (Im lang chi tat media). Khong lam phien: khong keu gi.
@@ -1721,6 +1734,7 @@ export function onDeviceStatePacket(dev: DeviceSession, buf: Buffer): void {
   if (!st) return;
   const wasOff = dev.devState ? !dev.devState.backlightOn : false;
   dev.devState = { ...st, receivedAt: Date.now() };
+  if (!dev.lockDim) { const p = lockBrightLoad(dev.deviceId); if (p != null) dev.lockDim = { prev: p }; }
   if (wasOff && st.backlightOn) noteActivity(dev, 'den nen vua bat');
   pushDeviceStateToPage(dev);
 }
@@ -2133,7 +2147,7 @@ export function postDoorbell(body: unknown): { ok: boolean; error?: string; id?:
     if (dev.doorbell) clearTimeout(dev.doorbell.timer);
     dev.doorbell = { id, url, prevKey, unlock: b.unlock, timer: setTimeout(() => endDoorbell(dev, id, 'het gio'), b.timeoutS * 1000) };
     // Sang man hinh (nhu thong bao khan) roi mo trang chuong; da co tab chuong (bam lien tiep) thi tai lai trang moi.
-    if (dev.cfg.devControl) broadcaster.sendDeviceControl(dev.deviceId, ControlField.Brightness, dev.devState?.brightness ?? 100);
+    if (dev.cfg.devControl) broadcaster.sendDeviceControl(dev.deviceId, ControlField.Brightness, userBrightness(dev));
     noteActivity(dev, 'chuong cua');
     // (01/10/2026) Chuong cua = loai Thong bao: firmware tu phat "ding-dong" (Khong lam phien -> im); trang khong keu nua.
     if (canPlay(dev)) playSound(dev, Sound.Doorbell);
@@ -2237,7 +2251,7 @@ export const dialHooks: DialHooks = {
     if (dev.activeTabKey !== 'yttv') dev.castPrev = dev.activeTabKey;
     dev.castUrl = url;
     dev.castLaunchMs = Date.now();
-    if (dev.cfg.devControl) broadcaster.sendDeviceControl(id, ControlField.Brightness, dev.devState?.brightness ?? 100);
+    if (dev.cfg.devControl) broadcaster.sendDeviceControl(id, ControlField.Brightness, userBrightness(dev));
     noteActivity(dev, 'truyen YouTube');
     dev.tabOps.run(async () => {
       const t = dev.tabs.get('yttv');
@@ -3294,7 +3308,9 @@ export function markInteraction(deviceId: string): void {
   if (!d) return;
   d.lastInputMs = Date.now();
   d.lastTouchMs = d.lastInputMs;
-  setSaver(d, false);  // Shell tu go man hinh cho khi duoc cham (cham do bi "nuot", khong toi trang)
+  // (07/10/2026) Dang KHOA: cham khong go (Shell chi mo khi vuot len) — chi sang lai man hinh.
+  if (d.locked && d.saverOn) wakeBrightWhileLocked(d);
+  else setSaver(d, false);  // Shell tu go man hinh cho khi duoc cham (cham do bi "nuot", khong toi trang)
   // (24/09/2026) Cham luc man hinh dang o nua do phan giai: lam net NGAY, khong doi khung moi / hen gio 0,7 s.
   if (d.halfOn && d.sharpenNow) d.sharpenNow();
 }
@@ -3307,6 +3323,13 @@ export function markInteraction(deviceId: string): void {
  */
 function noteActivity(dev: DeviceSession, why: string, alsoTab?: Tab): void {
   dev.lastTouchMs = Date.now();
+  // (07/10/2026) Dang KHOA: den nen bat lai, trang tu dieu huong / tu phat, chuong cua (ke ca luc vao / ra tab chuong) KHONG
+  // mo khoa — nhu dien thoai. Con lai (mo URL tu HA, mo ung dung, truyen YouTube, tro ly) la y muon nguoi dung -> mo khoa.
+  if (dev.locked && (LOCK_KEEP.has(why) || !!dev.doorbell || alsoTab?.key === '__doorbell')) {
+    if (dev.saverOn) wakeBrightWhileLocked(dev);
+    return;
+  }
+  if (dev.locked) { dev.locked = false; console.log(`[saver] ${dev.deviceId}: mo khoa (${why})`); }
   const expr = 'window.__rwvShell && window.__rwvShell.screensaver && window.__rwvShell.screensaver(false)';
   if (alsoTab && alsoTab.session !== dev.cdp) alsoTab.session.send('Runtime.evaluate', { expression: expr }).catch(() => { });
   if (!dev.saverOn) return;
@@ -3331,7 +3354,61 @@ function noteActivity(dev: DeviceSession, why: string, alsoTab?: Tab): void {
  */
 function setSaver(dev: DeviceSession, on: boolean): void {
   dev.saverOn = on;
+  if (!on) restoreBright(dev);
   syncSaver(dev);
+}
+
+// ── (07/10/2026) MAN HINH KHOA / CHO: do sang rieng ──────────────────────────────────────────────────────────────────
+const LOCK_KEEP = new Set(['den nen vua bat', 'trang dieu huong', 'bat dau phat video/am thanh', 'chuong cua']);
+const LOCK_BRIGHT_FILE = process.env.LOCK_BRIGHT_FILE ||
+  path.join(fs.existsSync('/data') ? '/data' : path.join(process.cwd(), 'data'), 'rwv-lock-bright.json');
+function lockBrightAll(): Record<string, number> {
+  try { const j = JSON.parse(fs.readFileSync(LOCK_BRIGHT_FILE, 'utf8')); return j && typeof j === 'object' ? j : {}; } catch { return {}; }
+}
+function lockBrightLoad(id: string): number | null { const v = lockBrightAll()[id]; return typeof v === 'number' ? v : null; }
+/** Luu do sang NGUOI DUNG (null = xoa) — addon khoi dong lai giua luc giam sang van tra lai dung. */
+function lockBrightSave(id: string, v: number | null): void {
+  const all = lockBrightAll();
+  if (v == null) delete all[id]; else all[id] = v;
+  try { fs.mkdirSync(path.dirname(LOCK_BRIGHT_FILE), { recursive: true }); fs.writeFileSync(LOCK_BRIGHT_FILE, JSON.stringify(all)); } catch { /* bo qua */ }
+}
+/** Do sang nguoi dung dang dung (khong phai muc da giam khi khoa). */
+function userBrightness(dev: DeviceSession): number { return dev.lockDim?.prev ?? dev.devState?.brightness ?? 100; }
+/** Vao man hinh khoa / cho: giam ve "Độ sáng khi khóa" (neu dat va thap hon muc dang dung). */
+function dimForSaver(dev: DeviceSession): void {
+  const pct = panelPrefs.lockBrightness(dev.deviceId);
+  const cur = dev.devState?.brightness;
+  if (!pct || !dev.cfg.devControl || cur == null) return;
+  if (!dev.lockDim) {
+    if (cur <= pct) return;
+    dev.lockDim = { prev: cur };
+    lockBrightSave(dev.deviceId, cur);
+  }
+  clearTimeout(dev.lockWakeTimer); dev.lockWakeTimer = undefined;
+  broadcaster.sendDeviceControl(dev.deviceId, ControlField.Brightness, pct);
+}
+/** Ra khoi man hinh khoa / cho: tra lai do sang nguoi dung. */
+function restoreBright(dev: DeviceSession): void {
+  clearTimeout(dev.lockWakeTimer); dev.lockWakeTimer = undefined;
+  if (!dev.lockDim) return;
+  const prev = dev.lockDim.prev;
+  dev.lockDim = null;
+  lockBrightSave(dev.deviceId, null);
+  if (dev.cfg.devControl) broadcaster.sendDeviceControl(dev.deviceId, ControlField.Brightness, prev);
+}
+/** Cham / thong bao / den nen bat lai LUC KHOA: sang lai 15 s roi toi lai (van khoa). */
+function wakeBrightWhileLocked(dev: DeviceSession): void {
+  if (!dev.lockDim || !dev.cfg.devControl) return;
+  broadcaster.sendDeviceControl(dev.deviceId, ControlField.Brightness, dev.lockDim.prev);
+  clearTimeout(dev.lockWakeTimer);
+  dev.lockWakeTimer = setTimeout(() => {
+    dev.lockWakeTimer = undefined;
+    if (dev.saverOn && dev.lockDim) dimForSaver(dev);
+  }, 15_000);
+}
+/** Tham so man hinh khoa / cho cho Shell (screensaver({...})). */
+function saverOptsJs(dev: DeviceSession): string {
+  return JSON.stringify({ lock: !!dev.locked, clock: panelPrefs.clockSize(dev.deviceId), wx: panelPrefs.wxDetail(dev.deviceId) });
 }
 
 function syncSaver(dev: DeviceSession, force = false): void {
@@ -3361,15 +3438,18 @@ export function screensaverTick(): void {
     if (!tab || broadcaster.getClientCount(d.deviceId) === 0) continue;
     // (01/10/2026) Bao thuc / hen gio dang reo: khong che man hinh bao thuc (do that: khung anh de len, khong thay nut Tat).
     if (alarms.ringingOn(d.deviceId)) continue;
+    // (07/10/2026) Dang KHOA (vd vua xong bao thuc / chuong cua / thong bao): hien lai lop khoa ngay, bo qua thoi gian cho
+    // va cam bien co nguoi — van nhuong video dang phat, bao thuc, den nen tat.
+    const locked = !!d.locked;
     if (!shouldShowSaver({
       // (27/09/2026) Khung anh da la man hinh cho — khong phu dong ho len.
-      now, lastTouchMs: d.lastTouchMs, idleMs: panelPrefs.saverIdleS(d.deviceId, SCREENSAVER_IDLE_S) * 1000, mediaPlaying: tab.mediaPlaying || tab.kind === 'photos' ||
+      now, lastTouchMs: d.lastTouchMs, idleMs: locked ? 1 : panelPrefs.saverIdleS(d.deviceId, SCREENSAVER_IDLE_S) * 1000, mediaPlaying: tab.mediaPlaying || tab.kind === 'photos' ||
         // (30/09/2026) Dang truyen tu dien thoai: giua hai video giao dien TV dung yen, nguoi dung cam dien thoai
         // (khong cham panel) -> truoc day man hinh cho hien de len YouTube TV (log that).
         (tab.kind === 'yttv' && !!d.castUrl),
       mediaStoppedMs: tab.mediaStoppedMs,
       backlightOn: d.devState ? d.devState.backlightOn : null, shown: d.saverOn,
-      presenceOn: d.presence?.on === true, presenceOffMs: d.presence && !d.presence.on ? d.presence.at : undefined,
+      presenceOn: !locked && d.presence?.on === true, presenceOffMs: !locked && d.presence && !d.presence.on ? d.presence.at : undefined,
     })) continue;
     // (01/10/2026) KHONG BAO GIO ve de len video dang chay: hoi THANG trang (khong chi dua vao su kien phat/dung trang
     // tu bao — YouTube bao "tam dung" thoang qua khi nap dem). Dang chay -> coi nhu vua dung, dem lai thoi gian ranh.
@@ -3396,12 +3476,14 @@ export function screensaverTick(): void {
 }
 
 function showSaver(d: DeviceSession, tab: Tab): void {
+  if (panelPrefs.lockMode(d.deviceId)) d.locked = true;
   setSaver(d, true);
+  dimForSaver(d);
   d.saverPhotoAt = 0;
   d.cdp.send('Runtime.evaluate', {
-    expression: 'window.__rwvShell && window.__rwvShell.screensaver && window.__rwvShell.screensaver(true)',
+    expression: `window.__rwvShell && window.__rwvShell.screensaver && window.__rwvShell.screensaver(${saverOptsJs(d)})`,
   }).catch(() => { });
-  console.log(`[saver] ${d.deviceId}: hien man hinh cho (tab "${tab.key}")`);
+  console.log(`[saver] ${d.deviceId}: hien ${d.locked ? 'man hinh khoa' : 'man hinh cho'} (tab "${tab.key}")`);
 }
 
 /** Co <video>/<audio> nao DANG CHAY that su (khong dung, chua het, du du lieu de phat). */
