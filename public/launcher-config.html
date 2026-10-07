@@ -321,6 +321,15 @@
   .iv-help li { margin: 3px 0; }
   .iv-help code { font-size: 12px; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
   #iptvView .add svg { width: 20px; height: 20px; fill: currentColor; }
+  .iv-sdl { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-top: 8px; min-height: 120px; }
+  .iv-sdl button { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: none; border-bottom: 1px solid var(--line); background: none;
+    color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+  .iv-sdl button:last-child { border-bottom: none; }
+  .iv-sdl button:hover { background: var(--surface-2); }
+  .iv-sdl svg { width: 20px; height: 20px; flex: none; fill: var(--muted); }
+  .iv-sdl .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .iv-sdl .s { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .iv-sdl .empty { padding: 14px; color: var(--muted); }
   #iptvView .add:disabled, #iptvView .btn:disabled, #iptvView .ic:disabled { opacity: 0.45; cursor: default; }
 </style>
 </head>
@@ -469,7 +478,8 @@
     <div class="card-head"><h2 id="ivFormTitle">Thêm danh sách</h2></div>
     <form class="iv-form" id="ivFormEl" novalidate>
       <label class="field">Tên <input type="text" id="ivName" maxlength="60" placeholder="Ví dụ: Kênh nhà mình"></label>
-      <label class="field">Địa chỉ danh sách <input type="text" id="ivUrl" placeholder="https://…/playlist.m3u  hoặc  /media/iptv/kenh.m3u" autocomplete="off" spellcheck="false"></label>
+      <label class="field">Địa chỉ danh sách <input type="text" id="ivUrl" placeholder="https://…/playlist.m3u  ·  /media/iptv/kenh.m3u  ·  sd:/iptv/kenh.m3u" autocomplete="off" spellcheck="false"></label>
+      <div><button class="btn" type="button" id="ivPickSd"></button> <span class="hint">Tệp .m3u trên thẻ nhớ của màn hình có camera (chép lên bằng thẻ Quản lý file).</span></div>
       <div class="err" id="ivErr" role="alert"></div>
       <div class="acts"><button class="btn" type="button" id="ivCancel">Huỷ</button><button class="btn primary" type="submit" id="ivSave">Lưu</button></div>
     </form>
@@ -478,6 +488,13 @@
   <div class="fm-note iv-help" id="ivHelp"></div>
 </div>
 </main>
+<dialog id="ivSdDlg">
+  <form class="dlg" method="dialog">
+    <div class="dlg-head"><h3>Chọn tệp trên thẻ nhớ</h3></div>
+    <div class="dlg-body"><nav class="crumbs" id="ivSdCrumbs" aria-label="Thư mục"></nav><div id="ivSdList" class="iv-sdl"></div></div>
+    <div class="dlg-foot"><button type="button" class="btn" id="ivSdClose">Đóng</button></div>
+  </form>
+</dialog>
 <dialog id="ivAskDlg">
   <form class="dlg" method="dialog">
     <div class="dlg-head"><h3 id="ivAskTitle"></h3></div>
@@ -1616,7 +1633,7 @@
       };
       sw.append(cb, el('span'));
       var meta = el('div', 'meta'), st = el('div', 'iv-st');
-      meta.append(el('div', 'name', l.name), el('div', 'sub', mask(l.url)));
+      meta.append(el('div', 'name', l.name), el('div', 'sub', l.url.indexOf('sd:') === 0 ? 'Thẻ nhớ · ' + l.url.slice(3) : mask(l.url)));
       if (!l.on) st.textContent = 'Đang tắt';
       else if (l.error) { st.className += ' err'; st.textContent = 'Lỗi: ' + l.error + (l.stale ? ' — đang dùng bản đã lưu (' + l.count + ' kênh).' : '.'); }
       else if (l.at) st.textContent = l.count + ' kênh' + (l.skipped ? ' · bỏ ' + l.skipped + ' kênh udp/rtmp' : '') + ' · cập nhật ' + when(l.at);
@@ -1661,7 +1678,7 @@
   $('ivFormEl').onsubmit = function (e) {
     e.preventDefault();
     var name = $('ivName').value.trim(), url = $('ivUrl').value.trim();
-    if (!url) { $('ivErr').textContent = 'Nhập địa chỉ danh sách (http(s)://… hoặc /media/…).'; $('ivUrl').focus(); return; }
+    if (!url) { $('ivErr').textContent = 'Nhập địa chỉ danh sách (http(s)://…, sd:/… hoặc /media/…).'; $('ivUrl').focus(); return; }
     var next = T.lists.slice(), edit = T.edit;
     if (edit >= 0) next[edit] = Object.assign({}, next[edit], { name: name, url: url });
     else next.push({ name: name, url: url, on: true });
@@ -1680,6 +1697,41 @@
   }
   $('ivAskNo').onclick = function () { $('ivAskDlg').close(); };
   $('ivAskYes').onclick = function () { $('ivAskDlg').close(); if (askFn) askFn(); };
+  // Duyet the nho (API iptv/sd — cung du lieu voi the Quan ly file), chon tep -> "sd:/duong/dan".
+  function sdOpen(dir) {
+    var box = $('ivSdList'), cr = $('ivSdCrumbs'), parts = dir === '/' ? [] : dir.slice(1).split('/');
+    var items = [];
+    var root = el('button', '', 'Thẻ nhớ'); root.type = 'button'; root.disabled = !parts.length; root.onclick = function () { sdOpen('/'); };
+    items.push(root);
+    parts.forEach(function (name, i) {
+      items.push(el('span', 'sep', '›'));
+      var b = el('button', '', name); b.type = 'button'; b.disabled = i === parts.length - 1;
+      b.onclick = function () { sdOpen('/' + parts.slice(0, i + 1).join('/')); };
+      items.push(b);
+    });
+    cr.replaceChildren.apply(cr, items);
+    box.replaceChildren(el('div', 'empty', 'Đang đọc thẻ nhớ…'));
+    fetch('iptv/sd?p=' + encodeURIComponent(dir), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
+      if (!j.ok) throw new Error(j.error || 'Không đọc được thẻ nhớ');
+      if (!j.items.length) { box.replaceChildren(el('div', 'empty', 'Không có thư mục hay tệp .m3u / .m3u8 / .txt ở đây.')); return; }
+      box.replaceChildren.apply(box, j.items.map(function (it) {
+        var p = (dir === '/' ? '' : dir) + '/' + it.n;
+        var b = el('button'); b.type = 'button';
+        b.append(svg(it.d ? 'folder' : 'file-document-outline'), el('span', 'n', it.n), el('span', 's', it.d ? '' : (it.s < 1024 ? it.s + ' B' : Math.round(it.s / 1024) + ' KB')));
+        b.onclick = function () {
+          if (it.d) { sdOpen(p); return; }
+          $('ivUrl').value = 'sd:' + p;
+          if (!$('ivName').value.trim()) $('ivName').value = it.n.replace(/\.(m3u8?|txt)$/i, '');
+          $('ivSdDlg').close();
+        };
+        return b;
+      }));
+    }).catch(function (e) { box.replaceChildren(el('div', 'empty', e.message)); });
+  }
+  $('ivPickSd').append(svg('sd'), el('span', '', 'Chọn trên thẻ nhớ…'));
+  $('ivPickSd').onclick = function () { var cur = $('ivUrl').value.trim(); $('ivSdDlg').showModal();
+    sdOpen(cur.indexOf('sd:/') === 0 && cur.lastIndexOf('/') > 3 ? cur.slice(3, cur.lastIndexOf('/')) : '/'); };
+  $('ivSdClose').onclick = function () { $('ivSdDlg').close(); };
   $('ivAdd').append(svg('playlist-plus'), el('span', '', 'Thêm danh sách'));
   $('ivAdd').onclick = function () { openForm(-1); };
   $('ivRefresh').append(svg('refresh'), el('span', '', 'Tải lại kênh'));
@@ -1693,9 +1745,10 @@
     var ul = el('ul');
     ul.append(
       li(['Phát được: HLS (', code('.m3u8'), '), luồng MPEG-TS / FLV qua HTTP (', code('.ts'), ', Xtream, udpxy), video ', code('.mp4'), '.']),
-      li(['Header riêng từng kênh dùng được: ', code('#EXTVLCOPT:http-user-agent'), ', ', code('http-referrer'), ', ', code('#EXTHTTP'), ', ', code('url|User-Agent=…'), '.']),
-      li(['Không phát được: kênh có DRM (Widevine), DASH (', code('.mpd'), '), ', code('udp://'), ' / ', code('rtmp://'), ', video H.265 hoặc MPEG-2.']),
-      li(['Tệp trên máy: chép vào thư mục media của Home Assistant rồi nhập ', code('/media/…/ten.m3u'), '.']),
+      li(['DASH (', code('.mpd'), ') và kênh mã hoá ClearKey (', code('#KODIPROP … license_type=clearkey'), ') phát được. Header riêng từng kênh: ', code('#EXTVLCOPT:http-user-agent'), ', ', code('http-referrer'), ', ', code('#EXTHTTP'), ', ', code('url|User-Agent=…'), '.']),
+      li(['Không phát được: DRM Widevine / PlayReady, ', code('udp://'), ' / ', code('rtmp://'), ', video H.265 hoặc MPEG-2.']),
+      li(['Tệp trên thẻ nhớ: chép lên bằng thẻ Quản lý file rồi bấm “Chọn trên thẻ nhớ…” (', code('sd:/…'), '). Tệp trong thư mục media của Home Assistant: nhập ', code('/media/…/ten.m3u'), '.']),
+      li(['Trên màn hình: ứng dụng IPTV → nút danh sách (góc trên) để thêm / xoá danh sách ngay tại chỗ.']),
       li(['Danh sách tự cập nhật 6 giờ/lần (mất mạng thì dùng bản đã lưu). Kênh yêu thích dùng chung cho mọi màn hình.'])
     );
     body.append(el('b', '', 'Gợi ý'), ul);

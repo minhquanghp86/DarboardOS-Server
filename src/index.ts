@@ -188,10 +188,12 @@ for (const name of STATIC_PAGES) {
   }
 }
 // (07/10/2026) Thu vien trinh duyet cua IPTV phuc vu thang tu node_modules (phien ban ghim trong package-lock, khong can
-// CDN): hls.js (HLS) va mpegts.js (MPEG-TS / FLV qua HTTP). Apache-2.0.
+// CDN): hls.js (HLS), mpegts.js (MPEG-TS / FLV qua HTTP), shaka-player (DASH, ClearKey). Deu Apache-2.0.
 const VENDOR: Record<string, string> = {
   '/vendor/hls.min.js': 'hls.js/dist/hls.min.js',
   '/vendor/mpegts.js': 'mpegts.js/dist/mpegts.js',
+  // (07/10/2026) DASH + ClearKey (EME co san trong Chromium) — chi nap khi mo kenh can.
+  '/vendor/shaka-player.compiled.js': 'shaka-player/dist/shaka-player.compiled.js',
 };
 const vendorCache = new Map<string, Buffer>();
 for (const [route, rel] of Object.entries(VENDOR)) {

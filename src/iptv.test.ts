@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { kindFromUrl, parseM3u, rewritePlaylist, sniffKind, validateLists } from "./iptv.js";
+import { kindFromUrl, parseClearKey, parseM3u, rewritePlaylist, sniffKind, validateLists } from "./iptv.js";
 
 // Trich danh sach that iptv-org (vn.m3u, 07/10/2026) + cac kieu hay gap o danh sach tu dung / Kodi / Xtream.
 const M3U = `﻿#EXTM3U url-tvg="https://epg.example/vn.xml"
@@ -78,6 +78,47 @@ describe("parseM3u", () => {
   });
 });
 
+describe("ClearKey (KODIPROP — danh sach VN 07/10: TV360 / VTVPrime / FPT)", () => {
+  const K1 = "47404f0123456789abcdef0123456789", V1 = "9fbd0123456789abcdef0123456789ab";
+  it("kid:key hex (ca nhieu cap), JWK base64url, {kid:key}, URL may chu khoa", () => {
+    expect(parseClearKey(`${K1}:${V1}`)).toEqual({ keys: { [K1]: V1 } });
+    expect(parseClearKey(`${K1}:${V1},${V1}:${K1}`)!.keys).toEqual({ [K1]: V1, [V1]: K1 });
+    const b64 = (h: string) => Buffer.from(h, "hex").toString("base64url");
+    expect(parseClearKey(JSON.stringify({ keys: [{ kty: "oct", kid: b64(K1), k: b64(V1) }], type: "temporary" }))).toEqual({ keys: { [K1]: V1 } });
+    expect(parseClearKey(JSON.stringify({ [K1]: V1 }))).toEqual({ keys: { [K1]: V1 } });
+    expect(parseClearKey("https://lic.example/ck?id=1")).toEqual({ url: "https://lic.example/ck?id=1" });
+    expect(parseClearKey("rac")).toBeNull();
+  });
+  it("parseM3u: clearkey -> ck (khong phai drm), drm_legacy, .drm JSON, clearkey thieu khoa -> drm", () => {
+    const r = parseM3u(`#EXTM3U
+#EXTINF:-1 group-title="Sự Kiện TV360",TV360+1
+#EXTVLCOPT:http-user-agent=Dalvik/2.1.0
+#KODIPROP:inputstream.adaptive.manifest_type=mpd
+#KODIPROP:inputstream.adaptive.license_type=clearkey
+#KODIPROP:inputstream.adaptive.license_key=${K1}:${V1}
+https://vmttv.example/tv360/?id=tv360-1
+#EXTINF:-1,Moi
+#KODIPROP:inputstream.adaptive.drm_legacy=org.w3.clearkey|${K1}:${V1}
+https://x.example/a.mpd
+#EXTINF:-1,JSON
+#KODIPROP:inputstream.adaptive.drm={"org.w3.clearkey":{"license":{"keyids":{"${K1}":"${V1}"}}}}
+https://x.example/b.mpd
+#EXTINF:-1,Thieu khoa
+#KODIPROP:inputstream.adaptive.license_type=clearkey
+https://x.example/c.mpd
+`, "l");
+    const [a, b, c, d] = r.channels;
+    expect(a.kind).toBe("dash");
+    expect(a.ck).toEqual({ keys: { [K1]: V1 } });
+    expect(a.drm).toBeUndefined();
+    expect(a.headers).toEqual({ "User-Agent": "Dalvik/2.1.0" });
+    expect(b.ck).toEqual({ keys: { [K1]: V1 } });
+    expect(c.ck).toEqual({ keys: { [K1]: V1 } });
+    expect(d.drm).toBe(true);
+    expect(d.ck).toBeUndefined();
+  });
+});
+
 describe("kindFromUrl", () => {
   it("theo phan mo rong, bo query", () => {
     expect(kindFromUrl("https://x/a/index.m3u8?t=1")).toBe("hls");
@@ -133,9 +174,14 @@ describe("validateLists", () => {
     ]);
     expect(v[0]).toEqual({ id: "a", name: "VN", url: "https://x.example/vn.m3u", on: true });
     expect(v[1].id).not.toBe("a");
-    expect(v[1].name).toBe("Tệp cục bộ");
+    expect(v[1].name).toBe("list");
     expect(() => validateLists([{ url: "ftp://x" }])).toThrow(/http/);
     expect(() => validateLists([{ url: "/etc/passwd" }])).toThrow();
     expect(() => validateLists([{ url: "/media/../etc/passwd" }])).toThrow();
+    const sd = validateLists([{ url: "sd:/iptv/K%C3%AAnh%20nha.m3u8" }, { url: "sd:/IPTV/vtv.m3u" }]);
+    expect(sd[0].name).toBe("Kênh nha");
+    expect(sd[1].name).toBe("vtv");
+    expect(() => validateLists([{ url: "sd:/../x.m3u" }])).toThrow();
+    expect(() => validateLists([{ url: "sd:/" }])).toThrow();
   });
 });

@@ -93,6 +93,39 @@ function cam(pathQuery: string, method = 'GET', body?: Buffer): Promise<{ code: 
 
 const enc = encodeURIComponent;
 
+/** (07/10/2026) IPTV (src/iptv.ts): liet ke mot thu muc the SD — chon tep danh sach kenh ngay tren panel / trang Darboard. */
+export async function sdLs(dir: string): Promise<{ n: string; d: boolean; s: number; t: number }[]> {
+  const q = cleanSdPath(dir);
+  if (!q) throw new Error('Đường dẫn không hợp lệ');
+  const r = await cam('/sd/ls?p=' + enc(q));
+  if (r.code >= 400) throw new Error(r.j?.error || r.j?.err || `Thẻ nhớ báo lỗi ${r.code}`);
+  return ((r.j?.items || []) as { n?: unknown; d?: unknown; s?: unknown; t?: unknown }[])
+    .map((i) => ({ n: String(i.n ?? ''), d: !!i.d, s: Number(i.s) || 0, t: Number(i.t) || 0 }))
+    .filter((i) => i.n && i.n[0] !== '.' && !/\.part$/i.test(i.n));
+}
+
+/** (07/10/2026) IPTV: doc mot tep van ban (danh sach M3U) tu the SD, toi da `max` byte. */
+export function sdReadText(p: string, max: number): Promise<string> {
+  const q = cleanSdPath(p);
+  if (!q || q === '/') return Promise.reject(new Error('Đường dẫn không hợp lệ'));
+  const h = cameraHost();
+  if (!h) return Promise.reject(new Error('màn hình có thẻ nhớ chưa kết nối'));
+  return fileGate.run(() => new Promise<string>((resolve, reject) => {
+    const up = http.request({ host: h.ip, port: h.port, path: '/sd/get?p=' + enc(q), timeout: 30_000 }, (r) => {
+      const code = r.statusCode || 502;
+      if (code >= 400) { r.resume(); reject(new Error(code === 404 ? 'không thấy tệp trên thẻ nhớ' : `thẻ nhớ báo lỗi ${code}`)); return; }
+      const parts: Buffer[] = [];
+      let n = 0;
+      r.on('data', (c: Buffer) => { n += c.length; if (n > max) { up.destroy(); reject(new Error('tệp quá lớn (> 20 MB)')); } else parts.push(c); });
+      r.on('end', () => resolve(Buffer.concat(parts).toString('utf8')));
+      r.on('error', reject);
+    });
+    up.on('timeout', () => up.destroy(new Error('màn hình có thẻ nhớ không trả lời')));
+    up.on('error', reject);
+    up.end();
+  }));
+}
+
 /** Tai mot tep tu the ve dia (de doi MP4 / ...). */
 function downloadTo(p: string, dest: string): Promise<void> {
   const h = cameraHost();

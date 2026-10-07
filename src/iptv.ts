@@ -19,6 +19,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import type { Readable } from 'node:stream';
+import { cleanSdPath, sdLs, sdReadText } from './fileManager.js';
 
 export type StreamKind = 'hls' | 'ts' | 'flv' | 'mp4' | 'dash' | 'auto';
 export interface Channel {
@@ -31,9 +32,14 @@ export interface Channel {
   /** User-Agent / Referer / Origin / Cookie rieng cua kenh (EXTVLCOPT, EXTHTTP, hau to "|k=v"). */
   headers?: Record<string, string>;
   kind: StreamKind;
+  /** DRM KHONG phat duoc (Widevine / PlayReady / ClearKey thieu khoa). */
   drm?: boolean;
+  /** (07/10/2026) ClearKey: khoa (kid hex -> key hex) hoac may chu cap khoa — trang phat bang shaka-player (EME ClearKey
+   *  co san trong Chromium, khong can CDM). Danh sach VN (vmttv: 60/525 kenh TV360 / VTVPrime / FPT) dung kieu nay. */
+  ck?: ClearKey;
   list: string;
 }
+export interface ClearKey { keys?: Record<string, string>; url?: string }
 export interface IptvList { id: string; name: string; url: string; on: boolean }
 interface IptvConfig { lists: IptvList[]; favs: string[] }
 
@@ -74,6 +80,47 @@ function parseExtinf(line: string): { name: string; attrs: Record<string, string
 
 function normHeader(k: string): string { return HEADER_NAMES[k.trim().toLowerCase()] ?? k.trim(); }
 
+/** kid / key ClearKey -> 32 ky tu hex: hex (co the dang UUID co gach) hoac base64 / base64url 16 byte. */
+function hex16(v: unknown): string | null {
+  const s = String(v ?? '').trim();
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)) return s.replace(/-/g, '').toLowerCase();
+  if (/^[0-9a-f]{32}$/i.test(s)) return s.toLowerCase();
+  if (/^[A-Za-z0-9+/_-]{21,24}={0,2}$/.test(s)) {
+    const b = Buffer.from(s.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
+    if (b.length === 16) return b.toString('hex');
+  }
+  return null;
+}
+
+/**
+ * Khoa ClearKey trong danh sach (inputstream.adaptive cua Kodi): "kid:key[,kid:key]" (hex / base64), JSON JWK
+ * {"keys":[{"kty":"oct","kid":"..","k":".."}]}, JSON {"kid":"key"}, hoac URL may chu cap khoa. Khong doc duoc -> null.
+ */
+export function parseClearKey(v: string): ClearKey | null {
+  const s = v.trim();
+  if (!s) return null;
+  if (/^https?:\/\//i.test(s)) return { url: s.split('|')[0] };
+  const keys: Record<string, string> = {};
+  if (s.startsWith('{')) {
+    try {
+      const j = JSON.parse(s) as Record<string, unknown>;
+      if (Array.isArray(j.keys)) {
+        for (const k of j.keys as Record<string, unknown>[]) { const a = hex16(k?.kid), b = hex16(k?.k); if (a && b) keys[a] = b; }
+      } else {
+        for (const [kid, key] of Object.entries(j)) { const a = hex16(kid), b = hex16(key); if (a && b) keys[a] = b; }
+      }
+    } catch { return null; }
+  } else {
+    for (const pair of s.split(/[,;\s]+/)) {
+      const i = pair.indexOf(':');
+      if (i <= 0) continue;
+      const a = hex16(pair.slice(0, i)), b = hex16(pair.slice(i + 1));
+      if (a && b) keys[a] = b;
+    }
+  }
+  return Object.keys(keys).length ? { keys } : null;
+}
+
 /** Kieu luong doan theo duong dan (phan mo rong) — 'auto' = hoi may chu (/iptv/probe) luc phat. */
 export function kindFromUrl(url: string): StreamKind {
   let p: string;
@@ -105,8 +152,8 @@ export function parseM3u(text: string, listId: string): { channels: Channel[]; s
   let inf: { name: string; attrs: Record<string, string> } | null = null;
   let grp: string | undefined;
   let headers: Record<string, string> = {};
-  let drm = false, dash = false;
-  const reset = () => { inf = null; grp = undefined; headers = {}; drm = false; dash = false; };
+  let dash = false, licType = '', licKey = '';
+  const reset = () => { inf = null; grp = undefined; headers = {}; dash = false; licType = ''; licKey = ''; };
   for (const raw of lines) {
     const line = raw.trim();
     if (!line) continue;
@@ -135,9 +182,24 @@ export function parseM3u(text: string, listId: string): { channels: Channel[]; s
       continue;
     }
     if (line.startsWith('#KODIPROP:')) {
-      const kv = line.slice(10);
-      if (/license_(type|key)\s*=/i.test(kv)) drm = true;
-      if (/manifest_type\s*=\s*mpd/i.test(kv)) dash = true;
+      const kv = line.slice(10), eq = kv.indexOf('=');
+      if (eq <= 0) continue;
+      const k = kv.slice(0, eq).trim().toLowerCase(), val = kv.slice(eq + 1).trim();
+      if (k.endsWith('license_type')) licType = val.toLowerCase();
+      else if (k.endsWith('license_key')) licKey = val;
+      else if (k.endsWith('manifest_type')) dash = /mpd|dash/i.test(val);
+      else if (k.endsWith('drm_legacy')) {  // "org.w3.clearkey|kid:key" (inputstream.adaptive moi)
+        const bar = val.indexOf('|');
+        licType = (bar >= 0 ? val.slice(0, bar) : val).toLowerCase();
+        licKey = bar >= 0 ? val.slice(bar + 1) : '';
+      } else if (k.endsWith('.drm')) {  // {"org.w3.clearkey":{"license":{"keyids":{kid:key}}}}
+        try {
+          const j = JSON.parse(val) as Record<string, { license?: { keyids?: Record<string, string>; server_url?: string } }>;
+          const c = j['org.w3.clearkey'];
+          if (c) { licType = 'clearkey'; licKey = c.license?.keyids ? JSON.stringify(c.license.keyids) : c.license?.server_url ?? ''; }
+          else licType = Object.keys(j)[0] ?? 'drm';
+        } catch { /* dong hong */ }
+      }
       continue;
     }
     if (line.startsWith('#')) continue;
@@ -156,7 +218,12 @@ export function parseM3u(text: string, listId: string): { channels: Channel[]; s
       }
     }
     const cur = inf as { name: string; attrs: Record<string, string> } | null;
-    const g = grp, isDrm = drm, isDash = dash;
+    const g = grp, isDash = dash;
+    let ck: ClearKey | null = null, isDrm = false;
+    if (licType) {
+      if (licType.includes('clearkey')) { ck = parseClearKey(licKey); isDrm = !ck; }
+      else isDrm = true;  // Widevine / PlayReady: khong co CDM / ma giay phep
+    }
     reset();
     if (!/^https?:\/\//i.test(url)) { skipped++; continue; }
     if (seen.has(url)) continue;
@@ -176,6 +243,7 @@ export function parseM3u(text: string, listId: string): { channels: Channel[]; s
     if (logo && /^https?:\/\//i.test(logo)) ch.logo = logo;
     if (Object.keys(h).length) ch.headers = h;
     if (isDrm) ch.drm = true;
+    if (ck) ch.ck = ck;
     channels.push(ch);
   }
   return { channels, skipped, epg };
@@ -252,7 +320,16 @@ const state = new Map<string, ListState>();
 const inflight = new Map<string, Promise<ListState>>();
 
 /** Ten may chu (khong lo duong dan / tai khoan Xtream trong log). */
-function hostOf(u: string): string { try { return new URL(u).host; } catch { return u.startsWith('/') ? 'tep cuc bo' : '?'; } }
+function hostOf(u: string): string {
+  if (u.startsWith('sd:')) return 'the nho';
+  try { return new URL(u).host; } catch { return u.startsWith('/') ? 'tep cuc bo' : '?'; }
+}
+/** (07/10/2026) "sd:/thu-muc/kenh.m3u" = tep tren THE NHO cua man hinh co camera (P4), doc qua cam_app. */
+function sdPath(u: string): string | null {
+  if (!u.startsWith('sd:')) return null;
+  const p = cleanSdPath(u.slice(3));
+  return p && p !== '/' ? p : null;
+}
 
 /** Duong dan tep cuc bo duoc phep: /media (HA, chi doc) va /config (thu muc cau hinh rieng cua addon). */
 function localPath(u: string): string | null {
@@ -262,6 +339,8 @@ function localPath(u: string): string | null {
 }
 
 async function fetchText(u: string): Promise<string> {
+  const sp = sdPath(u);
+  if (sp) return sdReadText(sp, MAX_LIST_BYTES);
   const lp = localPath(u);
   if (lp) {
     const st = await fs.promises.stat(lp);
@@ -411,8 +490,12 @@ async function proxy(req: http.IncomingMessage, res: http.ServerResponse, url: U
   }
   const ur = up.res;
   const code = ur.statusCode ?? 502;
-  const hdr: http.OutgoingHttpHeaders = { 'cache-control': 'no-store' };
+  // x-final-url: dia chi CUOI sau chuyen huong — shaka-player lay lam goc tinh duong dan tuong doi trong MPD (DASH).
+  const hdr: http.OutgoingHttpHeaders = { 'cache-control': 'no-store', 'x-final-url': up.url };
   for (const k of ['content-type', 'content-length', 'content-range', 'accept-ranges']) if (ur.headers[k]) hdr[k] = ur.headers[k];
+  // Moi buoc ghi deu boc try: server KHONG co bo bat loi toan cuc — mot loi nem ra trong su kien luong (vd header la)
+  // se lam sap ca server (moi man hinh den).
+  const head = (c: number, h: http.OutgoingHttpHeaders) => { try { res.writeHead(c, h); return true; } catch { res.destroy(); ur.destroy(); return false; } };
   // MOT bo xu ly 'data' co trang thai: goi dau quyet dinh playlist (gom + viet lai) hay chuyen thang. KHONG pause() roi
   // resume() de "nhin truoc": do 07/10 tren HASS, playlist nam gon trong goi dau (546 B, content-length) thi 'end' khong
   // bao gio toi sau resume -> trang treo 12 s (33/40 kenh mau hong). Chuyen thang tu lo backpressure (drain).
@@ -421,12 +504,12 @@ async function proxy(req: http.IncomingMessage, res: http.ServerResponse, url: U
   let n = 0;
   const pass = (c: Buffer) => {
     if (res.destroyed) return;
-    if (!res.write(c)) { ur.pause(); res.once('drain', () => ur.resume()); }
+    try { if (!res.write(c)) { ur.pause(); res.once('drain', () => ur.resume()); } } catch { res.destroy(); ur.destroy(); }
   };
   ur.on('data', (c: Buffer) => {
     if (mode === 'peek') {
       if (code < 400 && isPlaylistStart(c)) mode = 'pl';
-      else { mode = 'pass'; res.writeHead(code, hdr); pass(c); return; }
+      else { mode = 'pass'; if (head(code, hdr)) pass(c); return; }
     }
     if (mode === 'pl') {
       n += c.length;
@@ -435,14 +518,12 @@ async function proxy(req: http.IncomingMessage, res: http.ServerResponse, url: U
     } else pass(c);
   });
   ur.on('end', () => {
+    if (res.destroyed) return;
     if (mode === 'pl') {
-      const body = rewritePlaylist(Buffer.concat(chunks).toString('utf8'), up.url, (abs) => proxyUrl(abs, hParam));
-      res.writeHead(200, { 'content-type': 'application/vnd.apple.mpegurl', 'cache-control': 'no-store' });
-      res.end(body);
-    } else {
-      if (mode === 'peek') res.writeHead(code, hdr);
-      res.end();
-    }
+      let body: string;
+      try { body = rewritePlaylist(Buffer.concat(chunks).toString('utf8'), up.url, (abs) => proxyUrl(abs, hParam)); } catch { res.destroy(); return; }
+      if (head(200, { 'content-type': 'application/vnd.apple.mpegurl', 'cache-control': 'no-store', 'x-final-url': up.url })) res.end(body);
+    } else if (mode === 'pass' || head(code, hdr)) res.end();
   });
   ur.on('error', () => res.destroy());
 }
@@ -487,8 +568,12 @@ export function validateLists(v: unknown): IptvList[] {
   return v.map((x, i) => {
     const o = (x ?? {}) as Record<string, unknown>;
     const url = String(o.url ?? '').trim();
-    if (!/^https?:\/\/\S+$/i.test(url) && !localPath(url)) throw new Error(`danh sách ${i + 1}: địa chỉ phải bắt đầu bằng http(s):// hoặc /media/ /config/`);
-    const name = String(o.name ?? '').trim().slice(0, 60) || (localPath(url) ? 'Tệp cục bộ' : hostOf(url));
+    if (!/^https?:\/\/\S+$/i.test(url) && !localPath(url) && !sdPath(url)) {
+      throw new Error(`danh sách ${i + 1}: địa chỉ phải là http(s)://…, tệp trên thẻ nhớ hoặc /media/…`);
+    }
+    const file = sdPath(url) ?? localPath(url);
+    const name = String(o.name ?? '').trim().slice(0, 60) ||
+      (file ? decodeURIComponent(file.slice(file.lastIndexOf('/') + 1)).replace(/\.(m3u8?|txt)$/i, '') || 'Tệp cục bộ' : hostOf(url));
     let id = String(o.id ?? '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 24);
     if (!id || ids.has(id)) id = 'l' + hash36(url + i + Date.now());
     ids.add(id);
@@ -542,10 +627,22 @@ export function handleIptvApi(req: http.IncomingMessage, res: http.ServerRespons
     }).catch(() => json(res, 400, { ok: false }));
     return true;
   }
+  if (p === '/iptv/sd' && req.method === 'GET') {
+    // Duyet the nho tim tep danh sach (tu trang IPTV tren panel — can ma phien — hoac trang Darboard).
+    if (!ingress && url.searchParams.get('t') !== TOKEN) { json(res, 403, { error: 'Thiếu mã phiên.' }); return true; }
+    const dir = url.searchParams.get('p') || '/';
+    sdLs(dir).then((items) => json(res, 200, {
+      ok: true, dir, items: items.filter((i) => i.d || /\.(m3u8?|txt)$/i.test(i.n))
+        .sort((a, b) => (a.d === b.d ? a.n.localeCompare(b.n, 'vi', { numeric: true }) : a.d ? -1 : 1)),
+    })).catch((e) => json(res, 200, { ok: false, error: (e as Error).message }));
+    return true;
+  }
   if (p === '/iptv/config' && req.method === 'GET') { configView().then((v) => json(res, 200, v)).catch((e) => json(res, 500, { ok: false, error: (e as Error).message })); return true; }
   if (p === '/iptv/refresh' && req.method === 'POST') { configView(true).then((v) => json(res, 200, v)).catch((e) => json(res, 500, { ok: false, error: (e as Error).message })); return true; }
   if (p === '/iptv/config' && req.method === 'POST') {
-    if (!ingress) { json(res, 403, { error: 'Chỉ lưu được từ trang Darboard trong Home Assistant.' }); return true; }
+    // (07/10/2026) Luu tu trang Darboard HOAC tu chinh ung dung IPTV tren panel (them / xoa danh sach nhu app that) — trang
+    // panel phai kem ma phien (chi trang cung nguon doc duoc), trang web la trong tab Trinh duyet khong sua duoc.
+    if (!ingress && url.searchParams.get('t') !== TOKEN) { json(res, 403, { error: 'Chỉ lưu được từ ứng dụng IPTV hoặc trang Darboard.' }); return true; }
     readJson(req, 64 * 1024).then(async (b) => {
       const lists = validateLists((b as { lists?: unknown }).lists);
       const c = config();

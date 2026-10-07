@@ -2,8 +2,10 @@
 ### Ứng dụng IPTV (mới)
 - Menu → Giải trí → **IPTV**: xem kênh từ danh sách M3U của bạn. Kênh xếp theo nhóm, tìm theo tên (không cần gõ dấu),
   kênh yêu thích (☆), "Xem tiếp" kênh cuối. Đang xem: chạm hiện thông tin kênh, **vuốt lên / xuống** để đổi kênh.
-- Thêm / bật tắt / sửa danh sách ở trang **Darboard → IPTV** trong Home Assistant (đường link hoặc tệp `/media/…`).
-- Phát được HLS (m3u8), MPEG-TS / FLV qua HTTP, mp4; dùng được User-Agent / Referer riêng của từng kênh trong danh sách.
+- **Quản lý danh sách ngay trong ứng dụng** (nút danh sách ở góc trên, như app IPTV thật): thêm bằng **đường link** hoặc
+  **tệp .m3u trên thẻ nhớ**, bật / tắt, sửa, xoá, cập nhật. Cũng làm được ở trang **Darboard → IPTV** trong Home Assistant.
+- Phát được HLS (m3u8), MPEG-TS / FLV qua HTTP, mp4, **DASH và kênh mã hoá ClearKey** (TV360, VTVPrime… trong các danh
+  sách VN); dùng được User-Agent / Referer riêng của từng kênh. Không phát được: DRM Widevine / PlayReady.
 - Máy chủ chuyển tiếp luồng (không vướng CORS); rời ứng dụng là ngắt luồng, quay lại thì phát tiếp kênh đang xem.
 
 ## V2.9.110
