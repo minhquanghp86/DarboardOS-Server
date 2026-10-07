@@ -221,7 +221,9 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .saver.anim { animation: sv-in 500ms ease-out; }
 @keyframes sv-in { from { opacity: 0; } }
 .sv-box { display: flex; flex-direction: column; align-items: center; gap: clamp(4px, 1.6vmin, 14px); }
-.sv-clock { font-size: min(30vmin, 21vw); font-weight: 300; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: #f2f4f8; }
+/* (07/10/2026) Bebas Neue (clockFont.ts, nguoi dung chon): chu cao + hep, mot do dam; line-height 0.82 vi chu so chi cao ~0,7em. */
+.sv-clock { font-family: "RwvClock", "Be Vietnam Pro", Roboto, sans-serif; font-size: min(30vmin, 21vw); font-weight: 400; line-height: 0.82;
+  letter-spacing: 0.02em; font-variant-numeric: tabular-nums; color: #f2f4f8; }
 .sv-date { font-size: clamp(13px, 3.8vmin, 28px); color: var(--muted); }
 .sv-wx { display: flex; align-items: center; gap: clamp(6px, 1.4vmin, 12px); font-size: clamp(13px, 3.6vmin, 26px); color: #cfd6e4; }
 .sv-wx:empty { display: none; }
@@ -266,12 +268,12 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
    vuot len o day. KHONG co hoat anh lap lien tuc (moi khung doi = mot khung gui qua WiFi). */
 .sv-main { display: flex; flex-direction: column; align-items: center; gap: clamp(4px, 1.6vmin, 14px); }
 .saver.photo .sv-main { align-items: flex-start; gap: 2px; }
-.saver.ck-m .sv-clock { font-size: min(30vmin, 21vw); }
-.saver.ck-l .sv-clock { font-size: min(40vmin, 26vw); }
-.saver.ck-xl .sv-clock { font-size: min(50vmin, 31vw); }
-.saver.photo.ck-m .sv-clock { font-size: min(15vmin, 12vw); }
-.saver.photo.ck-l .sv-clock { font-size: min(20vmin, 15vw); }
-.saver.photo.ck-xl .sv-clock { font-size: min(26vmin, 19vw); }
+.saver.ck-m .sv-clock { font-size: min(40vmin, 34vw); }
+.saver.ck-l .sv-clock { font-size: min(52vmin, 42vw); }
+.saver.ck-xl .sv-clock { font-size: min(64vmin, 50vw); }
+.saver.photo.ck-m .sv-clock { font-size: min(20vmin, 16vw); }
+.saver.photo.ck-l .sv-clock { font-size: min(26vmin, 20vw); }
+.saver.photo.ck-xl .sv-clock { font-size: min(32vmin, 25vw); }
 .saver.hascard .sv-wx { display: none; }
 .sv-card:empty { display: none; }
 .sv-card { display: flex; flex-direction: column; gap: clamp(8px, 2vmin, 16px); color: #dfe6f2; box-sizing: border-box;
@@ -296,17 +298,17 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   .saver.hascard .sv-box { flex-direction: row; align-items: center; gap: clamp(16px, 4vw, 48px); max-width: 94vw; }
   .saver.hascard .sv-main { align-items: flex-start; flex: 0 1 auto; min-width: 0; }
   .saver.hascard .sv-card { flex: 0 1 auto; max-width: 40vw; }
-  .saver.hascard.ck-m .sv-clock { font-size: min(24vmin, 17vw); }
-  .saver.hascard.ck-l .sv-clock { font-size: min(30vmin, 21vw); }
-  .saver.hascard.ck-xl .sv-clock { font-size: min(36vmin, 25vw); }
+  .saver.hascard.ck-m .sv-clock { font-size: min(32vmin, 21vw); }
+  .saver.hascard.ck-l .sv-clock { font-size: min(40vmin, 25vw); }
+  .saver.hascard.ck-xl .sv-clock { font-size: min(46vmin, 28vw); }
 }
 @media (max-aspect-ratio: 4/3) {
   /* Man vuong (S3 480x480): dong ho + ngay + the xep doc gan het chieu cao -> bot mot nac co de chua cho goi y vuot. */
   .saver.hascard .sv-card { padding: 8px 12px; gap: 6px; }
   .saver.hascard .wc-h:nth-child(n+5) { display: none; }
-  .saver.hascard.ck-m .sv-clock { font-size: min(22vmin, 20vw); }
-  .saver.hascard.ck-l .sv-clock { font-size: min(26vmin, 24vw); }
-  .saver.hascard.ck-xl .sv-clock { font-size: min(30vmin, 27vw); }
+  .saver.hascard.ck-m .sv-clock { font-size: min(26vmin, 24vw); }
+  .saver.hascard.ck-l .sv-clock { font-size: min(32vmin, 28vw); }
+  .saver.hascard.ck-xl .sv-clock { font-size: min(38vmin, 32vw); }
 }
 .sv-hint { position: absolute; left: 0; right: 0; bottom: clamp(8px, 2.6vmin, 22px); display: flex; flex-direction: column; align-items: center;
   gap: 2px; color: rgba(226,232,240,0.5); font: 500 clamp(12px, 2.8vmin, 18px)/1.2 "Be Vietnam Pro", Roboto, sans-serif; pointer-events: none; }

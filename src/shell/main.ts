@@ -10,6 +10,7 @@ import { el, mdi, pad2, setText, svgEl } from './dom';
 import { App, appIcon, weatherIcon } from './icons';
 import { HomeApi, mountHome } from './home';
 import { classifyLockGesture } from './lockGesture';
+import { loadClockFont } from './clockFont';
 import type { HomeLayout } from '../homeLayout';
 
 declare global { interface Window { [k: string]: any } }
@@ -81,6 +82,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   const style = document.createElement('style');
   style.textContent = CSS;
   shadow.appendChild(style);
+  loadClockFont();  // (07/10/2026) font dong ho man hinh khoa (Bebas Neue, chi chu so)
   const root = el('div', 'root');
   shadow.appendChild(root);
 
