@@ -9,6 +9,8 @@ import { WebSocket } from "ws";
 import { buildFrameStatsPacket, buildFramePackets, buildCurrentURLPacket, buildSetDisplayURLPacket, buildAudioFramePacket, buildDeviceControlPacket, ControlField, FLAG_HALF_SCALE } from "./protocol.js";
 import type { FrameOut } from "./frameProcessor.js";
 import { metrics } from "./metrics.js";
+import { kernelTxQueue } from "./kernelQueue.js";
+import { tuning } from "./tuning.js";
 
 type OutFrame = { frameId: number; packets: Buffer[] };
 type BroadcasterState = { queue: OutFrame[]; sending: boolean };
@@ -118,12 +120,27 @@ export class DeviceBroadcaster {
   // `bufferedAmount` là tín hiệu quá tải ĐÁNG TIN NHẤT vì nó không phụ thuộc
   // vào việc thiết bị có báo số liệu về được hay không — mà đúng lúc quá tải
   // thì gói FrameStats cũng chính là thứ không lọt.
+  //
+  // (07/10/2026, 2.9.108) Cong them hang doi gui cua KERNEL (xem kernelQueue.ts): do that P4 phat YouTube, kernel giu toi
+  // 374 KB ma bufferedAmount khong thay -> bo khung / gian nhip phan ung qua muon, tieng xep sau va bi dut. Tat bang
+  // "kernelBacklog": false trong /data/rwv-tuning.json.
+  private _backlog(ws: WebSocket): number {
+    let b = ws.bufferedAmount;
+    if (tuning().kernelBacklog !== false) {
+      const s = (ws as unknown as { _socket?: { remoteAddress?: string; remotePort?: number; localPort?: number } })._socket;
+      if (s) b += kernelTxQueue(s.remoteAddress, s.remotePort, s.localPort);
+    }
+    return b;
+  }
+
   backlogBytes(id: string): number {
     const peers = this._clients.get(id);
     if (!peers) return 0;
     let max = 0;
     for (const ws of peers) {
-      if (ws.readyState === WebSocket.OPEN && ws.bufferedAmount > max) max = ws.bufferedAmount;
+      if (ws.readyState !== WebSocket.OPEN) continue;
+      const b = this._backlog(ws);
+      if (b > max) max = b;
     }
     return max;
   }
@@ -137,7 +154,7 @@ export class DeviceBroadcaster {
     for (const ws of peers) {
       if (ws.readyState !== WebSocket.OPEN) continue;
       const sent = this._sentBytes.get(ws) ?? 0;
-      if (!best || sent > best.sent) best = { sent, backlog: ws.bufferedAmount };
+      if (!best || sent > best.sent) best = { sent, backlog: this._backlog(ws) };
     }
     return best;
   }

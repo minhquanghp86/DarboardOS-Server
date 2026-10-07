@@ -1,3 +1,10 @@
+## V2.9.108
+### Tiếng không còn bị ngắt quãng khi xem video trên màn P4
+- Khi phát video, nhân Linux của máy chủ giữ sẵn tới ~370 KB dữ liệu hình chờ gửi cho màn hình (đo thật 07/10) mà máy chủ
+  không thấy, nên vẫn đẩy thêm hình; gói tiếng phải xếp sau và tới màn hình trễ 0,4–0,9 s → loa bị ngắt, rồi bị dồn.
+- Máy chủ giờ cộng cả phần nhân đang giữ (đọc `/proc/net/tcp6`) vào "tồn đọng", nên bỏ khung / giãn nhịp kịp lúc.
+- Tắt nhanh nếu cần: thêm `"kernelBacklog": false` vào `/data/rwv-tuning.json` (không cần khởi động lại).
+
 ## V2.9.107
 ### Tự ngắt kết nối khi màn hình ngừng đọc dữ liệu
 
