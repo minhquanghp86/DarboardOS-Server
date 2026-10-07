@@ -190,6 +190,38 @@ describe("GĐ3 - bộ điều khiển thích nghi", () => {
     expect(st.probeFloorMs == null || st.probeFloorMs < 50).toBe(true);
   });
 
+  it("đường truyền RÕ RÀNG khoẻ (tồn đọng ~0, dùng < 25% băng thông) -> bỏ ngưỡng cũ ~350 ms, ≤ 80 ms trong ~75 s (P4 07/10)", () => {
+    // Do that: nguong hoc luc mang P4 nghen giu ~3 fps nhieu phut sau khi mang het nghen.
+    let st: AdaptiveState = { ...initialAdaptiveState(40, 33, t0), quality: 40, minFrameIntervalMs: 400, probeFloorMs: 350, probeBlocked: 0 };
+    let now = t0;
+    const healthy = { decodeMs: 16, bytesPerSec: 120_000, recentBytesPerSec: 120_000, capacityBytesPerSec: 2_000_000, backlogBytes: 0, frameErrors: 0 };
+    let reached = -1;
+    for (let i = 1; i <= 24; i++) {  // nhip dieu tiet that 5 s -> 2 phut
+      now += 5_000;
+      st = decideAdaptive(healthy, st, cfg, now).state;
+      if (reached < 0 && st.minFrameIntervalMs <= 80) reached = i * 5;
+    }
+    expect(st.probeFloorMs).toBeUndefined();
+    expect(reached).toBeGreaterThan(0);
+    expect(reached).toBeLessThanOrEqual(75);
+  });
+
+  it("thiếu số đo tồn đọng / băng thông -> GIỮ cách nới cũ (50 ms sau probeRetryAfter vòng)", () => {
+    let st: AdaptiveState = { ...initialAdaptiveState(40, 33, t0), quality: 80, minFrameIntervalMs: 400, probeFloorMs: 350, probeBlocked: 0 };
+    let now = t0;
+    const light = { decodeMs: 5, bytesPerSec: 1000, frameErrors: 0 };
+    for (let i = 0; i < cfg.probeRetryAfter; i++) { now += cfg.cooldownMs + 5_000; st = decideAdaptive(light, st, cfg, now).state; }
+    expect(st.probeFloorMs).toBe(350 - cfg.intervalStepMs);
+  });
+
+  it("đang dùng gần hết băng thông (≥ 25%) -> KHÔNG coi là khoẻ, giữ cách nới cũ", () => {
+    let st: AdaptiveState = { ...initialAdaptiveState(40, 33, t0), quality: 40, minFrameIntervalMs: 400, probeFloorMs: 350, probeBlocked: 0 };
+    let now = t0;
+    const busy = { decodeMs: 16, bytesPerSec: 600_000, recentBytesPerSec: 600_000, capacityBytesPerSec: 1_000_000, backlogBytes: 0, frameErrors: 0 };
+    for (let i = 0; i < 3; i++) { now += cfg.cooldownMs + 5_000; st = decideAdaptive(busy, st, cfg, now).state; }
+    expect(st.probeFloorMs).toBe(350);
+  });
+
   it("nhịp giãn làm ngân sách rộng ra -> hết quá tải", () => {
     const st = { ...initialAdaptiveState(40, 150, t0) };
     // ngân sách = 75ms; decode 60ms -> không vượt -> ổn định

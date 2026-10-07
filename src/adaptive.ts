@@ -376,13 +376,19 @@ export function decideAdaptive(
 
   // Bi ngUong chan ma van rat thoai mai qua nhieu vong -> noi thu mot buoc.
   // Khong co co che noi nay thi mot lan qua tai nhat thoi se khoa fps vinh vien.
+  // (07/10/2026) Co BANG CHUNG duong truyen da khoe (do duoc ton dong ~0 VA dang dung < 25% bang thong uoc luong) 2 vong
+  // lien -> BO HAN nguong (nguong la cua luc nghen cu). Do that P4 07/10: nguong hoc luc mang P4 nghen (~350 ms) giu ~3 fps
+  // nhieu phut sau khi doi cho / mang het nghen (cach cu moi ~45 s noi 50 ms: ~5 phut; noi nua khoang cach: ~3 phut;
+  // bo han: ~1 phut). Thieu so do -> giu cach cu. Duong truyen van yeu -> lan nghen ke tiep dat lai nguong ngay.
+  const clearlyHealthy = sample.backlogBytes != null && sample.backlogBytes <= cfg.maxBacklogBytes / 8
+    && cap != null && cap > 0 && rate < 0.25 * cap;
   if (comfortable && out.probeFloorMs != null && out.minFrameIntervalMs <= recoverFloor) {
     out.probeBlocked = (out.probeBlocked ?? 0) + 1;
-    if (out.probeBlocked >= cfg.probeRetryAfter) {
+    if (out.probeBlocked >= (clearlyHealthy ? Math.min(2, cfg.probeRetryAfter) : cfg.probeRetryAfter)) {
       out.probeBlocked = 0;
-      const next = out.probeFloorMs - cfg.intervalStepMs;
+      const next = clearlyHealthy ? baseIntervalMs : out.probeFloorMs - cfg.intervalStepMs;
       out.probeFloorMs = next <= baseIntervalMs ? undefined : next;
-      out.lastReason = `on dinh lau -> noi nguong tranh nghen`;
+      out.lastReason = clearlyHealthy ? `duong truyen da khoe -> bo nguong tranh nghen cu` : `on dinh lau -> noi nguong tranh nghen`;
     }
   }
 
