@@ -1,3 +1,16 @@
+## V2.9.111
+### Ứng dụng IPTV (mới)
+- Menu → Giải trí → **IPTV**: xem kênh từ danh sách M3U của bạn. Kênh xếp theo nhóm, tìm theo tên (không cần gõ dấu),
+  kênh yêu thích (☆), "Xem tiếp" kênh cuối. Đang xem: chạm hiện thông tin kênh, **vuốt lên / xuống** để đổi kênh.
+- **Quản lý danh sách ngay trong ứng dụng** (nút danh sách ở góc trên, như app IPTV thật): thêm bằng **đường link** hoặc
+  **tệp .m3u trên thẻ nhớ**, bật / tắt, sửa, xoá, cập nhật. Cũng làm được ở trang **Darboard → IPTV** trong Home Assistant.
+- Phát được HLS (m3u8), MPEG-TS / FLV qua HTTP, mp4, **DASH và kênh mã hoá ClearKey** (TV360, VTVPrime… trong các danh
+  sách VN); dùng được User-Agent / Referer riêng của từng kênh. Không phát được: DRM Widevine / PlayReady.
+- Máy chủ chuyển tiếp luồng (không vướng CORS); rời ứng dụng là ngắt luồng, quay lại thì phát tiếp kênh đang xem.
+- Kênh 1080p (VTV…) gửi khung **nửa độ phân giải** khi khung đầy đủ quá lớn (như YouTube TV) — đo P4: khung đầy đủ
+  ~100 KB làm đường truyền nghẽn còn 2,5 fps. Kênh nhiều mức chất lượng tự chọn ≤ 720p.
+- Kênh ClearKey có khoá đã cũ (nguồn đổi khoá) báo rõ "cần danh sách mới" thay vì lỗi chung.
+
 ## V2.9.110
 ### Màn hình khóa: có người thì sáng màn, vẫn giữ khóa (P4)
 - P4 thấy người khi đang khóa: màn sáng lại đúng độ sáng đang dùng và giữ sáng suốt lúc còn người; người đi khỏi 15 giây
