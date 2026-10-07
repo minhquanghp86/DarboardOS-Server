@@ -80,5 +80,71 @@
   function canChiYear(y) { return CAN[(y + 6) % 10] + ' ' + CHI[(y + 8) % 12]; }
   function canChiDay(jd) { return CAN[(jd + 9) % 10] + ' ' + CHI[(jd + 1) % 12]; }
   function canChiMonth(m, y) { return CAN[(y * 12 + m + 3) % 10] + ' ' + CHI[(m + 1) % 12]; }
-  g.RwvLunar = { solar2lunar: solar2lunar, canChiYear: canChiYear, canChiDay: canChiDay, canChiMonth: canChiMonth, jdFromDate: jdFromDate };
+  // (07/10/2026) LICH VAN NIEN (calendar.html): duong lich tu am lich, tiet khi, gio / ngay hoang dao, truc, nap am, tuoi xung.
+  function jdToDate(jd) {
+    var a, b, c;
+    if (jd > 2299160) { a = jd + 32044; b = INT((4 * a + 3) / 146097); c = a - INT((b * 146097) / 4); }
+    else { b = 0; c = jd + 32082; }
+    var d = INT((4 * c + 3) / 1461), e = c - INT((1461 * d) / 4), m = INT((5 * e + 2) / 153);
+    return { day: e - INT((153 * m + 2) / 5) + 1, month: m + 3 - 12 * INT(m / 10), year: b * 100 + d - 4800 + INT(m / 10) };
+  }
+  /** Am lich -> duong lich ({day, month, year}); null neu thang nhuan khong ton tai. */
+  function lunar2solar(ld, lm, ly, leap, tz) {
+    if (tz == null) tz = 7;
+    var a11, b11;
+    if (lm < 11) { a11 = getLunarMonth11(ly - 1, tz); b11 = getLunarMonth11(ly, tz); }
+    else { a11 = getLunarMonth11(ly, tz); b11 = getLunarMonth11(ly + 1, tz); }
+    var k = INT(0.5 + (a11 - 2415021.076998695) / 29.530588853);
+    var off = lm - 11;
+    if (off < 0) off += 12;
+    if (b11 - a11 > 365) {
+      var leapOff = getLeapMonthOffset(a11, tz), leapMonth = leapOff - 2;
+      if (leapMonth < 0) leapMonth += 12;
+      if (leap && lm !== leapMonth) return null;
+      if (leap || off >= leapOff) off += 1;
+    }
+    return jdToDate(getNewMoonDay(k + off, tz) + ld - 1);
+  }
+  var TIETKHI = ['Xuân phân', 'Thanh minh', 'Cốc vũ', 'Lập hạ', 'Tiểu mãn', 'Mang chủng', 'Hạ chí', 'Tiểu thử', 'Đại thử',
+    'Lập thu', 'Xử thử', 'Bạch lộ', 'Thu phân', 'Hàn lộ', 'Sương giáng', 'Lập đông', 'Tiểu tuyết', 'Đại tuyết', 'Đông chí',
+    'Tiểu hàn', 'Đại hàn', 'Lập xuân', 'Vũ thủy', 'Kinh trập'];
+  /** Chi so tiet khi (0 = Xuan phan) CUOI ngay jd (kinh do mat troi luc nua dem dau ngay hom sau, gio dia phuong): tiet
+   *  khi bat dau trong ngay nao thi ngay do da mang ten tiet khi moi (vd Dong chi 22/12/2026, 03:50 gio VN). */
+  function solarTerm(jd, tz) { if (tz == null) tz = 7; return INT(sunLongitude(jd + 1 - 0.5 - tz / 24) / PI * 12); }
+  function termStartsOn(jd, tz) { return solarTerm(jd, tz) !== solarTerm(jd - 1, tz); }
+  var GIO_HD = ['110100101100', '001101001011', '110011010010', '101100110100', '001011001101', '010010110011'];
+  /** 6 gio hoang dao cua ngay (theo chi ngay): [{ chi, from, to }] — gio Ty 23-1, Suu 1-3... */
+  function gioHoangDao(jd) {
+    var s = GIO_HD[((jd + 1) % 12) % 6], out = [];
+    for (var i = 0; i < 12; i++) if (s.charAt(i) === '1') out.push({ chi: CHI[i], from: (i * 2 + 23) % 24, to: (i * 2 + 1) % 24 });
+    return out;
+  }
+  var THAN = ['Thanh Long', 'Minh Đường', 'Thiên Hình', 'Chu Tước', 'Kim Quỹ', 'Kim Đường', 'Bạch Hổ', 'Ngọc Đường',
+    'Thiên Lao', 'Nguyên Vũ', 'Tư Mệnh', 'Câu Trận'];
+  var THAN_TOT = [1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0];
+  /** Than truc nhat -> ngay hoang dao / hac dao. Thang Gieng, 7: Thanh Long o ngay Ty; thang 2, 8: Dan; 3, 9: Thin;
+   *  4, 10: Ngo; 5, 11: Than; 6, 12: Tuat — roi lan luot theo chi ngay. */
+  function thanNgay(jd, lunarMonth) {
+    var i = ((jd + 1) % 12 - ((lunarMonth - 1) % 6) * 2 + 12) % 12;
+    return { name: THAN[i], good: THAN_TOT[i] === 1 };
+  }
+  var TRUC = ['Kiến', 'Trừ', 'Mãn', 'Bình', 'Định', 'Chấp', 'Phá', 'Nguy', 'Thành', 'Thu', 'Khai', 'Bế'];
+  /** 12 truc: ngay co chi trung chi THANG TIET KHI (Lap xuan -> Dan, Kinh trap -> Mao...) la Kien, roi lan luot. */
+  function truc(jd, tz) {
+    var t = solarTerm(jd, tz), tiet = t % 2 === 1 ? t : (t + 23) % 24;
+    var monthChi = ((tiet - 1) / 2 + 4) % 12;
+    return TRUC[((jd + 1) % 12 - monthChi + 12) % 12];
+  }
+  var NAP_AM = ['Hải Trung Kim', 'Lư Trung Hỏa', 'Đại Lâm Mộc', 'Lộ Bàng Thổ', 'Kiếm Phong Kim', 'Sơn Đầu Hỏa', 'Giản Hạ Thủy',
+    'Thành Đầu Thổ', 'Bạch Lạp Kim', 'Dương Liễu Mộc', 'Tuyền Trung Thủy', 'Ốc Thượng Thổ', 'Tích Lịch Hỏa', 'Tùng Bách Mộc',
+    'Trường Lưu Thủy', 'Sa Trung Kim', 'Sơn Hạ Hỏa', 'Bình Địa Mộc', 'Bích Thượng Thổ', 'Kim Bạch Kim', 'Phú Đăng Hỏa',
+    'Thiên Hà Thủy', 'Đại Trạch Thổ', 'Thoa Xuyến Kim', 'Tang Đố Mộc', 'Đại Khê Thủy', 'Sa Trung Thổ', 'Thiên Thượng Hỏa',
+    'Thạch Lựu Mộc', 'Đại Hải Thủy'];
+  /** Ngu hanh nap am cua ngay (vi tri trong vong 60 Giap Ty = (jd + 49) mod 60, hai ngay chung mot nap am). */
+  function napAm(jd) { return NAP_AM[INT(((jd + 49) % 60) / 2)]; }
+  /** Chi tuoi xung voi ngay (luc xung: Ty-Ngo, Suu-Mui, Dan-Than, Mao-Dau, Thin-Tuat, Ty-Hoi). */
+  function xung(jd) { return CHI[((jd + 1) % 12 + 6) % 12]; }
+  g.RwvLunar = { solar2lunar: solar2lunar, canChiYear: canChiYear, canChiDay: canChiDay, canChiMonth: canChiMonth, jdFromDate: jdFromDate,
+    jdToDate: jdToDate, lunar2solar: lunar2solar, TIETKHI: TIETKHI, solarTerm: solarTerm, termStartsOn: termStartsOn,
+    gioHoangDao: gioHoangDao, thanNgay: thanNgay, truc: truc, napAm: napAm, xung: xung };
 })(typeof window !== 'undefined' ? window : globalThis);

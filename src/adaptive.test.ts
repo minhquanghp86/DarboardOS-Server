@@ -4,7 +4,7 @@
 // Licensed under the Apache License, Version 2.0 (see LICENSE).
 
 import { describe, expect, it } from "vitest";
-import { DEFAULT_ADAPTIVE_CFG, decideAdaptive, initialAdaptiveState, adaptiveBudgetMs, updateLinkEstimate, bandwidthFloorMs, LINK_CONGESTED_BYTES, LINK_PROBE_UP } from "./adaptive.js";
+import { DEFAULT_ADAPTIVE_CFG, decideAdaptive, initialAdaptiveState, adaptiveBudgetMs, updateLinkEstimate, bandwidthFloorMs, LINK_CONGESTED_BYTES, LINK_PROBE_UP, LINK_CAP_MAX } from "./adaptive.js";
 import type { AdaptiveState, AdaptiveSample, LinkEstimate } from "./adaptive.js";
 
 const cfg = { ...DEFAULT_ADAPTIVE_CFG };
@@ -330,6 +330,17 @@ describe("GĐ3 - ước lượng đường truyền", () => {
     const l2 = updateLinkEstimate(congested, congested.lastSent + 1_150_000, 2 * LINK_CONGESTED_BYTES, congested.lastFrames + 12, now + 5_000);
     expect(l2.capacityBytesPerSec).toBeLessThan(l.capacityBytesPerSec! * 0.75);
     expect(LINK_PROBE_UP).toBeGreaterThan(1);
+  });
+
+  it("không nghẽn nhiều giờ -> ước lượng KHÔNG vượt trần (bộ ghi P4 07/10: 1,5e84 B/s)", () => {
+    let l: LinkEstimate = { lastAt: t0, lastSent: 0, lastBacklog: 0, lastFrames: 0, capacityBytesPerSec: 300_000 };
+    let now = t0;
+    for (let i = 0; i < 3000; i++) {  // ~4 gio, nhip 5 s
+      now += 5_000;
+      l = updateLinkEstimate(l, l.lastSent + 150_000, 0, l.lastFrames + 12, now);
+    }
+    expect(l.capacityBytesPerSec).toBe(LINK_CAP_MAX);
+    expect(Number.isFinite(l.capacityBytesPerSec)).toBe(true);
   });
 
   it("socket mới (bộ đếm về 0) -> đặt lại mốc nhưng GIỮ băng thông đã biết", () => {

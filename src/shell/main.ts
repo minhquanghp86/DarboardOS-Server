@@ -90,9 +90,11 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   let st: DevState | null = null;
   const clockEls: Element[] = [];
   const dateEls: Element[] = [];
-  function deviceNow(): Date | null {
-    if (!st || !st.tv) return null;
-    return new Date(Date.now() + st.skewMs + st.tz * 60000);  // doc bang getUTC* = gio THIET BI
+  /** Gio THIET BI (doc bang getUTC*). (07/10/2026) Chua co (thiet bi chua bao gio, tab vua tao) -> gio TRINH DUYET (may
+   *  chu HA, cung mui gio) thay vi null: truoc day man hinh cho / khoa lang le KHONG hien ma server tuong da hien. */
+  function deviceNow(): Date {
+    if (st && st.tv) return new Date(Date.now() + st.skewMs + st.tz * 60000);
+    return new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
   }
   function dateText(t: Date): string {
     const dd = t.getUTCDate(), mm = t.getUTCMonth() + 1;

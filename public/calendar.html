@@ -2,78 +2,142 @@
 <!--
   (25/09/2026) Ung dung "Lich" cua launcher: lich thang am duong. Am lich tinh tai cho (public/lunar.js, thuat toan Ho
   Ngoc Duc, mui gio +7). Ngay le duong va am lich co to mau. Khong can mang (tru font).
+  (07/10/2026) LICH VAN NIEN: lich ngay chi tiet — ngay hoang dao / hac dao (12 than), gio hoang dao, tiet khi, truc,
+  ngu hanh nap am, tuoi xung, gio mat troi moc / lan (vi tri nha trong HA), dem nguoc Tet, cau tuc ngu moi ngay. Luoi
+  thang danh dau ngay hoang dao, ngay bat dau tiet khi, Ram. Vuot ngang: luoi -> doi thang, lich ngay -> doi ngay.
+  Man vuong (S3): cham ngay -> trang chi tiet. Khong hieu ung chay lien tuc (bang thong toi panel).
 -->
 <html lang="vi">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Lịch</title>
+<title>Lịch vạn niên</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
 <script src="/lunar.js"></script>
 <link rel="stylesheet" href="/ui.css">
 <script src="/ui.js"></script>
+<script src="/icons.js"></script>
 <style>
-  :root { --accent: #dc2626; --red: #f05252; --gold: #f4b740; }  /* nen, be mat, chu, bo goc: /ui.css (dung chung voi Shell) */
+  :root { --accent: #dc2626; --red: #f05252; --gold: #f4b740; --teal: #2dd4bf; }  /* nen, be mat, chu, bo goc: /ui.css */
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden;
-    font-family: "Be Vietnam Pro", system-ui, sans-serif; font-variant-numeric: tabular-nums; -webkit-user-select: none; user-select: none; }
-  main { height: 100%; padding: calc(var(--pad) + 14px) var(--pad) var(--pad); display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.6fr); gap: var(--pad); }
-  .card { background: var(--surface); border-radius: clamp(10px, 2.4vmin, 18px); padding: var(--pad); min-height: 0; }
+  html, body { margin: 0; height: 100%; overflow: hidden; font-variant-numeric: tabular-nums; }
+  button { font: inherit; color: inherit; cursor: pointer; border: none; background: none; padding: 0; }
+  svg { display: block; }
+  main { height: 100%; padding: calc(var(--pad) + 14px) var(--pad) var(--pad); display: grid;
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.45fr); gap: var(--pad); }
+  .card { background: var(--surface); border-radius: var(--r-md); padding: var(--pad); min-height: 0; }
 
-  /* Hom nay: to lich treo tuong */
-  .today { display: flex; flex-direction: column; align-items: center; text-align: center; gap: clamp(2px, 1vmin, 8px); overflow: hidden; }
-  .today .mon { font-size: clamp(12px, 3vmin, 18px); font-weight: 600; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
-  .today .big { font-size: clamp(56px, 24vmin, 150px); font-weight: 700; line-height: 1; color: var(--red); }
-  .today .wd { font-size: clamp(14px, 4vmin, 26px); font-weight: 600; }
-  .today hr { width: 70%; border: none; border-top: 1px dashed var(--line); margin: clamp(4px, 1.6vmin, 12px) 0; }
-  .today .ld { font-size: clamp(12px, 3vmin, 19px); }
-  .today .ld b { color: var(--gold); font-size: 1.5em; }
-  .today .cc { font-size: clamp(10px, 2.4vmin, 14px); color: var(--muted); line-height: 1.6; }
-  .today .hol { margin-top: auto; padding: 6px 12px; border-radius: 999px; background: rgba(240, 82, 82, 0.16); color: #fca5a5; font-size: clamp(11px, 2.6vmin, 15px); font-weight: 600; }
+  /* ── Lich ngay ── */
+  .day { display: flex; flex-direction: column; align-items: center; text-align: center; gap: clamp(3px, 0.9vmin, 7px);
+    overflow-y: auto; scrollbar-width: none; touch-action: pan-y; }
+  .day::-webkit-scrollbar { display: none; }
+  .d-top { align-self: stretch; display: flex; align-items: center; gap: 8px; }
+  .d-top .mon { flex: 1; font-size: clamp(11px, 2.4vmin, 15px); font-weight: 600; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+  .close { display: none; width: clamp(34px, 8vmin, 46px); height: clamp(34px, 8vmin, 46px); border-radius: 50%; background: var(--surface-2);
+    align-items: center; justify-content: center; }
+  .close svg { width: 56%; height: 56%; fill: currentColor; }
+  .big { font-size: clamp(46px, 16vmin, 108px); font-weight: 700; line-height: 0.95; color: var(--red); }
+  .wd { font-size: clamp(13px, 3.2vmin, 21px); font-weight: 600; }
+  .lunar { display: flex; align-items: center; gap: 10px; margin-top: clamp(2px, 0.6vmin, 6px); padding-top: clamp(4px, 1.2vmin, 10px);
+    border-top: 1px dashed var(--line); align-self: stretch; justify-content: center; text-align: left; }
+  .lunar .ln { font-size: clamp(26px, 7.6vmin, 46px); font-weight: 700; color: var(--gold); line-height: 1; }
+  .lunar .lt { font-size: clamp(11px, 2.6vmin, 16px); line-height: 1.3; }
+  .lunar .lt small { color: var(--muted); font-size: 0.9em; }
+  .cc { font-size: clamp(10px, 2.3vmin, 14px); color: var(--muted); }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; border-radius: 999px; font-weight: 600;
+    font-size: clamp(11px, 2.5vmin, 15px); }
+  .pill::before { content: ""; width: 0.55em; height: 0.55em; border-radius: 50%; background: currentColor; }
+  .pill.good { background: rgba(244, 183, 64, 0.16); color: var(--gold); }
+  .pill.bad { background: var(--surface-2); color: var(--muted); }
+  .sec { align-self: stretch; text-align: left; font-size: clamp(9px, 2vmin, 12px); font-weight: 700; color: var(--muted);
+    letter-spacing: 0.06em; text-transform: uppercase; margin-top: clamp(2px, 0.6vmin, 6px); }
+  .hours { align-self: stretch; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(3px, 0.8vmin, 6px); }
+  .hours span { padding: clamp(3px, 0.8vmin, 6px) 4px; border-radius: 8px; background: var(--surface-2); font-size: clamp(10px, 2.3vmin, 14px); }
+  .hours b { font-weight: 700; color: var(--gold); margin-right: 4px; }
+  .facts { align-self: stretch; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(3px, 0.8vmin, 6px); }
+  .facts div { display: flex; flex-direction: column; align-items: flex-start; padding: clamp(4px, 1vmin, 8px) clamp(6px, 1.4vmin, 10px);
+    border-radius: 8px; background: var(--surface-2); text-align: left; min-width: 0; }
+  .facts span { font-size: clamp(9px, 2vmin, 12px); color: var(--muted); }
+  .facts b { font-size: clamp(11px, 2.6vmin, 15px); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .facts b.teal { color: var(--teal); }
+  .sun { display: flex; gap: clamp(10px, 3vmin, 20px); font-size: clamp(11px, 2.5vmin, 15px); color: var(--muted); }
+  .sun span { display: inline-flex; align-items: center; gap: 4px; }
+  .sun svg { width: 1.3em; height: 1.3em; fill: var(--gold); }
+  .hol { padding: 4px 12px; border-radius: 999px; background: rgba(240, 82, 82, 0.16); color: #fca5a5; font-weight: 600;
+    font-size: clamp(11px, 2.6vmin, 15px); }
+  .count { font-size: clamp(11px, 2.5vmin, 15px); color: var(--muted); }
+  .count b { color: var(--text); }
+  .quote { margin-top: auto; padding-top: clamp(4px, 1vmin, 8px); font-style: italic; font-size: clamp(10px, 2.3vmin, 14px);
+    color: var(--muted); line-height: 1.4; max-width: 34ch; }
 
-  /* Thang */
-  .month { display: flex; flex-direction: column; gap: clamp(4px, 1.4vmin, 10px); }
+  /* ── Thang ── */
+  .month { display: flex; flex-direction: column; gap: clamp(4px, 1.2vmin, 10px); touch-action: pan-y; }
   .head { display: flex; align-items: center; gap: 8px; }
-  .head .title { flex: 1; font-size: clamp(14px, 3.8vmin, 24px); font-weight: 600; }
+  .head .title { flex: 1; min-width: 0; font-size: clamp(14px, 3.8vmin, 24px); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .head .title small { color: var(--muted); font-weight: 500; font-size: 0.62em; margin-left: 8px; }
-  .nav { flex: none; min-width: clamp(34px, 8vmin, 48px); height: clamp(30px, 7.5vmin, 44px); padding: 0 12px; border-radius: 10px; background: var(--surface-2); display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: 600; font-size: clamp(12px, 2.8vmin, 16px); }
-  .nav:focus-visible, .cell:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+  .nav { flex: none; min-width: clamp(34px, 8vmin, 48px); height: clamp(30px, 7.5vmin, 44px); padding: 0 12px; border-radius: 10px;
+    background: var(--surface-2); display: inline-flex; align-items: center; justify-content: center; font-weight: 600; font-size: clamp(12px, 2.8vmin, 16px); }
+  .nav svg { width: 1.4em; height: 1.4em; fill: currentColor; }
+  .nav:focus-visible, .cell:focus-visible, .close:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
   .dow, .days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: clamp(2px, 0.6vmin, 5px); }
   .dow div { text-align: center; font-size: clamp(9px, 2.2vmin, 13px); color: var(--muted); font-weight: 600; }
   .dow div:nth-child(7) { color: var(--red); }
   .days { flex: 1; grid-auto-rows: minmax(0, 1fr); min-height: 0; }
-  .cell { border-radius: clamp(6px, 1.4vmin, 10px); padding: clamp(2px, 0.8vmin, 6px) clamp(4px, 1vmin, 8px); display: flex; flex-direction: column; justify-content: space-between; cursor: pointer; min-height: 0; }
-  .cell .s { font-size: clamp(12px, 3.2vmin, 20px); font-weight: 600; }
-  .cell .l { font-size: clamp(8px, 1.9vmin, 12px); color: var(--muted); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* So am NGAY DUOI so duong, ca hai can giua, o co nen nhat — xem truoc 07/10: so am o goc duoi trong nhu thuoc hang duoi. */
+  .cell { position: relative; border-radius: clamp(6px, 1.4vmin, 10px); padding: clamp(2px, 0.6vmin, 5px) clamp(2px, 0.6vmin, 5px);
+    display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 1px; text-align: center; min-height: 0;
+    background: color-mix(in srgb, var(--surface-2) 45%, transparent); }
+  .cell .s { font-size: clamp(12px, 3.2vmin, 20px); font-weight: 600; line-height: 1.05; }
+  .cell .l { font-size: clamp(8px, 1.9vmin, 12px); color: var(--muted); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .cell .l.first { color: var(--gold); font-weight: 600; }
-  .cell.out { opacity: 0.28; }
+  .cell .l.ram { color: var(--gold); }
+  .cell .l.term { color: var(--teal); font-weight: 600; }
+  .cell .dot { position: absolute; top: clamp(4px, 1vmin, 7px); right: clamp(4px, 1vmin, 7px); width: clamp(4px, 0.9vmin, 6px);
+    height: clamp(4px, 0.9vmin, 6px); border-radius: 50%; background: var(--gold); opacity: 0.75; }
+  .cell.out { opacity: 0.28; background: none; }
   .cell.sun .s { color: var(--red); }
   .cell.hol { background: rgba(240, 82, 82, 0.12); }
   .cell.hol .l { color: #fca5a5; }
   .cell.sel { background: var(--surface-2); }
-  .cell.today { outline: 2px solid var(--red); outline-offset: -2px; }
-  @media (max-aspect-ratio: 1/1) { main { grid-template-columns: 1fr; } .today { display: none; } }
+  .cell.today { box-shadow: inset 0 0 0 2px var(--red); }
+  .legend { display: flex; gap: clamp(8px, 2vmin, 16px); font-size: clamp(9px, 2vmin, 12px); color: var(--muted); }
+  .legend i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--gold); margin-right: 5px; vertical-align: 1px; }
+  .legend i.t { background: var(--teal); }
+
+  /* Man vuong / doc (S3 480x480): chi luoi thang; cham ngay -> lich ngay toan man. */
+  @media (max-aspect-ratio: 1/1) {
+    main { grid-template-columns: 1fr; }
+    .day { display: none; }
+    body.detail .day { display: flex; position: fixed; inset: 0; z-index: 5; border-radius: 0; padding: calc(var(--pad) + 14px) var(--pad) var(--pad); }
+    body.detail .close { display: inline-flex; }
+  }
 </style>
 </head>
 <body class="rwv-app">
 <main>
-  <section class="card today" id="today" aria-live="polite"></section>
-  <section class="card month" aria-label="Lịch tháng">
+  <section class="card day" id="day" aria-live="polite" aria-label="Lịch ngày"></section>
+  <section class="card month" id="month" aria-label="Lịch tháng">
     <div class="head">
-      <div class="nav" id="prev" role="button" tabindex="0" aria-label="Tháng trước">‹</div>
+      <button class="nav" id="prev" type="button" aria-label="Tháng trước"></button>
       <div class="title" id="title"></div>
-      <div class="nav" id="now" role="button" tabindex="0">Hôm nay</div>
-      <div class="nav" id="next" role="button" tabindex="0" aria-label="Tháng sau">›</div>
+      <button class="nav" id="now" type="button">Hôm nay</button>
+      <button class="nav" id="next" type="button" aria-label="Tháng sau"></button>
     </div>
     <div class="dow"><div>T2</div><div>T3</div><div>T4</div><div>T5</div><div>T6</div><div>T7</div><div>CN</div></div>
     <div class="days" id="days"></div>
+    <div class="legend"><span><i></i>Ngày hoàng đạo</span><span><i class="t"></i>Tiết khí</span></div>
   </section>
 </main>
 <script>
 (function () {
   'use strict';
-  var L = window.RwvLunar;
+  var L = window.RwvLunar, IC = window.RwvIcons || {};
   var $ = function (id) { return document.getElementById(id); };
+  function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; }
+  function svg(n) {
+    var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true');
+    var p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', IC[n] || ''); s.appendChild(p); return s;
+  }
   var WD = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
   var SOLAR_HOL = { '1/1': 'Tết Dương lịch', '14/2': 'Lễ Tình nhân', '8/3': 'Quốc tế Phụ nữ', '30/4': 'Giải phóng miền Nam',
     '1/5': 'Quốc tế Lao động', '1/6': 'Quốc tế Thiếu nhi', '2/9': 'Quốc khánh', '20/10': 'Phụ nữ Việt Nam',
@@ -81,8 +145,24 @@
   var LUNAR_HOL = { '1/1': 'Tết Nguyên đán', '2/1': 'Tết Nguyên đán', '3/1': 'Tết Nguyên đán', '15/1': 'Rằm tháng Giêng',
     '3/3': 'Tết Hàn thực', '10/3': 'Giỗ Tổ Hùng Vương', '15/4': 'Lễ Phật đản', '5/5': 'Tết Đoan ngọ', '15/7': 'Lễ Vu Lan',
     '15/8': 'Tết Trung thu', '23/12': 'Ông Công Ông Táo' };
-  // Nghi le chinh thuc (to do dam hon)
+  // Nghi le chinh thuc (hien thay so am lich trong luoi)
   var OFFICIAL = { 'Tết Dương lịch': 1, 'Giải phóng miền Nam': 1, 'Quốc tế Lao động': 1, 'Quốc khánh': 1, 'Tết Nguyên đán': 1, 'Giỗ Tổ Hùng Vương': 1 };
+  // Tuc ngu / ca dao (dan gian) — moi ngay mot cau theo so ngay Julius.
+  var QUOTES = ['Uống nước nhớ nguồn.', 'Có công mài sắt, có ngày nên kim.', 'Một cây làm chẳng nên non, ba cây chụm lại nên hòn núi cao.',
+    'Ăn quả nhớ kẻ trồng cây.', 'Lá lành đùm lá rách.', 'Học ăn, học nói, học gói, học mở.', 'Gần mực thì đen, gần đèn thì rạng.',
+    'Tốt gỗ hơn tốt nước sơn.', 'Đi một ngày đàng, học một sàng khôn.', 'Công cha như núi Thái Sơn, nghĩa mẹ như nước trong nguồn chảy ra.',
+    'Thương người như thể thương thân.', 'Không thầy đố mày làm nên.', 'Kiến tha lâu cũng đầy tổ.', 'Nước chảy đá mòn.',
+    'Ăn có nhai, nói có nghĩ.', 'Lời nói chẳng mất tiền mua, lựa lời mà nói cho vừa lòng nhau.', 'Đói cho sạch, rách cho thơm.',
+    'Tiên học lễ, hậu học văn.', 'Bầu ơi thương lấy bí cùng, tuy rằng khác giống nhưng chung một giàn.',
+    'Nhiễu điều phủ lấy giá gương, người trong một nước phải thương nhau cùng.', 'Có chí thì nên.', 'Thất bại là mẹ thành công.',
+    'Chớ thấy sóng cả mà ngã tay chèo.', 'Ở hiền gặp lành.', 'Tích tiểu thành đại.', 'Cái khó ló cái khôn.', 'Trăm hay không bằng tay quen.',
+    'Giấy rách phải giữ lấy lề.', 'Một điều nhịn, chín điều lành.', 'Mưa dầm thấm lâu.', 'Sai một li, đi một dặm.',
+    'Uốn cây từ thuở còn non, dạy con từ thuở con còn bi bô.', 'Con hơn cha là nhà có phúc.', 'Thuận vợ thuận chồng, tát biển Đông cũng cạn.',
+    'Bán anh em xa, mua láng giềng gần.', 'Của bền tại người.', 'Ăn trông nồi, ngồi trông hướng.', 'Lửa thử vàng, gian nan thử sức.',
+    'Muốn sang thì bắc cầu kiều, muốn con hay chữ thì yêu lấy thầy.', 'Chị ngã em nâng.', 'Một giọt máu đào hơn ao nước lã.',
+    'Cẩn tắc vô áy náy.', 'Măng mọc có lứa, người ta có thì.', 'Gieo gió gặt bão.', 'Ăn cây nào rào cây ấy.',
+    'Biết thì thưa thốt, không biết thì dựa cột mà nghe.', 'Người sống đống vàng.', 'Ăn vóc học hay.', 'Một con ngựa đau, cả tàu bỏ cỏ.',
+    'Đường đi hay tối, nói dối hay cùng.'];
 
   function lunarOf(d) { return L.solar2lunar(d.getDate(), d.getMonth() + 1, d.getFullYear(), 7); }
   function holiday(d, l) {
@@ -95,55 +175,143 @@
     }
     return ln || s || '';
   }
-
-  var now = new Date(), view = new Date(now.getFullYear(), now.getMonth(), 1), sel = new Date(now);
+  function dateOnly(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
   function same(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
 
-  function renderToday(d) {
-    var l = lunarOf(d), hol = holiday(d, l);
-    var el = $('today');
-    el.innerHTML =
-      '<div class="mon">Tháng ' + (d.getMonth() + 1) + ' · ' + d.getFullYear() + '</div>' +
-      '<div class="big">' + d.getDate() + '</div>' +
-      '<div class="wd">' + WD[d.getDay()] + '</div><hr>' +
-      '<div class="ld">Âm lịch <b>' + l.day + '</b> tháng ' + l.month + (l.leap ? ' nhuận' : '') + '</div>' +
-      '<div class="cc">Năm ' + L.canChiYear(l.year) + '<br>Tháng ' + L.canChiMonth(l.month, l.year) + ' · Ngày ' + L.canChiDay(l.jd) + '</div>' +
-      (hol ? '<div class="hol">' + hol + '</div>' : '');
+  // Gio mat troi moc / lan (cong thuc NOAA, sai so ~1 phut) theo vi tri nha trong HA.
+  var LOC = null;
+  fetch('/weather-location', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (j) { if (j && isFinite(j.lat) && isFinite(j.lon)) { LOC = j; renderDay(); } }).catch(function () { });
+  function sunTimes(d) {
+    if (!LOC) return null;
+    var rad = Math.PI / 180, doy = Math.round((dateOnly(d) - new Date(d.getFullYear(), 0, 1)) / 864e5) + 1;
+    var g = 2 * Math.PI / 365 * (doy - 1);
+    var eq = 229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g) - 0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g));
+    var decl = 0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g) - 0.006758 * Math.cos(2 * g) + 0.000907 * Math.sin(2 * g)
+      - 0.002697 * Math.cos(3 * g) + 0.00148 * Math.sin(3 * g);
+    var cosH = Math.cos(90.833 * rad) / (Math.cos(LOC.lat * rad) * Math.cos(decl)) - Math.tan(LOC.lat * rad) * Math.tan(decl);
+    if (cosH < -1 || cosH > 1) return null;
+    var ha = Math.acos(cosH) / rad, tz = -new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12).getTimezoneOffset();
+    var fmt = function (m) { m = Math.round(m); return pad(Math.floor(m / 60)) + ':' + pad(m % 60); };
+    return [fmt(720 - 4 * (LOC.lon + ha) - eq + tz), fmt(720 - 4 * (LOC.lon - ha) - eq + tz)];
   }
 
-  function render() {
-    var y = view.getFullYear(), m = view.getMonth();
-    var l1 = L.solar2lunar(1, m + 1, y, 7);
-    $('title').innerHTML = 'Tháng ' + (m + 1) + ', ' + y + '<small>' + L.canChiYear(l1.year) + '</small>';
-    var first = new Date(y, m, 1);
-    var start = new Date(first); start.setDate(1 - ((first.getDay() + 6) % 7));  // thu Hai dau tuan
-    var html = '';
+  var now = new Date(), view = new Date(now.getFullYear(), now.getMonth(), 1), sel = dateOnly(now);
+
+  function renderDay() {
+    var d = sel, l = lunarOf(d), j = l.jd, hol = holiday(d, l), than = L.thanNgay(j, l.month);
+    var box = $('day'), out = [];
+    var top = el('div', 'd-top');
+    top.append(el('div', 'mon', 'Tháng ' + (d.getMonth() + 1) + ' · ' + d.getFullYear()));
+    var cl = el('button', 'close'); cl.type = 'button'; cl.setAttribute('aria-label', 'Đóng'); cl.appendChild(svg('close'));
+    cl.addEventListener('click', function () { document.body.classList.remove('detail'); });
+    top.appendChild(cl);
+    out.push(top, el('div', 'big', String(d.getDate())), el('div', 'wd', WD[d.getDay()]));
+    var lu = el('div', 'lunar'), lt = el('div', 'lt');
+    lt.append(document.createTextNode('tháng ' + l.month + (l.leap ? ' nhuận' : '') + ' âm lịch'), el('br'), el('small', '', 'năm ' + L.canChiYear(l.year)));
+    lu.append(el('span', 'ln', String(l.day)), lt);
+    out.push(lu, el('div', 'cc', 'Ngày ' + L.canChiDay(j) + ' · Tháng ' + L.canChiMonth(l.month, l.year)));
+    out.push(el('div', 'pill ' + (than.good ? 'good' : 'bad'), (than.good ? 'Hoàng đạo · ' : 'Hắc đạo · ') + than.name));
+    out.push(el('div', 'sec', 'Giờ hoàng đạo'));
+    var hrs = el('div', 'hours');
+    L.gioHoangDao(j).forEach(function (h) { var s = el('span'); s.append(el('b', '', h.chi), document.createTextNode(h.from + '–' + h.to + 'h')); hrs.appendChild(s); });
+    out.push(hrs);
+    var facts = el('div', 'facts');
+    function fact(label, value, cls) { var f = el('div'); f.append(el('span', '', label), el('b', cls || '', value)); facts.appendChild(f); }
+    var term = L.TIETKHI[L.solarTerm(j)];
+    fact('Tiết khí', L.termStartsOn(j) ? 'Bắt đầu ' + term : term, L.termStartsOn(j) ? 'teal' : '');
+    fact('Trực', L.truc(j));
+    fact('Nạp âm', L.napAm(j));
+    fact('Xung tuổi', L.xung(j));
+    out.push(facts);
+    var st = sunTimes(d);
+    if (st) {
+      var sun = el('div', 'sun'), a = el('span'), b = el('span');
+      a.append(svg('weather-sunset-up'), document.createTextNode('Mọc ' + st[0]));
+      b.append(svg('weather-sunset-down'), document.createTextNode('Lặn ' + st[1]));
+      sun.append(a, b); out.push(sun);
+    }
+    if (hol) out.push(el('div', 'hol', hol));
+    else {
+      var tet = L.lunar2solar(1, 1, l.year + 1, 0, 7), tetD = new Date(tet.year, tet.month - 1, tet.day);
+      var n = Math.round((tetD - dateOnly(d)) / 864e5), c = el('div', 'count');
+      c.append(document.createTextNode('Còn '), el('b', '', String(n)), document.createTextNode(' ngày đến Tết ' + L.canChiYear(l.year + 1)));
+      out.push(c);
+    }
+    out.push(el('div', 'quote', '“' + QUOTES[j % QUOTES.length] + '”'));
+    box.replaceChildren.apply(box, out);
+    box.scrollTop = 0;
+  }
+
+  function renderMonth() {
+    var y = view.getFullYear(), m = view.getMonth(), l1 = L.solar2lunar(1, m + 1, y, 7);
+    var title = $('title');
+    title.replaceChildren(document.createTextNode('Tháng ' + (m + 1) + ', ' + y), el('small', '', L.canChiYear(l1.year)));
+    var first = new Date(y, m, 1), start = new Date(first);
+    start.setDate(1 - ((first.getDay() + 6) % 7));  // thu Hai dau tuan
+    var frag = document.createDocumentFragment();
     for (var i = 0; i < 42; i++) {
       var d = new Date(start); d.setDate(start.getDate() + i);
       if (i === 35 && d.getMonth() !== m) break;  // bo hang cuoi neu thua
-      var l = lunarOf(d), hol = holiday(d, l);
-      var cls = 'cell' + (d.getMonth() !== m ? ' out' : '') + (d.getDay() === 0 ? ' sun' : '') + (hol ? ' hol' : '') +
-        (same(d, now) ? ' today' : '') + (same(d, sel) ? ' sel' : '');
-      var lt = l.day === 1 ? l.day + '/' + l.month + (l.leap ? 'N' : '') : String(l.day);
-      html += '<div class="' + cls + '" role="button" tabindex="0" data-t="' + d.getTime() + '" title="' + (hol || '') + '">' +
-        '<div class="s">' + d.getDate() + '</div><div class="l' + (l.day === 1 ? ' first' : '') + '">' + (hol && OFFICIAL[hol] ? hol : lt) + '</div></div>';
+      var l = lunarOf(d), hol = holiday(d, l), than = L.thanNgay(l.jd, l.month), term = L.termStartsOn(l.jd);
+      var cell = el('button', 'cell' + (d.getMonth() !== m ? ' out' : '') + (d.getDay() === 0 ? ' sun' : '') + (hol ? ' hol' : '') +
+        (same(d, now) ? ' today' : '') + (same(d, sel) ? ' sel' : ''));
+      cell.type = 'button';
+      var label, lc = 'l';
+      if (hol && OFFICIAL[hol]) label = hol;
+      else if (term) { label = L.TIETKHI[L.solarTerm(l.jd)]; lc += ' term'; }
+      else if (l.day === 1) { label = '1/' + l.month + (l.leap ? 'N' : ''); lc += ' first'; }
+      else { label = String(l.day); if (l.day === 15) lc += ' ram'; }
+      cell.append(el('span', 's', String(d.getDate())), el('span', lc, label));
+      if (than.good) cell.appendChild(el('span', 'dot'));
+      cell.title = (hol ? hol + ' · ' : '') + l.day + '/' + l.month + ' âm · ' + (than.good ? 'Hoàng đạo' : 'Hắc đạo');
+      cell.dataset.t = String(d.getTime());
+      frag.appendChild(cell);
     }
-    $('days').innerHTML = html;
-    Array.prototype.forEach.call($('days').children, function (c) {
-      c.addEventListener('click', function () { sel = new Date(+c.getAttribute('data-t')); renderToday(sel); render(); });
+    $('days').replaceChildren(frag);
+  }
+  function select(d) {
+    sel = dateOnly(d);
+    if (sel.getMonth() !== view.getMonth() || sel.getFullYear() !== view.getFullYear()) view = new Date(sel.getFullYear(), sel.getMonth(), 1);
+    renderDay(); renderMonth();
+  }
+  function shiftMonth(n) { view = new Date(view.getFullYear(), view.getMonth() + n, 1); renderMonth(); }
+
+  $('days').addEventListener('click', function (e) {
+    var c = e.target.closest && e.target.closest('.cell');
+    if (!c || swiped) return;
+    select(new Date(+c.dataset.t));
+    if (matchMedia('(max-aspect-ratio: 1/1)').matches) document.body.classList.add('detail');
+  });
+  // Vuot ngang: luoi thang -> doi thang; lich ngay -> doi ngay.
+  var swiped = false;
+  function swipe(target, fn) {
+    var g = null;
+    target.addEventListener('pointerdown', function (e) { g = { x: e.clientX, y: e.clientY }; swiped = false; });
+    target.addEventListener('pointerup', function (e) {
+      if (!g) return;
+      var dx = e.clientX - g.x, dy = e.clientY - g.y; g = null;
+      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.4) { swiped = true; fn(dx < 0 ? 1 : -1); setTimeout(function () { swiped = false; }, 0); }
     });
+    target.addEventListener('pointercancel', function () { g = null; });
   }
-  function shift(n) { view = new Date(view.getFullYear(), view.getMonth() + n, 1); render(); }
-  function act(el, fn) {
-    el.addEventListener('click', fn);
-    el.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); } });
-  }
-  act($('prev'), function () { shift(-1); });
-  act($('next'), function () { shift(1); });
-  act($('now'), function () { now = new Date(); sel = new Date(now); view = new Date(now.getFullYear(), now.getMonth(), 1); renderToday(sel); render(); });
-  renderToday(sel); render();
-  // Qua nua dem: lam moi "hom nay"
-  setInterval(function () { var n = new Date(); if (!same(n, now)) { now = n; if (same(sel, new Date(n.getTime() - 864e5))) sel = new Date(n); renderToday(sel); render(); } }, 60000);
+  swipe($('month'), shiftMonth);
+  swipe($('day'), function (n) { var d = new Date(sel); d.setDate(d.getDate() + n); select(d); });
+
+  $('prev').replaceChildren(svg('chevron-left')); $('next').replaceChildren(svg('chevron-right'));
+  $('prev').addEventListener('click', function () { shiftMonth(-1); });
+  $('next').addEventListener('click', function () { shiftMonth(1); });
+  $('now').addEventListener('click', function () { now = new Date(); select(now); });
+  renderDay(); renderMonth();
+  // Qua nua dem: lam moi "hom nay" (giu ngay dang chon neu nguoi dung da chon ngay khac).
+  setInterval(function () {
+    var n = new Date();
+    if (same(n, now)) return;
+    var wasToday = same(sel, now);
+    now = n;
+    if (wasToday) select(n); else renderMonth();
+  }, 60000);
 })();
 </script>
 </body>

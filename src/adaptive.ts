@@ -148,6 +148,9 @@ export const LINK_PROBE_UP = 1.15;
 /** (30/09/2026) Moi lan do luc nghen, uoc luong giam toi da 40%: mot cu don vai giay (khung day du luc chuyen tab,
  * thiet bi dang ban) khong duoc lam "mat" nua bang thong. Duong truyen yeu that thi vai lan do lien tiep van keo xuong. */
 export const LINK_MAX_DROP = 0.6;
+/** (07/10/2026) Tran cua buoc TU NANG uoc luong (khong nghen): do that 07/10 bo ghi mang P4 — uoc luong len 1,5e84 B/s sau vai
+ * gio khong nghen (x1,15 moi nhip, khong tran). 20 MB/s van gap nhieu lan WiFi cua panel (~2,4 MB/s). */
+export const LINK_CAP_MAX = 20_000_000;
 
 export type LinkEstimate = {
   lastAt: number;
@@ -187,7 +190,7 @@ export function updateLinkEstimate(
     // do, nen duong truyen khong bao gio co dip chung minh no chiu duoc nhieu hon.
     // Do that 24/09: cung P4, luc 230 KB/s (dang kem), vai phut sau 564 KB/s khong nghen.
     // Neu duong truyen that su yeu, lan nghen ke tiep se do lai dung con so.
-    cap = Math.round(cap * LINK_PROBE_UP);
+    cap = Math.min(LINK_CAP_MAX, Math.round(cap * LINK_PROBE_UP));
   }
 
   const dFrames = frames - prev.lastFrames;
