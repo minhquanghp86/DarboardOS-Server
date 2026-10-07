@@ -1895,7 +1895,11 @@
     }
     // Trang Nang luong cua HA tro toi cam bien khong con (do that 08/10 o nha nguoi dung) -> bao ro.
     var gone = Object.keys(j.ha || {}).filter(function (k) { return typeof j.ha[k] === 'string' && !L.cands[j.ha[k]]; }).map(function (k) { return j.ha[k]; });
-    $('lwErr').textContent = gone.length ? 'Trang Năng lượng của Home Assistant trỏ tới cảm biến không còn tồn tại: ' + gone.join(', ') + '. Hãy chọn cảm biến ở đây.' : '';
+    // Da chon cam bien rieng -> chi la ghi chu nhat (bang Nang luong cua HA trong cho toi khi sua ben HA).
+    var saved = j.from === 'saved';
+    $('lwErr').className = saved ? 'hint' : 'err';
+    $('lwErr').textContent = !gone.length ? '' : 'Trang Năng lượng của Home Assistant trỏ tới cảm biến không còn tồn tại: ' + gone.join(', ') + '. ' +
+      (saved ? 'Màn khóa đang dùng cảm biến đã chọn ở đây; bảng Năng lượng của HA sẽ trống cho tới khi sửa trong Cài đặt → Bảng điều khiển → Năng lượng.' : 'Hãy chọn cảm biến ở đây.');
   }
   function setBusy(b) { L.busy = b; $('lwSave').disabled = b; $('lwUseHa').disabled = b; }
   function load() {
@@ -1919,7 +1923,7 @@
       if (v) energy[f.k] = v;
       if (f.inv && v && $('lwi_' + f.k).checked) energy[f.inv] = true;
     });
-    if (bad.length) { $('lwErr').textContent = 'Không phải cảm biến (sensor.…): ' + bad.join(', ') + '.'; return; }
+    if (bad.length) { $('lwErr').className = 'err'; $('lwErr').textContent = 'Không phải cảm biến (sensor.…): ' + bad.join(', ') + '.'; return; }
     save(energy, 'Đã lưu — màn hình khóa cập nhật trong ít giây.');
   });
   $('lwUseHa').addEventListener('click', function () { save(null, 'Đã chuyển về theo trang Năng lượng của Home Assistant.'); });

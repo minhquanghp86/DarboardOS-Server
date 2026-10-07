@@ -320,6 +320,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .saver.night .sv-card { background: rgba(120,80,60,0.12); color: #9a6a58; }
 .saver.night .wc-h, .saver.night .wc-sub, .saver.night .wc-hp { color: #7a5848; }
 .saver.night .sv-card .wx-ic { opacity: 0.4; filter: sepia(1); }
+/* (08/10/2026) Dem: chu AQI theo tong toi cua the (do that: "AQI 76" vang sang giua man tong nau). */
+.saver.night .wc-i.a1, .saver.night .wc-i.a2, .saver.night .wc-i.a3, .saver.night .wc-i.a4 { color: inherit; }
 .saver.unlocking { transform: translateY(-100%) !important; opacity: 0; transition: transform 260ms ease-in, opacity 260ms ease-in; }
 .saver.lock.photo { padding-bottom: clamp(40px, 9vmin, 70px); }
 /* Chua cho dong goi y vuot o day (do that S3: goi y de len the thoi tiet). */
@@ -379,8 +381,10 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   .saver.haslw.hascard .wc-hr { display: none; }
   .saver.haslw .lw-r ~ .lw-r ~ .lw-r { display: none; }
 }
-/* Co anh nen (khung anh gia dinh): chi dai nang luong + 1 dong — khong che anh qua nhieu. */
+/* Co anh nen (khung anh gia dinh): chi dai nang luong + 1 dong — khong che anh qua nhieu. Khung anh tat "Hiện đồng hồ"
+   (xem anh tron): an luon widget. */
 .saver.photo.haslw .lw-r ~ .lw-r { display: none; }
+.saver.photo.noclock .sv-lw { display: none; }
 
 /* ── Thong bao (OS-5) ────────────────────────────────────────────────── */
 .pill.unread::after { content: ''; position: absolute; top: 6px; right: 26px; width: 7px; height: 7px; border-radius: 50%; background: #f59e0b; }
