@@ -1,3 +1,9 @@
+## V2.9.112
+### Hình mượt lại nhanh sau khi mạng hết nghẽn
+- Khi đường truyền tới màn hình từng nghẽn (WiFi kém, đặt sát nguồn nhiễu…), bộ điều tiết nhớ "ngưỡng tránh nghẽn" rất
+  lâu — đo P4 07/10: mạng đã khoẻ mà video vẫn ~3 khung/giây nhiều phút. Nay có số đo rõ ràng đường truyền khoẻ (không
+  tồn đọng, dùng < 25% băng thông) thì bỏ ngưỡng cũ: mượt lại trong khoảng 1 phút thay vì ~5 phút.
+
 ## V2.9.111
 ### Ứng dụng IPTV (mới)
 - Menu → Giải trí → **IPTV**: xem kênh từ danh sách M3U của bạn. Kênh xếp theo nhóm, tìm theo tên (không cần gõ dấu),
