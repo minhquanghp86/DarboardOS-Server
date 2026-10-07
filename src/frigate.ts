@@ -15,7 +15,7 @@ import { haFetch } from './haSettings.js';
 const DNS_HASSIO = process.env.HASSIO_DNS || '172.30.32.3';
 const BASE_TTL_MS = 10 * 60_000;
 let base: { url: string; at: number } | null = null;
-let camCache: { at: number; list: string[] } | null = null;
+let cfgCache: { at: number; cfg: FrigateConfig } | null = null;
 
 /** "ccab4aaf-frigate-fa:5000" / "http://frigate:5000/" -> { host, port }. */
 export function parseFrigateTitle(title: string): { host: string; port: number } | null {
@@ -78,12 +78,47 @@ export function toEvent(e: Record<string, unknown>): FEvent | null {
   };
 }
 
+interface FrigateConfig {
+  cameras?: Record<string, { enabled?: boolean; ffmpeg?: { inputs?: { path?: string }[] } }>;
+  go2rtc?: { streams?: Record<string, string | string[]> };
+}
+async function frigateConfig(): Promise<FrigateConfig> {
+  if (cfgCache && Date.now() - cfgCache.at < BASE_TTL_MS) return cfgCache.cfg;
+  const cfg = await getJson('/api/config') as FrigateConfig;
+  cfgCache = { at: Date.now(), cfg };
+  return cfg;
+}
 async function cameras(): Promise<string[]> {
-  if (camCache && Date.now() - camCache.at < BASE_TTL_MS) return camCache.list;
-  const cfg = await getJson('/api/config') as { cameras?: Record<string, { enabled?: boolean }> };
-  const list = Object.entries(cfg.cameras ?? {}).filter(([, c]) => c?.enabled !== false).map(([n]) => n);
-  camCache = { at: Date.now(), list };
-  return list;
+  const cfg = await frigateConfig();
+  return Object.entries(cfg.cameras ?? {}).filter(([, c]) => c?.enabled !== false).map(([n]) => n);
+}
+
+/**
+ * (08/10/2026) Camera -> may chu NGUON (luong go2rtc cung ten + dau vao ffmpeg; bo 127.0.0.1 / localhost — go2rtc phat
+ * lai). Dung de nhan ra camera cua CHINH panel (do that: p4_panel <- go2rtc http://192.168.1.179:...): widget man khoa
+ * khong bao "co nguoi" moi lan chinh nguoi dang dung truoc panel. Chi doc ten may, khong giu mat khau trong URL.
+ */
+export function hostsOfConfig(cfg: FrigateConfig): Record<string, string[]> {
+  const host = (u: unknown): string | null => {
+    try {
+      const h = new URL(String(u).replace(/^ffmpeg:/, '').replace(/#.*$/, '')).hostname;
+      return h && !/^(127\.|localhost$|::1$|\[::1\]$)/.test(h) ? h : null;
+    } catch { return null; }
+  };
+  const out: Record<string, string[]> = {};
+  for (const [name, c] of Object.entries(cfg.cameras ?? {})) {
+    const srcs: unknown[] = [...(c?.ffmpeg?.inputs ?? []).map((i) => i?.path), ...([] as unknown[]).concat(cfg.go2rtc?.streams?.[name] ?? [])];
+    out[name] = [...new Set(srcs.map(host).filter((h): h is string => !!h))];
+  }
+  return out;
+}
+export async function cameraHosts(): Promise<Record<string, string[]>> { return hostsOfConfig(await frigateConfig()); }
+
+/** (08/10/2026) Su kien bat dau sau `afterSec` (giay epoch), moi nhat truoc — widget man khoa. */
+export async function recentEvents(afterSec: number, limit = 20): Promise<FEvent[]> {
+  const ps = new URLSearchParams({ include_thumbnails: '0', limit: String(limit), after: String(Math.floor(afterSec)) });
+  const ev = await getJson('/api/events?' + ps.toString());
+  return (Array.isArray(ev) ? ev : []).map((e) => toEvent(e as Record<string, unknown>)).filter((e): e is FEvent => !!e);
 }
 
 const ID_RE = /^[0-9]+\.[0-9]+-[A-Za-z0-9]+$/;

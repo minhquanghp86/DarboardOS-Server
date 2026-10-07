@@ -19,6 +19,8 @@ export interface PanelPrefs {
   /** (07/10/2026) Man hinh KHOA kieu dien thoai: vuot len de mo; do sang khi khoa (0 = giu nguyen); co dong ho; thoi
    *  tiet chi tiet. Xem src/shell/main.ts screensaver + deviceManager (locked). */
   lockMode?: boolean; lockBrightness?: number; clockSize?: ClockSize; wxDetail?: boolean;
+  /** (08/10/2026) Widget tren man hinh khoa / cho (src/lockWidgets.ts): nang luong, lich sap toi, camera vua phat hien. */
+  lwEnergy?: boolean; lwCal?: boolean; lwCam?: boolean;
 }
 export type ClockSize = 'm' | 'l' | 'xl';
 export type PhotoEffect = 'fade' | 'slide' | 'zoom' | 'none';
@@ -72,6 +74,9 @@ export class PanelPrefsStore {
       case 'rwv.cast': if (typeof v === 'boolean') patch = { cast: v }; break;
       case 'rwv.lock': if (typeof v === 'boolean') patch = { lockMode: v }; break;
       case 'rwv.wx_detail': if (typeof v === 'boolean') patch = { wxDetail: v }; break;
+      case 'rwv.lw_energy': if (typeof v === 'boolean') patch = { lwEnergy: v }; break;
+      case 'rwv.lw_cal': if (typeof v === 'boolean') patch = { lwCal: v }; break;
+      case 'rwv.lw_cam': if (typeof v === 'boolean') patch = { lwCam: v }; break;
       case 'rwv.lock_bright': pick(BRIGHT_CHOICES, (x) => ({ lockBrightness: x })); break;
       case 'rwv.clock_size': pick(CLOCK_CHOICES, (x) => ({ clockSize: x })); break;
       case 'rwv.cast_name':
@@ -102,6 +107,11 @@ export class PanelPrefsStore {
   lockBrightness(dev: string): number { return this.get(dev).lockBrightness ?? 0; }
   clockSize(dev: string): ClockSize { return this.get(dev).clockSize ?? 'l'; }
   wxDetail(dev: string): boolean { return this.get(dev).wxDetail ?? true; }
+  /** (08/10/2026) Widget man hinh khoa nao dang bat (mac dinh: ca ba — khong co so lieu thi tu an). */
+  lockWidgets(dev: string): { en: boolean; cal: boolean; cam: boolean } {
+    const p = this.get(dev);
+    return { en: p.lwEnergy ?? true, cal: p.lwCal ?? true, cam: p.lwCam ?? true };
+  }
   albumUrl(envDefault = ''): string { return this.global().gphotosUrl ?? envDefault; }
   cast(dev: string, addonDefault: boolean): boolean { return this.get(dev).cast ?? addonDefault; }
   /** Ten panel hien trong nut truyen cua dien thoai. */
@@ -131,6 +141,10 @@ export class PanelPrefsStore {
         'Mở khóa / chạm vào thì sáng lại'),
       sel('rwv.clock_size', 'lock', 'Cỡ đồng hồ', CLOCK_CHOICES, this.clockSize(dev), 'Lớn'),
       sw('rwv.wx_detail', 'lock', 'Thời tiết chi tiết', this.wxDetail(dev), 'Cảm giác, độ ẩm, gió, mưa, không khí, giờ tới'),
+      // (08/10/2026) Widget: khong co so lieu (chua chon cam bien / khong co lich / khong co Frigate) thi tu an.
+      sw('rwv.lw_energy', 'lock', 'Năng lượng', this.lockWidgets(dev).en, 'Mặt trời, pin, tiêu thụ · chọn cảm biến ở trang Darboard → Màn khóa'),
+      sw('rwv.lw_cal', 'lock', 'Lịch sắp tới', this.lockWidgets(dev).cal, 'Sự kiện 3 ngày tới từ lịch Home Assistant'),
+      sw('rwv.lw_cam', 'lock', 'Camera phát hiện', this.lockWidgets(dev).cam, 'Lần Frigate thấy người / xe gần nhất trong 1 giờ'),
       sw('rwv.saver_photos', 'lock', 'Hiện ảnh nền', this.saverPhotos(dev, d.saverPhotos), 'Khung ảnh số · đêm chỉ đồng hồ'),
       sel('rwv.photo_interval', 'lock', 'Đổi ảnh sau', INTERVAL_CHOICES, f.intervalS, `${f.intervalS} giây`),
       sw('rwv.morning', 'screen', 'Chào buổi sáng', this.morning(dev, d.morning), 'Camera thấy người buổi sáng → mở “Hôm nay”'),

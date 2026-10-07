@@ -1,3 +1,13 @@
+## V2.9.116
+### Widget trên màn hình khóa
+- Dưới đồng hồ: **năng lượng** (công suất mặt trời + sản lượng hôm nay, % pin đang sạc / xả, tiêu thụ, lưới), **lịch 3 ngày
+  tới** (lịch tự sinh mỗi ngày như âm lịch được bỏ qua) và **lần camera phát hiện gần nhất** trong 1 giờ (đang diễn ra thì
+  hiện đỏ; camera của chính panel được bỏ qua).
+- Bật / tắt từng loại trên mỗi panel: Cài đặt → Màn hình khóa. Không có số liệu thì widget tự ẩn.
+- Chọn cảm biến năng lượng ở trang Darboard → thẻ mới **Màn khóa** (gợi ý cảm biến, xem giá trị ngay, đảo dấu pin / lưới).
+  Chưa chọn thì lấy theo trang Năng lượng của Home Assistant.
+- Số liệu vẽ lại cùng lúc đổi phút (không tốn thêm khung hình); màn vuông và khi có ảnh nền thì gọn hơn.
+
 ## V2.9.115
 ### Sự kiện camera (Frigate)
 - Menu → Nhà → **Sự kiện camera**: các lần Frigate phát hiện người / xe / vật nuôi, xếp theo ngày — ảnh thu nhỏ, độ tin

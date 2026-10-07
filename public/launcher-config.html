@@ -331,6 +331,22 @@
   .iv-sdl .s { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
   .iv-sdl .empty { padding: 14px; color: var(--muted); }
   #iptvView .add:disabled, #iptvView .btn:disabled, #iptvView .ic:disabled { opacity: 0.45; cursor: default; }
+  /* (08/10/2026) The "Màn khóa": cam bien nang luong cho widget man hinh khoa (src/lockWidgets.ts). */
+  .lw-form { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .lw-now { padding: 10px 12px; border-radius: 10px; background: var(--surface-2); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+  .lw-now b { font-weight: 600; }
+  .lw-row { display: grid; grid-template-columns: 210px minmax(0, 1fr) 120px; gap: 6px 12px; align-items: center; }
+  .lw-row .lw-l { font-weight: 500; }
+  .lw-row input[type=text] { min-width: 0; font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; padding: 8px 10px; border: 1px solid var(--line);
+    border-radius: 8px; background: var(--surface); color: var(--text); }
+  .lw-row input[type=text]:focus { outline: 2px solid var(--primary); outline-offset: -1px; border-color: transparent; }
+  .lw-row .lw-v { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lw-row .lw-v.miss { color: var(--danger); }
+  .lw-row .lw-sub { grid-column: 2 / 4; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
+  .lw-inv { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+  .lw-form .acts { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+  #lockView .btn:disabled { opacity: 0.45; cursor: default; }
+  @media (max-width: 640px) { .lw-row { grid-template-columns: minmax(0, 1fr) auto; } .lw-row .lw-l, .lw-row .lw-sub { grid-column: 1 / 3; } }
 </style>
 </head>
 <body>
@@ -340,6 +356,7 @@
     <a href="#tin-nhan" id="tabChat" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="tabChatPath" d=""/></svg>Tin nhắn<span class="cnt" id="tabCnt" hidden></span></a>
     <a href="#quan-ly-file" id="tabFiles" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="tabFilesPath" d=""/></svg>Quản lý file</a>
     <a href="#iptv" id="tabIptv" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="tabIptvPath" d=""/></svg>IPTV</a>
+    <a href="#man-khoa" id="tabLock" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="tabLockPath" d=""/></svg>Màn khóa</a>
     <a href="#menu" id="tabApps" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="tabAppsPath" d=""/></svg>Menu ứng dụng</a>
   </div>
 </div></nav>
@@ -488,6 +505,26 @@
   <div class="fm-note iv-help" id="ivHelp"></div>
 </div>
 </main>
+<main id="lockView" hidden>
+<div class="wrap">
+  <header>
+    <h1>Widget trên màn hình khóa</h1>
+    <p>Màn hình khóa / chờ của các panel hiện năng lượng, lịch 3 ngày tới và lần camera phát hiện gần nhất. Bật / tắt từng loại trên mỗi panel: Cài đặt → Màn hình khóa.</p>
+  </header>
+  <section class="card">
+    <div class="card-head"><h2>Năng lượng</h2><span class="count" id="lwFrom"></span></div>
+    <form class="lw-form" id="lwForm" novalidate>
+      <div class="lw-now" id="lwNow" role="status"></div>
+      <div id="lwRows"></div>
+      <div class="err" id="lwErr" role="alert"></div>
+      <div class="acts"><button class="btn" type="button" id="lwUseHa">Theo trang Năng lượng của HA</button><button class="btn primary" type="submit" id="lwSave">Lưu</button></div>
+    </form>
+  </section>
+  <div class="iv-status" id="lwStatus" role="status"></div>
+  <div class="fm-note iv-help" id="lwHelp"></div>
+</div>
+</main>
+<datalist id="lwDlP"></datalist><datalist id="lwDlE"></datalist><datalist id="lwDlS"></datalist>
 <dialog id="ivSdDlg">
   <form class="dlg" method="dialog">
     <div class="dlg-head"><h3>Chọn tệp trên thẻ nhớ</h3></div>
@@ -799,15 +836,18 @@
   $('tabAppsPath').setAttribute('d', IC['view-grid-plus-outline'] || '');
   $('tabFilesPath').setAttribute('d', IC['folder-outline'] || '');
   $('tabIptvPath').setAttribute('d', IC['television-classic'] || '');
+  $('tabLockPath').setAttribute('d', IC['cellphone-lock'] || '');
   $('attach').append(svg('paperclip')); $('sendBtn').append(svg('send'));
 
   // ── Hai the (#tin-nhan | #menu) ──
   // (02/10/2026) + the #quan-ly-file (khoi script rieng o cuoi trang nghe hashchange).
   function route() {
     var apps = location.hash === '#menu', files = location.hash === '#quan-ly-file', iptv = location.hash === '#iptv';
-    var chat = !apps && !files && !iptv;
+    var lock = location.hash === '#man-khoa';  // (08/10/2026) widget man hinh khoa
+    var chat = !apps && !files && !iptv && !lock;
     $('chatView').hidden = !chat; $('appsView').hidden = !apps; $('filesView').hidden = !files; $('iptvView').hidden = !iptv;
-    [['tabChat', chat], ['tabFiles', files], ['tabIptv', iptv], ['tabApps', apps]].forEach(function (t) {
+    $('lockView').hidden = !lock;
+    [['tabChat', chat], ['tabFiles', files], ['tabIptv', iptv], ['tabLock', lock], ['tabApps', apps]].forEach(function (t) {
       $(t[0]).classList.toggle('on', t[1]); $(t[0]).setAttribute('aria-selected', String(t[1]));
     });
     if (chat) setTimeout(scrollEnd, 0);
@@ -1758,6 +1798,147 @@
   function enter() { if (visible() && !T.loaded && !T.busy) load(false); }
   window.addEventListener('hashchange', enter);
   render(); enter();
+})();
+</script>
+<script>
+// (08/10/2026) THE "MAN KHOA": chon cam bien nang luong cho widget man hinh khoa. API src/lockWidgets.ts (duong tuong doi
+// "lockwidgets/config", ingress them tien to): GET -> {from, cfg, ha, candidates, energy}; POST {energy} (null = theo trang
+// Nang luong cua HA) — chi tu ingress.
+(function () {
+  'use strict';
+  var IC = window.RwvIcons || {};
+  var $ = function (id) { return document.getElementById(id); };
+  function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; }
+  function svg(n) { var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true');
+    var p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', IC[n] || ''); s.appendChild(p); return s; }
+  var FIELDS = [
+    { k: 'pv', l: 'Công suất mặt trời', dl: 'lwDlP' },
+    { k: 'pvToday', l: 'Sản lượng mặt trời hôm nay', dl: 'lwDlE', hint: 'Cảm biến kWh tự về 0 lúc nửa đêm' },
+    { k: 'soc', l: 'Phần trăm pin', dl: 'lwDlS' },
+    { k: 'bat', l: 'Công suất pin', dl: 'lwDlP', inv: 'batInvert', invL: 'Số dương là đang sạc', hint: 'Mặc định số dương là đang xả (quy ước của Home Assistant)' },
+    { k: 'load', l: 'Công suất tiêu thụ', dl: 'lwDlP' },
+    { k: 'grid', l: 'Công suất lưới', dl: 'lwDlP', inv: 'gridInvert', invL: 'Số dương là đang bán lên lưới', hint: 'Mặc định số dương là đang mua điện' }
+  ];
+  var L = { loaded: false, busy: false, cands: {}, data: null };
+  function visible() { return location.hash === '#man-khoa'; }
+  function api(body) {
+    var init = { cache: 'no-store' };
+    if (body !== undefined) { init.method = 'POST'; init.headers = { 'content-type': 'application/json' }; init.body = JSON.stringify(body); }
+    return fetch('lockwidgets/config', init).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok || j.ok === false) throw new Error(j.error || ('Lỗi ' + r.status)); return j; });
+    });
+  }
+  function status(t, cls) { var s = $('lwStatus'); s.textContent = t || ''; s.className = 'iv-status' + (cls ? ' ' + cls : ''); }
+  function fmtW(w) { var a = Math.abs(w); return a < 999.5 ? Math.round(a) + ' W' : (Math.round(a / 100) / 10).toFixed(1).replace('.', ',') + ' kW'; }
+  function nowText(en) {
+    var parts = [];
+    if (en.pv != null) parts.push(['Mặt trời ', fmtW(en.pv) + (en.pvd != null ? ' (' + String(en.pvd).replace('.', ',') + ' kWh hôm nay)' : '')]);
+    if (en.soc != null || en.bat != null) parts.push(['Pin ', (en.soc != null ? Math.round(en.soc) + '%' : '') +
+      (en.bat > 25 ? ' · đang xả ' + fmtW(en.bat) : en.bat < -25 ? ' · đang sạc ' + fmtW(en.bat) : '')]);
+    if (en.load != null) parts.push(['Tiêu thụ ', fmtW(en.load)]);
+    if (en.grid != null) parts.push(['Lưới ', en.grid < -25 ? 'bán ' + fmtW(en.grid) : fmtW(en.grid)]);
+    return parts;
+  }
+  function valueOf(id) {
+    var c = L.cands[id];
+    if (!id) return { t: '', miss: false };
+    if (!c) return { t: 'Không tìm thấy', miss: true };
+    return { t: c.state + (c.unit ? ' ' + c.unit : ''), miss: c.state === 'unavailable' || c.state === 'unknown' };
+  }
+  function showValue(f) {
+    var v = valueOf($('lw_' + f.k).value.trim()), out = $('lwv_' + f.k);
+    out.textContent = v.t; out.classList.toggle('miss', v.miss);
+  }
+  function buildRows() {
+    var box = $('lwRows'), frag = document.createDocumentFragment();
+    box.style.display = 'flex'; box.style.flexDirection = 'column'; box.style.gap = '14px';
+    FIELDS.forEach(function (f) {
+      var row = el('div', 'lw-row'), lab = el('label', 'lw-l', f.l), inp = el('input'), val = el('span', 'lw-v');
+      lab.htmlFor = 'lw_' + f.k;
+      inp.type = 'text'; inp.id = 'lw_' + f.k; inp.setAttribute('list', f.dl); inp.placeholder = 'sensor.…'; inp.autocomplete = 'off'; inp.spellcheck = false;
+      inp.addEventListener('input', function () { showValue(f); });
+      val.id = 'lwv_' + f.k;
+      row.append(lab, inp, val);
+      if (f.inv || f.hint) {
+        var sub = el('div', 'lw-sub');
+        if (f.inv) { var cl = el('label', 'lw-inv'), cb = el('input'); cb.type = 'checkbox'; cb.id = 'lwi_' + f.k; cl.append(cb, document.createTextNode(f.invL)); sub.append(cl); }
+        if (f.hint) sub.append(el('span', 'hint', f.hint));
+        row.append(sub);
+      }
+      frag.append(row);
+    });
+    box.replaceChildren(frag);
+  }
+  function fill(j) {
+    L.data = j; L.cands = {};
+    var dl = { lwDlP: [], lwDlE: [], lwDlS: [] };
+    (j.candidates || []).forEach(function (c) {
+      L.cands[c.id] = c;
+      var o = el('option'); o.value = c.id; o.label = (c.name || c.id) + ' · ' + c.state + (c.unit ? ' ' + c.unit : '');
+      if (/^(W|kW|MW)$/.test(c.unit) || c.dc === 'power') dl.lwDlP.push(o);
+      else if (/^(Wh|kWh|MWh)$/.test(c.unit) || c.dc === 'energy') dl.lwDlE.push(o);
+      else if (c.unit === '%' || c.dc === 'battery') dl.lwDlS.push(o);
+    });
+    Object.keys(dl).forEach(function (k) { $(k).replaceChildren.apply($(k), dl[k]); });
+    var cfg = j.cfg || {};
+    FIELDS.forEach(function (f) {
+      $('lw_' + f.k).value = cfg[f.k] || '';
+      if (f.inv) $('lwi_' + f.k).checked = !!cfg[f.inv];
+      showValue(f);
+    });
+    $('lwFrom').textContent = j.from === 'saved' ? 'Cảm biến đã chọn' : 'Theo trang Năng lượng của HA';
+    var parts = nowText(j.energy || {}), now = $('lwNow');
+    if (!parts.length) now.textContent = 'Chưa có số liệu năng lượng — chọn cảm biến bên dưới rồi bấm Lưu.';
+    else {
+      now.replaceChildren(el('span', '', 'Màn khóa đang hiện: '));
+      parts.forEach(function (p, i) { if (i) now.append(document.createTextNode(' · ')); now.append(el('b', '', p[0]), document.createTextNode(p[1])); });
+    }
+    // Trang Nang luong cua HA tro toi cam bien khong con (do that 08/10 o nha nguoi dung) -> bao ro.
+    var gone = Object.keys(j.ha || {}).filter(function (k) { return typeof j.ha[k] === 'string' && !L.cands[j.ha[k]]; }).map(function (k) { return j.ha[k]; });
+    $('lwErr').textContent = gone.length ? 'Trang Năng lượng của Home Assistant trỏ tới cảm biến không còn tồn tại: ' + gone.join(', ') + '. Hãy chọn cảm biến ở đây.' : '';
+  }
+  function setBusy(b) { L.busy = b; $('lwSave').disabled = b; $('lwUseHa').disabled = b; }
+  function load() {
+    setBusy(true); status('Đang tải…');
+    api().then(function (j) { L.loaded = true; fill(j); status(''); })
+      .catch(function (e) { status('Không tải được: ' + e.message, 'err'); })
+      .then(function () { setBusy(false); });
+  }
+  function save(energy, msg) {
+    setBusy(true); status('Đang lưu…');
+    api({ energy: energy }).then(function (j) { fill(j); status(msg, 'ok'); })
+      .catch(function (e) { status('Không lưu được: ' + e.message, 'err'); })
+      .then(function () { setBusy(false); });
+  }
+  $('lwForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var energy = {}, bad = [];
+    FIELDS.forEach(function (f) {
+      var v = $('lw_' + f.k).value.trim();
+      if (v && !/^sensor\.[a-z0-9_]+$/.test(v)) bad.push(f.l);
+      if (v) energy[f.k] = v;
+      if (f.inv && v && $('lwi_' + f.k).checked) energy[f.inv] = true;
+    });
+    if (bad.length) { $('lwErr').textContent = 'Không phải cảm biến (sensor.…): ' + bad.join(', ') + '.'; return; }
+    save(energy, 'Đã lưu — màn hình khóa cập nhật trong ít giây.');
+  });
+  $('lwUseHa').addEventListener('click', function () { save(null, 'Đã chuyển về theo trang Năng lượng của Home Assistant.'); });
+  (function help() {
+    var box = $('lwHelp'), body = el('div'), ul = el('ul');
+    function li(t) { return el('li', '', t); }
+    ul.append(
+      li('Năng lượng: chỉ hiện các ô có cảm biến; để trống ô nào thì bỏ ô đó. Số liệu cập nhật mỗi 30 giây khi màn đang khóa, vẽ lại cùng lúc đổi phút.'),
+      li('Lịch: mọi lịch của Home Assistant, 3 ngày tới. Lịch tự sinh mỗi ngày một sự kiện (ví dụ ngày âm lịch) được bỏ qua — màn khóa đã có ngày âm.'),
+      li('Camera: lần Frigate phát hiện gần nhất trong 1 giờ (đang diễn ra thì hiện đỏ). Camera của chính panel được bỏ qua.'),
+      li('Có ảnh nền (khung ảnh) thì chỉ hiện năng lượng và 1 dòng để không che ảnh.')
+    );
+    body.append(el('b', '', 'Gợi ý'), ul);
+    box.replaceChildren(svg('information-outline'), body);
+  })();
+  buildRows();
+  function enter() { if (visible() && !L.loaded && !L.busy) load(); }
+  window.addEventListener('hashchange', enter);
+  enter();
 })();
 </script>
 </body>
