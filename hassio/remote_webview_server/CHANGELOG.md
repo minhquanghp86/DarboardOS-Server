@@ -1,3 +1,11 @@
+## V2.9.111
+### Ứng dụng IPTV (mới)
+- Menu → Giải trí → **IPTV**: xem kênh từ danh sách M3U của bạn. Kênh xếp theo nhóm, tìm theo tên (không cần gõ dấu),
+  kênh yêu thích (☆), "Xem tiếp" kênh cuối. Đang xem: chạm hiện thông tin kênh, **vuốt lên / xuống** để đổi kênh.
+- Thêm / bật tắt / sửa danh sách ở trang **Darboard → IPTV** trong Home Assistant (đường link hoặc tệp `/media/…`).
+- Phát được HLS (m3u8), MPEG-TS / FLV qua HTTP, mp4; dùng được User-Agent / Referer riêng của từng kênh trong danh sách.
+- Máy chủ chuyển tiếp luồng (không vướng CORS); rời ứng dụng là ngắt luồng, quay lại thì phát tiếp kênh đang xem.
+
 ## V2.9.110
 ### Màn hình khóa: có người thì sáng màn, vẫn giữ khóa (P4)
 - P4 thấy người khi đang khóa: màn sáng lại đúng độ sáng đang dùng và giữ sáng suốt lúc còn người; người đi khỏi 15 giây

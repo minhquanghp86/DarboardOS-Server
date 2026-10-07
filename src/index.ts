@@ -36,6 +36,7 @@ import { handleLauncherApi } from './launcherApi.js';
 import { ensureMdiIcons } from './launcherConfig.js';
 import { startDebugProxy } from './debugProxy.js';
 import { startWeatherMini } from './weatherMini.js';
+import { handleIptvApi } from './iptv.js';
 import type WebSocket from 'ws';
 
 const WS_PORT   = env.get("WS_PORT").default("8081").asIntPositive();
@@ -174,7 +175,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const STATIC_PAGES = ['cam.html', 'camera.html', 'weather.html', 'cams.html', 'calendar.html', 'radio.html', 'timer.html', 'lunar.js',
   'launcher-config.html', 'os-home.html', 'ui.css', 'ui.js', 'settings.html', 'rooms.html', 'todo.html', 'remote.html', 'photos.html', 'today.html', 'board.html', 'doorbell.html',
   // (01/10/2026) Thu vien / Tep (the SD cua P4), Tin nhan noi bo, bieu tuong dung chung.
-  'files.html', 'chat.html', 'icons.js', 'alarm.html'];
+  'files.html', 'chat.html', 'icons.js', 'alarm.html',
+  // (07/10/2026) IPTV (src/iptv.ts).
+  'iptv.html'];
 const staticCache = new Map<string, Buffer>();
 for (const name of STATIC_PAGES) {
   const p = path.join(__dirname, '..', 'public', name);
@@ -184,6 +187,17 @@ for (const name of STATIC_PAGES) {
     console.warn(`[static] khong doc duoc ${p}: ${(e as Error).message}`);
   }
 }
+// (07/10/2026) Thu vien trinh duyet cua IPTV phuc vu thang tu node_modules (phien ban ghim trong package-lock, khong can
+// CDN): hls.js (HLS) va mpegts.js (MPEG-TS / FLV qua HTTP). Apache-2.0.
+const VENDOR: Record<string, string> = {
+  '/vendor/hls.min.js': 'hls.js/dist/hls.min.js',
+  '/vendor/mpegts.js': 'mpegts.js/dist/mpegts.js',
+};
+const vendorCache = new Map<string, Buffer>();
+for (const [route, rel] of Object.entries(VENDOR)) {
+  const p = path.join(__dirname, '..', 'node_modules', rel);
+  try { vendorCache.set(route, fs.readFileSync(p)); } catch (e) { console.warn(`[static] khong doc duoc ${p}: ${(e as Error).message}`); }
+}
 
 http.createServer((req, res) => {
   const reqUrl = new URL(req.url || "/", `http://localhost:${HEALTH_PORT}`);
@@ -192,6 +206,14 @@ http.createServer((req, res) => {
   if (handleCamProxy(req, res, pathname, reqUrl.search)) return;
   // (02/10/2026) Quan ly file (the SD cua P4) tu trang Darboard — chi ingress.
   if (handleFileManager(req, res, reqUrl)) return;
+  // (07/10/2026) IPTV: danh sach kenh, proxy luong, yeu thich, cau hinh tu trang Darboard (src/iptv.ts).
+  if (handleIptvApi(req, res, reqUrl)) return;
+  const vendor = vendorCache.get(pathname);
+  if (vendor) {
+    res.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'public, max-age=3600' });
+    res.end(vendor);
+    return;
+  }
 
   // (14/09/2026) /metrics: số liệu thật để đo hiệu năng (GĐ0)
   if (pathname.startsWith('/metrics')) {

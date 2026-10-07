@@ -80,6 +80,8 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   // tiep (khong vuong DRM; lan dau co hop Dieu khoan — nguoi dung tu bam Dong y). Zing MP3 / NhacCuaTui: kind 'music' de
   // PHAT NEN nhu ung dung Nhac (tab khong bi dong bang khi dang phat).
   add('giai_tri', 'VTVgo', 'vtvgo', '#c8102e', 'https://vtvgo.vn', undefined, 'vtvgo', 'mdi:television-play');
+  // (07/10/2026) IPTV: danh sach kenh M3U nguoi dung them o trang Darboard (src/iptv.ts, public/iptv.html).
+  add('giai_tri', 'IPTV', 'iptv', '#c026d3', `${LOCAL}/iptv.html`, undefined, 'iptv', 'mdi:television-classic');
   add('giai_tri', 'Zing MP3', 'music', '#8b45ca', 'https://zingmp3.vn', undefined, 'zingmp3', 'mdi:music-circle-outline');
   add('giai_tri', 'NhacCuaTui', 'music', '#1f6feb', 'https://www.nhaccuatui.com', undefined, 'nhaccuatui', 'mdi:playlist-music');
   if (haOrigin) add('giai_tri', 'Media', 'media', '#7c3aed', `${haOrigin}/media-browser/browser`);

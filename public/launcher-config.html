@@ -305,6 +305,23 @@
   .field input[type=text] { font: inherit; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); }
   .field input[type=text]:focus { outline: 2px solid var(--primary); outline-offset: -1px; border-color: transparent; }
   @media (max-width: 600px) { .fm-actions .btn .lbl { display: none; } .fm-actions .btn svg { margin-right: 0; } }
+  /* (07/10/2026) IPTV — danh sach kenh M3U cho ung dung IPTV tren panel (src/iptv.ts) */
+  .iv-row { align-items: flex-start; padding: 12px 8px 12px 16px; }
+  .iv-row .switch { margin-top: 2px; }
+  .iv-row .meta .sub { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+  .iv-st { margin-top: 3px; color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .iv-st.err { color: var(--danger); }
+  .iv-empty { padding: 16px; color: var(--muted); }
+  .iv-form { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .iv-form .acts { display: flex; justify-content: flex-end; gap: 8px; }
+  .iv-status { min-height: 1.4em; color: var(--muted); font-size: 13px; }
+  .iv-status.ok { color: var(--ok); }
+  .iv-status.err { color: var(--danger); }
+  .iv-help ul { margin: 6px 0 0; padding-left: 18px; }
+  .iv-help li { margin: 3px 0; }
+  .iv-help code { font-size: 12px; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+  #iptvView .add svg { width: 20px; height: 20px; fill: currentColor; }
+  #iptvView .add:disabled, #iptvView .btn:disabled, #iptvView .ic:disabled { opacity: 0.45; cursor: default; }
 </style>
 </head>
 <body>
@@ -313,6 +330,7 @@
   <div class="tabs" role="tablist">
     <a href="#tin-nhan" id="tabChat" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="tabChatPath" d=""/></svg>Tin nhắn<span class="cnt" id="tabCnt" hidden></span></a>
     <a href="#quan-ly-file" id="tabFiles" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="tabFilesPath" d=""/></svg>Quản lý file</a>
+    <a href="#iptv" id="tabIptv" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="tabIptvPath" d=""/></svg>IPTV</a>
     <a href="#menu" id="tabApps" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="tabAppsPath" d=""/></svg>Menu ứng dụng</a>
   </div>
 </div></nav>
@@ -433,6 +451,38 @@
     <div class="dlg-head"><h3 id="askTitle"></h3></div>
     <div class="dlg-body"><p id="askText" style="margin:0;color:var(--muted)"></p></div>
     <div class="dlg-foot"><button type="button" class="btn" id="askNo">Huỷ</button><button type="button" class="btn primary" id="askYes" style="background:var(--danger);border-color:var(--danger)">Xoá</button></div>
+  </form>
+</dialog>
+
+<main id="iptvView" hidden>
+<div class="wrap">
+  <header>
+    <h1>IPTV trên màn hình</h1>
+    <p>Thêm danh sách kênh M3U — đường link, hoặc tệp đặt trong thư mục media của Home Assistant. Kênh xem ở ứng dụng <b>IPTV</b> trong menu các panel. Mỗi thay đổi lưu ngay.</p>
+  </header>
+  <section class="card">
+    <div class="card-head"><h2>Danh sách kênh</h2><span class="count" id="ivCount"></span><button class="btn" id="ivRefresh" type="button"></button></div>
+    <div id="ivLists"></div>
+    <button class="add" id="ivAdd" type="button"></button>
+  </section>
+  <section class="card" id="ivForm" hidden>
+    <div class="card-head"><h2 id="ivFormTitle">Thêm danh sách</h2></div>
+    <form class="iv-form" id="ivFormEl" novalidate>
+      <label class="field">Tên <input type="text" id="ivName" maxlength="60" placeholder="Ví dụ: Kênh nhà mình"></label>
+      <label class="field">Địa chỉ danh sách <input type="text" id="ivUrl" placeholder="https://…/playlist.m3u  hoặc  /media/iptv/kenh.m3u" autocomplete="off" spellcheck="false"></label>
+      <div class="err" id="ivErr" role="alert"></div>
+      <div class="acts"><button class="btn" type="button" id="ivCancel">Huỷ</button><button class="btn primary" type="submit" id="ivSave">Lưu</button></div>
+    </form>
+  </section>
+  <div class="iv-status" id="ivStatus" role="status"></div>
+  <div class="fm-note iv-help" id="ivHelp"></div>
+</div>
+</main>
+<dialog id="ivAskDlg">
+  <form class="dlg" method="dialog">
+    <div class="dlg-head"><h3 id="ivAskTitle"></h3></div>
+    <div class="dlg-body"><p id="ivAskText" style="margin:0;color:var(--muted)"></p></div>
+    <div class="dlg-foot"><button type="button" class="btn" id="ivAskNo">Huỷ</button><button type="button" class="btn primary" id="ivAskYes" style="background:var(--danger);border-color:var(--danger)">Xoá</button></div>
   </form>
 </dialog>
 
@@ -731,14 +781,16 @@
   $('tabChatPath').setAttribute('d', IC['message-text-outline'] || '');
   $('tabAppsPath').setAttribute('d', IC['view-grid-plus-outline'] || '');
   $('tabFilesPath').setAttribute('d', IC['folder-outline'] || '');
+  $('tabIptvPath').setAttribute('d', IC['television-classic'] || '');
   $('attach').append(svg('paperclip')); $('sendBtn').append(svg('send'));
 
   // ── Hai the (#tin-nhan | #menu) ──
   // (02/10/2026) + the #quan-ly-file (khoi script rieng o cuoi trang nghe hashchange).
   function route() {
-    var apps = location.hash === '#menu', files = location.hash === '#quan-ly-file', chat = !apps && !files;
-    $('chatView').hidden = !chat; $('appsView').hidden = !apps; $('filesView').hidden = !files;
-    [['tabChat', chat], ['tabFiles', files], ['tabApps', apps]].forEach(function (t) {
+    var apps = location.hash === '#menu', files = location.hash === '#quan-ly-file', iptv = location.hash === '#iptv';
+    var chat = !apps && !files && !iptv;
+    $('chatView').hidden = !chat; $('appsView').hidden = !apps; $('filesView').hidden = !files; $('iptvView').hidden = !iptv;
+    [['tabChat', chat], ['tabFiles', files], ['tabIptv', iptv], ['tabApps', apps]].forEach(function (t) {
       $(t[0]).classList.toggle('on', t[1]); $(t[0]).setAttribute('aria-selected', String(t[1]));
     });
     if (chat) setTimeout(scrollEnd, 0);
@@ -1518,6 +1570,140 @@
   function enter() { if (!visible()) return; if (!F.loaded && !F.busy) load(F.dir); poll(); }
   window.addEventListener('hashchange', enter);
   document.addEventListener('visibilitychange', enter);
+  render(); enter();
+})();
+</script>
+<script>
+// (07/10/2026) THE "IPTV": danh sach kenh M3U cho ung dung IPTV tren panel. API src/iptv.ts (duong tuong doi "iptv/...",
+// ingress them tien to): GET config, POST config (chi tu ingress), POST refresh. Moi thay doi luu ngay.
+(function () {
+  'use strict';
+  var IC = window.RwvIcons || {};
+  var $ = function (id) { return document.getElementById(id); };
+  function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; }
+  function svg(n) { var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true');
+    var p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', IC[n] || ''); s.appendChild(p); return s; }
+  function icBtn(icon, label, fn) { var b = el('button', 'ic'); b.type = 'button'; b.title = label; b.setAttribute('aria-label', label); b.append(svg(icon)); b.onclick = fn; return b; }
+
+  var T = { lists: [], loaded: false, busy: false, edit: null };
+  function api(path, body) {
+    var init = { cache: 'no-store' };
+    if (body !== undefined) { init.method = 'POST'; if (body !== null) { init.headers = { 'content-type': 'application/json' }; init.body = JSON.stringify(body); } }
+    return fetch('iptv/' + path, init).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok || j.ok === false) throw new Error(j.error || ('Lỗi ' + r.status)); return j; });
+    });
+  }
+  function visible() { return !$('iptvView').hidden; }
+  /** An mat khau / ma truy cap trong dia chi (danh sach Xtream: ...?username=..&password=..). */
+  function mask(u) { return String(u).replace(/((?:password|pass|pwd|token|key)=)[^&]+/gi, '$1•••'); }
+  function when(t) {
+    var d = new Date(t), p = function (n) { return String(n).padStart(2, '0'); };
+    return p(d.getHours()) + ':' + p(d.getMinutes()) + ' ' + p(d.getDate()) + '/' + p(d.getMonth() + 1);
+  }
+  function status(text, kind) { var s = $('ivStatus'); s.textContent = text || ''; s.className = 'iv-status' + (kind ? ' ' + kind : ''); }
+
+  function render() {
+    var rows = [], total = 0;
+    T.lists.forEach(function (l, i) {
+      if (l.on) total += l.count || 0;
+      var r = el('div', 'row iv-row' + (l.on ? '' : ' off'));
+      var sw = el('label', 'switch'), cb = el('input');
+      cb.type = 'checkbox'; cb.checked = l.on; cb.disabled = T.busy; cb.setAttribute('aria-label', 'Bật danh sách ' + l.name);
+      cb.onchange = function () {
+        var on = cb.checked;
+        save(T.lists.map(function (x, k) { return k === i ? Object.assign({}, x, { on: on }) : x; }), (on ? 'Đã bật “' : 'Đã tắt “') + l.name + '”.')
+          .catch(function () { cb.checked = !on; });
+      };
+      sw.append(cb, el('span'));
+      var meta = el('div', 'meta'), st = el('div', 'iv-st');
+      meta.append(el('div', 'name', l.name), el('div', 'sub', mask(l.url)));
+      if (!l.on) st.textContent = 'Đang tắt';
+      else if (l.error) { st.className += ' err'; st.textContent = 'Lỗi: ' + l.error + (l.stale ? ' — đang dùng bản đã lưu (' + l.count + ' kênh).' : '.'); }
+      else if (l.at) st.textContent = l.count + ' kênh' + (l.skipped ? ' · bỏ ' + l.skipped + ' kênh udp/rtmp' : '') + ' · cập nhật ' + when(l.at);
+      meta.appendChild(st);
+      var ed = icBtn('pencil-outline', 'Sửa', function () { openForm(i); }), dl = icBtn('delete-outline', 'Xoá', function () { del(i); });
+      ed.disabled = dl.disabled = T.busy;
+      r.append(sw, meta, ed, dl);
+      rows.push(r);
+    });
+    if (T.loaded && !T.lists.length) rows.push(el('div', 'iv-empty', 'Chưa có danh sách nào — bấm “Thêm danh sách” để bắt đầu.'));
+    if (!T.loaded) rows.push(el('div', 'iv-empty', 'Đang tải…'));
+    $('ivLists').replaceChildren.apply($('ivLists'), rows);
+    $('ivCount').textContent = T.loaded ? T.lists.length + ' danh sách · ' + total + ' kênh' : '';
+    $('ivAdd').disabled = T.busy || T.lists.length >= 20;
+    $('ivRefresh').disabled = T.busy || !T.lists.some(function (l) { return l.on; });
+    $('ivSave').disabled = T.busy;
+  }
+  function load(refresh) {
+    T.busy = true; render();
+    status(refresh ? 'Đang tải lại các danh sách…' : '');
+    return api(refresh ? 'refresh' : 'config', refresh ? null : undefined)
+      .then(function (j) { T.lists = j.lists || []; T.loaded = true; if (refresh) status('Đã tải lại danh sách kênh.', 'ok'); })
+      .catch(function (e) { status(e.message, 'err'); })
+      .then(function () { T.busy = false; render(); });
+  }
+  function save(lists, okText) {
+    T.busy = true; render(); status('Đang lưu và tải danh sách…');
+    return api('config', { lists: lists.map(function (l) { return { id: l.id, name: l.name, url: l.url, on: l.on }; }) })
+      .then(function (j) { T.lists = j.lists || []; status(okText || 'Đã lưu.', 'ok'); })
+      .catch(function (e) { status(e.message, 'err'); throw e; })
+      .finally(function () { T.busy = false; render(); });
+  }
+  function openForm(i) {
+    T.edit = i;
+    var l = i >= 0 ? T.lists[i] : { name: '', url: '' };
+    $('ivFormTitle').textContent = i >= 0 ? 'Sửa danh sách' : 'Thêm danh sách';
+    $('ivName').value = l.name; $('ivUrl').value = l.url; $('ivErr').textContent = '';
+    $('ivForm').hidden = false; $('ivUrl').focus();
+    $('ivForm').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+  function closeForm() { T.edit = null; $('ivForm').hidden = true; }
+  $('ivFormEl').onsubmit = function (e) {
+    e.preventDefault();
+    var name = $('ivName').value.trim(), url = $('ivUrl').value.trim();
+    if (!url) { $('ivErr').textContent = 'Nhập địa chỉ danh sách (http(s)://… hoặc /media/…).'; $('ivUrl').focus(); return; }
+    var next = T.lists.slice(), edit = T.edit;
+    if (edit >= 0) next[edit] = Object.assign({}, next[edit], { name: name, url: url });
+    else next.push({ name: name, url: url, on: true });
+    $('ivErr').textContent = '';
+    save(next, edit >= 0 ? 'Đã lưu “' + (name || 'danh sách') + '”.' : 'Đã thêm danh sách — kênh có ngay trong ứng dụng IPTV.')
+      .then(closeForm).catch(function (e2) { $('ivErr').textContent = e2.message; });
+  };
+  $('ivCancel').onclick = closeForm;
+  var askFn = null;
+  function del(i) {
+    var l = T.lists[i];
+    $('ivAskTitle').textContent = 'Xoá danh sách “' + l.name + '”?';
+    $('ivAskText').textContent = 'Kênh của danh sách này biến mất khỏi ứng dụng IPTV trên mọi màn hình. Kênh yêu thích vẫn được giữ.';
+    askFn = function () { save(T.lists.filter(function (_x, k) { return k !== i; }), 'Đã xoá “' + l.name + '”.').catch(function () { }); };
+    $('ivAskDlg').showModal();
+  }
+  $('ivAskNo').onclick = function () { $('ivAskDlg').close(); };
+  $('ivAskYes').onclick = function () { $('ivAskDlg').close(); if (askFn) askFn(); };
+  $('ivAdd').append(svg('playlist-plus'), el('span', '', 'Thêm danh sách'));
+  $('ivAdd').onclick = function () { openForm(-1); };
+  $('ivRefresh').append(svg('refresh'), el('span', '', 'Tải lại kênh'));
+  $('ivRefresh').onclick = function () { load(true); };
+
+  // Huong dan: dung DOM (khong innerHTML).
+  (function help() {
+    var box = $('ivHelp'), body = el('div');
+    function li(parts) { var x = el('li'); parts.forEach(function (p) { x.append(typeof p === 'string' ? document.createTextNode(p) : p); }); return x; }
+    function code(t) { return el('code', '', t); }
+    var ul = el('ul');
+    ul.append(
+      li(['Phát được: HLS (', code('.m3u8'), '), luồng MPEG-TS / FLV qua HTTP (', code('.ts'), ', Xtream, udpxy), video ', code('.mp4'), '.']),
+      li(['Header riêng từng kênh dùng được: ', code('#EXTVLCOPT:http-user-agent'), ', ', code('http-referrer'), ', ', code('#EXTHTTP'), ', ', code('url|User-Agent=…'), '.']),
+      li(['Không phát được: kênh có DRM (Widevine), DASH (', code('.mpd'), '), ', code('udp://'), ' / ', code('rtmp://'), ', video H.265 hoặc MPEG-2.']),
+      li(['Tệp trên máy: chép vào thư mục media của Home Assistant rồi nhập ', code('/media/…/ten.m3u'), '.']),
+      li(['Danh sách tự cập nhật 6 giờ/lần (mất mạng thì dùng bản đã lưu). Kênh yêu thích dùng chung cho mọi màn hình.'])
+    );
+    body.append(el('b', '', 'Gợi ý'), ul);
+    box.replaceChildren(svg('information-outline'), body);
+  })();
+
+  function enter() { if (visible() && !T.loaded && !T.busy) load(false); }
+  window.addEventListener('hashchange', enter);
   render(); enter();
 })();
 </script>
