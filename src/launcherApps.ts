@@ -59,6 +59,8 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   // public/camera.html). "Frigate" (truoc la "Camera nha") = luoi camera Frigate, logo Frigate lay tu chinh add-on Frigate.
   add('nha', 'Camera', 'camera', '#16a34a', LAUNCHER_CAMERA_URL);
   add('nha', 'Frigate', 'cams', '#1e3a8a', LAUNCHER_CAMS_URL, undefined, undefined, undefined, FRIGATE_ICON_PATH);
+  // (08/10/2026) Su kien Frigate (nguoi / xe) theo ngay: anh, clip — src/frigate.ts, public/events.html.
+  add('nha', 'Sự kiện camera', 'events', '#0e7490', `${LOCAL}/events.html`, undefined, 'events', 'mdi:cctv');
   // (01/10/2026) The SD cua panel co camera: Thu vien (anh/video da chup, trinh phat) va Tep (duyet / xoa ca the).
   add('nha', 'Thư viện', 'gallery', '#0d9488', `${LOCAL}/files.html?view=gallery`, undefined, 'gallery', 'mdi:image-album');
   add('tien_ich', 'Quản lý file', 'files', '#64748b', `${LOCAL}/files.html`, undefined, 'files', 'mdi:folder-outline');

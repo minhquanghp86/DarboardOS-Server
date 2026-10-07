@@ -37,6 +37,7 @@ import { ensureMdiIcons } from './launcherConfig.js';
 import { startDebugProxy } from './debugProxy.js';
 import { startWeatherMini } from './weatherMini.js';
 import { handleIptvApi } from './iptv.js';
+import { handleFrigateApi } from './frigate.js';
 import type WebSocket from 'ws';
 
 const WS_PORT   = env.get("WS_PORT").default("8081").asIntPositive();
@@ -176,8 +177,8 @@ const STATIC_PAGES = ['cam.html', 'camera.html', 'weather.html', 'cams.html', 'c
   'launcher-config.html', 'os-home.html', 'ui.css', 'ui.js', 'settings.html', 'rooms.html', 'todo.html', 'remote.html', 'photos.html', 'today.html', 'board.html', 'doorbell.html',
   // (01/10/2026) Thu vien / Tep (the SD cua P4), Tin nhan noi bo, bieu tuong dung chung.
   'files.html', 'chat.html', 'icons.js', 'alarm.html',
-  // (07/10/2026) IPTV (src/iptv.ts).
-  'iptv.html'];
+  // (07/10/2026) IPTV (src/iptv.ts). (08/10/2026) Su kien camera Frigate (src/frigate.ts).
+  'iptv.html', 'events.html'];
 const staticCache = new Map<string, Buffer>();
 for (const name of STATIC_PAGES) {
   const p = path.join(__dirname, '..', 'public', name);
@@ -210,6 +211,8 @@ http.createServer((req, res) => {
   if (handleFileManager(req, res, reqUrl)) return;
   // (07/10/2026) IPTV: danh sach kenh, proxy luong, yeu thich, cau hinh tu trang Darboard (src/iptv.ts).
   if (handleIptvApi(req, res, reqUrl)) return;
+  // (08/10/2026) Su kien camera Frigate: danh sach, anh, clip (src/frigate.ts) — chi 127.0.0.1.
+  if (handleFrigateApi(req, res, reqUrl)) return;
   const vendor = vendorCache.get(pathname);
   if (vendor) {
     res.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'public, max-age=3600' });
