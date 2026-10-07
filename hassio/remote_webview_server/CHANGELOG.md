@@ -1,3 +1,8 @@
+## V2.9.110
+### Màn hình khóa: có người thì sáng màn, vẫn giữ khóa (P4)
+- P4 thấy người khi đang khóa: màn sáng lại đúng độ sáng đang dùng và giữ sáng suốt lúc còn người; người đi khỏi 15 giây
+  thì tối lại. Không còn tự về trang chủ — vuốt lên để mở (cần firmware **fw-2026.10.06**; firmware cũ vẫn chạy như trước).
+
 ## V2.9.109
 ### Màn hình khóa kiểu điện thoại
 - Cài đặt → nhóm mới **Màn hình khóa**: bật *Khóa màn hình*, *Khóa / màn hình chờ sau* (thêm 30 giây, 15 và 30 phút),
