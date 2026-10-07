@@ -3039,7 +3039,8 @@ async function flushPending(dev: DeviceSession): Promise<void> {
       // (07/10/2026) + ung dung IPTV: cung la TV toan man hinh. Do that P4 (VTV1 1080p50): khung day du ~100 KB o q40 ->
       // duong truyen nghen, dieu tiet xuong 2,5 fps; ap cung chinh sach khung qua to -> nua do phan giai nhu YouTube TV.
       const activeKind = dev.tabs.get(dev.activeTabKey)?.kind;
-      const tvTab = YT_TV_HALF_MAX_H > 0 && (activeKind === 'yttv' || activeKind === 'iptv');
+      // Tat rieng cho IPTV (do A/B 07/10 khi mang P4 da khoe): /data/rwv-tuning.json {"iptvHalf": false} — nong, khong khoi dong lai.
+      const tvTab = YT_TV_HALF_MAX_H > 0 && (activeKind === 'yttv' || (activeKind === 'iptv' && tuning().iptvHalf !== false));
       const halfProbe = dev.cfg.halfScale && (HALF_SCALE_VIDEO || tvTab || dev.cfg.halfVideo || netHalf);
       // (30/09/2026) Them: khung day du QUA TO (> 2 lan goi) cung gui nua do phan giai. Do that: truyen YouTube TV nguon
       // 720p -> anh Chrome 80-93 KB (q90), van 59 KB o q40 -> P4 giai ma ~120 ms/khung, WS nghen 2,2 MB roi noi lai.

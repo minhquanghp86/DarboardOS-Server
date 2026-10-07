@@ -3,6 +3,8 @@
 - Kênh mã hoá ClearKey (TV360, VTVPrime…) mà nguồn vừa đổi khoá: ứng dụng tự tải lại danh sách (lấy khoá mới nếu tác
   giả danh sách đã cập nhật) rồi thử lại một lần, không báo lỗi ngay. Cũng tự qua được lỗi khoá thoáng qua khi nguồn
   chèn đoạn mã hoá khác.
+- Chỉnh nóng mới `/data/rwv-tuning.json` → `{"iptvHalf": false}`: IPTV gửi khung đầy đủ (nét hơn) thay vì nửa khung
+  khi khung quá lớn — dùng khi mạng tới màn hình khoẻ. Mặc định giữ như YouTube TV.
 
 ## V2.9.112
 ### Hình mượt lại nhanh sau khi mạng hết nghẽn
