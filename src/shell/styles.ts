@@ -282,6 +282,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .wc-desc { display: flex; flex-direction: column; gap: 2px; }
 .wc-name { font-size: clamp(14px, 3.6vmin, 26px); font-weight: 600; }
 .wc-sub { font-size: clamp(12px, 2.8vmin, 20px); color: var(--muted); }
+.wc-sub .nw { white-space: nowrap; }
 .wc-row { display: flex; flex-wrap: wrap; gap: clamp(10px, 2.4vmin, 20px); font-size: clamp(12px, 3vmin, 21px); }
 .wc-i { display: inline-flex; align-items: center; gap: 0.3em; }
 .wc-i .ic { width: 1.2em; height: 1.2em; opacity: 0.8; }
