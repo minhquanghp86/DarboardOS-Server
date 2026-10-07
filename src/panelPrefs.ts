@@ -16,14 +16,19 @@ export interface PanelPrefs {
   photoClock?: boolean; photoInfo?: boolean; photoSource?: 'folder' | 'google' | 'both'; gphotosUrl?: string;
   /** (27/09/2026) Nhan truyen YouTube tu dien thoai (DIAL) + ten hien tren dien thoai. */
   cast?: boolean; castName?: string;
+  /** (07/10/2026) Man hinh KHOA kieu dien thoai: vuot len de mo; do sang khi khoa (0 = giu nguyen); co dong ho; thoi
+   *  tiet chi tiet. Xem src/shell/main.ts screensaver + deviceManager (locked). */
+  lockMode?: boolean; lockBrightness?: number; clockSize?: ClockSize; wxDetail?: boolean;
 }
+export type ClockSize = 'm' | 'l' | 'xl';
 export type PhotoEffect = 'fade' | 'slide' | 'zoom' | 'none';
 /** Gia tri mac dinh = tuy chon addon (dung khi man hinh chua chinh). */
 export interface PanelDefaults { saverPhotos: boolean; morning: boolean; saverIdleS: number; cast?: boolean }
+export type PrefSec = 'screen' | 'frame' | 'lock';
 /** Muc hien tren trang Cai dat: id bat dau "rwv." de phan biet voi thuc the HA. sec: nhom tren trang. */
 export interface PanelPrefItem {
   id: string; kind: 'switch' | 'select' | 'text'; label: string; hint: string; on: boolean; value: string;
-  options?: string[]; maxLength?: number; group: 'panel'; sec: 'screen' | 'frame';
+  options?: string[]; maxLength?: number; group: 'panel'; sec: PrefSec;
 }
 /** Tat ca thong so khung anh cua MOT man hinh (da ap mac dinh). */
 export interface FrameSettings {
@@ -32,7 +37,10 @@ export interface FrameSettings {
 }
 
 type Choice<T> = [string, T];
-export const IDLE_CHOICES: Choice<number>[] = [['Tắt', 0], ['1 phút', 60], ['2 phút', 120], ['5 phút', 300], ['10 phút', 600]];
+export const IDLE_CHOICES: Choice<number>[] = [['Tắt', 0], ['30 giây', 30], ['1 phút', 60], ['2 phút', 120], ['5 phút', 300], ['10 phút', 600],
+  ['15 phút', 900], ['30 phút', 1800]];
+const BRIGHT_CHOICES: Choice<number>[] = [['Giữ nguyên', 0], ['5%', 5], ['10%', 10], ['20%', 20], ['30%', 30], ['50%', 50]];
+const CLOCK_CHOICES: Choice<ClockSize>[] = [['Vừa', 'm'], ['Lớn', 'l'], ['Rất lớn', 'xl']];
 const INTERVAL_CHOICES: Choice<number>[] = [['15 giây', 15], ['30 giây', 30], ['1 phút', 60], ['2 phút', 120], ['5 phút', 300]];
 const EFFECT_CHOICES: Choice<PhotoEffect>[] = [['Mờ dần', 'fade'], ['Trượt', 'slide'], ['Thu phóng', 'zoom'], ['Không', 'none']];
 const FIT_CHOICES: Choice<'cover' | 'frame'>[] = [['Lấp đầy', 'cover'], ['Vừa khung', 'frame']];
@@ -62,6 +70,10 @@ export class PanelPrefsStore {
       case 'rwv.photo_clock': if (typeof v === 'boolean') patch = { photoClock: v }; break;
       case 'rwv.photo_info': if (typeof v === 'boolean') patch = { photoInfo: v }; break;
       case 'rwv.cast': if (typeof v === 'boolean') patch = { cast: v }; break;
+      case 'rwv.lock': if (typeof v === 'boolean') patch = { lockMode: v }; break;
+      case 'rwv.wx_detail': if (typeof v === 'boolean') patch = { wxDetail: v }; break;
+      case 'rwv.lock_bright': pick(BRIGHT_CHOICES, (x) => ({ lockBrightness: x })); break;
+      case 'rwv.clock_size': pick(CLOCK_CHOICES, (x) => ({ clockSize: x })); break;
       case 'rwv.cast_name':
         if (typeof v === 'string' && v.trim().length <= 40) patch = { castName: v.replace(/[\u0000-\u001f<>&]/g, '').trim() };
         break;
@@ -85,6 +97,11 @@ export class PanelPrefsStore {
   saverPhotos(dev: string, addonDefault: boolean): boolean { return this.get(dev).saverPhotos ?? addonDefault; }
   morning(dev: string, addonDefault: boolean): boolean { return this.get(dev).morning ?? addonDefault; }
   saverIdleS(dev: string, addonDefault: number): number { return this.get(dev).saverIdleS ?? addonDefault; }
+  lockMode(dev: string): boolean { return this.get(dev).lockMode ?? false; }
+  /** % do sang khi khoa / man hinh cho; 0 = giu nguyen. */
+  lockBrightness(dev: string): number { return this.get(dev).lockBrightness ?? 0; }
+  clockSize(dev: string): ClockSize { return this.get(dev).clockSize ?? 'l'; }
+  wxDetail(dev: string): boolean { return this.get(dev).wxDetail ?? true; }
   albumUrl(envDefault = ''): string { return this.global().gphotosUrl ?? envDefault; }
   cast(dev: string, addonDefault: boolean): boolean { return this.get(dev).cast ?? addonDefault; }
   /** Ten panel hien trong nut truyen cua dien thoai. */
@@ -100,20 +117,26 @@ export class PanelPrefsStore {
   items(dev: string, d: PanelDefaults, envAlbum = ''): PanelPrefItem[] {
     const idle = this.saverIdleS(dev, d.saverIdleS);
     const f = this.frame(dev, envAlbum);
-    const sel = <T>(id: string, sec: 'screen' | 'frame', lab: string, cs: Choice<T>[], v: T, fallback: string, hint = ''): PanelPrefItem => {
+    const sel = <T>(id: string, sec: PrefSec, lab: string, cs: Choice<T>[], v: T, fallback: string, hint = ''): PanelPrefItem => {
       const cur = label(cs, v, fallback), opts = cs.map(([l]) => l);
       return { id, kind: 'select', group: 'panel', sec, label: lab, hint, on: true, value: cur, options: opts.includes(cur) ? opts : [...opts, cur] };
     };
-    const sw = (id: string, sec: 'screen' | 'frame', lab: string, on: boolean, hint: string): PanelPrefItem =>
+    const sw = (id: string, sec: PrefSec, lab: string, on: boolean, hint: string): PanelPrefItem =>
       ({ id, kind: 'switch', group: 'panel', sec, label: lab, hint, on, value: '' });
     return [
-      sel('rwv.saver_idle', 'screen', 'Hiện màn hình chờ sau', IDLE_CHOICES, idle, `${Math.round(idle / 60)} phút`),
-      sw('rwv.saver_photos', 'screen', 'Màn hình chờ hiện ảnh', this.saverPhotos(dev, d.saverPhotos), 'Khung ảnh số · đêm chỉ đồng hồ'),
+      // (07/10/2026) Nhom "Màn hình khóa": gom moi thu cua man hinh cho / khoa (thoi gian, do sang, dong ho, thoi tiet, anh).
+      sw('rwv.lock', 'lock', 'Khóa màn hình', this.lockMode(dev), 'Vuốt lên để mở · chạm nhầm không mở'),
+      sel('rwv.saver_idle', 'lock', 'Khóa / màn hình chờ sau', IDLE_CHOICES, idle, idle < 60 ? `${idle} giây` : `${Math.round(idle / 60)} phút`),
+      sel('rwv.lock_bright', 'lock', 'Độ sáng khi khóa', BRIGHT_CHOICES, this.lockBrightness(dev), `${this.lockBrightness(dev)}%`,
+        'Mở khóa / chạm vào thì sáng lại'),
+      sel('rwv.clock_size', 'lock', 'Cỡ đồng hồ', CLOCK_CHOICES, this.clockSize(dev), 'Lớn'),
+      sw('rwv.wx_detail', 'lock', 'Thời tiết chi tiết', this.wxDetail(dev), 'Cảm giác, độ ẩm, gió, mưa, không khí, giờ tới'),
+      sw('rwv.saver_photos', 'lock', 'Hiện ảnh nền', this.saverPhotos(dev, d.saverPhotos), 'Khung ảnh số · đêm chỉ đồng hồ'),
+      sel('rwv.photo_interval', 'lock', 'Đổi ảnh sau', INTERVAL_CHOICES, f.intervalS, `${f.intervalS} giây`),
       sw('rwv.morning', 'screen', 'Chào buổi sáng', this.morning(dev, d.morning), 'Camera thấy người buổi sáng → mở “Hôm nay”'),
       sw('rwv.cast', 'screen', 'Nhận truyền YouTube', this.cast(dev, d.cast ?? true), 'Hiện trong nút truyền của app YouTube (cùng WiFi)'),
       { id: 'rwv.cast_name', kind: 'text', group: 'panel', sec: 'screen', label: 'Tên khi truyền', maxLength: 40, on: true,
         value: this.castName(dev), hint: '' },
-      sel('rwv.photo_interval', 'frame', 'Đổi ảnh sau', INTERVAL_CHOICES, f.intervalS, `${f.intervalS} giây`),
       sel('rwv.photo_effect', 'frame', 'Hiệu ứng chuyển', EFFECT_CHOICES, f.effect, 'Mờ dần'),
       sel('rwv.photo_fit', 'frame', 'Kiểu hiển thị', FIT_CHOICES, f.fit, 'Lấp đầy', 'Vừa khung: giữ trọn ảnh, nền mờ'),
       sel('rwv.photo_order', 'frame', 'Thứ tự', ORDER_CHOICES, f.order, 'Ngẫu nhiên'),

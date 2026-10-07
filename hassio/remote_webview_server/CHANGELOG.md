@@ -1,3 +1,13 @@
+## V2.9.109
+### Màn hình khóa kiểu điện thoại
+- Cài đặt → nhóm mới **Màn hình khóa**: bật *Khóa màn hình*, *Khóa / màn hình chờ sau* (thêm 30 giây, 15 và 30 phút),
+  *Độ sáng khi khóa*, *Cỡ đồng hồ* (Vừa / Lớn / Rất lớn), *Thời tiết chi tiết*, *Hiện ảnh nền*, *Đổi ảnh sau*.
+- Khi khóa: **vuốt lên từ nửa dưới** để mở; chạm chỉ hiện gợi ý và làm sáng màn 15 giây. Bấm chip tin nhắn / thông báo thì
+  mở sau khi vuốt. Báo thức, chuông cửa, thông báo vẫn hiện đè lên, xong lại khóa.
+- Độ sáng khi khóa: giảm về mức chọn, mở khóa thì trả lại đúng độ sáng đang dùng (nhớ cả khi addon khởi động lại).
+- Đồng hồ to hơn; thẻ thời tiết chi tiết: cảm giác như, độ ẩm, gió, khả năng mưa, cao/thấp trong ngày, chất lượng không
+  khí (AQI), 6 giờ tới. Màn ngang: đồng hồ trái, thời tiết phải; màn vuông xếp dọc.
+
 ## V2.9.108
 ### Tiếng không còn bị ngắt quãng khi xem video trên màn P4
 - Khi phát video, nhân Linux của máy chủ giữ sẵn tới ~370 KB dữ liệu hình chờ gửi cho màn hình (đo thật 07/10) mà máy chủ

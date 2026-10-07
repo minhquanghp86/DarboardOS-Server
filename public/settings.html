@@ -229,7 +229,7 @@
       var box = el('div');
       main.replaceChildren(head, box);
       RwvUI.state(box, { kind: 'err', title: 'Chưa đọc được cài đặt', text: d.error, retry: function () { ctl({ settings: 'get' }); } });
-      var g0 = el('div', 'grid'); [audioSec(), section('Màn hình', panelSec(d, 'screen')), section('Khung ảnh', panelSec(d, 'frame'))].forEach(function (s) { if (s) g0.append(s); });
+      var g0 = el('div', 'grid'); [audioSec(), section('Màn hình khóa', panelSec(d, 'lock')), section('Màn hình', panelSec(d, 'screen')), section('Khung ảnh', panelSec(d, 'frame'))].forEach(function (s) { if (s) g0.append(s); });
       g0.append(diag([], d.server)); main.append(g0);
       return;
     }
@@ -238,7 +238,8 @@
     var by = function (g) { return items.filter(function (i) { return i.group === g && !/Âm lượng Video Web|Âm lượng media/i.test(i.label); }); };
     var grid = el('div', 'grid');
     // (27/09/2026) "Màn hình": cai dat cua addon cho rieng man hinh nay (server luu), vd man hinh cho hien anh.
-    [audioSec(), section('Luồng camera', by('stream')), section('Điều khiển', by('control')), section('Màn hình', panelSec(d, 'screen')), section('Khung ảnh', panelSec(d, 'frame')),
+    // (07/10/2026) "Màn hình khóa" dat len dau: khoa / thoi gian / do sang / dong ho / thoi tiet / anh (src/panelPrefs.ts sec 'lock').
+    [audioSec(), section('Màn hình khóa', panelSec(d, 'lock')), section('Luồng camera', by('stream')), section('Điều khiển', by('control')), section('Màn hình', panelSec(d, 'screen')), section('Khung ảnh', panelSec(d, 'frame')),
      section('Cấu hình', by('config')), diag(by('diag'), d.server)]
       .forEach(function (s) { if (s) grid.append(s); });
     main.replaceChildren(head, grid);

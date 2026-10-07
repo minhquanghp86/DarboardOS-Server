@@ -221,7 +221,9 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .saver.anim { animation: sv-in 500ms ease-out; }
 @keyframes sv-in { from { opacity: 0; } }
 .sv-box { display: flex; flex-direction: column; align-items: center; gap: clamp(4px, 1.6vmin, 14px); }
-.sv-clock { font-size: min(30vmin, 21vw); font-weight: 300; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: #f2f4f8; }
+/* (07/10/2026) Bebas Neue (clockFont.ts, nguoi dung chon): chu cao + hep, mot do dam; line-height 0.82 vi chu so chi cao ~0,7em. */
+.sv-clock { font-family: "RwvClock", "Be Vietnam Pro", Roboto, sans-serif; font-size: min(30vmin, 21vw); font-weight: 400; line-height: 0.82;
+  letter-spacing: 0.02em; font-variant-numeric: tabular-nums; color: #f2f4f8; }
 .sv-date { font-size: clamp(13px, 3.8vmin, 28px); color: var(--muted); }
 .sv-wx { display: flex; align-items: center; gap: clamp(6px, 1.4vmin, 12px); font-size: clamp(13px, 3.6vmin, 26px); color: #cfd6e4; }
 .sv-wx:empty { display: none; }
@@ -262,6 +264,75 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .saver.photo .sv-box { align-items: flex-start; gap: 2px; }
 .saver.photo .sv-clock { font-size: min(15vmin, 12vw); font-weight: 400; text-shadow: 0 2px 14px rgba(0,0,0,0.75); }
 .saver.photo .sv-date, .saver.photo .sv-wx { color: #fff; text-shadow: 0 1px 8px rgba(0,0,0,0.8); }
+/* (07/10/2026) Man hinh khoa: 3 co dong ho, the thoi tiet chi tiet (ngang: dong ho trai / the phai; vuong: xep doc), goi y
+   vuot len o day. KHONG co hoat anh lap lien tuc (moi khung doi = mot khung gui qua WiFi). */
+.sv-main { display: flex; flex-direction: column; align-items: center; gap: clamp(4px, 1.6vmin, 14px); }
+.saver.photo .sv-main { align-items: flex-start; gap: 2px; }
+.saver.ck-m .sv-clock { font-size: min(40vmin, 34vw); }
+.saver.ck-l .sv-clock { font-size: min(52vmin, 42vw); }
+.saver.ck-xl .sv-clock { font-size: min(64vmin, 50vw); }
+.saver.photo.ck-m .sv-clock { font-size: min(20vmin, 16vw); }
+.saver.photo.ck-l .sv-clock { font-size: min(26vmin, 20vw); }
+.saver.photo.ck-xl .sv-clock { font-size: min(32vmin, 25vw); }
+.saver.hascard .sv-wx { display: none; }
+.sv-card:empty { display: none; }
+.sv-card { display: flex; flex-direction: column; gap: clamp(8px, 2vmin, 16px); color: #dfe6f2; box-sizing: border-box;
+  padding: clamp(10px, 2.4vmin, 20px) clamp(12px, 3vmin, 24px); border-radius: clamp(14px, 3vmin, 24px); background: rgba(255,255,255,0.06); }
+.wc-now { display: flex; align-items: center; gap: clamp(8px, 2vmin, 16px); }
+.wc-now .wx-ic { width: clamp(44px, 12vmin, 92px); height: clamp(44px, 12vmin, 92px); }
+.wc-t { font-size: clamp(34px, 11vmin, 84px); font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; }
+.wc-desc { display: flex; flex-direction: column; gap: 2px; }
+.wc-name { font-size: clamp(14px, 3.6vmin, 26px); font-weight: 600; }
+.wc-sub { font-size: clamp(12px, 2.8vmin, 20px); color: var(--muted); }
+.wc-sub .nw { white-space: nowrap; }
+.wc-row { display: flex; flex-wrap: wrap; gap: clamp(10px, 2.4vmin, 20px); font-size: clamp(12px, 3vmin, 21px); }
+.wc-i { display: inline-flex; align-items: center; gap: 0.3em; }
+.wc-i .ic { width: 1.2em; height: 1.2em; opacity: 0.8; }
+.wc-i.a1 { color: #86efac; } .wc-i.a2 { color: #fde047; } .wc-i.a3 { color: #fdba74; } .wc-i.a4 { color: #fca5a5; }
+.wc-hr { display: flex; justify-content: space-between; gap: clamp(6px, 1.6vmin, 14px); }
+.wc-h { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: clamp(11px, 2.6vmin, 18px); color: #cfd6e4; font-variant-numeric: tabular-nums; }
+.wc-h .wx-ic { width: clamp(20px, 5vmin, 36px); height: clamp(20px, 5vmin, 36px); }
+.wc-hp { color: #93c5fd; font-size: 0.85em; }
+@media (min-aspect-ratio: 4/3) {
+  /* Dong ho + the cung hang: thang co rieng de tong be rong <= 94vw (do that P4: xl 44vmin + the tran mep phai). */
+  .saver.hascard .sv-box { flex-direction: row; align-items: center; gap: clamp(16px, 4vw, 48px); max-width: 92vw; }
+  .saver.hascard .sv-main { align-items: flex-start; flex: 0 1 auto; min-width: 0; }
+  .saver.hascard .sv-card { flex: 0 1 auto; max-width: 40vw; }
+  .saver.hascard.ck-m .sv-clock { font-size: min(32vmin, 21vw); }
+  .saver.hascard.ck-l .sv-clock { font-size: min(40vmin, 25vw); }
+  .saver.hascard.ck-xl .sv-clock { font-size: min(46vmin, 28vw); }
+}
+@media (max-aspect-ratio: 4/3) {
+  /* Man vuong (S3 480x480): dong ho + ngay + the xep doc gan het chieu cao -> bot mot nac co de chua cho goi y vuot. */
+  .saver.hascard .sv-card { padding: 8px 12px; gap: 6px; }
+  .saver.hascard .wc-h:nth-child(n+5) { display: none; }
+  .saver.hascard.ck-m .sv-clock { font-size: min(26vmin, 24vw); }
+  .saver.hascard.ck-l .sv-clock { font-size: min(32vmin, 28vw); }
+  .saver.hascard.ck-xl .sv-clock { font-size: min(38vmin, 32vw); }
+}
+.sv-hint { position: absolute; left: 0; right: 0; bottom: clamp(8px, 2.6vmin, 22px); display: flex; flex-direction: column; align-items: center;
+  gap: 2px; color: rgba(226,232,240,0.5); font: 500 clamp(12px, 2.8vmin, 18px)/1.2 "Be Vietnam Pro", Roboto, sans-serif; pointer-events: none; }
+.sv-hint .ic { width: clamp(20px, 4.4vmin, 30px); height: clamp(20px, 4.4vmin, 30px); }
+.sv-hint.pulse { color: #fff; }
+.saver.anim .sv-hint.pulse { animation: sv-pulse 700ms ease-out; }
+@keyframes sv-pulse { 0% { transform: translateY(0); } 35% { transform: translateY(-10px); } 100% { transform: translateY(0); } }
+.saver.night .sv-hint { color: rgba(154,106,88,0.55); }
+.saver.night .sv-card { background: rgba(120,80,60,0.12); color: #9a6a58; }
+.saver.night .wc-h, .saver.night .wc-sub, .saver.night .wc-hp { color: #7a5848; }
+.saver.night .sv-card .wx-ic { opacity: 0.4; filter: sepia(1); }
+.saver.unlocking { transform: translateY(-100%) !important; opacity: 0; transition: transform 260ms ease-in, opacity 260ms ease-in; }
+.saver.lock.photo { padding-bottom: clamp(40px, 9vmin, 70px); }
+/* Chua cho dong goi y vuot o day (do that S3: goi y de len the thoi tiet). */
+.saver.lock:not(.photo) { padding-bottom: clamp(34px, 10vmin, 64px); box-sizing: border-box; }
+.saver.photo .sv-card { background: rgba(0,0,0,0.45); color: #fff; text-shadow: 0 1px 6px rgba(0,0,0,0.6); zoom: 0.82; }
+.saver.photo .wc-sub, .saver.photo .wc-h { color: #e5e7eb; }
+@media (min-aspect-ratio: 4/3) {
+  .saver.photo.hascard .sv-box { flex-direction: row; align-items: flex-end; justify-content: space-between; width: 100%; }
+}
+@media (max-aspect-ratio: 4/3) {
+  .saver.photo.hascard .sv-card { display: none; }
+  .saver.photo.hascard .sv-wx { display: flex; }
+}
 
 /* ── Thong bao (OS-5) ────────────────────────────────────────────────── */
 .pill.unread::after { content: ''; position: absolute; top: 6px; right: 26px; width: 7px; height: 7px; border-radius: 50%; background: #f59e0b; }
@@ -288,6 +359,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   display: flex; align-items: center; gap: clamp(8px, 2vmin, 14px); padding: clamp(8px, 2vmin, 14px); border-radius: var(--r-lg);
   background: rgba(23,26,34,0.97); box-shadow: 0 10px 34px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.08); pointer-events: auto; cursor: pointer; }
 .toast.anim { animation: to-in 200ms cubic-bezier(.2,.8,.2,1); }
+.toast.onlock { pointer-events: none; }
 @keyframes to-in { from { transform: translate(-50%, -130%); } }
 .toast.critical { box-shadow: 0 10px 34px rgba(0,0,0,0.5), inset 0 0 0 2px rgba(239,68,68,0.8); }
 .toast .to-ic { width: clamp(44px, 12vmin, 76px); height: clamp(44px, 12vmin, 76px); }
