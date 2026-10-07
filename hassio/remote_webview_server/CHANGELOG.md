@@ -1,3 +1,12 @@
+## V2.9.114
+### Lịch vạn niên
+- Ứng dụng Lịch → **Lịch vạn niên**. Lịch ngày chi tiết: ngày hoàng đạo / hắc đạo (12 thần trực nhật), **giờ hoàng đạo**,
+  tiết khí, trực, ngũ hành nạp âm, tuổi xung, giờ mặt trời mọc / lặn theo vị trí nhà trong Home Assistant, đếm ngược Tết,
+  một câu tục ngữ mỗi ngày.
+- Lưới tháng: số âm ngay dưới số dương, chấm vàng = ngày hoàng đạo, tên tiết khí ở ngày bắt đầu, mùng 1 và Rằm tô màu.
+  Vuốt ngang trên lưới để đổi tháng, trên lịch ngày để đổi ngày.
+- Màn vuông (S3): chạm một ngày để mở lịch ngày toàn màn hình.
+
 ## V2.9.113
 ### IPTV: kênh đổi khoá tự lấy khoá mới
 - Kênh mã hoá ClearKey (TV360, VTVPrime…) mà nguồn vừa đổi khoá: ứng dụng tự tải lại danh sách (lấy khoá mới nếu tác
