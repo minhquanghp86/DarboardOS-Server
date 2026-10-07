@@ -678,7 +678,7 @@
   }
   function play(c, nav) {
     S.nav = nav && nav.length ? nav.slice() : S.all.slice();
-    S.retries = 0;
+    S.retries = 0; c.keyRetried = false;
     start(c);
   }
   function start(c) {
@@ -805,6 +805,7 @@
       p.addEventListener('error', function (ev) {
         var e = ev.detail;
         if (seq !== S.seq || !e || e.severity !== 2) return;
+        if (keyRetry(c, e, seq)) return;
         fail(shakaReason(e), e.category === 1);
       });
       var mime = kind === 'dash' ? 'application/dash+xml' : kind === 'hls' ? 'application/x-mpegurl' : undefined;
@@ -812,9 +813,30 @@
         .then(function () { if (seq === S.seq) v.play().catch(function () { }); });
     }).catch(function (e) {
       if (seq !== S.seq) return;
+      if (e && e.code && keyRetry(c, e, seq)) return;
       if (e && e.code) fail(shakaReason(e), e.category === 1);
       else fail((e && e.message) || 'Lỗi phát.', false);
     });
+  }
+  /** (07/10/2026) Loi khoa (4012 thieu khoa / ClearKey sai): nguon kenh su kien (TV360…) DOI KHOA theo thoi gian va
+   *  server giu danh sach toi 6 h -> tai lai danh sach NGAY (lay khoa moi neu tac gia da cap nhat) roi thu lai MOT lan;
+   *  van sai thi moi bao. Cung xu ly loi khoa thoang qua (doan chen dung khoa khac). Do that 07/10: TV360+1 doi khoa
+   *  trong ngay; TV360+3 bao 4012 mot lan roi lai phat binh thuong. */
+  function keyRetry(c, e, seq) {
+    var isKey = e.code === 4012 || e.category === 6;
+    if (!isKey || c.keyRetried) return false;
+    c.keyRetried = true;
+    teardown(); live(false); msg('loading', 'Đang lấy khoá mới của kênh…', 'Nguồn vừa đổi khoá — tải lại danh sách rồi thử lại.');
+    report('loi khoa (' + e.code + ') — tai lai danh sach, thu lai');
+    api('/iptv/channels?refresh=1').then(function (j) {
+      if (seq !== S.seq) return;
+      S.token = j.token || S.token;
+      var fresh = (j.channels || []).find(function (x) { return x.id === c.id; }) ||
+        (j.channels || []).find(function (x) { return x.name === c.name && x.list === c.list; });
+      if (fresh && fresh.ck) { c.ck = fresh.ck; c.url = fresh.url; c.h = fresh.h; }
+      start(c);
+    }).catch(function () { if (seq === S.seq) start(c); });
+    return true;
   }
   function shakaReason(e) {
     var c = e.code;
@@ -853,7 +875,7 @@
     var i = S.nav.indexOf(S.cur);
     for (var k = 1; k <= n; k++) {
       var c = S.nav[((i + d * k) % n + n) % n];
-      if (playable(c)) { S.retries = 0; start(c); return; }
+      if (playable(c)) { S.retries = 0; c.keyRetried = false; start(c); return; }
     }
   }
   function back() {

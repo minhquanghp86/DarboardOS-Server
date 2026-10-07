@@ -28,6 +28,9 @@ export type Tuning = {
   passthroughFit?: boolean;
   videoLowQ?: boolean;
   kernelBacklog?: boolean;
+  /** (07/10/2026) false = tab IPTV KHONG dung chinh sach khung nua do phan giai cua YouTube TV (gui khung day du tru khi
+   *  duong truyen nghen). Mac dinh (khong dat) = co, nhu YouTube TV. */
+  iptvHalf?: boolean;
 };
 
 const FILE = process.env.TUNING_FILE || '/data/rwv-tuning.json';
@@ -46,6 +49,7 @@ export function sanitizeTuning(j: unknown): Tuning {
   if (typeof o.passthroughFit === 'boolean') t.passthroughFit = o.passthroughFit;
   if (typeof o.videoLowQ === 'boolean') t.videoLowQ = o.videoLowQ;
   if (typeof o.kernelBacklog === 'boolean') t.kernelBacklog = o.kernelBacklog;
+  if (typeof o.iptvHalf === 'boolean') t.iptvHalf = o.iptvHalf;
   const f = num(o.fixedIntervalMs, 10, 2000); if (f !== undefined) t.fixedIntervalMs = Math.round(f);
   const b = num(o.maxBacklogBytes, 8192, 4_194_304); if (b !== undefined) t.maxBacklogBytes = Math.round(b);
   const r = num(o.decodeBudgetRatio, 0.1, 1.5); if (r !== undefined) t.decodeBudgetRatio = r;
