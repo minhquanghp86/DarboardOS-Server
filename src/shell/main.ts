@@ -717,8 +717,8 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
       svWxSig = sig;
       svWx.replaceChildren(...(w ? [weatherIcon(w.code, w.day), el('span', '', `${w.t}° · ${w.name}`)] : []));
     }
-    // (07/10/2026) The thoi tiet chi tiet (khong hien khi dang anh nen — anh la chinh; dem van hien nhung toi mau).
-    const card = svOpts.wx !== false && !saverEl.classList.contains('photo') && w && w.hr ? w : null;
+    // (07/10/2026) The thoi tiet chi tiet (ca khi co anh nen: man ngang dat goc duoi phai, man vuong an — xem styles).
+    const card = svOpts.wx !== false && w && w.hr ? w : null;
     const csig = card ? JSON.stringify([card.code, card.day, card.t, card.fl, card.rh, card.ws, card.hi, card.lo, card.pp, card.aqi, card.hr]) : '';
     if (csig !== svCardSig) { svCardSig = csig; renderCard(card); saverEl.classList.toggle('hascard', !!card); }
     if (m !== svShiftMin) {  // moi phut mot vi tri moi — cung khung voi luc doi so phut, khong ton them khung nao

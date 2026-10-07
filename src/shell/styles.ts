@@ -312,6 +312,15 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .saver.night .sv-card .wx-ic { opacity: 0.4; filter: sepia(1); }
 .saver.unlocking { transform: translateY(-100%) !important; opacity: 0; transition: transform 260ms ease-in, opacity 260ms ease-in; }
 .saver.lock.photo { padding-bottom: clamp(40px, 9vmin, 70px); }
+.saver.photo .sv-card { background: rgba(0,0,0,0.45); color: #fff; text-shadow: 0 1px 6px rgba(0,0,0,0.6); zoom: 0.82; }
+.saver.photo .wc-sub, .saver.photo .wc-h { color: #e5e7eb; }
+@media (min-aspect-ratio: 4/3) {
+  .saver.photo.hascard .sv-box { flex-direction: row; align-items: flex-end; justify-content: space-between; width: 100%; }
+}
+@media (max-aspect-ratio: 4/3) {
+  .saver.photo.hascard .sv-card { display: none; }
+  .saver.photo.hascard .sv-wx { display: flex; }
+}
 
 /* ── Thong bao (OS-5) ────────────────────────────────────────────────── */
 .pill.unread::after { content: ''; position: absolute; top: 6px; right: 26px; width: 7px; height: 7px; border-radius: 50%; background: #f59e0b; }
