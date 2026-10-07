@@ -725,7 +725,9 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
       svShiftMin = m;
       // Dang khung anh: dong ho o goc duoi trai -> chi dich vao trong (khong ra ngoai mep).
       const ph = saverEl.classList.contains('photo');
-      const dx = ph ? Math.random() * 4 : (Math.random() * 2 - 1) * 7, dy = ph ? -Math.random() * 4 : (Math.random() * 2 - 1) * 9;
+      // (07/10/2026) Co the thoi tiet (khoi rong gan het man): dich it lai de khong tran mep.
+      const amp = saverEl.classList.contains('hascard') ? 2 : 7;
+      const dx = ph ? Math.random() * (amp === 2 ? 1.5 : 4) : (Math.random() * 2 - 1) * amp, dy = ph ? -Math.random() * 4 : (Math.random() * 2 - 1) * 9;
       svBox.style.transform = `translate(${dx.toFixed(1)}vw, ${dy.toFixed(1)}vh)`;
     }
   }

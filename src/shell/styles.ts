@@ -291,9 +291,13 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .wc-h .wx-ic { width: clamp(20px, 5vmin, 36px); height: clamp(20px, 5vmin, 36px); }
 .wc-hp { color: #93c5fd; font-size: 0.85em; }
 @media (min-aspect-ratio: 4/3) {
-  .saver.hascard .sv-box { flex-direction: row; align-items: center; gap: clamp(20px, 6vw, 72px); }
-  .saver.hascard .sv-main { align-items: flex-start; }
-  .saver.hascard.ck-xl .sv-clock { font-size: min(44vmin, 27vw); }
+  /* Dong ho + the cung hang: thang co rieng de tong be rong <= 94vw (do that P4: xl 44vmin + the tran mep phai). */
+  .saver.hascard .sv-box { flex-direction: row; align-items: center; gap: clamp(16px, 4vw, 48px); max-width: 94vw; }
+  .saver.hascard .sv-main { align-items: flex-start; flex: 0 1 auto; min-width: 0; }
+  .saver.hascard .sv-card { flex: 0 1 auto; max-width: 40vw; }
+  .saver.hascard.ck-m .sv-clock { font-size: min(24vmin, 17vw); }
+  .saver.hascard.ck-l .sv-clock { font-size: min(30vmin, 21vw); }
+  .saver.hascard.ck-xl .sv-clock { font-size: min(36vmin, 25vw); }
 }
 @media (max-aspect-ratio: 4/3) {
   .saver.hascard .sv-card { padding: 8px 12px; gap: 6px; }
