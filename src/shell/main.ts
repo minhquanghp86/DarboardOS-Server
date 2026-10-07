@@ -11,6 +11,7 @@ import { App, appIcon, weatherIcon } from './icons';
 import { HomeApi, mountHome } from './home';
 import { classifyLockGesture } from './lockGesture';
 import { loadClockFont } from './clockFont';
+import { LwData, buildLockWidgets, lwModel } from './lockWidgets';
 import type { HomeLayout } from '../homeLayout';
 
 declare global { interface Window { [k: string]: any } }
@@ -46,6 +47,8 @@ interface DevState {
   sv?: { alert: number; alarm: number };
   al?: { t: string; at: number; l: string } | null;
   rg?: AlarmInfo | null;
+  /** (08/10/2026) Widget man hinh khoa: nang luong / lich / camera (server >= 2.9.116). */
+  lw?: LwData | null;
 }
 /** Bao thuc dang reo: id, nhan, gio "HH:MM", phut bao lai (0 = khong), tm = hen gio, beep = keu bang WebAudio (firmware cu). */
 interface AlarmInfo { id: string; l: string; t: string; sz: number; tm: boolean; beep?: boolean }
@@ -550,7 +553,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
       svHint = el('div', 'sv-hint'); svHint.append(mdi('chevup'), el('span', '', 'Vuốt lên để mở khóa'));
       saverEl.append(svHint);
     } else if (!svOpts.lock && svHint) { svHint.remove(); svHint = null; }
-    svCardSig = '~'; svWxSig = '';
+    svCardSig = '~'; svWxSig = ''; svLwSig = '';
   }
   function hintPulse(): void {
     if (!svHint) return;
@@ -633,8 +636,9 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     svClock = el('div', 'sv-clock'); svDate = el('div', 'sv-date'); svWx = el('div', 'sv-wx');
     svCap = el('div', 'sv-cap'); svCard = el('div', 'sv-card');
     svBadges = el('div', 'sv-bdg'); svBdgSig = '';
+    svLw = el('div', 'sv-lw'); svLwSig = ''; svLwKey = '';
     const main = el('div', 'sv-main');
-    main.append(svClock, svDate, svWx, svBadges, svCap);
+    main.append(svClock, svDate, svWx, svBadges, svLw, svCap);
     svBox.append(main, svCard);
     svPh = [el('div', 'sv-ph'), el('div', 'sv-ph')]; svTop = 0;
     saverEl.append(svPh[0], svPh[1], svBox);
@@ -710,6 +714,19 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
       `padding:0 5px;box-sizing:border-box;border-radius:9px;background:#ef4444;color:#fff;font:700 11px/18px "Be Vietnam Pro",Roboto,sans-serif;` +
       `text-align:center;box-shadow:0 0 0 2px rgba(0,0,0,.35)}` : '';
   }
+  // (08/10/2026) WIDGET man hinh khoa (lockWidgets.ts): ve lai NGAY khi cau truc doi (camera moi thay nguoi, su kien moi);
+  // chi so lieu doi (cong suat, "x phut truoc") thi cho luc doi phut — cung khung voi dong ho, khong ton them khung.
+  let svLw: HTMLElement, svLwSig = '', svLwKey = '';
+  function renderLockWidgets(minuteTick: boolean): void {
+    if (!saverEl) return;
+    const tz = st && st.tv ? st.tz : -new Date().getTimezoneOffset(), now = Date.now() + (st && st.tv ? st.skewMs : 0);
+    const m = lwModel(st?.lw, now, tz);
+    const sig = m ? JSON.stringify([m.stats, m.rows]) : '';
+    if (sig === svLwSig || (svLwSig && m && m.key === svLwKey && !minuteTick)) return;
+    svLwSig = sig; svLwKey = m ? m.key : '';
+    svLw.replaceChildren(...(m ? buildLockWidgets(m) : []));
+    saverEl.classList.toggle('haslw', !!m);
+  }
   function updateSaver(): void {
     const t = deviceNow();
     if (!saverEl || !t) return;
@@ -728,6 +745,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     const card = svOpts.wx !== false && w && w.hr ? w : null;
     const csig = card ? JSON.stringify([card.code, card.day, card.t, card.fl, card.rh, card.ws, card.hi, card.lo, card.pp, card.aqi, card.hr]) : '';
     if (csig !== svCardSig) { svCardSig = csig; renderCard(card); saverEl.classList.toggle('hascard', !!card); }
+    renderLockWidgets(m !== svShiftMin);
     if (m !== svShiftMin) {  // moi phut mot vi tri moi — cung khung voi luc doi so phut, khong ton them khung nao
       svShiftMin = m;
       // Dang khung anh: dong ho o goc duoi trai -> chi dich vao trong (khong ra ngoai mep).

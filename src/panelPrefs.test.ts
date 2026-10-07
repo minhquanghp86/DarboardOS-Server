@@ -34,7 +34,16 @@ describe("man hinh khoa (07/10/2026)", () => {
     expect([p.lockMode("a"), p.lockBrightness("a"), p.clockSize("a"), p.wxDetail("a")]).toEqual([false, 0, "l", true]);
     expect(p.items("a", D).filter((i) => i.sec === "lock").map((i) => [i.id, i.value || i.on])).toEqual([
       ["rwv.lock", false], ["rwv.saver_idle", "2 phút"], ["rwv.lock_bright", "Giữ nguyên"], ["rwv.clock_size", "Lớn"],
-      ["rwv.wx_detail", true], ["rwv.saver_photos", true], ["rwv.photo_interval", "1 phút"]]);
+      ["rwv.wx_detail", true], ["rwv.lw_energy", true], ["rwv.lw_cal", true], ["rwv.lw_cam", true],
+      ["rwv.saver_photos", true], ["rwv.photo_interval", "1 phút"]]);
+  });
+  it("(08/10/2026) widget man khoa: mac dinh bat ca ba, tat rieng tung loai theo man hinh", () => {
+    const p = new PanelPrefsStore(null);
+    expect(p.lockWidgets("a")).toEqual({ en: true, cal: true, cam: true });
+    expect(p.set("a", "rwv.lw_cam", false)).toBe(true);
+    expect(p.set("a", "rwv.lw_energy", "Tắt")).toBe(false);
+    expect(p.lockWidgets("a")).toEqual({ en: true, cal: true, cam: false });
+    expect(p.lockWidgets("b")).toEqual({ en: true, cal: true, cam: true });
   });
   it("doi tung muc, tu choi gia tri la", () => {
     const p = new PanelPrefsStore(null);

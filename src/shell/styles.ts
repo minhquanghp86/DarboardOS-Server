@@ -320,6 +320,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .saver.night .sv-card { background: rgba(120,80,60,0.12); color: #9a6a58; }
 .saver.night .wc-h, .saver.night .wc-sub, .saver.night .wc-hp { color: #7a5848; }
 .saver.night .sv-card .wx-ic { opacity: 0.4; filter: sepia(1); }
+/* (08/10/2026) Dem: chu AQI theo tong toi cua the (do that: "AQI 76" vang sang giua man tong nau). */
+.saver.night .wc-i.a1, .saver.night .wc-i.a2, .saver.night .wc-i.a3, .saver.night .wc-i.a4 { color: inherit; }
 .saver.unlocking { transform: translateY(-100%) !important; opacity: 0; transition: transform 260ms ease-in, opacity 260ms ease-in; }
 .saver.lock.photo { padding-bottom: clamp(40px, 9vmin, 70px); }
 /* Chua cho dong goi y vuot o day (do that S3: goi y de len the thoi tiet). */
@@ -333,6 +335,56 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   .saver.photo.hascard .sv-card { display: none; }
   .saver.photo.hascard .sv-wx { display: flex; }
 }
+
+/* (08/10/2026) Widget man hinh khoa (lockWidgets.ts): dai nang luong (mat troi / pin / tieu thu) + dong lich / camera duoi
+   ngay thang. Mau theo vai tro (mat troi ho phach, pin theo %, camera dang thay nguoi = do). Khong hoat anh. */
+.sv-lw { display: flex; flex-direction: column; align-items: inherit; gap: clamp(6px, 1.6vmin, 12px); max-width: 100%; margin-top: clamp(2px, 1vmin, 8px); }
+.sv-lw:empty { display: none; }
+.lw-en { display: flex; justify-content: center; gap: clamp(14px, 3.6vmin, 30px); }
+.lw-s { display: flex; align-items: center; gap: clamp(6px, 1.4vmin, 10px); min-width: 0; }
+.lw-s > .ic { flex: none; width: clamp(26px, 6.4vmin, 40px); height: clamp(26px, 6.4vmin, 40px); }
+.lw-tx { display: flex; flex-direction: column; min-width: 0; }
+.lw-v { font: 600 clamp(16px, 4.4vmin, 30px)/1.05 "Be Vietnam Pro", Roboto, sans-serif; color: #eef2f8; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lw-l { margin-top: 2px; font: 500 clamp(10px, 2.4vmin, 15px)/1.2 "Be Vietnam Pro", Roboto, sans-serif; color: var(--muted); white-space: nowrap; }
+.lw-s.sun > .ic { color: #fbbf24; }
+.lw-s.sun.off > .ic { color: #64748b; }
+.lw-s.b-ok > .ic { color: #4ade80; }
+.lw-s.b-mid > .ic { color: #fbbf24; }
+.lw-s.b-low > .ic { color: #f87171; }
+.lw-s.load > .ic, .lw-s.grid > .ic { color: #93c5fd; }
+.lw-r { display: flex; align-items: center; gap: clamp(6px, 1.4vmin, 10px); max-width: min(100%, 88vw); color: #cfd6e4;
+  font: 400 clamp(12px, 3vmin, 19px)/1.25 "Be Vietnam Pro", Roboto, sans-serif; }
+.lw-ri { flex: none; display: inline-flex; align-items: center; justify-content: center; width: clamp(22px, 5.2vmin, 32px); height: clamp(22px, 5.2vmin, 32px);
+  border-radius: 50%; background: rgba(255,255,255,0.08); }
+.lw-ri .ic { width: 64%; height: 64%; }
+.lw-r.cal .lw-ri { color: #a5b4fc; }
+.lw-r.cam .lw-ri { color: #67e8f9; }
+.lw-r.cam.live .lw-ri { color: #fff; background: #dc2626; }
+.lw-rt { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lw-rt b { font-weight: 600; color: #eef2f8; }
+.saver.night .lw-v, .saver.night .lw-rt b { color: #9a6a58; }
+.saver.night .lw-l, .saver.night .lw-r { color: #5e463d; }
+.saver.night .lw-s > .ic, .saver.night .lw-ri { color: #7a5848; }
+.saver.night .lw-ri { background: rgba(120,80,60,0.15); }
+.saver.night .lw-r.cam.live .lw-ri { color: #e9d5c9; background: #7f1d1d; }
+.saver.photo .sv-lw { text-shadow: 0 1px 6px rgba(0,0,0,0.75); }
+.saver.photo .lw-en { justify-content: flex-start; }
+.saver.photo .lw-l, .saver.photo .lw-r { color: #e5e7eb; }
+.saver.photo .lw-ri { background: rgba(0,0,0,0.45); }
+@media (min-aspect-ratio: 4/3) {
+  .saver.hascard .lw-en { justify-content: flex-start; }
+  .saver.hascard .lw-r { max-width: 46vw; }
+}
+/* Man vuong (S3 480x480): dong ho + ngay + nang luong + the thoi tiet da gan het chieu cao (do that ban xem truoc: tran ca
+   mep tren lan goi y vuot) -> co widget thi the bo hang du bao theo gio; toi da 2 dong lich / camera. */
+@media (max-aspect-ratio: 4/3) {
+  .saver.haslw.hascard .wc-hr { display: none; }
+  .saver.haslw .lw-r ~ .lw-r ~ .lw-r { display: none; }
+}
+/* Co anh nen (khung anh gia dinh): chi dai nang luong + 1 dong — khong che anh qua nhieu. Khung anh tat "Hiện đồng hồ"
+   (xem anh tron): an luon widget. */
+.saver.photo.haslw .lw-r ~ .lw-r { display: none; }
+.saver.photo.noclock .sv-lw { display: none; }
 
 /* ── Thong bao (OS-5) ────────────────────────────────────────────────── */
 .pill.unread::after { content: ''; position: absolute; top: 6px; right: 26px; width: 7px; height: 7px; border-radius: 50%; background: #f59e0b; }

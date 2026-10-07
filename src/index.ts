@@ -38,6 +38,7 @@ import { startDebugProxy } from './debugProxy.js';
 import { startWeatherMini } from './weatherMini.js';
 import { handleIptvApi } from './iptv.js';
 import { handleFrigateApi } from './frigate.js';
+import { handleLockWidgetsApi, noteDeviceIp } from './lockWidgets.js';
 import type WebSocket from 'ws';
 
 const WS_PORT   = env.get("WS_PORT").default("8081").asIntPositive();
@@ -102,6 +103,8 @@ wss.on("connection", async (ws, req) => {
 
   broadcaster.addClient(id, ws);
   noteCameraHost(id, req.socket.remoteAddress, cfg.camPort);
+  // (08/10/2026) Widget man khoa: nhan ra camera Frigate cua chinh panel (theo IP) de khong bao chinh nguoi dang dung truoc.
+  noteDeviceIp(id, req.socket.remoteAddress);
 
   // (23/09/2026) Dang ky nhan audio NGAY, khong doi ensureDeviceAsync — viec
   // bat/phat am thanh doc lap hoan toan voi Chromium target cua tung thiet
@@ -295,6 +298,8 @@ http.createServer((req, res) => {
   if (handleAppApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
   if (handleHomeApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
   if (handleLauncherApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
+  // (08/10/2026) Trang Darboard -> tab "Màn khóa": cam bien nang luong cho widget (src/lockWidgets.ts).
+  if (handleLockWidgetsApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
   if (handleChatApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
   if (handleAlarmApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`), () => connectedScreens().map((s) => ({
     id: s.id, name: screenNames.get(s.id) || `Màn hình ${s.w}×${s.h}`, spk: s.spk })))) return;

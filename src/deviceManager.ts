@@ -40,6 +40,7 @@ import { alarms, type Ringing } from "./alarms.js";
 import { callService, getRegistry, getSettingsView, getStates, haReady } from "./haSettings.js";
 import { findDeviceByMac, findNoSleepSwitch, findPresenceSelect, isSaverPhotosSwitchId, macFromDeviceId, planSet } from "./settingsModel.js";
 import { getLauncherConfig, saveHomeLayout } from "./launcherConfig.js";
+import { lockWidgetsFor, refreshLockWidgets } from "./lockWidgets.js";
 import { HomeLayout, resolveLayout } from "./homeLayout.js";
 import { ControlField, DeviceEventKind, DeviceStateInfo, Encoding, VoiceState, FRAME_HEADER_BYTES, TILE_HEADER_BYTES, parseDeviceStatePacket } from "./protocol.js";
 
@@ -1769,6 +1770,8 @@ function pushDeviceStateToPage(dev: DeviceSession): void {
     va: !!dev.cfg.voice && !!dev.cfg.devControl,
     pr: dev.presence ?? null,
     ps: dev.presenceSel ? { v: dev.presenceSel.v, o: dev.presenceSel.o } : null,
+    // (08/10/2026) Widget man hinh khoa / cho (src/lockWidgets.ts): so lieu tho, Shell tu viet chu theo gio thiet bi.
+    lw: lockWidgetsFor(dev.deviceId, panelPrefs.lockWidgets(dev.deviceId)),
   };
   if (dev.presenceSel === undefined) { dev.presenceSel = null; refreshPresenceSel(dev, 0).catch(() => { }); }
   dev.cdp.send('Runtime.evaluate', {
@@ -3446,6 +3449,7 @@ function syncMediaPlaying(dev: DeviceSession, force = false): void {
   if (dev.cfg.devControl) broadcaster.sendDeviceControl(dev.deviceId, ControlField.Media, playing ? 1 : 0);
 }
 
+let lwRefreshBusy = false;
 export function screensaverTick(): void {
   const now = Date.now();
   // Moi 5 s: dong bo lai trang thai phat (tu sua neu mot goi bi mat khi thiet bi vua noi lai).
@@ -3453,6 +3457,14 @@ export function screensaverTick(): void {
   for (const d of devices.values()) syncSaver(d);
   for (const d of devices.values()) closeIdleTabs(d, now);
   syncSaverPhotoSwitches().catch(() => { });
+  // (08/10/2026) Widget man hinh khoa: lam moi so lieu (thuong xuyen khi co man dang khoa / cho, con lai 5 phut/lan); doi
+  // thi day lai trang thai cho cac man dang hien lop khoa.
+  if (!lwRefreshBusy) {
+    lwRefreshBusy = true;
+    refreshLockWidgets([...devices.values()].some((d) => d.saverOn), anyTzOffset())
+      .then((changed) => { if (changed) for (const d of devices.values()) if (d.saverOn) pushDeviceStateToPage(d); })
+      .catch(() => { }).finally(() => { lwRefreshBusy = false; });
+  }
   for (const d of devices.values()) {
     const tab = d.tabs.get(d.activeTabKey);
     if (!tab || broadcaster.getClientCount(d.deviceId) === 0) continue;
@@ -3522,6 +3534,7 @@ function showSaver(d: DeviceSession, tab: Tab): void {
     expression: `window.__rwvShell && window.__rwvShell.screensaver && window.__rwvShell.screensaver(${saverOptsJs(d)})`,
   }).catch(() => { });
   console.log(`[saver] ${d.deviceId}: hien ${d.locked ? 'man hinh khoa' : 'man hinh cho'} (tab "${tab.key}")`);
+  pushDeviceStateToPage(d);  // (08/10/2026) widget man khoa moi nhat (st.lw)
 }
 
 /** Co <video>/<audio> nao DANG CHAY that su (khong dung, chua het, du du lieu de phat). */
