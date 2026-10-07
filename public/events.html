@@ -1,0 +1,304 @@
+<!doctype html>
+<!--
+  (08/10/2026) Ung dung "Su kien camera": su kien Frigate (nguoi, xe…) theo ngay — anh thu nho, nhan tieng Viet, do tin
+  cay, camera, gio, thoi luong. Cham -> anh chup lon (co khung doi tuong), xem clip, truoc / sau (vuot ngang). Loc theo
+  camera, tu lam moi 30 s. Du lieu: src/frigate.ts (/frigate/events, /frigate/thumb|snap|clip/<id> — chi 127.0.0.1).
+  ?privacy=1: khong tai anh (o xam) — de chup kiem bo cuc ma khong xem hinh trong nha nguoi dung.
+  Khong hieu ung chay lien tuc (bang thong toi panel).
+-->
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sự kiện camera</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/ui.css">
+<script src="/ui.js"></script>
+<script src="/icons.js"></script>
+<style>
+  :root { --accent: #0e7490; --hi: #22d3ee; }  /* nen, be mat, chu, bo goc: /ui.css */
+  * { box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; font-variant-numeric: tabular-nums; }
+  button { font: inherit; color: inherit; cursor: pointer; border: none; background: none; padding: 0; }
+  svg { display: block; }
+  .view { height: 100%; display: flex; flex-direction: column; gap: var(--gap); padding: calc(var(--pad) + 14px) var(--pad) 0; }
+  .bar { flex: none; display: flex; align-items: center; gap: var(--gap); }
+  .ttl { flex: none; display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: clamp(15px, 4vmin, 24px); }
+  .ttl svg { width: 1.25em; height: 1.25em; fill: var(--hi); }
+  .chips { flex: 1; min-width: 0; display: flex; gap: clamp(4px, 1.2vmin, 8px); overflow-x: auto; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { flex: none; display: inline-flex; align-items: center; gap: 6px; height: clamp(30px, 7.2vmin, 44px); padding: 0 clamp(10px, 2.6vmin, 18px);
+    border-radius: 999px; background: var(--surface-2); color: var(--muted); font-weight: 600; font-size: clamp(11px, 2.7vmin, 16px); white-space: nowrap; }
+  .chip.on { background: var(--accent); color: #fff; }
+  .chip .n { font-weight: 500; opacity: 0.75; }
+  .ib { flex: none; display: inline-flex; align-items: center; justify-content: center; width: clamp(34px, 8.2vmin, 50px); height: clamp(34px, 8.2vmin, 50px);
+    border-radius: 50%; background: var(--surface-2); color: var(--text); }
+  .ib svg { width: 56%; height: 56%; fill: currentColor; }
+  .ib:focus-visible, .chip:focus-visible, .ev:focus-visible, .rwv-btn:focus-visible { outline: 2px solid var(--hi); outline-offset: 2px; }
+  .list { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; padding-bottom: var(--pad); display: flex; flex-direction: column; gap: var(--gap); }
+  .list::-webkit-scrollbar { display: none; }
+  .day { font-size: clamp(11px, 2.6vmin, 15px); font-weight: 700; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; margin-top: 4px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(clamp(112px, 25vmin, 170px), 1fr)); gap: var(--gap); }
+  .ev { position: relative; display: flex; flex-direction: column; min-width: 0; border-radius: var(--r-md); overflow: hidden; background: var(--surface); text-align: left; }
+  .ev .ph { position: relative; aspect-ratio: 1; background: var(--surface-2) center / cover no-repeat; }
+  .ev .ph .ic { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--surface-3); }
+  .ev .ph .ic svg { width: 36%; height: 36%; fill: currentColor; }
+  .ev .dur { position: absolute; right: 5px; bottom: 5px; padding: 1px 6px; border-radius: 6px; background: rgba(0, 0, 0, 0.6); color: #fff;
+    font-size: clamp(9px, 2vmin, 12px); font-weight: 600; }
+  .ev .dur.live { background: #dc2626; }
+  .ev .cap { padding: clamp(5px, 1.3vmin, 9px) clamp(7px, 1.8vmin, 11px); display: flex; flex-direction: column; gap: 1px; }
+  .ev .l1 { font-weight: 700; font-size: clamp(11px, 2.7vmin, 15px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev .l1 small { font-weight: 500; color: var(--muted); }
+  .ev .l2 { color: var(--muted); font-size: clamp(10px, 2.3vmin, 13px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev.seen .l1 { font-weight: 600; }
+  .more { align-self: center; }
+  /* Chi tiet */
+  #detail { position: fixed; inset: 0; z-index: 5; background: #000; display: flex; flex-direction: column; touch-action: pan-y; }
+  #detail[hidden] { display: none; }
+  .dh { flex: none; display: flex; align-items: center; gap: var(--gap); padding: calc(var(--pad) + 10px) var(--pad) var(--gap); background: var(--bg); }
+  .dh .t { flex: 1; min-width: 0; }
+  .dh .t1 { font-weight: 700; font-size: clamp(14px, 3.8vmin, 22px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dh .t2 { color: var(--muted); font-size: clamp(11px, 2.6vmin, 15px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stage { flex: 1; min-height: 0; position: relative; display: flex; align-items: center; justify-content: center; background: #000; }
+  .stage img, .stage video { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+  .stage .ph0 { width: 60%; aspect-ratio: 16 / 9; border-radius: var(--r-md); background: var(--surface-2); }
+  .stage .msg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 10px 16px; border-radius: var(--r-md);
+    background: rgba(15, 17, 23, 0.85); color: var(--muted); font-size: clamp(12px, 2.9vmin, 16px); text-align: center; }
+  .df { flex: none; display: flex; align-items: center; justify-content: center; gap: var(--gap); padding: var(--gap) var(--pad) var(--pad); background: var(--bg); }
+  .df .rwv-btn svg { width: 1.3em; height: 1.3em; fill: currentColor; }
+  .rwv-btn:disabled { opacity: 0.4; cursor: default; }
+  @media (max-width: 520px) { .ttl span, .df .lbl { display: none; } }
+</style>
+</head>
+<body class="rwv-app">
+<div class="view">
+  <div class="bar">
+    <div class="ttl"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="ttlIc" d=""/></svg><span>Sự kiện</span></div>
+    <nav class="chips" id="chips" aria-label="Camera"></nav>
+    <button class="ib" id="reload" type="button" aria-label="Làm mới" title="Làm mới"></button>
+  </div>
+  <main class="list" id="list" aria-label="Sự kiện camera"></main>
+</div>
+<div id="detail" hidden role="dialog" aria-modal="true" aria-labelledby="dT1">
+  <div class="dh">
+    <button class="ib" id="dClose" type="button" aria-label="Đóng" title="Đóng"></button>
+    <div class="t"><div class="t1" id="dT1"></div><div class="t2" id="dT2"></div></div>
+  </div>
+  <div class="stage" id="stage"></div>
+  <div class="df">
+    <button class="rwv-btn" id="dPrev" type="button"></button>
+    <button class="rwv-btn primary" id="dPlay" type="button"></button>
+    <button class="rwv-btn" id="dNext" type="button"></button>
+  </div>
+</div>
+<script>
+(function () {
+  'use strict';
+  var IC = window.RwvIcons || {};
+  var $ = function (id) { return document.getElementById(id); };
+  function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; }
+  function svg(n) {
+    var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true');
+    var p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', IC[n] || ''); s.appendChild(p); return s;
+  }
+  var Q = new URLSearchParams(location.search), PRIV = Q.get('privacy') === '1';
+  var LABELS = { person: 'Người', car: 'Ô tô', motorcycle: 'Xe máy', bicycle: 'Xe đạp', bus: 'Xe buýt', truck: 'Xe tải', dog: 'Chó', cat: 'Mèo',
+    bird: 'Chim', horse: 'Ngựa', face: 'Khuôn mặt', license_plate: 'Biển số', package: 'Bưu kiện' };
+  var WD = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+  var S = { cam: '', events: [], cams: [], loading: false, more: true, cur: -1, playing: false };
+  try { S.cam = localStorage.getItem('rwv_ev_cam') || ''; } catch (e) { /* */ }
+
+  function label(e) { return (LABELS[e.label] || e.label) + (e.sub ? ' · ' + e.sub : ''); }
+  function camName(c) { if (c === 'p4_panel') return 'Panel P4'; return c.replace(/_/g, ' ').replace(/(^|\s)\S/g, function (m) { return m.toUpperCase(); }); }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function hm(t) { var d = new Date(t * 1000); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+  function dayKey(t) { var d = new Date(t * 1000); return d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate(); }
+  function dayTitle(t) {
+    var d = new Date(t * 1000), n = new Date(), y = new Date(); y.setDate(n.getDate() - 1);
+    if (dayKey(t) === dayKey(n.getTime() / 1000)) return 'Hôm nay';
+    if (dayKey(t) === dayKey(y.getTime() / 1000)) return 'Hôm qua';
+    return WD[d.getDay()] + ', ' + pad(d.getDate()) + '/' + pad(d.getMonth() + 1);
+  }
+  function dur(e) {
+    if (e.end == null) return null;
+    var s = Math.max(1, Math.round(e.end - e.start));
+    return s < 60 ? s + ' giây' : Math.floor(s / 60) + ' phút' + (s % 60 ? ' ' + (s % 60) + ' giây' : '');
+  }
+  function durShort(e) {
+    if (e.end == null) return null;
+    var s = Math.max(1, Math.round(e.end - e.start));
+    return Math.floor(s / 60) + ':' + pad(s % 60);
+  }
+
+  function api(params) {
+    return fetch('/frigate/events?' + params, { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
+      if (!j.ok) throw new Error(j.error || 'Không đọc được sự kiện.');
+      return j;
+    });
+  }
+  function query(before) {
+    var p = new URLSearchParams({ limit: '60' });
+    if (S.cam) p.set('camera', S.cam);
+    if (before) p.set('before', String(before));
+    return p.toString();
+  }
+  function load() {
+    if (!S.events.length) RwvUI.state($('list'), { kind: 'loading', title: 'Đang tải sự kiện…' });
+    S.loading = true;
+    return api(query()).then(function (j) {
+      S.cams = j.cameras || []; S.events = j.events; S.more = j.events.length >= 60;
+      renderChips(); render();
+    }).catch(function (e) {
+      RwvUI.state($('list'), { kind: 'err', title: 'Không kết nối được Frigate', text: e.message, retry: load });
+    }).then(function () { S.loading = false; });
+  }
+  function loadMore(btn) {
+    var last = S.events[S.events.length - 1];
+    if (!last || S.loading) return;
+    btn.disabled = true; S.loading = true;
+    api(query(last.start)).then(function (j) {
+      var seen = {}; S.events.forEach(function (e) { seen[e.id] = 1; });
+      j.events.forEach(function (e) { if (!seen[e.id]) S.events.push(e); });
+      S.more = j.events.length >= 60; render();
+    }).catch(function () { btn.disabled = false; }).then(function () { S.loading = false; });
+  }
+  /** Lam moi 30 s: chi them su kien MOI len dau (khong ve lai ca trang — bang thong toi panel). */
+  function refresh() {
+    if (S.loading || !$('detail').hidden || document.hidden) return;
+    api(new URLSearchParams(S.cam ? { limit: '30', camera: S.cam } : { limit: '30' }).toString()).then(function (j) {
+      var known = {}; S.events.forEach(function (e) { known[e.id] = e; });
+      var fresh = j.events.filter(function (e) { return !known[e.id]; });
+      var changed = j.events.some(function (e) { var k = known[e.id]; return k && (k.end !== e.end || k.clip !== e.clip); });
+      j.events.forEach(function (e) { if (known[e.id]) Object.assign(known[e.id], e); });
+      if (fresh.length) S.events = fresh.concat(S.events);
+      if (fresh.length || changed) render();
+    }).catch(function () { });
+  }
+
+  function chip(text, val, n) {
+    var b = el('button', 'chip' + (S.cam === val ? ' on' : '')); b.type = 'button';
+    b.appendChild(el('span', '', text)); if (n != null) b.appendChild(el('span', 'n', String(n)));
+    b.setAttribute('aria-pressed', String(S.cam === val));
+    b.addEventListener('click', function () {
+      S.cam = val; S.events = [];
+      try { localStorage.setItem('rwv_ev_cam', val); } catch (e) { /* */ }
+      renderChips(); load();
+    });
+    return b;
+  }
+  function renderChips() {
+    var box = $('chips'), out = [chip('Tất cả', '')];
+    S.cams.forEach(function (c) { out.push(chip(camName(c), c)); });
+    box.replaceChildren.apply(box, out);
+  }
+  function card(e, i) {
+    var b = el('button', 'ev'); b.type = 'button';
+    var ph = el('div', 'ph');
+    if (PRIV) { var ic = el('div', 'ic'); ic.appendChild(svg('cctv')); ph.appendChild(ic); }
+    else ph.style.backgroundImage = 'url("/frigate/thumb/' + encodeURIComponent(e.id) + '")';
+    var d = durShort(e);
+    ph.appendChild(el('span', 'dur' + (d ? '' : ' live'), d || 'Đang diễn ra'));
+    var cap = el('div', 'cap'), l1 = el('div', 'l1', label(e) + ' ');
+    if (e.score) l1.appendChild(el('small', '', Math.round(e.score * 100) + '%'));
+    cap.append(l1, el('div', 'l2', camName(e.camera) + ' · ' + hm(e.start)));
+    b.append(ph, cap);
+    b.addEventListener('click', function () { openDetail(i); });
+    return b;
+  }
+  function render() {
+    var box = $('list');
+    if (!S.events.length) {
+      RwvUI.state(box, { kind: 'empty', title: 'Chưa có sự kiện', text: S.cam ? 'Camera này chưa ghi nhận người / xe nào gần đây.' : 'Frigate chưa ghi nhận người / xe nào gần đây.' });
+      return;
+    }
+    var frag = document.createDocumentFragment(), lastDay = '', grid = null;
+    S.events.forEach(function (e, i) {
+      var k = dayKey(e.start);
+      if (k !== lastDay) { lastDay = k; frag.appendChild(el('div', 'day', dayTitle(e.start))); grid = el('div', 'grid'); frag.appendChild(grid); }
+      grid.appendChild(card(e, i));
+    });
+    if (S.more) {
+      var mb = el('button', 'rwv-btn more', 'Xem sự kiện cũ hơn'); mb.type = 'button';
+      mb.addEventListener('click', function () { loadMore(mb); });
+      frag.appendChild(mb);
+    }
+    box.replaceChildren(frag);
+  }
+
+  // ── Chi tiet ──
+  function openDetail(i) {
+    S.cur = i; S.playing = false;
+    $('detail').hidden = false;
+    renderDetail();
+  }
+  function closeDetail() { stopVideo(); $('detail').hidden = true; S.cur = -1; }
+  function stopVideo() { var v = $('stage').querySelector('video'); if (v) { try { v.pause(); v.removeAttribute('src'); v.load(); } catch (x) { /* */ } } }
+  function renderDetail() {
+    var e = S.events[S.cur];
+    if (!e) { closeDetail(); return; }
+    stopVideo();
+    $('dT1').textContent = label(e) + ' · ' + camName(e.camera);
+    var d = new Date(e.start * 1000), du = dur(e);
+    $('dT2').textContent = WD[d.getDay()] + ' ' + pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + ' · ' + hm(e.start) +
+      (du ? ' · ' + du : ' · đang diễn ra') + (e.score ? ' · ' + Math.round(e.score * 100) + '%' : '') + (e.zones.length ? ' · ' + e.zones.join(', ') : '');
+    var st = $('stage'), out = [];
+    if (S.playing && e.clip) {
+      var v = document.createElement('video');
+      v.controls = true; v.autoplay = true; v.playsInline = true; v.preload = 'auto';
+      if (!PRIV) v.src = '/frigate/clip/' + encodeURIComponent(e.id);
+      v.addEventListener('ended', function () { S.playing = false; renderButtons(); });
+      v.addEventListener('error', function () { st.appendChild(el('div', 'msg', 'Không phát được clip (Frigate có thể đã xoá bản ghi).')); });
+      out.push(v);
+    } else if (PRIV || !e.snap) {
+      out.push(el('div', 'ph0'));
+      if (!e.snap) out.push(el('div', 'msg', 'Sự kiện không có ảnh chụp.'));
+    } else {
+      var im = new Image(); im.alt = label(e); im.decoding = 'async';
+      im.onerror = function () { st.replaceChildren(el('div', 'ph0'), el('div', 'msg', 'Không tải được ảnh chụp.')); };
+      im.src = '/frigate/snap/' + encodeURIComponent(e.id);
+      out.push(im);
+    }
+    st.replaceChildren.apply(st, out);
+    renderButtons();
+  }
+  function renderButtons() {
+    var e = S.events[S.cur];
+    $('dPrev').disabled = S.cur <= 0;
+    $('dNext').disabled = S.cur >= S.events.length - 1;
+    $('dPlay').disabled = !e || !e.clip;
+    $('dPlay').replaceChildren(svg(S.playing ? 'image' : 'play'), el('span', 'lbl', S.playing ? 'Ảnh chụp' : (e && e.clip ? 'Xem clip' : 'Không có clip')));
+  }
+  function step(d) {
+    var i = S.cur + d;
+    if (i < 0 || i >= S.events.length) return;
+    S.cur = i; S.playing = false; renderDetail();
+  }
+  $('dClose').addEventListener('click', closeDetail);
+  $('dPrev').addEventListener('click', function () { step(-1); });
+  $('dNext').addEventListener('click', function () { step(1); });
+  $('dPlay').addEventListener('click', function () { S.playing = !S.playing; renderDetail(); });
+  (function swipe() {
+    var g = null, t = $('stage');
+    t.addEventListener('pointerdown', function (e) { if (e.target.tagName !== 'VIDEO') g = { x: e.clientX, y: e.clientY }; });
+    t.addEventListener('pointercancel', function () { g = null; });
+    t.addEventListener('pointerup', function (e) {
+      if (!g) return;
+      var dx = e.clientX - g.x, dy = e.clientY - g.y; g = null;
+      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.4) step(dx < 0 ? 1 : -1);
+    });
+  })();
+  // Server dung media khi roi ung dung (tab nen): bo trang thai phat de quay lai thay anh chup.
+  window.rwvStop = function () { stopVideo(); if (S.playing) { S.playing = false; if (S.cur >= 0) renderDetail(); } };
+
+  $('ttlIc').setAttribute('d', IC.cctv || IC['video-outline'] || '');
+  $('reload').replaceChildren(svg('refresh'));
+  $('reload').addEventListener('click', function () { S.events = []; load(); });
+  $('dClose').replaceChildren(svg('close'));
+  $('dPrev').replaceChildren(svg('chevron-left'), el('span', 'lbl', 'Trước'));
+  $('dNext').replaceChildren(el('span', 'lbl', 'Sau'), svg('chevron-right'));
+  load();
+  setInterval(refresh, 30000);
+})();
+</script>
+</body>
+</html>

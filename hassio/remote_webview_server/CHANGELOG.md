@@ -1,3 +1,10 @@
+## V2.9.115
+### Sự kiện camera (Frigate)
+- Menu → Nhà → **Sự kiện camera**: các lần Frigate phát hiện người / xe / vật nuôi, xếp theo ngày — ảnh thu nhỏ, độ tin
+  cậy, camera, giờ, thời lượng. Lọc theo camera, tự cập nhật 30 giây. Chạm để xem ảnh chụp lớn, **xem clip**, vuốt ngang
+  sang sự kiện trước / sau.
+- Tự tìm Frigate qua tích hợp Frigate trong Home Assistant (không cần cấu hình). Ảnh / clip chỉ phục vụ cho màn hình.
+
 ## V2.9.114
 ### Lịch vạn niên
 - Ứng dụng Lịch → **Lịch vạn niên**. Lịch ngày chi tiết: ngày hoàng đạo / hắc đạo (12 thần trực nhật), **giờ hoàng đạo**,
