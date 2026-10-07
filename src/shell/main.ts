@@ -562,7 +562,8 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     if (!w) { svCard.replaceChildren(); return; }
     const now = el('div', 'wc-now');
     const desc = el('div', 'wc-desc');
-    const sub = [w.fl != null ? `Cảm giác ${w.fl}°` : '', w.hi != null && w.lo != null ? `${w.lo}° – ${w.hi}°` : ''].filter(Boolean).join(' · ');
+    // \u00a0 = khoang trang khong ngat dong: chi xuong dong o dau " · " (do that P4: ngat giua "20° –" va "30°").
+    const sub = [w.fl != null ? `Cảm\u00a0giác\u00a0${w.fl}°` : '', w.hi != null && w.lo != null ? `${w.lo}°\u00a0–\u00a0${w.hi}°` : ''].filter(Boolean).join(' · ');
     desc.append(el('div', 'wc-name', WMO[w.code] ?? ''), el('div', 'wc-sub', sub));
     now.append(weatherIcon(w.code, w.day), el('div', 'wc-t', `${w.t}°`), desc);
     const row = el('div', 'wc-row');
@@ -727,7 +728,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
       const ph = saverEl.classList.contains('photo');
       // (07/10/2026) Co the thoi tiet (khoi rong gan het man): dich it lai de khong tran mep.
       const amp = saverEl.classList.contains('hascard') ? 2 : 7;
-      const dx = ph ? Math.random() * (amp === 2 ? 1.5 : 4) : (Math.random() * 2 - 1) * amp, dy = ph ? -Math.random() * 4 : (Math.random() * 2 - 1) * 9;
+      const dx = ph ? Math.random() * (amp === 2 ? 1.5 : 4) : (Math.random() * 2 - 1) * amp, dy = ph ? -Math.random() * 4 : (Math.random() * 2 - 1) * (amp === 2 ? 3 : 9);
       svBox.style.transform = `translate(${dx.toFixed(1)}vw, ${dy.toFixed(1)}vh)`;
     }
   }

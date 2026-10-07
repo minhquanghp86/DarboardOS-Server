@@ -300,9 +300,12 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   .saver.hascard.ck-xl .sv-clock { font-size: min(36vmin, 25vw); }
 }
 @media (max-aspect-ratio: 4/3) {
+  /* Man vuong (S3 480x480): dong ho + ngay + the xep doc gan het chieu cao -> bot mot nac co de chua cho goi y vuot. */
   .saver.hascard .sv-card { padding: 8px 12px; gap: 6px; }
   .saver.hascard .wc-h:nth-child(n+5) { display: none; }
-  .saver.hascard.ck-xl .sv-clock { font-size: min(34vmin, 30vw); }
+  .saver.hascard.ck-m .sv-clock { font-size: min(22vmin, 20vw); }
+  .saver.hascard.ck-l .sv-clock { font-size: min(26vmin, 24vw); }
+  .saver.hascard.ck-xl .sv-clock { font-size: min(30vmin, 27vw); }
 }
 .sv-hint { position: absolute; left: 0; right: 0; bottom: clamp(8px, 2.6vmin, 22px); display: flex; flex-direction: column; align-items: center;
   gap: 2px; color: rgba(226,232,240,0.5); font: 500 clamp(12px, 2.8vmin, 18px)/1.2 "Be Vietnam Pro", Roboto, sans-serif; pointer-events: none; }
@@ -316,6 +319,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .saver.night .sv-card .wx-ic { opacity: 0.4; filter: sepia(1); }
 .saver.unlocking { transform: translateY(-100%) !important; opacity: 0; transition: transform 260ms ease-in, opacity 260ms ease-in; }
 .saver.lock.photo { padding-bottom: clamp(40px, 9vmin, 70px); }
+/* Chua cho dong goi y vuot o day (do that S3: goi y de len the thoi tiet). */
+.saver.lock:not(.photo) { padding-bottom: clamp(34px, 10vmin, 64px); box-sizing: border-box; }
 .saver.photo .sv-card { background: rgba(0,0,0,0.45); color: #fff; text-shadow: 0 1px 6px rgba(0,0,0,0.6); zoom: 0.82; }
 .saver.photo .wc-sub, .saver.photo .wc-h { color: #e5e7eb; }
 @media (min-aspect-ratio: 4/3) {
