@@ -31,7 +31,20 @@ export type PrefSec = 'screen' | 'frame' | 'lock';
 export interface PanelPrefItem {
   id: string; kind: 'switch' | 'select' | 'text'; label: string; hint: string; on: boolean; value: string;
   options?: string[]; maxLength?: number; group: 'panel'; sec: PrefSec;
+  /** (08/10/2026) Cai dat kieu iOS (public/settings.html): muc lon + nhom con — xem settingsModel.SettingCat. */
+  cat?: 'lock' | 'wall' | 'camera' | 'cast'; sub?: string;
 }
+/** (08/10/2026) Cho tung muc cua addon trong ung dung Cai dat kieu iOS: [muc lon, nhom con]. */
+const PLACE: Record<string, [NonNullable<PanelPrefItem['cat']>, string]> = {
+  'rwv.lock': ['lock', 'Khóa'], 'rwv.saver_idle': ['lock', 'Khóa'], 'rwv.lock_bright': ['lock', 'Khóa'],
+  'rwv.clock_size': ['lock', 'Hiển thị'], 'rwv.wx_detail': ['lock', 'Hiển thị'],
+  'rwv.lw_energy': ['lock', 'Widget'], 'rwv.lw_cal': ['lock', 'Widget'], 'rwv.lw_cam': ['lock', 'Widget'],
+  'rwv.saver_photos': ['wall', 'Ảnh nền màn hình khóa'], 'rwv.photo_interval': ['wall', 'Ảnh nền màn hình khóa'],
+  'rwv.photo_effect': ['wall', 'Trình chiếu'], 'rwv.photo_fit': ['wall', 'Trình chiếu'], 'rwv.photo_order': ['wall', 'Trình chiếu'],
+  'rwv.photo_source': ['wall', 'Nguồn ảnh'], 'rwv.gphotos_url': ['wall', 'Nguồn ảnh'],
+  'rwv.photo_clock': ['wall', 'Trên ảnh'], 'rwv.photo_info': ['wall', 'Trên ảnh'],
+  'rwv.morning': ['camera', 'Khi thấy người'], 'rwv.cast': ['cast', 'YouTube'], 'rwv.cast_name': ['cast', 'YouTube'],
+};
 /** Tat ca thong so khung anh cua MOT man hinh (da ap mac dinh). */
 export interface FrameSettings {
   intervalS: number; effect: PhotoEffect; fit: 'cover' | 'frame'; order: 'random' | 'name';
@@ -133,7 +146,7 @@ export class PanelPrefsStore {
     };
     const sw = (id: string, sec: PrefSec, lab: string, on: boolean, hint: string): PanelPrefItem =>
       ({ id, kind: 'switch', group: 'panel', sec, label: lab, hint, on, value: '' });
-    return [
+    const list: PanelPrefItem[] = [
       // (07/10/2026) Nhom "Màn hình khóa": gom moi thu cua man hinh cho / khoa (thoi gian, do sang, dong ho, thoi tiet, anh).
       sw('rwv.lock', 'lock', 'Khóa màn hình', this.lockMode(dev), 'Vuốt lên để mở · chạm nhầm không mở'),
       sel('rwv.saver_idle', 'lock', 'Khóa / màn hình chờ sau', IDLE_CHOICES, idle, idle < 60 ? `${idle} giây` : `${Math.round(idle / 60)} phút`),
@@ -160,6 +173,7 @@ export class PanelPrefsStore {
       { id: 'rwv.gphotos_url', kind: 'text', group: 'panel', sec: 'frame', label: 'Album Google Photos', maxLength: 200, on: !!f.album,
         value: f.album, hint: f.album ? '' : 'Dán link chia sẻ album (photos.app.goo.gl/…) · dùng chung mọi màn hình' },
     ];
+    return list.map((i) => (PLACE[i.id] ? { ...i, cat: PLACE[i.id][0], sub: PLACE[i.id][1] } : i));
   }
 }
 

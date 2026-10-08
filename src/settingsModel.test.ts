@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { HaEntity, HaState, buildSettingsView, findDeviceByMac, findNoSleepSwitch, findPresenceSelect, isSaverPhotosSwitchId, macFromDeviceId, planSet } from "./settingsModel.js";
+import { HaEntity, HaState, SettingItem, buildSettingsView, findDeviceByMac, findNoSleepSwitch, findPresenceSelect, isSaverPhotosSwitchId, macFromDeviceId, placeSetting, planSet } from "./settingsModel.js";
+import { REAL_P4, REAL_S3 } from "./settingsModel.fixture.js";
 
 const dev = { id: "d1", name: "7.0 Guition JC1060P470C", model: "esp32-p4-evboard", sw_version: "2026.9.0",
   connections: [["mac", "28:37:2F:8A:02:18"]] as [string, string][] };
@@ -118,5 +119,37 @@ describe('muc Luong camera (01/10/2026)', () => {
     expect(s.map((i) => i.label).sort()).toEqual(['Tiếng khi quay video', 'Tiếng luồng camera']);
     expect(s.every((i) => !!i.hint)).toBe(true);
     expect(v.items.find((i) => i.label === 'Màn hình chờ')?.group).toBe('control');
+  });
+});
+
+describe("(08/10/2026) Cai dat kieu iOS — xep muc lon / nhom con", () => {
+  const place = (id: string, kind: string, group: string, label: string) =>
+    placeSetting({ id, kind: kind as SettingItem["kind"], group: group as SettingItem["group"], label, value: "" });
+  it("moi thuc the THAT cua P4 va S3 vao dung muc (khong muc nao roi vao 'Khác')", () => {
+    for (const [id, kind, group, label] of [...REAL_P4, ...REAL_S3]) {
+      const p = place(id, kind, group, label);
+      expect(p.cat, id).not.toBe("other");
+      expect(p.sub, id).toBeTruthy();
+    }
+  });
+  it("vi du: ten de hieu, an muc trung, nhom dung", () => {
+    const by = (list: typeof REAL_P4, suffix: string) => { const t = list.find((x) => x[0].endsWith(suffix))!; return place(...t); };
+    expect(by(REAL_P4, "_lcd_backlight")).toMatchObject({ cat: "display", sub: "Độ sáng", title: "Đèn nền" });
+    expect(by(REAL_P4, "_anh_man_hinh_cho")).toMatchObject({ cat: "wall", hide: true });
+    expect(by(REAL_P4, "c_man_hinh_cho")).toMatchObject({ cat: "display", sub: "Tự tắt màn hình", title: "Luôn sáng (màn hình chờ)" });
+    expect(by(REAL_P4, "_am_luong_video_web")).toMatchObject({ cat: "sound", sub: "Âm lượng" });
+    expect(by(REAL_P4, "_tai_loi_1")).toMatchObject({ cat: "diag", sub: "Hiệu năng", title: "Tải lõi 1" });
+    expect(by(REAL_P4, "_khoi_dong_lai")).toMatchObject({ cat: "about", title: "Khởi động lại" });
+    expect(by(REAL_P4, "_tieng_luong_camera")).toMatchObject({ cat: "camera", sub: "Âm thanh camera" });
+    expect(by(REAL_P4, "_person")).toMatchObject({ cat: "camera", sub: "Trạng thái", title: "Có người" });
+    expect(by(REAL_P4, "_do_nhay_chuyen_dong")).toMatchObject({ cat: "camera", sub: "Phát hiện người" });
+    expect(by(REAL_S3, "_wifi_ket_noi")).toMatchObject({ cat: "net", sub: "Wi-Fi", title: "Mạng đang kết nối" });
+    expect(by(REAL_S3, "_local_ip")).toMatchObject({ cat: "net", title: "Địa chỉ IP" });
+    expect(by(REAL_S3, "_url_hien_thi")).toMatchObject({ cat: "home", title: "Trang đang hiển thị" });
+    expect(by(REAL_S3, "_url_hien_tai")).toMatchObject({ cat: "diag", sub: "Kết nối" });
+  });
+  it("khong khop luat nao -> theo group cua HA", () => {
+    expect(place("switch.x_den_bao", "switch", "control", "Đèn báo")).toMatchObject({ cat: "other", sub: "Điều khiển" });
+    expect(place("sensor.x_nhiet_do_chip", "value", "diag", "Nhiệt độ chip")).toMatchObject({ cat: "diag", sub: "Khác" });
   });
 });

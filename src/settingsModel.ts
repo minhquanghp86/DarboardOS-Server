@@ -37,6 +37,86 @@ export interface SettingItem {
   unavailable?: boolean;
   /** Nut can hoi lai truoc khi bam (khoi dong lai...). */
   confirm?: boolean;
+  /** (08/10/2026) Cai dat kieu iOS: muc lon (cat), nhom con (sub), ten hien de hieu (title), thu tu trong nhom (ord);
+   *  hide = trung voi muc khac (vd "Ảnh màn hình chờ" cua firmware da dong bo voi cai dat addon "Hiện ảnh nền"). */
+  cat?: SettingCat; sub?: string; title?: string; ord?: number; hide?: boolean;
+}
+
+/** (08/10/2026) Muc lon cua ung dung Cai dat (public/settings.html giu ten / icon / mau / thu tu). */
+export type SettingCat = 'net' | 'sound' | 'display' | 'lock' | 'wall' | 'voice' | 'camera' | 'cast' | 'home' | 'battery' | 'about' | 'diag' | 'other';
+interface PlaceRule { re: RegExp; cat: SettingCat; sub: string; title?: string; hint?: string; ord?: number; hide?: true }
+/**
+ * Xep muc theo entity_id (khong theo nhan — nhan do nguoi dung / firmware dat, co ban khong dau). Luat DAU TIEN khop
+ * thang ("_anh_man_hinh_cho" phai dung truoc "_man_hinh_cho"). title co the chua $1 (nhom bat cua re).
+ */
+const PLACE: PlaceRule[] = [
+  { re: /_(wifi_ket_noi|ssid)$/, cat: 'net', sub: 'Wi-Fi', title: 'Mạng đang kết nối', ord: 0 },
+  { re: /_wifi_signal$/, cat: 'net', sub: 'Wi-Fi', title: 'Cường độ sóng', ord: 1 },
+  { re: /^sensor\..*_(ip|ip_address)$/, cat: 'net', sub: 'Wi-Fi', title: 'Địa chỉ IP', ord: 2 },
+  { re: /^sensor\..*_(mac_esp|mac|mac_address)$/, cat: 'net', sub: 'Wi-Fi', title: 'Địa chỉ MAC', ord: 3 },
+  { re: /_ha_darboard_server$/, cat: 'net', sub: 'Máy chủ Darboard', title: 'Địa chỉ máy chủ', ord: 0 },
+  { re: /_ws_connected$/, cat: 'net', sub: 'Máy chủ Darboard', title: 'Kết nối', ord: 1 },
+  { re: /_toc_do_tai_tcp$/, cat: 'net', sub: 'Đo tốc độ', title: 'Tốc độ tải lần đo gần nhất', ord: 0 },
+  { re: /_do_toc_do_mang$/, cat: 'net', sub: 'Đo tốc độ', title: 'Đo tốc độ mạng', ord: 1 },
+  { re: /_(audio_amplifier|amplifier)$/, cat: 'sound', sub: 'Loa', title: 'Bộ khuếch đại loa' },
+  { re: /^number\..*_am_luong(_video_web|_media)?$/, cat: 'sound', sub: 'Âm lượng', title: 'Âm lượng' },
+  { re: /^light\./, cat: 'display', sub: 'Độ sáng', title: 'Đèn nền' },
+  { re: /^switch\..*_anh_man_hinh_cho$/, cat: 'wall', sub: 'Ảnh nền màn hình khóa', title: 'Ảnh màn hình chờ', hide: true },
+  { re: /^switch\..*(_man_hinh_cho|_no_sleep)$/, cat: 'display', sub: 'Tự tắt màn hình', title: 'Luôn sáng (màn hình chờ)',
+    hint: 'Bật: không tắt đèn nền — rảnh thì hiện màn hình khóa / chờ', ord: 0 },
+  { re: /_sleep_time$/, cat: 'display', sub: 'Tự tắt màn hình', title: 'Tắt màn hình sau', hint: 'Khi không bật “Luôn sáng”', ord: 1 },
+  { re: /_(xoay_man_hinh|rotation)$/, cat: 'display', sub: 'Hướng màn hình', title: 'Xoay màn hình' },
+  { re: /^select\..*_assistant$/, cat: 'voice', sub: 'Trợ lý', title: 'Trợ lý chính', ord: 0 },
+  { re: /^select\..*_assistant_2$/, cat: 'voice', sub: 'Trợ lý', title: 'Trợ lý thứ hai', ord: 1 },
+  { re: /_tu_danh_thuc$/, cat: 'voice', sub: 'Đánh thức', title: 'Từ đánh thức', ord: 0 },
+  { re: /_wake_word$/, cat: 'voice', sub: 'Đánh thức', title: 'Từ khoá trợ lý chính', ord: 1 },
+  { re: /_wake_word_2$/, cat: 'voice', sub: 'Đánh thức', title: 'Từ khoá trợ lý thứ hai', ord: 2 },
+  { re: /_(finished_speaking_detection|phat_hien_noi_xong)$/, cat: 'voice', sub: 'Nghe', title: 'Phát hiện nói xong' },
+  { re: /_(khu_vong_mic_aec|aec)$/, cat: 'voice', sub: 'Micro', title: 'Khử vọng (AEC)', hint: 'Lọc tiếng loa khỏi micro khi trợ lý đang nghe' },
+  { re: /_nguon_phat_hien_nguoi$/, cat: 'camera', sub: 'Phát hiện người', title: 'Nguồn phát hiện', ord: 0 },
+  { re: /_do_nhay_chuyen_dong$/, cat: 'camera', sub: 'Phát hiện người', title: 'Độ nhạy chuyển động', ord: 1 },
+  { re: /_nguong_nhan_dien_khuon_mat$/, cat: 'camera', sub: 'Phát hiện người', title: 'Ngưỡng nhận diện khuôn mặt', ord: 2 },
+  { re: /^binary_sensor\..*_chuyen_dong$/, cat: 'camera', sub: 'Trạng thái', title: 'Chuyển động', ord: 0 },
+  { re: /^binary_sensor\..*_person$/, cat: 'camera', sub: 'Trạng thái', title: 'Có người', ord: 1 },
+  { re: /_tieng_luong_camera$/, cat: 'camera', sub: 'Âm thanh camera', title: 'Tiếng trong luồng camera', ord: 0 },
+  { re: /_tieng_khi_quay_video$/, cat: 'camera', sub: 'Âm thanh camera', title: 'Tiếng khi quay video', ord: 1 },
+  { re: /_home_url$/, cat: 'home', sub: 'Trang chủ', title: 'Địa chỉ trang chủ', ord: 0 },
+  { re: /^text\..*_url_hien_thi$/, cat: 'home', sub: 'Trang chủ', title: 'Trang đang hiển thị', ord: 1 },
+  { re: /_go_home$/, cat: 'home', sub: 'Trang chủ', title: 'Về trang chủ', ord: 2 },
+  { re: /_battery_(percent|level)$/, cat: 'battery', sub: 'Pin', title: 'Mức pin', ord: 0 },
+  { re: /_battery_voltage$/, cat: 'battery', sub: 'Pin', title: 'Điện áp pin', ord: 1 },
+  { re: /_co_pin$/, cat: 'battery', sub: 'Pin', title: 'Có gắn pin', ord: 2 },
+  { re: /^button\..*(_khoi_dong_lai|_restart)$/, cat: 'about', sub: 'Thiết bị', title: 'Khởi động lại' },
+  { re: /_heap_free$/, cat: 'diag', sub: 'Bộ nhớ', title: 'RAM trống', ord: 0 },
+  { re: /_heap_free_nho_nhat$/, cat: 'diag', sub: 'Bộ nhớ', title: 'RAM trống thấp nhất', ord: 1 },
+  { re: /_heap_block_lon_nhat$/, cat: 'diag', sub: 'Bộ nhớ', title: 'Khối RAM lớn nhất', ord: 2 },
+  { re: /_heap_phan_manh$/, cat: 'diag', sub: 'Bộ nhớ', title: 'Phân mảnh RAM', ord: 3 },
+  { re: /_psram_free$/, cat: 'diag', sub: 'Bộ nhớ', title: 'PSRAM trống', ord: 4 },
+  { re: /_loop_time$/, cat: 'diag', sub: 'Hiệu năng', title: 'Thời gian vòng lặp', ord: 0 },
+  { re: /_tai_loi_(\d)$/, cat: 'diag', sub: 'Hiệu năng', title: 'Tải lõi $1', ord: 1 },
+  { re: /_frame_update$/, cat: 'diag', sub: 'Hiệu năng', title: 'Đang nhận khung hình', ord: 3 },
+  { re: /_video_dang_chay$/, cat: 'diag', sub: 'Hiệu năng', title: 'Video đang chạy', ord: 4 },
+  { re: /_do_tai_cpu$/, cat: 'diag', sub: 'Hiệu năng', title: 'Đo tải CPU', ord: 9 },
+  { re: /_ws_watchdog_restart$/, cat: 'diag', sub: 'Kết nối', title: 'Số lần tự nối lại', ord: 0 },
+  { re: /_ws_watchdog_ly_do$/, cat: 'diag', sub: 'Kết nối', title: 'Lý do nối lại gần nhất', ord: 1 },
+  { re: /_url_hien_tai$/, cat: 'diag', sub: 'Kết nối', title: 'Trang hiện tại', ord: 2 },
+];
+
+/** Gan muc lon / nhom con / ten de hieu cho MOT muc (khong khop luat nao: theo group cua HA). */
+export function placeSetting(it: SettingItem): SettingItem {
+  for (const r of PLACE) {
+    const m = r.re.exec(it.id);
+    if (!m) continue;
+    const out: SettingItem = { ...it, cat: r.cat, sub: r.sub };
+    if (r.title) out.title = r.title.replace('$1', m[1] ?? '');
+    if (r.hint && !it.hint) out.hint = r.hint;
+    if (r.ord != null) out.ord = r.ord;
+    if (r.hide) out.hide = true;
+    return out;
+  }
+  if (it.group === 'stream') return { ...it, cat: 'camera', sub: 'Âm thanh camera' };
+  if (it.group === 'diag') return { ...it, cat: 'diag', sub: 'Khác' };
+  return { ...it, cat: 'other', sub: it.group === 'config' ? 'Cấu hình' : 'Điều khiển' };
 }
 
 export interface SettingsView {
@@ -105,7 +185,7 @@ export function buildSettingsView(dev: HaDevice, entities: HaEntity[], states: M
       ? 'Tiếng trong luồng camera gửi Frigate / go2rtc. Đang phát video trên màn này thì tạm không lấy tiếng.'
       : 'Ghi tiếng micro khi quay video bằng ứng dụng Camera (áp dụng từ lần quay sau).';
     if (kind === 'button') it.confirm = a.device_class === 'restart' || /restart|khoi_dong_lai/i.test(e.entity_id);
-    items.push(it);
+    items.push(placeSetting(it));
   }
   items.sort((x, y) => ORDER[x.kind] - ORDER[y.kind] || x.label.localeCompare(y.label, 'vi'));
   return {
