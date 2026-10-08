@@ -38,7 +38,7 @@ import { Notice, NoticeStore, NotifyRequest, noticeKind, parseNotify, shouldPopu
 import { Sound, soundForNotice, soundPrefs } from "./sound.js";
 import { alarms, type Ringing } from "./alarms.js";
 import { callService, getRegistry, getSettingsView, getStates, haReady } from "./haSettings.js";
-import { findDeviceByMac, findNoSleepSwitch, findPresenceSelect, isSaverPhotosSwitchId, macFromDeviceId, planSet, planWifi } from "./settingsModel.js";
+import { findDeviceByMac, findNoSleepSwitch, findPresenceSelect, isSaverPhotosSwitchId, macFromDeviceId, planCamAuth, planSet, planWifi } from "./settingsModel.js";
 import { getLauncherConfig, saveHomeLayout } from "./launcherConfig.js";
 import { lockWidgetsFor, refreshLockWidgets } from "./lockWidgets.js";
 import { HomeLayout, resolveLayout } from "./homeLayout.js";
@@ -1572,6 +1572,22 @@ async function handleSettings(dev: DeviceSession, tab: Tab, msg: any): Promise<v
   if (msg.settings === 'get') return pushSettings(dev, tab);
   // (08/10/2026) Doi Wi-Fi: quet mang / ket noi mang moi qua dich vu ESPHome cua CHINH man hinh nay (KHONG ghi mat khau vao
   // log). Firmware tu thu 30 s, khong vao duoc hoac khong thay may chu thi quay ve mang cu; ket qua o cam bien "Đổi Wi-Fi".
+  // (08/10/2026) Mat khau luong camera (nguoi dung cuoi dat trong Cai dat) — KHONG ghi mat khau vao log.
+  if (msg.settings === 'camauth') {
+    const r = await getSettingsView(dev.deviceId);
+    if (!r.ok) return pushSettings(dev, tab);
+    const plan = planCamAuth(r.view, msg.enabled, msg.user, msg.password);
+    if (typeof plan === 'string') {
+      console.warn(`[settings] ${dev.deviceId}: tu choi mat khau camera: ${plan}`);
+      const M: Record<string, string> = { 'ten dang nhap khong hop le': 'Tên đăng nhập 1–32 ký tự (chữ, số, . _ @ -).',
+        'mat khau phai 4-64 ky tu': 'Mật khẩu phải từ 4 đến 64 ký tự.', 'can mat khau': 'Nhập mật khẩu để bật.' };
+      return pushSettings(dev, tab, { ok: false, msg: M[plan] ?? 'Không đổi được mật khẩu camera.' });
+    }
+    const ok = await callService(plan).catch(() => false);
+    console.log(`[settings] ${dev.deviceId}: mat khau luong camera ${msg.enabled ? `BAT (ten "${String(msg.user).slice(0, 32)}")` : 'tat'} -> ${ok ? 'OK' : 'LOI'}`);
+    setTimeout(() => { pushSettings(dev, tab, ok ? undefined : { ok: false, msg: 'Home Assistant không nhận lệnh (firmware chưa cập nhật?).' }).catch(() => { }); }, 1500);
+    return;
+  }
   if (msg.settings === 'wifi') {
     const r = await getSettingsView(dev.deviceId);
     if (!r.ok) return pushSettings(dev, tab);

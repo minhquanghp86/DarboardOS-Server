@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HaEntity, HaState, SettingItem, buildSettingsView, findDeviceByMac, findNoSleepSwitch, findPresenceSelect, isSaverPhotosSwitchId, macFromDeviceId, placeSetting, planSet, planWifi } from "./settingsModel.js";
+import { HaEntity, HaState, SettingItem, buildSettingsView, findDeviceByMac, findNoSleepSwitch, findPresenceSelect, isSaverPhotosSwitchId, macFromDeviceId, placeSetting, planCamAuth, planSet, planWifi } from "./settingsModel.js";
 import { REAL_P4, REAL_S3 } from "./settingsModel.fixture.js";
 
 const dev = { id: "d1", name: "7.0 Guition JC1060P470C", model: "esp32-p4-evboard", sw_version: "2026.9.0",
@@ -181,5 +181,24 @@ describe("(08/10/2026) doi Wi-Fi tu Cai dat — tim dich vu ESPHome cua man hinh
     expect(P("sensor.4_3_guition_4848s040_doi_wi_fi")).toMatchObject({ cat: "net", hide: true });
     expect(P("sensor.4_3_guition_4848s040_ten_esphome")).toMatchObject({ cat: "about", title: "Tên ESPHome" });
     expect(P("sensor.4_3_guition_4848s040_thoi_gian_chay")).toMatchObject({ cat: "diag", sub: "Hiệu năng" });
+  });
+});
+
+describe("(08/10/2026) mat khau luong camera dat luc chay", () => {
+  const view = (st: string | null) => ({ device: { name: "x" }, items: [
+    { id: "sensor.7_0_guition_jc1060p470c_ten_esphome", kind: "value" as const, group: "diag" as const, label: "Tên ESPHome", value: "esp32-p4-tab7" },
+    ...(st == null ? [] : [{ id: "sensor.7_0_guition_jc1060p470c_mat_khau_luong_camera", kind: "value" as const, group: "diag" as const, label: "Mật khẩu luồng camera", value: st }])] });
+  it("bat / doi / tat -> esphome.<node>_set_camera_auth", () => {
+    expect(planCamAuth(view("Tắt"), true, "admin", "abcd1234"))
+      .toEqual({ domain: "esphome", service: "esp32_p4_tab7_set_camera_auth", data: { enabled: true, username: "admin", password: "abcd1234" } });
+    expect(planCamAuth(view("Bật · admin"), true, "camera", "")).toMatchObject({ data: { username: "camera", password: "" } });  // giu mat khau cu
+    expect(planCamAuth(view("Bật · admin"), false, "", "")).toMatchObject({ data: { enabled: false } });
+  });
+  it("tu choi: firmware cu, ten / mat khau sai, bat lan dau khong co mat khau", () => {
+    expect(planCamAuth(view(null), true, "admin", "abcd1234")).toBe("firmware chua ho tro mat khau camera");
+    expect(planCamAuth(view("Tắt"), true, "ad min", "abcd1234")).toBe("ten dang nhap khong hop le");
+    expect(planCamAuth(view("Tắt"), true, "admin", "abc")).toBe("mat khau phai 4-64 ky tu");
+    expect(planCamAuth(view("Tắt"), true, "admin", "")).toBe("can mat khau");
+    expect(planCamAuth(view("Tắt"), "co", "admin", "abcd1234")).toBe("thieu bat / tat");
   });
 });
