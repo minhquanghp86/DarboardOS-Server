@@ -98,13 +98,14 @@ async function cameras(): Promise<string[]> {
  * lai). Dung de nhan ra camera cua CHINH panel (do that: p4_panel <- go2rtc http://192.168.1.179:...): widget man khoa
  * khong bao "co nguoi" moi lan chinh nguoi dang dung truoc panel. Chi doc ten may, khong giu mat khau trong URL.
  */
+function hostOf(u: unknown): string | null {
+  try {
+    const h = new URL(String(u).replace(/^ffmpeg:/, '').replace(/#.*$/, '')).hostname;
+    return h && !/^(127\.|localhost$|::1$|\[::1\]$)/.test(h) ? h : null;
+  } catch { return null; }
+}
 export function hostsOfConfig(cfg: FrigateConfig): Record<string, string[]> {
-  const host = (u: unknown): string | null => {
-    try {
-      const h = new URL(String(u).replace(/^ffmpeg:/, '').replace(/#.*$/, '')).hostname;
-      return h && !/^(127\.|localhost$|::1$|\[::1\]$)/.test(h) ? h : null;
-    } catch { return null; }
-  };
+  const host = hostOf;
   const out: Record<string, string[]> = {};
   for (const [name, c] of Object.entries(cfg.cameras ?? {})) {
     const srcs: unknown[] = [...(c?.ffmpeg?.inputs ?? []).map((i) => i?.path), ...([] as unknown[]).concat(cfg.go2rtc?.streams?.[name] ?? [])];
@@ -112,7 +113,28 @@ export function hostsOfConfig(cfg: FrigateConfig): Record<string, string[]> {
   }
   return out;
 }
-export async function cameraHosts(): Promise<Record<string, string[]>> { return hostsOfConfig(await frigateConfig()); }
+/**
+ * (08/10/2026) Nguon DANG CHAY that cua go2rtc (Frigate /api/go2rtc/streams): cau hinh Frigate chi nap luc khoi dong — do
+ * that: doi IP P4 (.179 -> .24, DHCP) va cap nhat luong go2rtc qua API, /api/config van bao .179 toi khi Frigate khoi
+ * dong lai -> P4 khong nhan ra camera cua chinh no.
+ */
+export function hostsOfRuntime(streams: unknown): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const [name, s] of Object.entries((streams && typeof streams === 'object' ? streams : {}) as Record<string, unknown>)) {
+    const prods = ((s as { producers?: { url?: unknown }[] })?.producers ?? []);
+    out[name] = [...new Set(prods.map((p) => hostOf(p?.url)).filter((h): h is string => !!h))];
+  }
+  return out;
+}
+export async function cameraHosts(): Promise<Record<string, string[]>> {
+  const out = hostsOfConfig(await frigateConfig());
+  try {
+    for (const [cam, hs] of Object.entries(hostsOfRuntime(await getJson('/api/go2rtc/streams')))) {
+      out[cam] = [...new Set([...(out[cam] ?? []), ...hs])];
+    }
+  } catch { /* Frigate cu khong co API go2rtc: chi dung cau hinh */ }
+  return out;
+}
 
 /** (08/10/2026) Su kien bat dau sau `afterSec` (giay epoch), moi nhat truoc — widget man khoa. */
 export async function recentEvents(afterSec: number, limit = 20): Promise<FEvent[]> {

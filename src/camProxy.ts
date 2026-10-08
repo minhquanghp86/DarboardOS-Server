@@ -8,17 +8,28 @@
 // ket noi WebSocket. Khong nhan dia chi tuy y (khong thanh proxy mo); chi duong cua cam_app; chi tu 127.0.0.1.
 import http from 'node:http';
 
-const hosts = new Map<string, { ip: string; port: number }>();
+/** (08/10/2026) auth = base64("user:pass") cho HTTP Basic Auth cua cam_app / av_stream (firmware gui ?ca= luc noi WS). */
+export type CamHost = { ip: string; port: number; auth?: string };
+const hosts = new Map<string, CamHost>();
 
-/** Goi luc thiet bi ket noi WS: nho IP + cong ung dung Camera (0 = khong co -> quen). */
-export function noteCameraHost(deviceId: string, remoteAddress: string | undefined, port: number): void {
+/**
+ * Goi luc thiet bi ket noi WS: nho IP + cong ung dung Camera (0 = khong co -> quen). (08/10/2026) auth: tai khoan HTTP
+ * cua P4 (firmware gui ?ca=) — CHI giu trong bo nho de gan header khi goi P4; khong log, khong vao /metrics.
+ */
+export function noteCameraHost(deviceId: string, remoteAddress: string | undefined, port: number, auth?: string | null): void {
   const ip = (remoteAddress || '').replace(/^::ffff:/, '');
-  if (port > 0 && /^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) hosts.set(deviceId, { ip, port });
+  const a = auth && /^[A-Za-z0-9+/=]{4,200}$/.test(auth) ? auth : undefined;
+  if (port > 0 && /^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) hosts.set(deviceId, { ip, port, ...(a ? { auth: a } : {}) });
   else hosts.delete(deviceId);
 }
 
-export function cameraHost(): { ip: string; port: number } | undefined {
+export function cameraHost(): CamHost | undefined {
   return hosts.values().next().value;
+}
+
+/** Header Authorization cho moi lan goi cam_app cua P4 (firmware chua bat mat khau -> rong, chay nhu cu). */
+export function camAuth(h: CamHost): Record<string, string> {
+  return h.auth ? { authorization: 'Basic ' + h.auth } : {};
 }
 
 /** (02/10/2026) Id thiet bi co camera/the SD (Quan ly file). */
@@ -51,9 +62,9 @@ function cacheThumb(k: string, v: Buffer | null): void {
   while (thumbCache.size > THUMB_MAX) thumbCache.delete(thumbCache.keys().next().value!);
 }
 
-function fetchBuf(h: { ip: string; port: number }, path: string, max: number, method = 'GET'): Promise<{ code: number; type: string; body: Buffer }> {
+function fetchBuf(h: CamHost, path: string, max: number, method = 'GET'): Promise<{ code: number; type: string; body: Buffer }> {
   return new Promise((resolve, reject) => {
-    const up = http.request({ host: h.ip, port: h.port, path, method, timeout: 20_000 }, (r) => {
+    const up = http.request({ host: h.ip, port: h.port, path, method, timeout: 20_000, headers: camAuth(h) }, (r) => {
       const parts: Buffer[] = []; let n = 0;
       r.on('data', (c: Buffer) => { n += c.length; if (n > max) { up.destroy(new Error('qua lon')); return; } parts.push(c); });
       r.on('end', () => resolve({ code: r.statusCode || 502, type: String(r.headers['content-type'] || ''), body: Buffer.concat(parts) }));
@@ -117,7 +128,7 @@ export function handleCamProxy(req: http.IncomingMessage, res: http.ServerRespon
   gate.run(() => new Promise<void>((done) => {
     const fwd: http.OutgoingHttpHeaders = {};
     if (isFile && req.headers.range) fwd.range = req.headers.range;
-    const up = http.request({ host: h.ip, port: h.port, path: sub + search, method: req.method, timeout: 20_000, headers: fwd }, (r) => {
+    const up = http.request({ host: h.ip, port: h.port, path: sub + search, method: req.method, timeout: 20_000, headers: { ...fwd, ...camAuth(h) } }, (r) => {
       const headers: http.OutgoingHttpHeaders = { 'cache-control': 'no-store' };
       for (const k of ['content-type', 'content-length', 'content-range', 'accept-ranges'] as const) if (r.headers[k]) headers[k] = r.headers[k];
       // cam_app chi gui kieu chunked; do dai that nam o X-Body-Length -> Content-Length cho trinh phat video.
