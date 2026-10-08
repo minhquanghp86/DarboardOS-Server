@@ -143,7 +143,7 @@
   var CATS = [
     { id: 'net', t: 'Wi-Fi & Mạng', ic: 'wifi', c: '#0a84ff', g: 1, subs: ['Wi-Fi', 'Máy chủ Darboard', 'Đo tốc độ'] },
     { id: 'dnd', t: 'Không làm phiền', ic: 'moon-waning-crescent', c: '#5e5ce6', g: 1, toggle: true },
-    { id: 'sound', t: 'Âm thanh', ic: 'volume-high', c: '#ff375f', g: 2 },
+    { id: 'sound', t: 'Âm thanh', ic: 'volume-high', c: '#ff375f', g: 2, subs: ['Âm lượng', 'Loa'] },
     { id: 'display', t: 'Màn hình & Độ sáng', ic: 'brightness-6', c: '#0a84ff', g: 2, subs: ['Độ sáng', 'Tự tắt màn hình', 'Hướng màn hình'] },
     { id: 'lock', t: 'Màn hình khóa', ic: 'lock', c: '#30d158', g: 2, subs: ['Khóa', 'Hiển thị', 'Widget'] },
     { id: 'wall', t: 'Hình nền & Khung ảnh', ic: 'image-multiple', c: '#64d2ff', g: 2, subs: ['Ảnh nền màn hình khóa', 'Trình chiếu', 'Nguồn ảnh', 'Trên ảnh'] },
@@ -367,7 +367,7 @@
     return null;
   }
   function hasCat(c) {
-    if (c.id === 'sound') return !!st();
+    if (c.id === 'sound') return !!st() || itemsOf('sound').length > 0;
     if (c.id === 'dnd') return !!st() && st().dnd != null;
     if (c.id === 'diag') return true;
     return itemsOf(c.id).length > 0;
@@ -380,7 +380,10 @@
         it = haItems().filter(function (i) { return i.cat === 'net' && /_(wifi_ket_noi|ssid)$/.test(i.id); })[0] ||
           haItems().filter(function (i) { return i.cat === 'net' && /_wifi_signal$/.test(i.id); })[0];
         return it ? (it.unit === 'dBm' ? fmtVal(it).split(' · ')[0] : fmtVal(it)) : '';
-      case 'sound': return s && s.v != null ? s.v + '%' : 'Không có loa';
+      case 'sound':
+        if (s && s.v != null) return s.v + '%';
+        it = haItems().filter(function (i) { return i.cat === 'sound' && i.kind === 'number'; })[0];
+        return it ? fmtVal(it) : (s ? 'Không có loa' : '');
       case 'display': it = haItems().filter(function (i) { return i.kind === 'light'; })[0]; return it && it.on ? it.bri + '%' : it ? 'Tắt' : '';
       case 'lock': return pv('rwv.lock');
       case 'wall': return pv('rwv.saver_photos');
@@ -444,10 +447,18 @@
     return out;
   }
   function soundPage() {
-    var s = st(), out = [];
-    if (!s) return out;
+    var s = st() || {}, out = [];
+    // (08/10/2026) Do that: vai chuc giay sau khi addon khoi dong lai, firmware chua bao am luong (st.v null) -> truoc day
+    // trang bao "không có loa" du P4 co loa. Co thuc the am luong / khuech dai = co loa; chua co st.v thi dung thuc the.
+    var ents = haItems().filter(function (i) { return i.cat === 'sound' && !i.hide; });
+    var volEnt = ents.filter(function (i) { return i.kind === 'number'; })[0];
+    var others = ents.filter(function (i) { return i !== volEnt; });
     var vol = el('div', 'grp');
-    if (s.v != null) {
+    if (s.v == null && volEnt) {
+      vol.append(sliderCell('Nhạc, video, radio', '', Number(volEnt.value) || 0, volEnt.min, volEnt.max, volEnt.step || 1,
+        function (v) { return fmtNum(v, volEnt.unit || ''); }, function (v) { set(volEnt.id, v); }, ['volume-low', 'volume-high']));
+      out.push(el('div', 'gh first', 'Âm lượng'), vol);
+    } else if (s.v != null) {
       vol.append(sliderCell('Nhạc, video, radio', '', s.v, 0, 100, 5, function (v) { return v + '%'; }, function (v) { ctl({ f: 'v', v: v }); }, ['volume-low', 'volume-high']));
       if (s.snd && s.sv) {
         var test = function (kind) { var b = el('button', 'pbtn', 'Phát thử'); b.type = 'button'; b.addEventListener('click', function () { ctl({ sndTest: kind }); }); return b; };
@@ -458,12 +469,12 @@
       }
       out.push(el('div', 'gh first', 'Âm lượng'), vol);
       if (!s.snd) out.push(el('div', 'gf', 'Firmware này chưa tách âm lượng — chuông và báo thức kêu theo âm lượng trên.'));
-    } else {
+    } else if (!others.length) {
       vol.append(valueRow('Màn hình này không có loa', '', 'Chỉ hiện thông báo / báo thức trên màn hình'));
       out.push(el('div', 'gh first', 'Loa'), vol);
     }
     var mode = el('div', 'grp');
-    if (s.tg && s.v != null) {
+    if (s.tg && (s.v != null || volEnt)) {
       var r1 = el('div', 'row'); r1.append(textCol('Im lặng', 'Chỉ tắt nhạc / video — chuông và báo thức vẫn kêu'), sw(!!s.tg.muted, function (v) { ctl({ f: 'mu', v: v ? 1 : 0 }); }));
       mode.append(r1);
     }
@@ -472,8 +483,7 @@
       mode.append(r2);
     }
     if (mode.childNodes.length) out.push(el('div', 'gh', 'Chế độ'), mode);
-    var more = itemsOf('sound');
-    if (more.length) out = out.concat(groupsFor('sound', more).map(function (n) { if (n.classList && n.classList.contains('first')) n.classList.remove('first'); return n; }));
+    if (others.length) out = out.concat(groupsFor('sound', others).map(function (n) { if (out.length && n.classList && n.classList.contains('first')) n.classList.remove('first'); return n; }));
     return out;
   }
   function aboutPage() {
