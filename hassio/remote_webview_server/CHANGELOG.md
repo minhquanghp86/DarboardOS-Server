@@ -1,3 +1,7 @@
+## V2.9.120
+- Cài đặt → Wi-Fi & Mạng: thêm hàng **Kênh & chuẩn kết nối** (kênh, chuẩn Wi-Fi, cường độ, công suất phát — cần firmware P4
+  mới có cảm biến "Liên kết Wi-Fi"), giúp nhận ra nhiễu cùng kênh khi video chậm.
+
 ## V2.9.119
 ### Mật khẩu luồng camera (P4)
 - Cài đặt → Camera & Phát hiện → **Mật khẩu luồng camera**: bật / tắt, tên đăng nhập, đổi mật khẩu ngay trên màn hình

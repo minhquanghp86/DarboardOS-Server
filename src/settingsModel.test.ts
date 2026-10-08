@@ -181,6 +181,8 @@ describe("(08/10/2026) doi Wi-Fi tu Cai dat — tim dich vu ESPHome cua man hinh
     expect(P("sensor.4_3_guition_4848s040_doi_wi_fi")).toMatchObject({ cat: "net", hide: true });
     expect(P("sensor.4_3_guition_4848s040_ten_esphome")).toMatchObject({ cat: "about", title: "Tên ESPHome" });
     expect(P("sensor.4_3_guition_4848s040_thoi_gian_chay")).toMatchObject({ cat: "diag", sub: "Hiệu năng" });
+    expect(P("sensor.7_0_guition_jc1060p470c_lien_ket_wi_fi")).toMatchObject({ cat: "net", sub: "Wi-Fi", title: "Kênh & chuẩn kết nối", ord: 6 });
+    expect(P("sensor.7_0_guition_jc1060p470c_kenh_wi_fi_xung_quanh")).toMatchObject({ cat: "net", hide: true });
   });
 });
 
