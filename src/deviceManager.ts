@@ -38,7 +38,7 @@ import { Notice, NoticeStore, NotifyRequest, noticeKind, parseNotify, shouldPopu
 import { Sound, soundForNotice, soundPrefs } from "./sound.js";
 import { alarms, type Ringing } from "./alarms.js";
 import { callService, getRegistry, getSettingsView, getStates, haReady } from "./haSettings.js";
-import { findDeviceByMac, findNoSleepSwitch, findPresenceSelect, isSaverPhotosSwitchId, macFromDeviceId, planSet } from "./settingsModel.js";
+import { findDeviceByMac, findNoSleepSwitch, findPresenceSelect, isSaverPhotosSwitchId, macFromDeviceId, planSet, planWifi } from "./settingsModel.js";
 import { getLauncherConfig, saveHomeLayout } from "./launcherConfig.js";
 import { lockWidgetsFor, refreshLockWidgets } from "./lockWidgets.js";
 import { HomeLayout, resolveLayout } from "./homeLayout.js";
@@ -1570,6 +1570,23 @@ async function pushSettings(dev: DeviceSession, tab: Tab, note?: { ok: boolean; 
 
 async function handleSettings(dev: DeviceSession, tab: Tab, msg: any): Promise<void> {
   if (msg.settings === 'get') return pushSettings(dev, tab);
+  // (08/10/2026) Doi Wi-Fi: quet mang / ket noi mang moi qua dich vu ESPHome cua CHINH man hinh nay (KHONG ghi mat khau vao
+  // log). Firmware tu thu 30 s, khong vao duoc hoac khong thay may chu thi quay ve mang cu; ket qua o cam bien "Đổi Wi-Fi".
+  if (msg.settings === 'wifi') {
+    const r = await getSettingsView(dev.deviceId);
+    if (!r.ok) return pushSettings(dev, tab);
+    const plan = planWifi(r.view, msg.op, msg.ssid, msg.password);
+    if (typeof plan === 'string') {
+      console.warn(`[settings] ${dev.deviceId}: tu choi doi Wi-Fi: ${plan}`);
+      return pushSettings(dev, tab, { ok: false, msg: plan === 'mat khau phai 8-63 ky tu' ? 'Mật khẩu Wi-Fi phải từ 8 đến 63 ký tự.' : 'Không đổi được Wi-Fi.' });
+    }
+    const ok = await callService(plan).catch(() => false);
+    console.log(`[settings] ${dev.deviceId}: Wi-Fi ${msg.op === 'scan' ? 'quet mang' : `doi sang "${String(msg.ssid).slice(0, 32)}"`} -> ${ok ? 'OK' : 'LOI'}`);
+    if (!ok) return pushSettings(dev, tab, { ok: false, msg: 'Home Assistant không nhận lệnh (firmware chưa cập nhật?).' });
+    // Quet mat ~2-4 s; ket qua qua HA -> doc lai sau 5 s (trang tu doc moi 5 s).
+    setTimeout(() => { pushSettings(dev, tab).catch(() => { }); }, msg.op === 'scan' ? 5000 : 1500);
+    return;
+  }
   if (msg.settings !== 'set' || typeof msg.id !== 'string') return;
   // (27/09/2026) Muc cua addon (id "rwv.*"): server tu luu, khong qua HA.
   if (msg.id.startsWith('rwv.')) {

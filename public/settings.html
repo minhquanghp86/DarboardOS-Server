@@ -108,6 +108,10 @@
   /* O nhap chu */
   .field { width: 100%; height: var(--row); padding: 0 var(--px); border: none; outline: none; background: transparent; color: var(--t1);
     font: inherit; caret-color: var(--blue); }
+  .nav .nr:disabled { color: var(--t3); }
+  .ico.sig { background: transparent; color: var(--blue); }
+  .ico.sig svg { width: 92%; height: 92%; }
+  .ico.sig.weak { color: var(--t2); }
   /* Hop xac nhan kieu iOS */
   .abg { position: fixed; inset: 0; z-index: 9; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.5); }
   .alert { width: min(300px, 86vw); border-radius: 14px; overflow: hidden; background: #2c2c2e; text-align: center; }
@@ -203,7 +207,12 @@
 
   // ── Dinh dang gia tri ──
   function nf(n, d) { return (d ? n.toFixed(d) : String(Math.round(n))).replace('.', ','); }
-  function secText(n) { n = Math.round(n); if (n < 60) return n + ' giây'; var m = Math.floor(n / 60), s = n % 60; return m + ' phút' + (s ? ' ' + s + ' giây' : ''); }
+  function secText(n) {
+    n = Math.round(n);
+    if (n >= 86400) { var dd = Math.floor(n / 86400), hh = Math.floor(n % 86400 / 3600); return dd + ' ngày' + (hh ? ' ' + hh + ' giờ' : ''); }
+    if (n >= 3600) { var h = Math.floor(n / 3600), mi = Math.floor(n % 3600 / 60); return h + ' giờ' + (mi ? ' ' + mi + ' phút' : ''); }
+    if (n < 60) return n + ' giây'; var m = Math.floor(n / 60), s = n % 60; return m + ' phút' + (s ? ' ' + s + ' giây' : '');
+  }
   function fmtNum(n, u) {
     if (u === 's') return secText(n);
     var dec = Math.abs(n) >= 100 || Number.isInteger(n) ? 0 : Math.abs(n) >= 10 ? 1 : 2;
@@ -494,10 +503,10 @@
     if (dv.version) g1.append(valueRow('Phần mềm', 'ESPHome ' + String(dv.version).split(' ')[0]));
     if (srv.version) g1.append(valueRow('HA Darboard', srv.version));
     if (srv.w) g1.append(valueRow('Màn hình', srv.w + ' × ' + srv.h + (srv.rotation ? ' · xoay ' + srv.rotation + '°' : '')));
-    haItems().filter(function (i) { return i.cat === 'net' && /_(ip|ip_address|mac_esp|mac|mac_address)$/.test(i.id); })
+    haItems().filter(function (i) { return (i.cat === 'net' && /_(ip|ip_address|mac_esp|mac|mac_address)$/.test(i.id)) || (i.cat === 'about' && i.kind === 'value'); })
       .forEach(function (i) { g1.append(valueRow(title(i), fmtVal(i))); });
     out.push(el('div', 'gsp'), g1);
-    var acts = itemsOf('about');
+    var acts = itemsOf('about').filter(function (i) { return i.kind !== 'value'; });
     if (acts.length) {
       var g2 = el('div', 'grp'); acts.forEach(function (it) { itemRows(it, 'about').forEach(function (r) { g2.append(r); }); });
       out.push(el('div', 'gsp'), g2, el('div', 'gf', 'Khởi động lại chỉ màn hình này; cài đặt được giữ nguyên.'));
@@ -517,7 +526,120 @@
     rest.forEach(function (n) { if (n.classList && n.classList.contains('first')) n.classList.remove('first'); });
     return out.concat(rest);
   }
+  // ── (08/10/2026) WI-FI: mang dang dung, mang quanh day (firmware quet KHONG ngat ket noi), chon mang -> nhap mat khau.
+  // Firmware tu thu 30 s; khong vao duoc hoac khong thay may chu Darboard thi quay lai mang cu (cam bien "Đổi Wi-Fi").
+  var wifiScanAt = 0, wifiScanning = false, wifiPending = '';
+  function wifiItems() {
+    var a = haItems(), f = function (re) { return a.filter(function (i) { return re.test(i.id); })[0] || null; };
+    return { ssid: f(/_(wifi_ket_noi|ssid)$/), rssi: f(/_wifi_signal$/), scan: f(/_mang_wi_fi_xung_quanh$/), status: f(/_doi_wi_fi$/), node: f(/_ten_esphome$/) };
+  }
+  function good(v) { return v != null && v !== '' && v !== 'unknown' && v !== 'unavailable'; }
+  function quality(r) { return r >= -60 ? 'Tốt' : r >= -70 ? 'Khá' : 'Yếu'; }
+  function sigIcon(r) {
+    var b = r == null ? 0 : r >= -55 ? 4 : r >= -65 ? 3 : r >= -75 ? 2 : 1;
+    var x = el('span', 'ico sig' + (b <= 1 ? ' weak' : '')); x.append(svg(b ? 'wifi-strength-' + b : 'wifi-strength-outline')); return x;
+  }
+  /** "Ten: -55dB\n..." (wifi_info scan_results) -> [{ssid, rssi}] — gop cung ten (nhieu diem phat), manh truoc. */
+  function parseScan(v, cur) {
+    var best = {};
+    String(v || '').split('\n').forEach(function (l) {
+      var i = l.lastIndexOf(': '); if (i <= 0) return;
+      var ssid = l.slice(0, i), r = parseInt(l.slice(i + 2), 10);
+      if (ssid && isFinite(r) && (best[ssid] == null || r > best[ssid])) best[ssid] = r;
+    });
+    return Object.keys(best).filter(function (s) { return s !== cur; }).map(function (s) { return { ssid: s, rssi: best[s] }; })
+      .sort(function (a, b) { return b.rssi - a.rssi; });
+  }
+  function wifiScan() {
+    wifiScanAt = Date.now(); wifiScanning = true;
+    ctl({ settings: 'wifi', op: 'scan' });
+    setTimeout(function () { wifiScanning = false; if (last) render(last); }, 6000);
+  }
+  function netPage() {
+    var w = wifiItems(), out = [];
+    var cur = w.ssid && good(w.ssid.value) ? w.ssid.value : '';
+    var rssi = w.rssi && good(w.rssi.value) && isFinite(Number(w.rssi.value)) ? Math.round(Number(w.rssi.value)) : null;
+    var can = !!(w.node && good(w.node.value) && w.scan);
+    var g = el('div', 'grp'), r = el('div', 'row hasic');
+    r.append(sigIcon(rssi), textCol(cur || 'Wi-Fi', cur ? 'Đã kết nối' + (rssi != null ? ' · ' + rssi + ' dBm · ' + quality(rssi) : '') :
+      (rssi != null ? rssi + ' dBm · ' + quality(rssi) : 'Đang kết nối')));
+    if (cur) r.append(svg('check', 'tick'));
+    g.append(r);
+    var st = wifiPending || (w.status && good(w.status.value) ? w.status.value : '');
+    if (st) g.append(valueRow('Đổi mạng', '', st));
+    out.push(el('div', 'gh first', 'Wi-Fi'), g);
+    if (can) {
+      if (!nav.sub && Date.now() - wifiScanAt > 60000) setTimeout(wifiScan, 0);   // mo trang: quet mot lan / phut
+      var nets = parseScan(w.scan.value, cur), g2 = el('div', 'grp');
+      nets.slice(0, 12).forEach(function (n) {
+        var row = el('button', 'row tap hasic'); row.type = 'button';
+        row.append(sigIcon(n.rssi), textCol(n.ssid), el('div', 'rv', n.rssi + ' dBm'), svg('chevron-right', 'chev'));
+        row.addEventListener('click', function () { go({ cat: 'net', sub: { k: 'wifi', id: n.ssid } }, true); });
+        g2.append(row);
+      });
+      if (!nets.length) g2.append(valueRow(wifiScanning ? 'Đang tìm mạng…' : 'Chưa thấy mạng nào khác', ''));
+      var other = el('button', 'row tap hasic'); other.type = 'button';
+      var oi = el('span', 'ico sig'); oi.append(svg('wifi-plus')); other.append(oi, textCol('Mạng khác…'), svg('chevron-right', 'chev'));
+      other.addEventListener('click', function () { go({ cat: 'net', sub: { k: 'wifi', id: '' } }, true); });
+      g2.append(other);
+      g2.append(actionRow(wifiScanning ? 'Đang quét…' : 'Quét lại', false, function () { if (!wifiScanning) { wifiScan(); render(last, true); } }));
+      out.push(el('div', 'gh', 'Mạng khác'), g2,
+        el('div', 'gf', 'Chọn mạng để kết nối. Màn hình thử trong 30 giây; không vào được hoặc không thấy máy chủ Darboard thì tự quay lại mạng đang dùng.'));
+    } else {
+      out.push(el('div', 'gf', 'Cập nhật firmware mới để chọn mạng Wi-Fi ngay tại đây.'));
+    }
+    // Chi tiet: bo dong ten mang + cuong do song (da o tren); doi ten nhom "Wi-Fi" -> "Chi tiết".
+    var rest = itemsOf('net').filter(function (i) { return !/_(wifi_ket_noi|ssid|wifi_signal)$/.test(i.id); })
+      .map(function (i) { return i.sub === 'Wi-Fi' ? Object.assign({}, i, { sub: 'Chi tiết' }) : i; });
+    var saveSubs = CAT.net.subs; CAT.net.subs = ['Chi tiết', 'Máy chủ Darboard', 'Đo tốc độ'];
+    var more = groupsFor('net', rest); CAT.net.subs = saveSubs;
+    more.forEach(function (n) { if (n.classList && n.classList.contains('first')) n.classList.remove('first'); });
+    return out.concat(more);
+  }
+  var showPw = false;
+  function joinPage(ssid) {
+    var known = !!ssid, out = [];
+    var ok = el('button', 'nr', 'Kết nối'); ok.type = 'button';
+    var g = el('div', 'grp'), sIn = null;
+    if (!known) {
+      sIn = el('input', 'field'); sIn.type = 'text'; sIn.placeholder = 'Tên mạng (SSID)'; sIn.maxLength = 32; sIn.spellcheck = false; sIn.id = 'wifi_ssid';
+      sIn.value = draft['wifi:ssid'] || ''; sIn.setAttribute('autocomplete', 'off');
+      sIn.addEventListener('input', function () { draft['wifi:ssid'] = sIn.value; check(); });
+      sIn.addEventListener('focus', function () { editing = 'wifi'; });
+      var r0 = el('div', 'row'); r0.style.padding = '0'; r0.append(sIn); g.append(r0);
+    }
+    var pw = el('input', 'field'); pw.type = showPw ? 'text' : 'password'; pw.placeholder = 'Mật khẩu (để trống nếu mạng mở)'; pw.maxLength = 63;
+    pw.spellcheck = false; pw.id = 'wifi_pw'; pw.value = draft['wifi:pw'] || ''; pw.setAttribute('autocomplete', 'off');
+    pw.addEventListener('input', function () { draft['wifi:pw'] = pw.value; check(); });
+    pw.addEventListener('focus', function () { editing = 'wifi'; });
+    pw.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !ok.disabled) ok.click(); });
+    var r1 = el('div', 'row'); r1.style.padding = '0'; r1.append(pw); g.append(r1);
+    var g2 = el('div', 'grp'), rs = el('div', 'row');
+    rs.append(textCol('Hiện mật khẩu'), sw(showPw, function (v) { showPw = v; pw.type = v ? 'text' : 'password'; }));
+    g2.append(rs);
+    function check() {
+      var s = known ? ssid : (sIn.value || '').trim(), p = pw.value;
+      ok.disabled = !s || (p.length > 0 && p.length < 8);
+    }
+    check();
+    ok.addEventListener('click', function () {
+      var s = known ? ssid : sIn.value.trim();
+      ctl({ settings: 'wifi', op: 'connect', ssid: s, password: pw.value });
+      wifiPending = 'Đang kết nối ' + s + '… màn hình có thể ngắt kết nối vài giây.';
+      setTimeout(function () { wifiPending = ''; }, 45000);
+      delete draft['wifi:pw']; delete draft['wifi:ssid']; editing = null; showPw = false;
+      try { pw.blur(); } catch (e) { /* */ }
+      back();
+    });
+    var bar = navBar('Huỷ', known ? ssid : 'Mạng khác', ok, { plain: true, onBack: function () { delete draft['wifi:pw']; delete draft['wifi:ssid']; editing = null; showPw = false; } });
+    setTimeout(function () { try { (known ? pw : sIn).focus(); } catch (e) { /* */ } }, 60);
+    out.push(bar, el('div', 'gh first', known ? 'Nhập mật khẩu cho “' + ssid + '”' : 'Mạng ẩn hoặc chưa thấy trong danh sách'), g,
+      el('div', 'gsp'), g2,
+      el('div', 'gf', 'Màn hình thử kết nối trong 30 giây. Không vào được, hoặc vào được nhưng không thấy máy chủ Darboard, thì tự quay lại mạng đang dùng. Trong lúc đổi, màn hình có thể đứng vài giây.'));
+    return out;
+  }
   function catContent(catId) {
+    if (catId === 'net') return netPage();
     if (catId === 'sound') return soundPage();
     if (catId === 'about') return aboutPage();
     if (catId === 'diag') return diagPage();
@@ -568,6 +690,7 @@
     return n;
   }
   function subPage(catId) {
+    if (nav.sub.k === 'wifi') return joinPage(nav.sub.id);
     var it = findItem(nav.sub.id), meta = CAT[catId] || { t: '' };
     if (!it) return null;
     if (nav.sub.k === 'pick') return [navBar(meta.t, title(it))].concat(pickPage(it));
@@ -591,7 +714,7 @@
     var available = CATS.filter(hasCat).map(function (c) { return c.id; }).concat(['about']);
     if (nav.cat && available.indexOf(nav.cat) < 0) nav.cat = null;
     if (isSplit && !nav.cat) nav.cat = available.indexOf('sound') >= 0 ? 'sound' : available[0];
-    if (nav.sub && !findItem(nav.sub.id)) nav.sub = null;
+    if (nav.sub && nav.sub.k !== 'wifi' && !findItem(nav.sub.id)) nav.sub = null;
     var view;
     if (isSplit) {
       var side = el('div', 'side scroll'), det = el('div', 'detail scroll');
