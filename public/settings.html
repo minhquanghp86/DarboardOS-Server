@@ -6,248 +6,619 @@
 <title>Cài đặt</title>
 <!-- (26/09/2026 OS-4) Cai dat CUA CHINH MAN HINH NAY: thuc the ESPHome cua thiet bi (tim theo MAC trong HA) + so lieu
      server. Du lieu/ghi qua binding __rwvControl cua tab (server chi nhan tu tab ung dung Cai dat), khong goi HTTP.
-     KHONG dung <select> goc: popup cua Chrome headless khong nam trong anh truyen xuong panel. -->
+     KHONG dung <select> goc: popup cua Chrome headless khong nam trong anh truyen xuong panel.
+     (08/10/2026) THIET KE LAI KIEU iOS (nguoi dung yeu cau): man ngang (P4) chia doi nhu iPad — danh sach muc ben trai,
+     noi dung ben phai; man vuong / hep (S3) kieu iPhone — danh sach -> trang con (nut "‹ Cài đặt", vuot mep = quay lai qua
+     history). Muc lon / nhom con / ten de hieu do server gan (settingsModel.placeSetting, panelPrefs PLACE); o day giu
+     ten, icon, mau, thu tu va chu thich. Moi muc lon mot icon vuong bo goc mau rieng; nhom tach bang khoang trong. Lua
+     chon ngan = nut phan doan, dai = trang chon co dau tick; sua chu = trang rieng (ban phim ao); khoi dong lai = hop
+     xac nhan. Khong hieu ung chay lien tuc (bang thong WiFi). -->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="/ui.css">
 <script src="/ui.js"></script>
+<script src="/icons.js"></script>
 <style>
-  :root { --accent: #64748b; --on: #3b82f6; }
+  :root {
+    --bg: #000; --cell: #1c1c1e; --press: #2c2c2e; --sep: #38383a; --t1: #fff; --t2: #8e8e93; --t3: #5a5a5f;
+    --blue: #0a84ff; --green: #30d158; --red: #ff453a; --fill: rgba(118, 118, 128, 0.24); --seg-on: #636366;
+    --row: 50px; --ic: 30px; --fs: 17px; --fs-s: 13px; --r: 12px; --px: 16px; --gap-g: 26px;
+    color-scheme: dark;
+  }
+  /* Man nho / vuong (S3 480x480) */
+  @media (max-width: 600px) { :root { --row: 46px; --ic: 28px; --fs: 15.5px; --fs-s: 12px; --r: 11px; --px: 14px; --gap-g: 20px; } }
   * { box-sizing: border-box; }
-  html, body { height: 100%; }
-  body { overflow-y: auto; font-size: clamp(12px, 2.6vmin, 16px); }
-  main { max-width: 1100px; margin: 0 auto; padding: calc(var(--pad) + 22px) calc(var(--pad) * 1.4) calc(var(--pad) * 2); }
-  header { display: flex; align-items: flex-end; gap: var(--gap); margin-bottom: calc(var(--gap) * 1.4); }
-  h1 { margin: 0; font-size: clamp(20px, 5.4vmin, 34px); font-weight: 700; }
-  .sub { color: var(--muted); font-size: 0.92em; margin-top: 3px; }
-  /* Cot bao (masonry): muc dai (Dieu khien) mot cot, cac muc ngan xep chong cot kia — khong de trong mot nua man hinh. */
-  .grid { columns: 2 400px; column-gap: var(--gap); }
-  section { break-inside: avoid; margin-bottom: var(--gap); background: var(--surface); border-radius: var(--r-lg); padding: calc(var(--pad) * 0.7) var(--pad); }
-  section h2 { margin: 2px 0 6px; font-size: 0.82em; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
-  .row { display: flex; align-items: center; gap: var(--gap); min-height: clamp(44px, 9.5vmin, 58px); padding: 4px 0; border-top: 1px solid var(--line); }
-  .row:first-of-type { border-top: none; }
-  .row.col { flex-direction: column; align-items: stretch; gap: 8px; padding: 10px 0; }
-  .lab { flex: 1; min-width: 0; }
-  .lab .n { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .lab .v { color: var(--muted); font-size: 0.88em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .val { color: #cfd6e4; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .off { opacity: 0.45; pointer-events: none; }
-  /* cong tac */
-  .tg { flex: none; width: clamp(46px, 11vmin, 58px); height: clamp(26px, 6.2vmin, 32px); border-radius: 999px; background: var(--surface-3);
-    position: relative; cursor: pointer; transition: background-color 120ms; }
-  .tg::after { content: ''; position: absolute; top: 3px; left: 3px; width: calc(clamp(26px, 6.2vmin, 32px) - 6px); aspect-ratio: 1; border-radius: 50%;
-    background: #fff; transition: transform 120ms; }
-  .tg.on { background: var(--on); }
-  .tg.on::after { transform: translateX(calc(clamp(46px, 11vmin, 58px) - clamp(26px, 6.2vmin, 32px))); }
-  /* thanh truot */
-  .sl { position: relative; height: clamp(34px, 8vmin, 44px); border-radius: 12px; background: var(--surface-2); overflow: hidden; touch-action: none; cursor: pointer; }
-  .sl .f { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--on) 75%, transparent); }
-  .sl .t { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-weight: 600; font-variant-numeric: tabular-nums; }
-  /* chon doan */
-  .seg { display: flex; flex-wrap: wrap; gap: 6px; }
-  .seg button { font: inherit; color: var(--text); border: none; cursor: pointer; padding: 8px 14px; border-radius: 10px; background: var(--surface-2); font-weight: 600; }
-  .seg button.sel { background: var(--on); }
-  /* nhap chu */
-  .txt { display: flex; gap: 8px; }
-  .txt input { flex: 1; min-width: 0; height: clamp(36px, 8vmin, 44px); border: none; border-radius: 10px; padding: 0 12px; font: inherit; color: #111; background: #fff; }
-  .btn { flex: none; font: inherit; font-weight: 600; color: var(--text); border: none; cursor: pointer; height: clamp(34px, 8vmin, 42px); padding: 0 16px;
-    border-radius: 999px; background: var(--surface-2); }
-  .btn.pri { background: var(--on); color: #fff; }
-  .btn.warn { background: #b45309; }
-  .diag { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
-  .kv { background: var(--surface-2); border-radius: 12px; padding: 8px 12px; min-width: 0; }
-  .kv .k { color: var(--muted); font-size: 0.82em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .kv .v2 { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #note { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); padding: 8px 16px; border-radius: 999px; background: #7f1d1d;
-    color: #fee2e2; display: none; }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--t1); overflow: hidden; }
+  body.rwv-app { background: var(--bg); font-size: var(--fs); }
+  button { font: inherit; color: inherit; border: none; background: none; padding: 0; cursor: pointer; }
+  svg { display: block; fill: currentColor; }
+  #app { position: fixed; inset: 0; }
+  .scroll { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+  .scroll::-webkit-scrollbar { display: none; }
+  /* Bo cuc: chia doi (P4) / mot cot (S3). 28 px tren cung chua cho vien dong ho cua Shell. */
+  .split { display: flex; height: 100%; }
+  .side { width: 344px; flex: none; height: 100%; padding: 28px 14px 28px 20px; border-right: 1px solid #141416; }
+  .detail { flex: 1; min-width: 0; height: 100%; padding: 0 28px 32px; }
+  .page { height: 100%; padding: 0 var(--px) 28px; }
+  .lt { margin: 6px 4px 14px; font-size: 32px; font-weight: 700; letter-spacing: -0.01em; }
+  @media (max-width: 600px) { .lt { font-size: 28px; margin: 32px 2px 12px; } }
+  /* Thanh dieu huong cua trang con */
+  .nav { position: sticky; top: 0; z-index: 2; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; min-height: 48px;
+    padding-top: 28px; margin-bottom: 4px; background: linear-gradient(var(--bg) 82%, transparent); }
+  .nav .nt { font-weight: 600; font-size: calc(var(--fs) + 0.5px); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .nav .nb { justify-self: start; display: inline-flex; align-items: center; gap: 2px; color: var(--blue); font-size: var(--fs); padding: 6px 8px 6px 0; max-width: 100%; }
+  .nav .nb svg { width: 26px; height: 26px; margin-left: -6px; flex: none; }
+  .nav .nb span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nav .nr { justify-self: end; color: var(--blue); font-weight: 600; padding: 6px 0 6px 8px; }
+  /* Nhom kieu "inset grouped" */
+  .gh { margin: var(--gap-g) var(--px) 7px; font-size: var(--fs-s); color: var(--t2); text-transform: uppercase; letter-spacing: 0.02em; }
+  .gh.first { margin-top: 8px; }
+  .gsp { height: var(--gap-g); }
+  .grp { background: var(--cell); border-radius: var(--r); overflow: hidden; }
+  .gf { margin: 7px var(--px) 0; font-size: var(--fs-s); color: var(--t2); line-height: 1.38; }
+  .row { position: relative; display: flex; align-items: center; gap: 12px; min-height: var(--row); padding: 7px var(--px); width: 100%; text-align: left; }
+  .row + .row::before { content: ''; position: absolute; top: 0; right: 0; left: var(--sl, var(--px)); height: 1px; background: var(--sep); }
+  .row.hasic { --sl: calc(var(--px) + var(--ic) + 12px); }
+  .row.tap:active, .row.act:active { background: var(--press); }
+  .row.col { flex-direction: column; align-items: stretch; gap: 8px; padding-top: 10px; padding-bottom: 12px; }
+  .row .top { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .ico { flex: none; width: var(--ic); height: var(--ic); border-radius: calc(var(--ic) * 0.24); display: flex; align-items: center; justify-content: center; color: #fff; }
+  .ico svg { width: 68%; height: 68%; }
+  .rt { flex: 1; min-width: 0; }
+  .rt .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rt .s { margin-top: 2px; font-size: var(--fs-s); color: var(--t2); line-height: 1.32; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .rv { flex: 0 1 auto; max-width: 48%; color: var(--t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+  .chev { flex: none; width: 20px; height: 20px; margin-right: -6px; color: var(--t3); }
+  .row.off { opacity: 0.4; pointer-events: none; }
+  .row.act .t { color: var(--blue); }
+  .row.act.danger .t { color: var(--red); }
+  .row.act.done .t { color: var(--t2); }
+  .tick { flex: none; width: 22px; height: 22px; color: var(--blue); }
+  /* The thiet bi (dau danh sach) */
+  .row.dev { min-height: 76px; gap: 14px; }
+  .row.dev .ico { width: 54px; height: 54px; border-radius: 13px; background: linear-gradient(140deg, #5e5ce6, #0a84ff); }
+  .row.dev .t { font-size: calc(var(--fs) + 1px); font-weight: 600; white-space: normal; line-height: 1.22; display: -webkit-box; -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical; }
+  /* Danh sach ben trai (P4): muc dang chon to xanh, khong mui ten */
+  .side .row.sel { background: var(--blue); }
+  .side .row.sel .rv, .side .row.sel .s { color: rgba(255, 255, 255, 0.82); }
+  .side .row.sel + .row::before, .side .row.sel::before { display: none; }
+  /* Cong tac */
+  .sw { flex: none; position: relative; width: 51px; height: 31px; border-radius: 16px; background: #39393d; transition: background-color 150ms; }
+  .sw::after { content: ''; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3); transition: transform 150ms; }
+  .sw.on { background: var(--green); }
+  .sw.on::after { transform: translateX(20px); }
+  /* Thanh truot */
+  .slr { display: flex; align-items: center; gap: 12px; }
+  .slr > svg { flex: none; width: 22px; height: 22px; color: var(--t2); }
+  .slr > svg.big { width: 26px; height: 26px; }
+  .sl { position: relative; flex: 1; height: 34px; touch-action: none; cursor: pointer; }
+  .sl .trk { position: absolute; left: 0; right: 0; top: 50%; height: 4px; margin-top: -2px; border-radius: 2px; background: #39393d; overflow: hidden; }
+  .sl .fil { position: absolute; left: 0; top: 0; bottom: 0; background: var(--blue); }
+  .sl .th { position: absolute; top: 50%; width: 28px; height: 28px; margin: -14px 0 0 -14px; border-radius: 50%; background: #fff;
+    box-shadow: 0 0.5px 4px rgba(0, 0, 0, 0.2), 0 6px 13px rgba(0, 0, 0, 0.2); }
+  .pbtn { flex: none; color: var(--blue); font-size: var(--fs-s); font-weight: 600; padding: 6px 0 6px 10px; }
+  /* Nut phan doan */
+  .seg { display: flex; gap: 2px; padding: 2px; border-radius: 9px; background: var(--fill); }
+  .seg button { flex: 1 1 0; min-width: 0; height: 30px; padding: 0 10px; border-radius: 7px; font-size: calc(var(--fs) - 3px); font-weight: 500;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .seg button.on { background: var(--seg-on); font-weight: 600; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2); }
+  .seg.inl { flex: none; }
+  .seg.inl button { flex: none; padding: 0 14px; }
+  /* O nhap chu */
+  .field { width: 100%; height: var(--row); padding: 0 var(--px); border: none; outline: none; background: transparent; color: var(--t1);
+    font: inherit; caret-color: var(--blue); }
+  /* Hop xac nhan kieu iOS */
+  .abg { position: fixed; inset: 0; z-index: 9; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.5); }
+  .alert { width: min(300px, 86vw); border-radius: 14px; overflow: hidden; background: #2c2c2e; text-align: center; }
+  .alert .at { padding: 19px 16px 3px; font-weight: 600; }
+  .alert .am { padding: 2px 18px 18px; font-size: var(--fs-s); line-height: 1.38; color: #d1d1d6; }
+  .alert .ab { display: flex; border-top: 1px solid #48484a; }
+  .alert .ab button { flex: 1; height: 46px; color: var(--blue); }
+  .alert .ab button + button { border-left: 1px solid #48484a; }
+  .alert .ab .danger { color: var(--red); font-weight: 600; }
+  #note { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 10; max-width: 90vw; padding: 10px 18px; border-radius: 14px;
+    background: #3a1d1d; color: #ffd4d1; font-size: var(--fs-s); display: none; }
+  .rwv-state { min-height: 100vh; }
 </style>
 </head>
 <body class="rwv-app">
-<main id="main"></main>
-<div id="note"></div>
+<div id="app"></div>
+<div id="note" role="status"></div>
 <script>
 (function () {
-  var main = document.getElementById('main');
-  var ctl = function (o) { try { window.__rwvControl(JSON.stringify(o)); } catch (e) {} };
-  var editing = null;       // id o nhap chu dang sua — khong ve lai de khong mat chu dang go
-  var touching = false;     // ngon tay dang tren man hinh (keo thanh truot...) — khong ve lai giua chung
-  var pendingRender = false;
+  'use strict';
+  var IC = window.RwvIcons || {};
+  var app = document.getElementById('app');
+  var ctl = function (o) { try { window.__rwvControl(JSON.stringify(o)); } catch (e) { /* */ } };
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function svg(n, cls) {
+    var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true');
+    if (cls) s.setAttribute('class', cls);
+    var p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', IC[n] || ''); s.appendChild(p); return s;
+  }
+  function set(id, v) { ctl({ settings: 'set', id: id, v: v }); }
+
+  // ── Muc lon: ten, icon, mau (mau he thong iOS ban toi), nhom tren danh sach, thu tu nhom con, chu thich ──
+  var CATS = [
+    { id: 'net', t: 'Wi-Fi & Mạng', ic: 'wifi', c: '#0a84ff', g: 1, subs: ['Wi-Fi', 'Máy chủ Darboard', 'Đo tốc độ'] },
+    { id: 'dnd', t: 'Không làm phiền', ic: 'moon-waning-crescent', c: '#5e5ce6', g: 1, toggle: true },
+    { id: 'sound', t: 'Âm thanh', ic: 'volume-high', c: '#ff375f', g: 2 },
+    { id: 'display', t: 'Màn hình & Độ sáng', ic: 'brightness-6', c: '#0a84ff', g: 2, subs: ['Độ sáng', 'Tự tắt màn hình', 'Hướng màn hình'] },
+    { id: 'lock', t: 'Màn hình khóa', ic: 'lock', c: '#30d158', g: 2, subs: ['Khóa', 'Hiển thị', 'Widget'] },
+    { id: 'wall', t: 'Hình nền & Khung ảnh', ic: 'image-multiple', c: '#64d2ff', g: 2, subs: ['Ảnh nền màn hình khóa', 'Trình chiếu', 'Nguồn ảnh', 'Trên ảnh'] },
+    { id: 'voice', t: 'Trợ lý giọng nói', ic: 'microphone', c: '#bf5af2', g: 3, subs: ['Trợ lý', 'Đánh thức', 'Nghe', 'Micro'] },
+    { id: 'camera', t: 'Camera & Phát hiện', ic: 'cctv', c: '#40c8e0', g: 3, subs: ['Phát hiện người', 'Khi thấy người', 'Trạng thái', 'Âm thanh camera'] },
+    { id: 'cast', t: 'Truyền YouTube', ic: 'cast', c: '#ff453a', g: 3, subs: ['YouTube'] },
+    { id: 'home', t: 'Màn hình chính', ic: 'home', c: '#ff9f0a', g: 4, subs: ['Trang chủ'] },
+    { id: 'battery', t: 'Pin', ic: 'battery', c: '#30d158', g: 4, subs: ['Pin'] },
+    { id: 'diag', t: 'Chẩn đoán', ic: 'pulse', c: '#8e8e93', g: 4 },
+    { id: 'other', t: 'Khác', ic: 'dots-horizontal', c: '#8e8e93', g: 4, subs: ['Điều khiển', 'Cấu hình'] },
+  ];
+  var CAT = {}; CATS.forEach(function (c) { CAT[c.id] = c; });
+  CAT.about = { id: 'about', t: 'Giới thiệu', ic: 'tablet', c: '#5e5ce6' };
+  var FOOT = {
+    'net/Máy chủ Darboard': 'Địa chỉ addon HA Darboard mà màn hình kết nối tới (máy:cổng).',
+    'display/Tự tắt màn hình': 'Khi bật “Luôn sáng”, màn hình không tắt mà hiện màn hình khóa / chờ lúc rảnh.',
+    'lock/Widget': 'Không có số liệu thì widget tự ẩn. Chọn cảm biến năng lượng ở trang Darboard → thẻ Màn khóa.',
+    'wall/Nguồn ảnh': 'Thư mục = media/photos của Home Assistant. Album Google Photos dùng chung cho mọi màn hình.',
+    'voice/Đánh thức': 'Từ khoá nghe trên chính thiết bị để gọi trợ lý của Home Assistant.',
+    'camera/Phát hiện người': 'Dùng để bật sáng màn hình và hiện “Hôm nay” khi có người đứng trước màn hình.',
+    'cast/YouTube': 'Mở YouTube trên điện thoại cùng mạng Wi-Fi → nút truyền → chọn tên này.',
+    'home/Trang chủ': '“Về trang chủ” mở lại địa chỉ trang chủ trên màn hình này.',
+  };
+  /** Ten hien cho gia tri lua chon (van gui gia tri goc ve HA). */
+  var OPT = { preferred: 'Mặc định (HA)', no_wake_word: 'Không dùng', 'default': 'Mặc định', relaxed: 'Chậm rãi', aggressive: 'Nhanh' };
+  function optLabel(it, o) { return /_(xoay_man_hinh|rotation)$/.test(it.id || '') && /^\d+$/.test(o) ? o + '°' : (OPT[o] || o); }
+
+  // ── Trang thai ──
+  var last = null, editing = null, touching = false, pendingRender = false, alertOpen = false;
+  var split = function () { return innerWidth >= 700 && innerWidth > innerHeight * 1.25; };
+  var nav = { cat: null, sub: null, d: 0 };
+  try { var sv = JSON.parse(sessionStorage.getItem('rwv_set_nav') || 'null'); if (sv && sv.cat && split()) nav.cat = sv.cat; } catch (e) { /* */ }
+  if (history.state && history.state.rwvSet) nav = history.state.nav;
   document.addEventListener('pointerdown', function () { touching = true; }, true);
   var up = function () { touching = false; if (pendingRender) { pendingRender = false; render(last); } };
   document.addEventListener('pointerup', up, true); document.addEventListener('pointercancel', up, true);
-  var last = null;
-  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
-  function set(id, v) { ctl({ settings: 'set', id: id, v: v }); }
-  function label(it, sub) { var l = el('div', 'lab'); l.append(el('div', 'n', it.label)); if (sub) l.append(el('div', 'v', sub)); return l; }
-  function fmt(it) { return it.value + (it.unit ? ' ' + it.unit : ''); }
 
-  function slider(value, min, max, step, unit, onDone) {
-    var s = el('div', 'sl'), f = el('div', 'f'), t = el('div', 't');
-    s.append(f, t);
-    var v = value;
-    function show() { var p = max > min ? (v - min) / (max - min) : 0; f.style.width = (p * 100) + '%'; t.textContent = v + (unit ? ' ' + unit : ''); }
-    function at(x) { var r = s.getBoundingClientRect(); var p = Math.max(0, Math.min(1, (x - r.left) / r.width));
-      v = Math.round((min + p * (max - min)) / step) * step; v = +Math.max(min, Math.min(max, v)).toFixed(4); show(); }
+  function remember() { try { sessionStorage.setItem('rwv_set_nav', JSON.stringify({ cat: nav.cat })); } catch (e) { /* */ } }
+  /** Chuyen trang: push = them muc lich su (vuot mep / nut quay lai cua Shell di ve), khong thi thay muc hien tai. */
+  function go(n, push) {
+    n.d = push ? (nav.d || 0) + 1 : (nav.d || 0);
+    nav = n; remember();
+    var st = { rwvSet: 1, nav: n };
+    try { if (push) history.pushState(st, ''); else history.replaceState(st, ''); } catch (e) { /* */ }
+    editing = null;
+    render(last, true);
+  }
+  function back() {
+    if ((nav.d || 0) > 0) { history.back(); return; }
+    if (nav.sub) go({ cat: nav.cat, sub: null }, false); else go({ cat: split() ? nav.cat : null, sub: null }, false);
+  }
+  window.addEventListener('popstate', function (e) {
+    var s = e.state;
+    nav = s && s.rwvSet ? s.nav : { cat: split() ? nav.cat : null, sub: null, d: 0 };
+    editing = null; remember(); render(last, true);
+  });
+
+  // ── Dinh dang gia tri ──
+  function nf(n, d) { return (d ? n.toFixed(d) : String(Math.round(n))).replace('.', ','); }
+  function secText(n) { n = Math.round(n); if (n < 60) return n + ' giây'; var m = Math.floor(n / 60), s = n % 60; return m + ' phút' + (s ? ' ' + s + ' giây' : ''); }
+  function fmtNum(n, u) {
+    if (u === 's') return secText(n);
+    var dec = Math.abs(n) >= 100 || Number.isInteger(n) ? 0 : Math.abs(n) >= 10 ? 1 : 2;
+    return nf(n, dec) + (u ? (u === '%' ? '%' : ' ' + u) : '');
+  }
+  function fmtVal(it) {
+    var v = it.value, u = it.unit || '';
+    if (v == null || v === '' || v === 'unknown' || v === 'unavailable') return '—';
+    if (it.kind === 'value' && (v === 'on' || v === 'off')) {
+      if (/_ws_connected$/.test(it.id)) return v === 'on' ? 'Đã kết nối' : 'Mất kết nối';
+      return v === 'on' ? 'Có' : 'Không';
+    }
+    var n = Number(v);
+    if (String(v).trim() === '' || !isFinite(n)) return String(v) + (u ? ' ' + u : '');
+    if (u === 'B') return n >= 1048576 ? nf(n / 1048576, 1) + ' MB' : nf(n / 1024, n < 10240 ? 1 : 0) + ' KB';
+    if (u === 'dBm') return nf(n) + ' dBm · ' + (n >= -60 ? 'Tốt' : n >= -70 ? 'Khá' : 'Yếu');
+    return fmtNum(n, u);
+  }
+  function title(it) { return it.title || it.label; }
+
+  // ── Khoi dung ──
+  function rowBase(it, cls) { var r = el('div', 'row' + (cls ? ' ' + cls : '')); if (it && it.unavailable) r.classList.add('off'); return r; }
+  function textCol(t, s) { var c = el('div', 'rt'); c.append(el('div', 't', t)); if (s) c.append(el('div', 's', s)); return c; }
+  function sub(it) { return it.unavailable ? 'Không khả dụng' : (it.hint || ''); }
+  function sw(on, fn) {
+    var b = el('button', 'sw' + (on ? ' on' : '')); b.type = 'button'; b.setAttribute('role', 'switch'); b.setAttribute('aria-checked', String(!!on));
+    b.addEventListener('click', function (e) { e.stopPropagation(); var v = !b.classList.contains('on'); b.classList.toggle('on', v); b.setAttribute('aria-checked', String(v)); fn(v); });
+    return b;
+  }
+  function slider(value, min, max, step, onDone, onShow) {
+    var s = el('div', 'sl'), trk = el('div', 'trk'), fil = el('div', 'fil'), th = el('div', 'th');
+    trk.append(fil); s.append(trk, th);
+    var v = Math.max(min, Math.min(max, Number(value) || 0));
+    function show() { var p = max > min ? (v - min) / (max - min) : 0; fil.style.width = (p * 100) + '%'; th.style.left = (p * 100) + '%'; if (onShow) onShow(v); }
+    function at(x) {
+      var r = s.getBoundingClientRect(), p = Math.max(0, Math.min(1, (x - r.left) / r.width));
+      v = Math.round((min + p * (max - min)) / step) * step; v = +Math.max(min, Math.min(max, v)).toFixed(4); show();
+    }
     var drag = false;
-    s.addEventListener('pointerdown', function (e) { drag = true; try { s.setPointerCapture(e.pointerId); } catch (x) {} at(e.clientX); });
+    s.addEventListener('pointerdown', function (e) { drag = true; try { s.setPointerCapture(e.pointerId); } catch (x) { /* */ } at(e.clientX); });
     s.addEventListener('pointermove', function (e) { if (drag) at(e.clientX); });
     var end = function () { if (!drag) return; drag = false; onDone(v); };
     s.addEventListener('pointerup', end); s.addEventListener('pointercancel', end);
     show();
     return s;
   }
-
-  function row(it) {
-    var r = el('div', 'row');
-    if (it.unavailable) r.classList.add('off');
-    if (it.kind === 'switch') {
-      var tg = el('div', 'tg' + (it.on ? ' on' : '')); tg.setAttribute('role', 'switch');
-      tg.addEventListener('click', function () { tg.classList.toggle('on'); set(it.id, tg.classList.contains('on')); });
-      r.append(label(it, it.unavailable ? 'Không khả dụng' : (it.hint || '')), tg);
-    } else if (it.kind === 'light') {
-      r.classList.add('col');
-      var top = el('div', 'row'); top.style.border = 'none'; top.style.padding = '0'; top.style.minHeight = '0';
-      var tg2 = el('div', 'tg' + (it.on ? ' on' : ''));
-      tg2.addEventListener('click', function () { tg2.classList.toggle('on'); set(it.id, tg2.classList.contains('on')); });
-      top.append(label(it), tg2);
-      r.append(top, slider(it.bri || 0, 1, 100, 1, '%', function (v) { set(it.id, v); }));
-    } else if (it.kind === 'number') {
-      r.classList.add('col');
-      r.append(label(it), slider(Number(it.value) || 0, it.min, it.max, it.step, it.unit, function (v) { set(it.id, v); }));
-    } else if (it.kind === 'select') {
-      r.classList.add('col');
-      var seg = el('div', 'seg');
-      (it.options || []).forEach(function (o) {
-        var b = el('button', o === it.value ? 'sel' : '', o);
-        b.addEventListener('click', function () { seg.querySelectorAll('button').forEach(function (x) { x.classList.remove('sel'); }); b.classList.add('sel'); set(it.id, o); });
-        seg.append(b);
-      });
-      r.append(label(it, it.hint || ''), seg);
-    } else if (it.kind === 'text') {
-      if (editing === it.id) {
-        r.classList.add('col');
-        var box = el('div', 'txt'), inp = document.createElement('input');
-        inp.value = it.value; inp.maxLength = it.maxLength || 255; inp.spellcheck = false;
-        var save = el('button', 'btn pri', 'Lưu'), cancel = el('button', 'btn', 'Huỷ');
-        save.addEventListener('click', function () { editing = null; set(it.id, inp.value); render(last); });
-        cancel.addEventListener('click', function () { editing = null; render(last); });
-        inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') save.click(); });
-        box.append(inp, save, cancel);
-        r.append(label(it), box);
-        setTimeout(function () { inp.focus(); }, 30);
-      } else {
-        var ed = el('button', 'btn', 'Sửa');
-        // (01/10/2026) Sua loi: render() bo qua khi dang sua (de khong mat chu dang go) -> bam Sua khong hien o nhap. Ve
-        // CHU DONG thi di qua chot do (force).
-        ed.addEventListener('click', function () { editing = it.id; render(last, true); });
-        r.append(label(it, it.value || it.hint || ''), ed);
-      }
-    } else if (it.kind === 'button') {
-      var b2 = el('button', 'btn' + (it.confirm ? ' warn' : ''), it.confirm ? 'Thực hiện' : 'Bấm');
-      var armed = 0;
-      b2.addEventListener('click', function () {
-        if (it.confirm && Date.now() - armed > 3000) { armed = Date.now(); b2.textContent = 'Chạm lần nữa để xác nhận'; return; }
-        b2.textContent = 'Đã gửi'; set(it.id, null);
-      });
-      r.append(label(it), b2);
-    } else {
-      r.append(label(it), el('div', 'val', fmt(it)));
-    }
+  /** O thanh truot: dong tieu de (+ gia tri ben phai, nut phu) va thanh truot co icon hai dau. */
+  function sliderCell(t, s, value, min, max, step, fmt, onDone, icons, extra) {
+    var r = el('div', 'row col'), top = el('div', 'top'), val = el('div', 'rv');
+    top.append(textCol(t, s), val);
+    if (extra) top.append(extra);
+    var line = el('div', 'slr');
+    var sl = slider(value, min, max, step, onDone, function (v) { val.textContent = fmt(v); });
+    if (icons) line.append(svg(icons[0]), sl, svg(icons[1], 'big')); else line.append(sl);
+    r.append(top, line);
     return r;
   }
-
-  function section(title, items) {
-    if (!items.length) return null;
-    var s = el('section'); s.append(el('h2', '', title));
-    items.forEach(function (it) { s.append(row(it)); });
-    return s;
+  function segFits(it, opts) {
+    var labs = opts.map(function (o) { return optLabel(it, o); });
+    return opts.length >= 2 && opts.length <= 4 && labs.every(function (l) { return l.length <= 13; }) &&
+      labs.join('').length <= 34;
+  }
+  function seg(it, opts, cur, onPick, inline) {
+    var g = el('div', 'seg' + (inline ? ' inl' : ''));
+    opts.forEach(function (o) {
+      var b = el('button', o === cur ? 'on' : '', optLabel(it, o)); b.type = 'button';
+      b.addEventListener('click', function (e) { e.stopPropagation(); g.querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); }); b.classList.add('on'); onPick(o); });
+      g.append(b);
+    });
+    return g;
+  }
+  function disclosure(t, s, value, onTap, ic) {
+    var r = el('button', 'row tap' + (ic ? ' hasic' : '')); r.type = 'button';
+    if (ic) r.append(icoBox(ic.ic, ic.c));
+    r.append(textCol(t, s));
+    if (value) r.append(el('div', 'rv', value));
+    r.append(svg('chevron-right', 'chev'));
+    r.addEventListener('click', onTap);
+    return r;
+  }
+  function icoBox(n, c) { var b = el('span', 'ico'); b.style.background = c; b.append(svg(n)); return b; }
+  function valueRow(t, v, s) { var r = el('div', 'row'); r.append(textCol(t, s), el('div', 'rv', v)); return r; }
+  function actionRow(t, danger, fn) {
+    var r = el('button', 'row act' + (danger ? ' danger' : '')); r.type = 'button';
+    r.append(textCol(t));
+    r.addEventListener('click', function () { fn(r); });
+    return r;
+  }
+  function pressButton(it) {
+    return actionRow(title(it), !!it.confirm, function (r) {
+      var fire = function () { set(it.id, null); r.classList.add('done'); r.querySelector('.t').textContent = title(it) + ' — đã gửi'; };
+      if (it.confirm) confirmBox(title(it) + '?', 'Màn hình sẽ khởi động lại và mất kết nối khoảng 30 giây.', title(it), fire); else fire();
+    });
+  }
+  function confirmBox(t, m, okText, onOk) {
+    alertOpen = true;
+    var bg = el('div', 'abg'), box = el('div', 'alert'), btns = el('div', 'ab');
+    var close = function () { bg.remove(); alertOpen = false; };
+    var no = el('button', '', 'Huỷ'), ok = el('button', 'danger', okText); no.type = ok.type = 'button';
+    no.addEventListener('click', close); ok.addEventListener('click', function () { close(); onOk(); });
+    btns.append(no, ok); box.append(el('div', 'at', t), el('div', 'am', m), btns); bg.append(box);
+    bg.addEventListener('click', function (e) { if (e.target === bg) close(); });
+    document.body.append(bg);
   }
 
-  function diag(items, srv) {
-    var s = el('section'); s.append(el('h2', '', 'Chẩn đoán'));
-    var g = el('div', 'diag');
-    var kv = function (k, v) { var c = el('div', 'kv'); c.append(el('div', 'k', k), el('div', 'v2', v)); g.append(c); };
-    if (srv) {
-      kv('Máy chủ (addon)', srv.version);
-      kv('Màn hình này', srv.w + '×' + srv.h + (srv.rotation ? ' · xoay ' + srv.rotation + '°' : ''));
-      if (srv.decodeMs != null) kv('Giải mã một khung', srv.decodeMs + ' ms');
-      if (srv.kbps != null) kv('Băng thông', srv.kbps + ' KB/s');
-      kv('Ứng dụng đang mở', String(srv.tabs));
-      kv('Màn hình đang kết nối', String(srv.screens));
+  /** Mot muc cai dat -> mot (hoac vai) o. */
+  function itemRows(it, cat) {
+    var r;
+    if (it.kind === 'switch') {
+      r = rowBase(it); r.append(textCol(title(it), sub(it)), sw(it.on, function (v) { set(it.id, v); })); return [r];
     }
-    items.forEach(function (it) { kv(it.label, fmt(it)); });
-    s.append(g);
-    return s;
-  }
-
-  // (01/10/2026) "Âm thanh" kieu dien thoai — DONG BO voi thanh keo xuong (cung trang thai server, cung lenh __rwvControl):
-  // Media (thanh am luong san co), Thong bao / Bao thuc (firmware tu phat am — snd), Im lang (chi tat media), Khong lam
-  // phien (im lang hoan toan chuong, bao thuc, canh bao khan). Phat thu tung loai.
-  function audioSec() {
-    var st = window.__rwvLastState;
-    if (!st) return null;
-    var s = el('section'); s.append(el('h2', '', 'Âm thanh'));
-    var line = function (title, sub, node) { var r = el('div', 'row col'); r.append(label({ label: title }, sub)); if (node) r.append(node); return r; };
-    var withTest = function (sl, kind) {
-      var box = el('div', 'txt'); sl.style.flex = '1';
-      var b = el('button', 'btn', 'Phát thử'); b.addEventListener('click', function () { ctl({ sndTest: kind }); });
-      box.append(sl, b); return box;
-    };
-    if (st.v != null) s.append(line('Media', 'YouTube, nhạc, radio, video, tin nhắn thoại', slider(st.v, 0, 100, 5, '%', function (v) { ctl({ f: 'v', v: v }); })));
-    else s.append(line('Màn hình này không có loa', 'Chỉ hiện thông báo / báo thức trên màn hình'));
-    if (st.snd && st.sv) {
-      s.append(line('Thông báo', 'Tin nhắn, thông báo, chuông cửa, lời đọc của HA và trợ lý',
-        withTest(slider(st.sv.alert, 0, 100, 5, '%', function (v) { ctl({ f: 'alert', v: v }); }), 'alert')));
-      s.append(line('Báo thức', 'Báo thức, hết giờ Hẹn giờ, cảnh báo khẩn (tối thiểu 20%)',
-        withTest(slider(st.sv.alarm, 20, 100, 5, '%', function (v) { ctl({ f: 'alarm', v: v }); }), 'alarm')));
-    } else if (st.v != null) {
-      s.append(line('Thông báo / Báo thức', 'Firmware này chưa tách âm lượng — chuông theo âm lượng Media'));
+    if (it.kind === 'light') {
+      var bri = el('div', 'row'), line = el('div', 'slr');
+      line.style.flex = '1';
+      line.append(svg('brightness-5'), slider(it.bri || 0, 1, 100, 1, function (v) { set(it.id, v); }), svg('brightness-7', 'big'));
+      bri.append(line);
+      if (it.unavailable) bri.classList.add('off');
+      r = rowBase(it); r.append(textCol(title(it), 'Tắt là tắt hẳn màn hình — chạm để bật lại'), sw(it.on, function (v) { set(it.id, v); }));
+      return [bri, r];
     }
-    var tog = function (title, sub, on, f) {
-      var r = el('div', 'row'), tg = el('div', 'tg' + (on ? ' on' : '')); tg.setAttribute('role', 'switch');
-      tg.addEventListener('click', function () { tg.classList.toggle('on'); ctl({ f: f, v: tg.classList.contains('on') ? 1 : 0 }); });
-      r.append(label({ label: title }, sub), tg); return r;
-    };
-    if (st.tg && st.v != null) s.append(tog('Im lặng', 'Chỉ tắt Media — chuông và báo thức vẫn kêu', !!st.tg.muted, 'mu'));
-    if (st.dnd != null) s.append(tog('Không làm phiền', 'Im lặng hoàn toàn: thông báo, báo thức, cảnh báo khẩn', !!st.dnd, 'dnd'));
-    return s;
+    if (it.kind === 'number') {
+      var u = it.unit || '';
+      r = sliderCell(title(it), sub(it), Number(it.value) || 0, it.min, it.max, it.step || 1, function (v) { return fmtNum(v, u); }, function (v) { set(it.id, v); });
+      if (it.unavailable) r.classList.add('off');
+      return [r];
+    }
+    if (it.kind === 'select') {
+      var opts = it.options || [];
+      if (segFits(it, opts)) {
+        var short = split() && opts.map(function (o) { return optLabel(it, o); }).join('').length <= 22 && opts.length <= 3 && !sub(it);
+        if (short) { r = rowBase(it); r.append(textCol(title(it), ''), seg(it, opts, it.value, function (o) { set(it.id, o); }, true)); return [r]; }
+        r = rowBase(it, 'col'); var top = el('div', 'top'); top.append(textCol(title(it), sub(it)));
+        r.append(top, seg(it, opts, it.value, function (o) { set(it.id, o); }, false)); return [r];
+      }
+      r = disclosure(title(it), sub(it), optLabel(it, it.value), function () { go({ cat: cat, sub: { k: 'pick', id: it.id } }, true); });
+      if (it.unavailable) r.classList.add('off');
+      return [r];
+    }
+    if (it.kind === 'text') {
+      r = disclosure(title(it), it.hint && !it.value ? it.hint : '', it.value || '', function () { go({ cat: cat, sub: { k: 'edit', id: it.id } }, true); });
+      if (it.unavailable) r.classList.add('off');
+      return [r];
+    }
+    if (it.kind === 'button') return [pressButton(it)];
+    return [valueRow(title(it), fmtVal(it), it.hint || '')];
   }
-  window.addEventListener('rwv-state', function () { if (last && !editing && !touching) render(last); });
 
-  // (27/09/2026) Muc cua addon (server luu): "Màn hình" va "Khung ảnh" (man hinh cho dang khung anh so).
-  function panelSec(d, sec) { return (d.panel || []).filter(function (i) { return (i.sec || 'screen') === sec; }); }
+  // ── Du lieu ──
+  function haItems() { return last && last.ok && last.view ? last.view.items : []; }
+  function panelItems() { return (last && last.panel) || []; }
+  function st() { return window.__rwvLastState || null; }
+  /** Muc thuoc muc lon cat (an muc trung: am luong media cua firmware da co o "Âm thanh"). */
+  function itemsOf(cat) {
+    var s = st();
+    var a = haItems().filter(function (i) { return i.cat === cat && !i.hide && !(cat === 'sound' && i.kind === 'number' && s && s.v != null); });
+    return a.concat(panelItems().filter(function (i) { return i.cat === cat; }));
+  }
+  function findItem(id) {
+    var a = haItems().concat(panelItems());
+    for (var i = 0; i < a.length; i++) if (a[i].id === id) return a[i];
+    return null;
+  }
+  function hasCat(c) {
+    if (c.id === 'sound') return !!st();
+    if (c.id === 'dnd') return !!st() && st().dnd != null;
+    if (c.id === 'diag') return true;
+    return itemsOf(c.id).length > 0;
+  }
+  function preview(c) {
+    var s = st(), it;
+    var pv = function (id) { var x = panelItems().filter(function (i) { return i.id === id; })[0]; return x ? (x.on ? 'Bật' : 'Tắt') : ''; };
+    switch (c.id) {
+      case 'net':
+        it = haItems().filter(function (i) { return i.cat === 'net' && /_(wifi_ket_noi|ssid)$/.test(i.id); })[0] ||
+          haItems().filter(function (i) { return i.cat === 'net' && /_wifi_signal$/.test(i.id); })[0];
+        return it ? (it.unit === 'dBm' ? fmtVal(it).split(' · ')[0] : fmtVal(it)) : '';
+      case 'sound': return s && s.v != null ? s.v + '%' : 'Không có loa';
+      case 'display': it = haItems().filter(function (i) { return i.kind === 'light'; })[0]; return it && it.on ? it.bri + '%' : it ? 'Tắt' : '';
+      case 'lock': return pv('rwv.lock');
+      case 'wall': return pv('rwv.saver_photos');
+      case 'cast': return pv('rwv.cast');
+      case 'camera': it = haItems().filter(function (i) { return /_nguon_phat_hien_nguoi$/.test(i.id); })[0]; return it ? optLabel(it, it.value) : '';
+      case 'battery': it = haItems().filter(function (i) { return /_battery_(percent|level)$/.test(i.id); })[0]; return it ? fmtVal(it) : '';
+      default: return '';
+    }
+  }
+
+  // ── Danh sach muc lon ──
+  function rootList(sel) {
+    var out = [], d = last || {};
+    var dv = d.ok && d.view ? d.view.device : null, srv = d.server || {};
+    var card = el('div', 'grp'), r = el('button', 'row tap dev' + (sel === 'about' ? ' sel' : '')); r.type = 'button';
+    var ic = el('span', 'ico'); ic.append(svg('tablet')); r.append(ic);
+    var ver = dv && dv.version ? 'ESPHome ' + String(dv.version).split(' ')[0] : (srv.version ? 'HA Darboard ' + srv.version : '');
+    r.append(textCol(dv ? dv.name : (srv.w ? 'Màn hình ' + srv.w + '×' + srv.h : 'Màn hình này'), ver));
+    if (!split()) r.append(svg('chevron-right', 'chev'));
+    r.addEventListener('click', function () { go({ cat: 'about', sub: null }, !split()); });
+    card.append(r); out.push(card);
+    if (d && d.ok === false) {
+      var eg = el('div', 'grp'), er = el('div', 'row'); er.append(textCol('Chưa đọc được thiết bị từ Home Assistant', d.error || ''));
+      eg.append(er, actionRow('Thử lại', false, function () { ctl({ settings: 'get' }); }));
+      out.push(el('div', 'gsp'), eg);
+    }
+    var g = 0, grp = null;
+    CATS.forEach(function (c) {
+      if (!hasCat(c)) return;
+      if (c.g !== g) { g = c.g; grp = el('div', 'grp'); out.push(el('div', 'gsp'), grp); }
+      var row;
+      if (c.toggle) {
+        row = el('div', 'row hasic'); row.append(icoBox(c.ic, c.c), textCol(c.t), sw(!!st().dnd, function (v) { ctl({ f: 'dnd', v: v ? 1 : 0 }); }));
+      } else {
+        row = el('button', 'row tap hasic' + (sel === c.id ? ' sel' : '')); row.type = 'button';
+        row.append(icoBox(c.ic, c.c), textCol(c.t));
+        var p = preview(c); if (p) row.append(el('div', 'rv', p));
+        if (!split()) row.append(svg('chevron-right', 'chev'));
+        row.addEventListener('click', function () { go({ cat: c.id, sub: null }, !split()); });
+      }
+      grp.append(row);
+    });
+    return out;
+  }
+
+  // ── Trang cua tung muc lon ──
+  function groupsFor(catId, items) {
+    var meta = CAT[catId] || {}, order = (meta.subs || []).slice(), bySub = {};
+    items.forEach(function (i) { var s = i.sub || ''; if (!bySub[s]) { bySub[s] = []; if (order.indexOf(s) < 0) order.push(s); } bySub[s].push(i); });
+    var out = [], first = true;
+    order.forEach(function (s) {
+      var list = bySub[s]; if (!list) return;
+      list.sort(function (a, b) { return (a.ord == null ? 50 : a.ord) - (b.ord == null ? 50 : b.ord); });
+      var grp = el('div', 'grp');
+      list.forEach(function (it) { itemRows(it, catId).forEach(function (r) { grp.append(r); }); });
+      if (s) out.push(el('div', 'gh' + (first ? ' first' : ''), s)); else out.push(el('div', first ? '' : 'gsp'));
+      out.push(grp);
+      if (FOOT[catId + '/' + s]) out.push(el('div', 'gf', FOOT[catId + '/' + s]));
+      first = false;
+    });
+    return out;
+  }
+  function soundPage() {
+    var s = st(), out = [];
+    if (!s) return out;
+    var vol = el('div', 'grp');
+    if (s.v != null) {
+      vol.append(sliderCell('Nhạc, video, radio', '', s.v, 0, 100, 5, function (v) { return v + '%'; }, function (v) { ctl({ f: 'v', v: v }); }, ['volume-low', 'volume-high']));
+      if (s.snd && s.sv) {
+        var test = function (kind) { var b = el('button', 'pbtn', 'Phát thử'); b.type = 'button'; b.addEventListener('click', function () { ctl({ sndTest: kind }); }); return b; };
+        vol.append(sliderCell('Thông báo', 'Tin nhắn, chuông cửa, lời đọc của HA và trợ lý', s.sv.alert, 0, 100, 5, function (v) { return v + '%'; },
+          function (v) { ctl({ f: 'alert', v: v }); }, ['volume-low', 'volume-high'], test('alert')));
+        vol.append(sliderCell('Báo thức', 'Báo thức, hết giờ Hẹn giờ, cảnh báo khẩn (tối thiểu 20%)', s.sv.alarm, 20, 100, 5, function (v) { return v + '%'; },
+          function (v) { ctl({ f: 'alarm', v: v }); }, ['volume-low', 'volume-high'], test('alarm')));
+      }
+      out.push(el('div', 'gh first', 'Âm lượng'), vol);
+      if (!s.snd) out.push(el('div', 'gf', 'Firmware này chưa tách âm lượng — chuông và báo thức kêu theo âm lượng trên.'));
+    } else {
+      vol.append(valueRow('Màn hình này không có loa', '', 'Chỉ hiện thông báo / báo thức trên màn hình'));
+      out.push(el('div', 'gh first', 'Loa'), vol);
+    }
+    var mode = el('div', 'grp');
+    if (s.tg && s.v != null) {
+      var r1 = el('div', 'row'); r1.append(textCol('Im lặng', 'Chỉ tắt nhạc / video — chuông và báo thức vẫn kêu'), sw(!!s.tg.muted, function (v) { ctl({ f: 'mu', v: v ? 1 : 0 }); }));
+      mode.append(r1);
+    }
+    if (s.dnd != null) {
+      var r2 = el('div', 'row'); r2.append(textCol('Không làm phiền', 'Im lặng hoàn toàn: thông báo, báo thức, cảnh báo khẩn'), sw(!!s.dnd, function (v) { ctl({ f: 'dnd', v: v ? 1 : 0 }); }));
+      mode.append(r2);
+    }
+    if (mode.childNodes.length) out.push(el('div', 'gh', 'Chế độ'), mode);
+    var more = itemsOf('sound');
+    if (more.length) out = out.concat(groupsFor('sound', more).map(function (n) { if (n.classList && n.classList.contains('first')) n.classList.remove('first'); return n; }));
+    return out;
+  }
+  function aboutPage() {
+    var d = last || {}, dv = d.ok && d.view ? d.view.device : {}, srv = d.server || {}, out = [];
+    var g1 = el('div', 'grp');
+    if (dv.name) g1.append(valueRow('Tên', dv.name));
+    if (dv.model) g1.append(valueRow('Kiểu máy', dv.model));
+    if (dv.version) g1.append(valueRow('Phần mềm', 'ESPHome ' + String(dv.version).split(' ')[0]));
+    if (srv.version) g1.append(valueRow('HA Darboard', srv.version));
+    if (srv.w) g1.append(valueRow('Màn hình', srv.w + ' × ' + srv.h + (srv.rotation ? ' · xoay ' + srv.rotation + '°' : '')));
+    haItems().filter(function (i) { return i.cat === 'net' && /_(ip|ip_address|mac_esp|mac|mac_address)$/.test(i.id); })
+      .forEach(function (i) { g1.append(valueRow(title(i), fmtVal(i))); });
+    out.push(el('div', 'gsp'), g1);
+    var acts = itemsOf('about');
+    if (acts.length) {
+      var g2 = el('div', 'grp'); acts.forEach(function (it) { itemRows(it, 'about').forEach(function (r) { g2.append(r); }); });
+      out.push(el('div', 'gsp'), g2, el('div', 'gf', 'Khởi động lại chỉ màn hình này; cài đặt được giữ nguyên.'));
+    }
+    return out;
+  }
+  function diagPage() {
+    var srv = (last && last.server) || {}, out = [];
+    var g = el('div', 'grp');
+    if (srv.version) g.append(valueRow('Phiên bản', srv.version));
+    if (srv.screens != null) g.append(valueRow('Màn hình đang kết nối', String(srv.screens)));
+    if (srv.tabs != null) g.append(valueRow('Ứng dụng đang mở', String(srv.tabs)));
+    if (srv.decodeMs != null) g.append(valueRow('Giải mã một khung', nf(srv.decodeMs, srv.decodeMs < 10 ? 1 : 0) + ' ms'));
+    if (srv.kbps != null) g.append(valueRow('Băng thông', srv.kbps + ' KB/s'));
+    out.push(el('div', 'gh first', 'Máy chủ Darboard'), g);
+    var rest = groupsFor('diag', itemsOf('diag'));
+    rest.forEach(function (n) { if (n.classList && n.classList.contains('first')) n.classList.remove('first'); });
+    return out.concat(rest);
+  }
+  function catContent(catId) {
+    if (catId === 'sound') return soundPage();
+    if (catId === 'about') return aboutPage();
+    if (catId === 'diag') return diagPage();
+    return groupsFor(catId, itemsOf(catId));
+  }
+  function pickPage(it) {
+    var g = el('div', 'grp');
+    (it.options || []).forEach(function (o) {
+      var r = el('button', 'row tap'); r.type = 'button';
+      r.append(textCol(optLabel(it, o)));
+      if (o === it.value) r.append(svg('check', 'tick'));
+      r.addEventListener('click', function () { set(it.id, o); it.value = o; setTimeout(back, 180); render(last, true); });
+      g.append(r);
+    });
+    var out = [el('div', 'gsp'), g];
+    if (it.hint) out.push(el('div', 'gf', it.hint));
+    return out;
+  }
+  var draft = {};
+  function editPage(it) {
+    var g = el('div', 'grp'), inp = el('input', 'field');
+    inp.type = 'text'; inp.value = draft[it.id] != null ? draft[it.id] : (it.value || ''); inp.maxLength = it.maxLength || 255; inp.spellcheck = false;
+    inp.setAttribute('autocomplete', 'off'); inp.id = 'edit_' + it.id.replace(/[^a-z0-9_]/gi, '_');
+    inp.addEventListener('input', function () { draft[it.id] = inp.value; });
+    inp.addEventListener('focus', function () { editing = it.id; });
+    inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') save(); });
+    g.append(inp);
+    function save() { set(it.id, inp.value); delete draft[it.id]; editing = null; try { inp.blur(); } catch (e) { /* */ } back(); }
+    editPage.save = save;
+    setTimeout(function () { try { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); } catch (e) { /* */ } }, 60);
+    var out = [el('div', 'gsp'), g];
+    if (it.hint) out.push(el('div', 'gf', it.hint));
+    return out;
+  }
+
+  // ── Ve ──
+  function navBar(backText, t, right, opt) {
+    var n = el('div', 'nav');
+    if (backText) {
+      var b = el('button', 'nb'); b.type = 'button';
+      if (!(opt && opt.plain)) b.append(svg('chevron-left'));
+      b.append(el('span', '', backText));
+      b.addEventListener('click', function () { if (opt && opt.onBack) opt.onBack(); back(); });
+      n.append(b);
+    } else n.append(el('div'));
+    n.append(el('div', 'nt', t || ''));
+    if (right) n.append(right); else n.append(el('div'));
+    return n;
+  }
+  function subPage(catId) {
+    var it = findItem(nav.sub.id), meta = CAT[catId] || { t: '' };
+    if (!it) return null;
+    if (nav.sub.k === 'pick') return [navBar(meta.t, title(it))].concat(pickPage(it));
+    var saveBtn = el('button', 'nr', 'Lưu'); saveBtn.type = 'button';
+    saveBtn.addEventListener('click', function () { if (editPage.save) editPage.save(); });
+    return [navBar('Huỷ', title(it), saveBtn, { plain: true, onBack: function () { delete draft[it.id]; editing = null; } })].concat(editPage(it));
+  }
+  var scrollMem = {};
+  function keep(node, key) { if (!node) return; node.dataset.k = key; }
+  function saveScroll() { app.querySelectorAll('[data-k]').forEach(function (n) { scrollMem[n.dataset.k] = n.scrollTop; }); }
+  function restoreScroll() { app.querySelectorAll('[data-k]').forEach(function (n) { if (scrollMem[n.dataset.k] != null) n.scrollTop = scrollMem[n.dataset.k]; }); }
 
   function render(d, force) {
     if (!d) return;
     last = d;
-    if (editing && !force) return;   // dang go chu: giu nguyen (render lai sau khi Luu/Huy)
-    if (touching) { pendingRender = true; return; }
-    var head = el('header'), t = el('div');
-    t.append(el('h1', '', 'Cài đặt'));
-    if (d.ok) t.append(el('div', 'sub', d.view.device.name + (d.view.device.version ? ' · ESPHome ' + d.view.device.version : '')));
-    head.append(t);
-    if (!d.ok) {
-      var box = el('div');
-      main.replaceChildren(head, box);
-      RwvUI.state(box, { kind: 'err', title: 'Chưa đọc được cài đặt', text: d.error, retry: function () { ctl({ settings: 'get' }); } });
-      var g0 = el('div', 'grid'); [audioSec(), section('Màn hình khóa', panelSec(d, 'lock')), section('Màn hình', panelSec(d, 'screen')), section('Khung ảnh', panelSec(d, 'frame'))].forEach(function (s) { if (s) g0.append(s); });
-      g0.append(diag([], d.server)); main.append(g0);
-      return;
+    if (alertOpen) return;
+    if (editing && !force) return;   // dang go chu: giu nguyen
+    if (touching && !force) { pendingRender = true; return; }
+    saveScroll();
+    var isSplit = split();
+    var available = CATS.filter(hasCat).map(function (c) { return c.id; }).concat(['about']);
+    if (nav.cat && available.indexOf(nav.cat) < 0) nav.cat = null;
+    if (isSplit && !nav.cat) nav.cat = available.indexOf('sound') >= 0 ? 'sound' : available[0];
+    if (nav.sub && !findItem(nav.sub.id)) nav.sub = null;
+    var view;
+    if (isSplit) {
+      var side = el('div', 'side scroll'), det = el('div', 'detail scroll');
+      side.append(el('div', 'lt', 'Cài đặt'));
+      rootList(nav.cat).forEach(function (n) { side.append(n); });
+      var meta = CAT[nav.cat] || { t: '' };
+      var content = nav.sub ? subPage(nav.cat) : null;
+      if (!content) content = [navBar('', meta.t)].concat(catContent(nav.cat));
+      content.forEach(function (n) { det.append(n); });
+      keep(side, 'side'); keep(det, 'det:' + nav.cat + (nav.sub ? ':' + nav.sub.id : ''));
+      view = el('div', 'split'); view.append(side, det);
+    } else {
+      view = el('div', 'page scroll');
+      if (!nav.cat) {
+        view.append(el('div', 'lt', 'Cài đặt'));
+        rootList(null).forEach(function (n) { view.append(n); });
+        keep(view, 'root');
+      } else {
+        var m2 = CAT[nav.cat] || { t: '' };
+        var c2 = nav.sub ? subPage(nav.cat) : null;
+        if (!c2) c2 = [navBar('Cài đặt', m2.t)].concat(catContent(nav.cat));
+        c2.forEach(function (n) { view.append(n); });
+        keep(view, 'pg:' + nav.cat + (nav.sub ? ':' + nav.sub.id : ''));
+      }
     }
-    var items = d.view.items;
-    // Am luong media cua firmware da nam trong muc "Âm thanh" -> khong lap lai o "Điều khiển".
-    var by = function (g) { return items.filter(function (i) { return i.group === g && !/Âm lượng Video Web|Âm lượng media/i.test(i.label); }); };
-    var grid = el('div', 'grid');
-    // (27/09/2026) "Màn hình": cai dat cua addon cho rieng man hinh nay (server luu), vd man hinh cho hien anh.
-    // (07/10/2026) "Màn hình khóa" dat len dau: khoa / thoi gian / do sang / dong ho / thoi tiet / anh (src/panelPrefs.ts sec 'lock').
-    [audioSec(), section('Màn hình khóa', panelSec(d, 'lock')), section('Luồng camera', by('stream')), section('Điều khiển', by('control')), section('Màn hình', panelSec(d, 'screen')), section('Khung ảnh', panelSec(d, 'frame')),
-     section('Cấu hình', by('config')), diag(by('diag'), d.server)]
-      .forEach(function (s) { if (s) grid.append(s); });
-    main.replaceChildren(head, grid);
-    if (d.note && !d.note.ok) { var n = document.getElementById('note'); n.textContent = d.note.msg; n.style.display = 'block'; setTimeout(function () { n.style.display = 'none'; }, 3500); }
+    app.replaceChildren(view);
+    restoreScroll();
+    if (d.note && !d.note.ok) {
+      var n = document.getElementById('note'); n.textContent = d.note.msg; n.style.display = 'block';
+      clearTimeout(render.nt); render.nt = setTimeout(function () { n.style.display = 'none'; }, 3500);
+    }
   }
 
+  window.addEventListener('rwv-state', function () { if (last && !editing && !touching) render(last); });
+  window.addEventListener('resize', function () { if (last) render(last, true); });
   window.__rwvSettings = function (d) { window.__rwvLastSettings = d; render(d); };
-  RwvUI.state(main, { kind: 'loading', title: 'Đang đọc cài đặt…' });
+  RwvUI.state(app, { kind: 'loading', title: 'Đang đọc cài đặt…' });
   ctl({ settings: 'get' });
   // Cap nhat so lieu 5 s/lan khi trang dang hien (khong dang go chu).
   setInterval(function () { if (document.visibilityState === 'visible' && !editing) ctl({ settings: 'get' }); }, 5000);
