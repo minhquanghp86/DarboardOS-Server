@@ -17,7 +17,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { cameraDeviceId, cameraHost, fileGate, serveThumb, smallGate } from './camProxy.js';
+import { camAuth, cameraDeviceId, cameraHost, fileGate, serveThumb, smallGate } from './camProxy.js';
 
 const INGRESS_IP = '172.30.32.2';
 const DATA_DIR = fs.existsSync('/data') ? '/data' : path.join(process.cwd(), 'data');
@@ -79,7 +79,7 @@ function cam(pathQuery: string, method = 'GET', body?: Buffer): Promise<{ code: 
   const gate = body ? fileGate : smallGate;
   return gate.run(() => new Promise((resolve, reject) => {
     const up = http.request({ host: h.ip, port: h.port, path: pathQuery, method, timeout: 60_000,
-      headers: body ? { 'content-type': 'application/octet-stream', 'content-length': body.length } : {} }, (r) => {
+      headers: { ...(body ? { 'content-type': 'application/octet-stream', 'content-length': body.length } : {}), ...camAuth(h) } }, (r) => {
       const parts: Buffer[] = [];
       r.on('data', (c: Buffer) => parts.push(c));
       r.on('end', () => { let j: any = {}; try { j = JSON.parse(Buffer.concat(parts).toString('utf8')); } catch { /* */ } resolve({ code: r.statusCode || 502, j }); });
@@ -111,7 +111,7 @@ export function sdReadText(p: string, max: number): Promise<string> {
   const h = cameraHost();
   if (!h) return Promise.reject(new Error('màn hình có thẻ nhớ chưa kết nối'));
   return fileGate.run(() => new Promise<string>((resolve, reject) => {
-    const up = http.request({ host: h.ip, port: h.port, path: '/sd/get?p=' + enc(q), timeout: 30_000 }, (r) => {
+    const up = http.request({ host: h.ip, port: h.port, path: '/sd/get?p=' + enc(q), timeout: 30_000, headers: camAuth(h) }, (r) => {
       const code = r.statusCode || 502;
       if (code >= 400) { r.resume(); reject(new Error(code === 404 ? 'không thấy tệp trên thẻ nhớ' : `thẻ nhớ báo lỗi ${code}`)); return; }
       const parts: Buffer[] = [];
@@ -131,7 +131,7 @@ function downloadTo(p: string, dest: string): Promise<void> {
   const h = cameraHost();
   if (!h) return Promise.reject(new Error('Màn hình có thẻ SD chưa kết nối.'));
   return fileGate.run(() => new Promise<void>((resolve, reject) => {
-    const up = http.request({ host: h.ip, port: h.port, path: '/sd/get?p=' + enc(p), timeout: 60_000 }, (r) => {
+    const up = http.request({ host: h.ip, port: h.port, path: '/sd/get?p=' + enc(p), timeout: 60_000, headers: camAuth(h) }, (r) => {
       if (r.statusCode !== 200) { r.resume(); reject(new Error(`Không đọc được tệp (HTTP ${r.statusCode})`)); return; }
       const out = fs.createWriteStream(dest);
       r.pipe(out);
@@ -378,7 +378,7 @@ export function handleFileManager(req: http.IncomingMessage, res: http.ServerRes
       if (!h) return json(res, 503, { error: 'Màn hình có thẻ SD chưa kết nối.' });
       return fileGate.run(() => new Promise<void>((done) => {
         const up = http.request({ host: h.ip, port: h.port, path: '/sd/get?p=' + enc(p), timeout: 30_000,
-          headers: req.headers.range ? { range: req.headers.range } : {} }, (r) => {
+          headers: { ...(req.headers.range ? { range: req.headers.range } : {}), ...camAuth(h) } }, (r) => {
           const headers: http.OutgoingHttpHeaders = { 'cache-control': 'no-store' };
           for (const k of ['content-type', 'content-range', 'accept-ranges'] as const) if (r.headers[k]) headers[k] = r.headers[k];
           const bl = Number(r.headers['x-body-length']);

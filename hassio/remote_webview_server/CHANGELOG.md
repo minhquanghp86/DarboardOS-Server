@@ -1,3 +1,15 @@
+## V2.9.119
+### Mật khẩu luồng camera (P4)
+- Cài đặt → Camera & Phát hiện → **Mật khẩu luồng camera**: bật / tắt, tên đăng nhập, đổi mật khẩu ngay trên màn hình
+  (cần firmware fw-2026.10.07). Áp dụng cho luồng `:8080/live` và ứng dụng Camera / thẻ nhớ; máy chủ Home Assistant
+  (Darboard, Frigate cài trên HA) không cần mật khẩu.
+
+### Sửa lỗi
+- **Vuốt từ mép**: gói "nhấc tay" của firmware mang toạ độ (0,0) nên vuốt mép phải / từ dưới lên (màn xoay 180°) và mép
+  trái (màn không xoay) luôn bị huỷ — nay dùng vị trí di chuyển cuối.
+- **Màn hình khóa**: tắt cử chỉ mép khi đang khóa — vuốt lên từ dưới là mở khóa; vuốt mép không còn vượt qua lớp khóa.
+- Widget màn khóa nhận đúng camera của chính panel sau khi đổi IP (đọc nguồn go2rtc đang chạy).
+
 ## V2.9.118
 ### Đổi Wi-Fi ngay trên màn hình
 - Cài đặt → Wi-Fi & Mạng kiểu iPhone: mạng đang dùng (vạch sóng, dấu ✓), danh sách mạng xung quanh (tự quét khi mở

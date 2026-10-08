@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hostsOfConfig, parseFrigateTitle, toEvent } from "./frigate.js";
+import { hostsOfConfig, hostsOfRuntime, parseFrigateTitle, toEvent } from "./frigate.js";
 
 describe("frigate — su kien camera", () => {
   it("doc dia chi tu tieu de muc cau hinh tich hop (do that: ccab4aaf-frigate-fa:5000)", () => {
@@ -29,5 +29,30 @@ describe("frigate — camera cua chinh panel", () => {
       go2rtc: { streams: { p4_panel: "http://192.168.1.179:8080/live", ezviz: ["rtsp://u:p@192.168.1.101:554/a", "ffmpeg:ezviz#video=h264", "rac"] } },
     });
     expect(h).toEqual({ p4_panel: ["192.168.1.179"], ezviz: ["192.168.1.101"], nogo: ["192.168.1.150"] });
+  });
+});
+
+describe("(08/10/2026) frigate — nguon go2rtc DANG CHAY (doi IP khong can khoi dong lai Frigate)", () => {
+  it("lay may chu tu producers.url, bo mat khau / 127.0.0.1", () => {
+    const rt = { p4_panel: { producers: [{ url: "http://192.168.1.24:8080/live" }] },
+      ezviz: { producers: [{ url: "rtsp://u:p@192.168.1.101:554/a" }, { url: "rtsp://127.0.0.1:8554/x" }] }, rong: {} };
+    expect(hostsOfRuntime(rt)).toEqual({ p4_panel: ["192.168.1.24"], ezviz: ["192.168.1.101"], rong: [] });
+    expect(hostsOfRuntime(null)).toEqual({});
+  });
+});
+
+import { camAuth, cameraHost, noteCameraHost } from "./camProxy.js";
+describe("(08/10/2026) mat khau HTTP cua P4 — server gan header khi goi cam_app", () => {
+  it("co ?ca= -> Authorization Basic; khong co / sai dang -> khong header (firmware chua bat mat khau)", () => {
+    // firmware: hex("darboard:matkhau123")
+    noteCameraHost("esp32-p4", "::ffff:192.168.1.24", 8082, Buffer.from("darboard:matkhau123").toString("hex"));
+    expect(cameraHost()).toEqual({ ip: "192.168.1.24", port: 8082, auth: "ZGFyYm9hcmQ6bWF0a2hhdTEyMw==" });
+    expect(camAuth(cameraHost()!)).toEqual({ authorization: "Basic ZGFyYm9hcmQ6bWF0a2hhdTEyMw==" });
+    noteCameraHost("esp32-p4", "192.168.1.24", 8082, "khong hop le!");
+    expect(camAuth(cameraHost()!)).toEqual({});
+    noteCameraHost("esp32-p4", "192.168.1.24", 8082, null);
+    expect(cameraHost()).toEqual({ ip: "192.168.1.24", port: 8082 });
+    noteCameraHost("esp32-p4", "192.168.1.24", 0);
+    expect(cameraHost()).toBeUndefined();
   });
 });

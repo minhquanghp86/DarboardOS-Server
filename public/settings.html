@@ -152,7 +152,7 @@
     { id: 'lock', t: 'Màn hình khóa', ic: 'lock', c: '#30d158', g: 2, subs: ['Khóa', 'Hiển thị', 'Widget'] },
     { id: 'wall', t: 'Hình nền & Khung ảnh', ic: 'image-multiple', c: '#64d2ff', g: 2, subs: ['Ảnh nền màn hình khóa', 'Trình chiếu', 'Nguồn ảnh', 'Trên ảnh'] },
     { id: 'voice', t: 'Trợ lý giọng nói', ic: 'microphone', c: '#bf5af2', g: 3, subs: ['Trợ lý', 'Đánh thức', 'Nghe', 'Micro'] },
-    { id: 'camera', t: 'Camera & Phát hiện', ic: 'cctv', c: '#40c8e0', g: 3, subs: ['Phát hiện người', 'Khi thấy người', 'Trạng thái', 'Âm thanh camera'] },
+    { id: 'camera', t: 'Camera & Phát hiện', ic: 'cctv', c: '#40c8e0', g: 3, subs: ['Phát hiện người', 'Khi thấy người', 'Bảo mật luồng camera', 'Trạng thái', 'Âm thanh camera'] },
     { id: 'cast', t: 'Truyền YouTube', ic: 'cast', c: '#ff453a', g: 3, subs: ['YouTube'] },
     { id: 'home', t: 'Màn hình chính', ic: 'home', c: '#ff9f0a', g: 4, subs: ['Trang chủ'] },
     { id: 'battery', t: 'Pin', ic: 'battery', c: '#30d158', g: 4, subs: ['Pin'] },
@@ -321,6 +321,12 @@
   /** Mot muc cai dat -> mot (hoac vai) o. */
   function itemRows(it, cat) {
     var r;
+    // (08/10/2026) Mat khau luong camera: trang doi rieng (khong hien mat khau o day).
+    if (/_mat_khau_luong_camera$/.test(it.id || '')) {
+      r = disclosure(title(it), 'Luồng camera :8080 và ứng dụng Camera', fmtVal(it), function () { go({ cat: cat, sub: { k: 'camauth', id: it.id } }, true); });
+      if (it.unavailable) r.classList.add('off');
+      return [r];
+    }
     if (it.kind === 'switch') {
       r = rowBase(it); r.append(textCol(title(it), sub(it)), sw(it.on, function (v) { set(it.id, v); })); return [r];
     }
@@ -596,6 +602,55 @@
     more.forEach(function (n) { if (n.classList && n.classList.contains('first')) n.classList.remove('first'); });
     return out.concat(more);
   }
+  // ── (08/10/2026) MAT KHAU LUONG CAMERA (nguoi dung cuoi): firmware luu flash, ap dung ngay; may chu Home Assistant (Darboard,
+  // Frigate cai tren HA) khong can mat khau. Trang thai lay tu cam bien "Bật · <ten>" / "Tắt" (khong bao gio co mat khau).
+  var camOn = null;
+  function camAuthPage(id) {
+    var it = findItem(id), cur = it && good(it.value) ? it.value : 'Tắt';
+    var curOn = /^Bật/.test(cur), curUser = curOn ? cur.replace(/^Bật\s*·\s*/, '') : '';
+    if (camOn == null) camOn = curOn;
+    var ok = el('button', 'nr', 'Lưu'); ok.type = 'button';
+    var g = el('div', 'grp'), r0 = el('div', 'row');
+    r0.append(textCol('Yêu cầu mật khẩu', 'Máy khác trong mạng (VLC, điện thoại…) phải đăng nhập'),
+      sw(camOn, function (v) { camOn = v; render(last, true); }));
+    g.append(r0);
+    var out = [], uIn = null, pIn = null;
+    if (camOn) {
+      uIn = el('input', 'field'); uIn.type = 'text'; uIn.id = 'cam_user'; uIn.maxLength = 32; uIn.spellcheck = false; uIn.placeholder = 'Tên đăng nhập';
+      uIn.value = draft['cam:user'] != null ? draft['cam:user'] : (curUser || 'admin'); uIn.setAttribute('autocomplete', 'off');
+      uIn.addEventListener('input', function () { draft['cam:user'] = uIn.value; check(); });
+      uIn.addEventListener('focus', function () { editing = 'cam'; });
+      pIn = el('input', 'field'); pIn.type = showPw ? 'text' : 'password'; pIn.id = 'cam_pw'; pIn.maxLength = 64; pIn.spellcheck = false;
+      pIn.placeholder = curOn ? 'Mật khẩu mới (để trống = giữ mật khẩu cũ)' : 'Mật khẩu (4–64 ký tự)';
+      pIn.value = draft['cam:pw'] || ''; pIn.setAttribute('autocomplete', 'off');
+      pIn.addEventListener('input', function () { draft['cam:pw'] = pIn.value; check(); });
+      pIn.addEventListener('focus', function () { editing = 'cam'; });
+      var g2 = el('div', 'grp'), ru = el('div', 'row'), rp = el('div', 'row');
+      ru.style.padding = rp.style.padding = '0'; ru.append(uIn); rp.append(pIn); g2.append(ru, rp);
+      var g3 = el('div', 'grp'), rs = el('div', 'row');
+      rs.append(textCol('Hiện mật khẩu'), sw(showPw, function (v) { showPw = v; pIn.type = v ? 'text' : 'password'; }));
+      g3.append(rs);
+      out.push(el('div', 'gh', 'Tài khoản'), g2, el('div', 'gsp'), g3);
+    }
+    function check() {
+      if (!camOn) { ok.disabled = !curOn; return; }   // tat: chi luu khi dang bat
+      var u = (uIn.value || '').trim(), p = pIn.value || '';
+      ok.disabled = !/^[A-Za-z0-9._@-]{1,32}$/.test(u) || (p.length > 0 && p.length < 4) || (!curOn && p.length < 4);
+    }
+    check();
+    function done() { camOn = null; showPw = false; delete draft['cam:user']; delete draft['cam:pw']; editing = null; }
+    ok.addEventListener('click', function () {
+      ctl({ settings: 'camauth', enabled: camOn, user: camOn ? uIn.value.trim() : curUser, password: camOn ? pIn.value : '' });
+      try { if (pIn) pIn.blur(); } catch (e) { /* */ }
+      done(); back();
+    });
+    var ipIt = haItems().filter(function (i) { return /^sensor\..*_(ip|ip_address)$/.test(i.id); })[0];
+    var ip = ipIt && good(ipIt.value) ? ipIt.value : '<IP màn hình>';
+    var bar = navBar('Huỷ', 'Mật khẩu luồng camera', ok, { plain: true, onBack: done });
+    return [bar, el('div', 'gh first', 'Trạng thái: ' + cur), g].concat(out).concat([
+      el('div', 'gf', 'Áp dụng ngay cho luồng camera (http://' + ip + ':8080/live) và ứng dụng Camera / thẻ nhớ. Máy chủ Home Assistant ' +
+        '(Darboard, Frigate cài trên HA) không cần mật khẩu. Xem bằng VLC: http://<tên>:<mật khẩu>@' + ip + ':8080/live')]);
+  }
   var showPw = false;
   function joinPage(ssid) {
     var known = !!ssid, out = [];
@@ -691,6 +746,7 @@
   }
   function subPage(catId) {
     if (nav.sub.k === 'wifi') return joinPage(nav.sub.id);
+    if (nav.sub.k === 'camauth') return camAuthPage(nav.sub.id);
     var it = findItem(nav.sub.id), meta = CAT[catId] || { t: '' };
     if (!it) return null;
     if (nav.sub.k === 'pick') return [navBar(meta.t, title(it))].concat(pickPage(it));
@@ -714,7 +770,7 @@
     var available = CATS.filter(hasCat).map(function (c) { return c.id; }).concat(['about']);
     if (nav.cat && available.indexOf(nav.cat) < 0) nav.cat = null;
     if (isSplit && !nav.cat) nav.cat = available.indexOf('sound') >= 0 ? 'sound' : available[0];
-    if (nav.sub && nav.sub.k !== 'wifi' && !findItem(nav.sub.id)) nav.sub = null;
+    if (nav.sub && nav.sub.k !== 'wifi' && nav.sub.k !== 'camauth' && !findItem(nav.sub.id)) nav.sub = null;
     var view;
     if (isSplit) {
       var side = el('div', 'side scroll'), det = el('div', 'detail scroll');

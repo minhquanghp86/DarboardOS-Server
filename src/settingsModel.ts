@@ -61,6 +61,8 @@ const PLACE: PlaceRule[] = [
   { re: /^sensor\..*_mang_wi_fi_xung_quanh$/, cat: 'net', sub: 'Wi-Fi', title: 'Mạng Wi-Fi xung quanh', hide: true },
   { re: /^sensor\..*_doi_wi_fi$/, cat: 'net', sub: 'Wi-Fi', title: 'Đổi Wi-Fi', hide: true },
   { re: /^sensor\..*_ten_esphome$/, cat: 'about', sub: 'Thiết bị', title: 'Tên ESPHome' },
+  // (08/10/2026) Trang thai mat khau luong camera ("Bật · <ten>" / "Tắt" — KHONG co mat khau); trang Cai dat mo trang doi.
+  { re: /^sensor\..*_mat_khau_luong_camera$/, cat: 'camera', sub: 'Bảo mật luồng camera', title: 'Mật khẩu luồng camera' },
   { re: /^sensor\..*_thoi_gian_chay$/, cat: 'diag', sub: 'Hiệu năng', title: 'Thời gian chạy', ord: 2 },
   { re: /_ha_darboard_server$/, cat: 'net', sub: 'Máy chủ Darboard', title: 'Địa chỉ máy chủ', ord: 0 },
   { re: /_ws_connected$/, cat: 'net', sub: 'Máy chủ Darboard', title: 'Kết nối', ord: 1 },
@@ -236,6 +238,25 @@ export interface ServiceCall { domain: string; service: string; data: Record<str
  * khac tien to ma thuc the — do that: P4 node esp32-p4-tab7, thuc the 7inch_tab_* / 7_0_guition_*). Kiem tra: ten mang
  * 1-32 byte, mat khau rong (mang mo) hoac 8-63 ky tu (WPA2). Chuoi = loi (khong goi HA).
  */
+/**
+ * (08/10/2026) MAT KHAU LUONG CAMERA dat / doi luc chay (nguoi dung cuoi, trang Cai dat): dich vu esphome.<node>_set_camera_auth
+ * cua CHINH man hinh nay. Ten 1-32 ky tu [A-Za-z0-9._@-]; mat khau 4-64 ky tu in duoc; bat ma mat khau rong = giu mat
+ * khau dang luu — chi hop le khi dang bat san (cam bien "Mật khẩu luồng camera" = "Bật · ...").
+ */
+export function planCamAuth(view: SettingsView, enabled: unknown, user: unknown, password: unknown): ServiceCall | string {
+  const node = view.items.find((i) => /^sensor\..*_ten_esphome$/.test(i.id) && !i.unavailable)?.value ?? '';
+  const st = view.items.find((i) => /^sensor\..*_mat_khau_luong_camera$/.test(i.id))?.value ?? '';
+  if (!/^[a-z0-9][a-z0-9-]{0,62}$/.test(node) || !st || st === 'unavailable') return 'firmware chua ho tro mat khau camera';
+  if (typeof enabled !== 'boolean') return 'thieu bat / tat';
+  const u = typeof user === 'string' ? user.trim() : '', p = typeof password === 'string' ? password : '';
+  if (enabled) {
+    if (!/^[A-Za-z0-9._@-]{1,32}$/.test(u)) return 'ten dang nhap khong hop le';
+    if (p && (p.length < 4 || p.length > 64 || /[\u0000-\u001f\u007f]/.test(p))) return 'mat khau phai 4-64 ky tu';
+    if (!p && !/^Bật/.test(st)) return 'can mat khau';
+  }
+  return { domain: 'esphome', service: `${node.replace(/-/g, '_')}_set_camera_auth`, data: { enabled, username: u, password: p } };
+}
+
 export function planWifi(view: SettingsView, op: unknown, ssid?: unknown, password?: unknown): ServiceCall | string {
   const node = view.items.find((i) => /^sensor\..*_ten_esphome$/.test(i.id) && !i.unavailable)?.value ?? '';
   if (!/^[a-z0-9][a-z0-9-]{0,62}$/.test(node)) return 'firmware chua ho tro doi Wi-Fi';

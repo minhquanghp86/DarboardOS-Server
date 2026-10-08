@@ -6,6 +6,9 @@
 //     ... vuot qua nguong "Gan day" roi GIU YEN ~0,35 s   -> mo "Gan day" (nhu dien thoai), tha tay khong ve Home nua.
 //   - Cham xuong o mep TRAI/PHAI + keo vao trong > 20 px  -> "Quay lai" (kieu Android; tha qua nguong moi thuc hien).
 //   - Cham NHANH o mep (khong keo) hoac keo NGANG         -> chuyen nguyen cho trang (nut HA, nut dong ho van bam duoc).
+// (08/10/2026, log [cu chi] THAT) GOC LOI that su: goi "nhac tay" cua firmware luon mang toa do (0,0) — truoc day dung toa
+// do do de tinh quang duong keo: S3 xoay 180 -> (479,479) -> vuot mep phai / tu duoi len luon "keo chua du"; P4 khong
+// xoay -> mep trai hong, mep phai an. Nay luon dung VI TRI DI CHUYEN CUOI (lx/ly) khi nhac tay.
 // (08/10/2026) Nguoi dung bao: P4 vuot mep TRAI, S3 (xoay 180°) vuot mep PHAI va tu DUOI len KHONG tac dung — ca ba deu
 // la canh toa do tho NHO cua chip GT911. Dai mep cu (P4 18 px, S3 chi 12 px ~ 1,8 mm) hep hon dien thoai (~4-5 mm):
 // vuot tu vien vao, chip bao diem DAU TIEN khi ngon tay da chay vao trong. Sua: (1) noi dai mep theo co dien thoai;
@@ -73,10 +76,15 @@ export class EdgeGestures {
   private holdSince = 0;
   private holdFired = false;
   private downAt = 0;
+  /** Vi tri cham / di chuyen gan nhat (trang) — goi "nhac tay" cua firmware mang (0,0), khong dung duoc. */
+  private lx = 0;
+  private ly = 0;
   /** Dai mo rong: cham xuong nam trong dai canh (extSide) va/hoac dai duoi (extBottom) — goc man hinh co the ca hai. */
   private extSide = false;
   private extBottom = false;
   private report: EdgeReport | null = null;
+  /** (08/10/2026) Bo cu chi dang do (vd man hinh vua khoa giua chung). */
+  reset(): void { this.state = 'idle'; this.report = null; }
   /** Lay (va xoa) ban ghi lan cham sat mep vua xong — goi sau khi nhac tay. */
   takeReport(): EdgeReport | null { const r = this.report; if (r && this.state !== 'idle') return null; this.report = null; return r; }
 
@@ -89,7 +97,7 @@ export class EdgeGestures {
     const B = edgeBands(pageW, pageH);
     switch (raw.kind) {
       case TouchKind.Down: {
-        this.down = raw; this.sx = px; this.sy = py; this.downAt = now; this.report = null;
+        this.down = raw; this.sx = px; this.sy = py; this.lx = px; this.ly = py; this.downAt = now; this.report = null;
         const rep = (edge: EdgeReport['edge'], band: EdgeReport['band']) => { this.report = { edge, band, x: Math.round(px), y: Math.round(py), result: 'cham' }; };
         if (py <= B.top) { this.state = 'pendTop'; rep('top', 'core'); return []; }
         if (py >= pageH - B.bottom) { this.state = 'pendBottom'; rep('bottom', 'core'); return []; }
@@ -107,6 +115,7 @@ export class EdgeGestures {
       }
 
       case TouchKind.Move:
+        this.lx = px; this.ly = py;
         if (this.state === 'pendExt') {
           const dt = now - this.downAt, dx = px - this.sx, dy = py - this.sy;
           const dSide = this.extSide ? this.inward(px) : -Infinity, dUp = this.extBottom ? -dy : -Infinity;
@@ -161,6 +170,7 @@ export class EdgeGestures {
         return [{ type: 'pass', events: [raw] }];
 
       case TouchKind.Up: {
+        px = this.lx; py = this.ly;   // (0,0) cua goi nhac tay -> vi tri di chuyen cuoi
         const s = this.state;
         this.state = 'idle';
         if (s === 'pendTop' || s === 'pendBottom' || s === 'pendSide' || s === 'pendExt') {
