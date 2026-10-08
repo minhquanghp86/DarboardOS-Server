@@ -30,8 +30,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .pill .sb-l { justify-self: end; display: flex; } .pill .sb-r { justify-self: start; display: flex; }
 .pill .sb-bat { width: 22px; height: 11px; color: #fff; display: block; }
 .pill .sb-bat.low .lvl { fill: #ff453a; }
-.pill .sb-wifi { width: 15px; height: 12px; color: #fff; display: block; }
-.pill .sb-eth { width: 13px; height: 13px; color: #fff; display: block; }
+.pill .sb-wifi { width: 17px; height: 14px; color: #fff; display: block; }
+.pill .sb-eth { width: 15px; height: 15px; color: #fff; display: block; }
 .pill.wide { width: 160px; }
 .pill .chev { position: absolute; top: 3px; left: 50%; transform: translateX(-50%); width: 16px; height: 16px; color: #fff; }
 
