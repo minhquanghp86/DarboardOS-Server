@@ -22,8 +22,17 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .pill { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 128px; height: 32px;
   display: flex; justify-content: center; pointer-events: none; }  /* cham xuyen qua xuong trang (tab HA) */
 .pill svg.drop { display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35)); }
-.pill .t { position: absolute; top: 1px; left: 0; right: 0; text-align: center; font: 600 14px/19px "Be Vietnam Pro", Roboto,
+/* (08/10/2026) Hang trong giot nuoc: [pin] gio [mang] — luoi 3 cot, gio luon o chinh giua. */
+.pill .prow { position: absolute; top: 1px; left: 0; right: 0; height: 19px; display: grid; grid-template-columns: 1fr auto 1fr;
+  align-items: center; column-gap: 6px; pointer-events: none; }
+.pill .t { text-align: center; font: 600 14px/19px "Be Vietnam Pro", Roboto,
   "Noto Sans", "DejaVu Sans", sans-serif; letter-spacing: 0.5px; font-variant-numeric: tabular-nums; color: #fff; pointer-events: none; }
+.pill .sb-l { justify-self: end; display: flex; } .pill .sb-r { justify-self: start; display: flex; }
+.pill .sb-bat { width: 22px; height: 11px; color: #fff; display: block; }
+.pill .sb-bat.low .lvl { fill: #ff453a; }
+.pill .sb-wifi { width: 15px; height: 12px; color: #fff; display: block; }
+.pill .sb-eth { width: 13px; height: 13px; color: #fff; display: block; }
+.pill.wide { width: 160px; }
 .pill .chev { position: absolute; top: 3px; left: 50%; transform: translateX(-50%); width: 16px; height: 16px; color: #fff; }
 
 /* ── Thanh keo xuong ──────────────────────────────────────────────────── */

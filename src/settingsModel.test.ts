@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HaEntity, HaState, SettingItem, buildSettingsView, findDeviceByMac, findNoSleepSwitch, findPresenceSelect, isSaverPhotosSwitchId, macFromDeviceId, placeSetting, planCamAuth, planSet, planWifi } from "./settingsModel.js";
+import { HaEntity, HaState, SettingItem, buildSettingsView, findDeviceByMac, findNoSleepSwitch, findPresenceSelect, isSaverPhotosSwitchId, macFromDeviceId, placeSetting, planCamAuth, planSet, planWifi, statusEntityIds, statusIconsOf, wifiBars } from "./settingsModel.js";
 import { REAL_P4, REAL_S3 } from "./settingsModel.fixture.js";
 
 const dev = { id: "d1", name: "7.0 Guition JC1060P470C", model: "esp32-p4-evboard", sw_version: "2026.9.0",
@@ -202,5 +202,30 @@ describe("(08/10/2026) mat khau luong camera dat luc chay", () => {
     expect(planCamAuth(view("Tắt"), true, "admin", "abc")).toBe("mat khau phai 4-64 ky tu");
     expect(planCamAuth(view("Tắt"), true, "admin", "")).toBe("can mat khau");
     expect(planCamAuth(view("Tắt"), "co", "admin", "abcd1234")).toBe("thieu bat / tat");
+  });
+});
+
+describe("(08/10/2026) pin + mang canh dong ho", () => {
+  const S = (state: string, unit?: string) => ({ entity_id: "x", state, attributes: unit ? { unit_of_measurement: unit } : {} });
+  it("tim thuc the cua dung thiet bi (ten that tren HA 08/10)", () => {
+    const ents = [
+      { entity_id: "sensor.7inch_tab_wifi_signal", device_id: "p4" },
+      { entity_id: "sensor.7inch_tab_battery_percent", device_id: "p4" },
+      { entity_id: "sensor.7inch_tab_battery_voltage", device_id: "p4" },
+      { entity_id: "sensor.4_3_guition_4848s040_wifi_signal", device_id: "s3" },
+      { entity_id: "sensor.x_ket_noi_mang", device_id: "p4", disabled_by: "user" },
+    ];
+    expect(statusEntityIds(ents, "p4")).toEqual({ sig: "sensor.7inch_tab_wifi_signal", bat: "sensor.7inch_tab_battery_percent" });
+    expect(statusEntityIds(ents, "s3")).toEqual({ sig: "sensor.4_3_guition_4848s040_wifi_signal" });
+  });
+  it("vach Wi-Fi theo dBm (do that P4 -64 -> 2, S3 -45 -> 3) va theo %", () => {
+    expect([-45, -60, -64, -70, -75, -80, -88].map((v) => wifiBars(v))).toEqual([3, 3, 2, 2, 1, 1, 0]);
+    expect([90, 50, 25, 10].map((v) => wifiBars(v, "%"))).toEqual([3, 2, 1, 0]);
+  });
+  it("Ethernet uu tien; khong co so lieu -> an; pin lam tron, chan 0..100", () => {
+    expect(statusIconsOf(S("-64", "dBm"), S("Ethernet"), S("57.4", "%"))).toEqual({ nw: { k: "eth" }, bt: 57 });
+    expect(statusIconsOf(S("-64", "dBm"), S("Wi-Fi"), S("unknown", "%"))).toEqual({ nw: { k: "wifi", q: 2 }, bt: null });
+    expect(statusIconsOf(S("unavailable"), null, S("104", "%"))).toEqual({ nw: null, bt: 100 });
+    expect(statusIconsOf(null, null, null)).toEqual({ nw: null, bt: null });
   });
 });

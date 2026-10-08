@@ -37,8 +37,8 @@ import type { DialHooks } from "./dial.js";
 import { Notice, NoticeStore, NotifyRequest, noticeKind, parseNotify, shouldPopup, shouldWake } from "./notifications.js";
 import { Sound, soundForNotice, soundPrefs } from "./sound.js";
 import { alarms, type Ringing } from "./alarms.js";
-import { callService, getRegistry, getSettingsView, getStates, haReady } from "./haSettings.js";
-import { findDeviceByMac, findNoSleepSwitch, findPresenceSelect, isSaverPhotosSwitchId, macFromDeviceId, planCamAuth, planSet, planWifi } from "./settingsModel.js";
+import { callService, getRegistry, getSettingsView, getStates, haReady, getStatusIcons } from "./haSettings.js";
+import { NetIcon, findDeviceByMac, findNoSleepSwitch, findPresenceSelect, isSaverPhotosSwitchId, macFromDeviceId, planCamAuth, planSet, planWifi } from "./settingsModel.js";
 import { getLauncherConfig, saveHomeLayout } from "./launcherConfig.js";
 import { lockWidgetsFor, refreshLockWidgets } from "./lockWidgets.js";
 import { HomeLayout, resolveLayout } from "./homeLayout.js";
@@ -197,6 +197,8 @@ export type DeviceSession = {
   presence?: { on: boolean; at: number };
   /** (30/09/2026) Select "Nguon phat hien nguoi" cua thiet bi (HA) cho thanh trang thai; null = thiet bi khong co. */
   presenceSel?: { id: string; v: string; o: string[]; at: number } | null;
+  /** (08/10/2026) Bieu tuong canh dong ho: pin (%) + mang (Wi-Fi vach / Ethernet), doc tu HA moi 30 s. */
+  sb?: { nw: NetIcon | null; bt: number | null; at: number };
   /** (27/09/2026) Ngay (gio thiet bi) da chao buoi sang — moi ngay mot lan. */
   morningDate?: string;
   /** (27/09/2026) Chuong cua dang hien: id lan bam, URL trang, tab dang dung truoc do, hen gio tu dong. */
@@ -1805,6 +1807,8 @@ function pushDeviceStateToPage(dev: DeviceSession): void {
     ps: dev.presenceSel ? { v: dev.presenceSel.v, o: dev.presenceSel.o } : null,
     // (08/10/2026) Widget man hinh khoa / cho (src/lockWidgets.ts): so lieu tho, Shell tu viet chu theo gio thiet bi.
     lw: lockWidgetsFor(dev.deviceId, panelPrefs.lockWidgets(dev.deviceId)),
+    // (08/10/2026) Pin ben trai, mang ben phai dong ho.
+    sb: dev.sb ? { nw: dev.sb.nw, bt: dev.sb.bt } : null,
   };
   if (dev.presenceSel === undefined) { dev.presenceSel = null; refreshPresenceSel(dev, 0).catch(() => { }); }
   dev.cdp.send('Runtime.evaluate', {
@@ -3483,6 +3487,18 @@ function syncMediaPlaying(dev: DeviceSession, force = false): void {
 }
 
 let lwRefreshBusy = false;
+let sbRefreshBusy = false;
+/** (08/10/2026) Doc lai pin + mang cua tung man (toi da moi 30 s); doi thi day xuong trang. */
+async function refreshStatusIcons(now: number): Promise<void> {
+  for (const d of [...devices.values()]) {
+    if (d.sb && now - d.sb.at < 30_000) continue;
+    const r = await getStatusIcons(d.deviceId).catch(() => null);
+    if (!r) { d.sb = { nw: d.sb?.nw ?? null, bt: d.sb?.bt ?? null, at: now }; continue; }
+    const changed = !d.sb || JSON.stringify([d.sb.nw, d.sb.bt]) !== JSON.stringify([r.nw, r.bt]);
+    d.sb = { ...r, at: now };
+    if (changed) pushDeviceStateToPage(d);
+  }
+}
 export function screensaverTick(): void {
   const now = Date.now();
   // Moi 5 s: dong bo lai trang thai phat (tu sua neu mot goi bi mat khi thiet bi vua noi lai).
@@ -3490,6 +3506,7 @@ export function screensaverTick(): void {
   for (const d of devices.values()) syncSaver(d);
   for (const d of devices.values()) closeIdleTabs(d, now);
   syncSaverPhotoSwitches().catch(() => { });
+  if (!sbRefreshBusy) { sbRefreshBusy = true; refreshStatusIcons(now).catch(() => { }).finally(() => { sbRefreshBusy = false; }); }
   // (08/10/2026) Widget man hinh khoa: lam moi so lieu (thuong xuyen khi co man dang khoa / cho, con lai 5 phut/lan); doi
   // thi day lai trang thai cho cac man dang hien lop khoa.
   if (!lwRefreshBusy) {

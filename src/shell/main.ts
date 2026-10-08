@@ -12,6 +12,7 @@ import { HomeApi, mountHome } from './home';
 import { classifyLockGesture } from './lockGesture';
 import { loadClockFont } from './clockFont';
 import { LwData, buildLockWidgets, lwModel } from './lockWidgets';
+import { SbData, batteryIcon, dropPath, netIcon, sbKey } from './statusIcons';
 import type { HomeLayout } from '../homeLayout';
 
 declare global { interface Window { [k: string]: any } }
@@ -49,6 +50,8 @@ interface DevState {
   rg?: AlarmInfo | null;
   /** (08/10/2026) Widget man hinh khoa: nang luong / lich / camera (server >= 2.9.116). */
   lw?: LwData | null;
+  /** (08/10/2026) Pin (%) + mang (Wi-Fi / Ethernet) canh dong ho. */
+  sb?: SbData | null;
 }
 /** Bao thuc dang reo: id, nhan, gio "HH:MM", phut bao lai (0 = khong), tm = hen gio, beep = keu bang WebAudio (firmware cu). */
 interface AlarmInfo { id: string; l: string; t: string; sz: number; tm: boolean; beep?: boolean }
@@ -113,10 +116,26 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   const pill = el('div', 'pill');
   pill.setAttribute('aria-hidden', 'true');
   const drop = svgEl('svg', { class: 'drop', viewBox: '0 0 104 22', width: '104', height: '22' });
-  drop.appendChild(svgEl('path', { d: 'M0 0H104C91 0 86 4 79 11C72 18 64 22 52 22C40 22 32 18 25 11C18 4 13 0 0 0Z', fill: 'rgba(20,20,20,0.6)' }));
+  const dropP = svgEl('path', { d: dropPath(0).d, fill: 'rgba(20,20,20,0.6)' });
+  drop.appendChild(dropP);
   const pillT = el('span', 't');
   const pillChev = mdi('chevdown', 'chev');
-  pill.append(drop, pillT, pillChev);
+  // (08/10/2026) Pin ben trai, mang ben phai gio (luoi 3 cot: gio luon o chinh giua du hai ben rong hep khac nhau).
+  const sbL = el('span', 'sb-l'), sbR = el('span', 'sb-r'), pillRow = el('div', 'prow');
+  pillRow.append(sbL, pillT, sbR);
+  pill.append(drop, pillRow, pillChev);
+  let sbShown = '';
+  function renderStatusIcons(sb: SbData | null | undefined) {
+    const k = sbKey(sb);
+    if (k === sbShown) return;
+    sbShown = k;
+    sbL.replaceChildren(...(sb?.bt != null ? [batteryIcon(sb.bt)] : []));
+    sbR.replaceChildren(...(sb?.nw ? [netIcon(sb.nw)] : []));
+    const g = dropPath(k ? 50 : 0);
+    dropP.setAttribute('d', g.d);
+    drop.setAttribute('viewBox', `0 0 ${g.w} 22`); drop.setAttribute('width', String(g.w));
+    pill.classList.toggle('wide', !!k);
+  }
 
   // ── Thanh keo xuong ──────────────────────────────────────────────────
   const scrim = el('div', 'scrim');
@@ -878,6 +897,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     dndTile.el.style.display = s.dnd == null ? 'none' : '';
     if (s.dnd != null) dndTile.set(s.dnd);
     renderNotices(s.nt || []);
+    renderStatusIcons(s.sb);
     // (30/09/2026) Thiet bi khong co loa (S3) bao am luong 'khong co' (null) -> an thanh am luong, do sang chiem ca hang.
     vol.el.style.display = s.v == null ? 'none' : '';
     bri.set(s.b); vol.set(s.v);
