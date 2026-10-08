@@ -1,3 +1,17 @@
+## V2.9.117
+### Cài đặt thiết kế lại kiểu iOS
+- Màn ngang (7 inch) chia đôi như iPad: danh sách mục bên trái, nội dung bên phải. Màn vuông (4 inch) kiểu iPhone: danh
+  sách → trang con, vuốt mép để quay lại.
+- Gom thành các mục rõ ràng, mỗi mục một icon màu: Wi-Fi & Mạng, Âm thanh, Màn hình & Độ sáng, Màn hình khóa, Hình nền &
+  Khung ảnh, Trợ lý giọng nói, Camera & Phát hiện, Truyền YouTube, Màn hình chính, Pin, Chẩn đoán, Giới thiệu. Tên tiếng
+  Việt dễ hiểu, có chú thích; bỏ các mục trùng.
+- Công tắc, thanh trượt, nút phân đoạn, trang chọn có dấu ✓, trang sửa chữ (Huỷ / Lưu), hộp xác nhận khởi động lại.
+- "Không làm phiền" bật / tắt ngay trên danh sách.
+
+### Sửa lỗi
+- Vuốt từ mép (quay lại / về màn hình chính) nhạy hơn: dải mép rộng hơn và nhận cả cú vuốt "lao vào từ viền" (chip cảm
+  ứng báo điểm đầu muộn). Trước đây mép trái màn 7 inch, mép phải và mép dưới màn 4 inch xoay 180° gần như không ăn.
+
 ## V2.9.116
 ### Widget trên màn hình khóa
 - Dưới đồng hồ: **năng lượng** (công suất mặt trời + sản lượng hôm nay, % pin đang sạc / xả, tiêu thụ, lưới), **lịch 3 ngày
