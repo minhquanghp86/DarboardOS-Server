@@ -60,6 +60,10 @@ const PLACE: PlaceRule[] = [
   { re: /^sensor\..*_dns$/, cat: 'net', sub: 'Wi-Fi', title: 'DNS', ord: 5 },
   { re: /^sensor\..*_mang_wi_fi_xung_quanh$/, cat: 'net', sub: 'Wi-Fi', title: 'Mạng Wi-Fi xung quanh', hide: true },
   { re: /^sensor\..*_doi_wi_fi$/, cat: 'net', sub: 'Wi-Fi', title: 'Đổi Wi-Fi', hide: true },
+  // (08/10/2026) Chan doan lien ket (firmware P4 >= client d0c983a): kenh / chuan PHY / RSSI / cong suat phat; danh sach
+  // diem phat theo kenh (dai, an — de chan doan nhieu cung kenh).
+  { re: /^sensor\..*_lien_ket_wi_fi$/, cat: 'net', sub: 'Wi-Fi', title: 'Kênh & chuẩn kết nối', ord: 6 },
+  { re: /^sensor\..*_kenh_wi_fi_xung_quanh$/, cat: 'net', sub: 'Wi-Fi', title: 'Kênh Wi-Fi xung quanh', hide: true },
   { re: /^sensor\..*_ten_esphome$/, cat: 'about', sub: 'Thiết bị', title: 'Tên ESPHome' },
   // (08/10/2026) Trang thai mat khau luong camera ("Bật · <ten>" / "Tắt" — KHONG co mat khau); trang Cai dat mo trang doi.
   { re: /^sensor\..*_mat_khau_luong_camera$/, cat: 'camera', sub: 'Bảo mật luồng camera', title: 'Mật khẩu luồng camera' },
