@@ -8,7 +8,7 @@
 // ket noi WebSocket. Khong nhan dia chi tuy y (khong thanh proxy mo); chi duong cua cam_app; chi tu 127.0.0.1.
 import http from 'node:http';
 
-/** (08/10/2026) auth = base64("user:pass") cho HTTP Basic Auth cua cam_app / av_stream (firmware gui ?ca= luc noi WS). */
+/** (08/10/2026) auth = base64("user:pass") cho HTTP Basic Auth cua cam_app / av_stream (firmware gui ?ca=<hex(user:pass)>). */
 export type CamHost = { ip: string; port: number; auth?: string };
 const hosts = new Map<string, CamHost>();
 
@@ -16,9 +16,10 @@ const hosts = new Map<string, CamHost>();
  * Goi luc thiet bi ket noi WS: nho IP + cong ung dung Camera (0 = khong co -> quen). (08/10/2026) auth: tai khoan HTTP
  * cua P4 (firmware gui ?ca=) — CHI giu trong bo nho de gan header khi goi P4; khong log, khong vao /metrics.
  */
-export function noteCameraHost(deviceId: string, remoteAddress: string | undefined, port: number, auth?: string | null): void {
+export function noteCameraHost(deviceId: string, remoteAddress: string | undefined, port: number, authHex?: string | null): void {
   const ip = (remoteAddress || '').replace(/^::ffff:/, '');
-  const a = auth && /^[A-Za-z0-9+/=]{4,200}$/.test(auth) ? auth : undefined;
+  // Firmware gui hex (khoi ma hoa + / = trong URL) -> base64 cho header Basic.
+  const a = authHex && /^(?:[0-9a-f]{2}){3,150}$/i.test(authHex) ? Buffer.from(authHex, 'hex').toString('base64') : undefined;
   if (port > 0 && /^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) hosts.set(deviceId, { ip, port, ...(a ? { auth: a } : {}) });
   else hosts.delete(deviceId);
 }

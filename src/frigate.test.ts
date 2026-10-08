@@ -44,7 +44,8 @@ describe("(08/10/2026) frigate — nguon go2rtc DANG CHAY (doi IP khong can khoi
 import { camAuth, cameraHost, noteCameraHost } from "./camProxy.js";
 describe("(08/10/2026) mat khau HTTP cua P4 — server gan header khi goi cam_app", () => {
   it("co ?ca= -> Authorization Basic; khong co / sai dang -> khong header (firmware chua bat mat khau)", () => {
-    noteCameraHost("esp32-p4", "::ffff:192.168.1.24", 8082, "ZGFyYm9hcmQ6bWF0a2hhdTEyMw==");
+    // firmware: hex("darboard:matkhau123")
+    noteCameraHost("esp32-p4", "::ffff:192.168.1.24", 8082, Buffer.from("darboard:matkhau123").toString("hex"));
     expect(cameraHost()).toEqual({ ip: "192.168.1.24", port: 8082, auth: "ZGFyYm9hcmQ6bWF0a2hhdTEyMw==" });
     expect(camAuth(cameraHost()!)).toEqual({ authorization: "Basic ZGFyYm9hcmQ6bWF0a2hhdTEyMw==" });
     noteCameraHost("esp32-p4", "192.168.1.24", 8082, "khong hop le!");
