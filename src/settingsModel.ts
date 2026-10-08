@@ -311,3 +311,45 @@ export function planSet(view: SettingsView, id: string, value: unknown): Service
       return 'muc nay chi de xem';
   }
 }
+
+// ── (08/10/2026) BIEU TUONG CANH DONG HO (giot nuoc o mep tren moi trang): pin ben trai, mang ben phai ──────────────────
+/** k = 'eth' (dang dung cap RJ45) | 'wifi' (q = so vach sang 0..3). */
+export type NetIcon = { k: 'eth' } | { k: 'wifi'; q: 0 | 1 | 2 | 3 };
+export interface StatusIcons { nw: NetIcon | null; bt: number | null }
+export interface StatusIds { sig?: string; kind?: string; bat?: string }
+
+/** Thuc the cua thiet bi HA `devId`: cuong do Wi-Fi, kieu ket noi (firmware co Ethernet), muc pin. */
+export function statusEntityIds(entities: HaEntity[], devId: string): StatusIds {
+  const out: StatusIds = {};
+  for (const e of entities) {
+    if (e.device_id !== devId || e.disabled_by) continue;
+    const id = e.entity_id;
+    if (!out.sig && /^sensor\..*_wifi_signal$/.test(id)) out.sig = id;
+    else if (!out.kind && /^sensor\..*_ket_noi_mang$/.test(id)) out.kind = id;
+    else if (!out.bat && /^sensor\..*_battery_(percent|level)$/.test(id)) out.bat = id;
+  }
+  return out;
+}
+
+/** Vach Wi-Fi: dBm (ESPHome wifi_signal) hoac % (neu nguoi dung loc sang %). */
+export function wifiBars(v: number, unit?: string): 0 | 1 | 2 | 3 {
+  if (unit === '%') return v >= 70 ? 3 : v >= 45 ? 2 : v >= 20 ? 1 : 0;
+  return v >= -60 ? 3 : v >= -70 ? 2 : v >= -80 ? 1 : 0;
+}
+
+const num = (s?: HaState | null) => {
+  if (!s || s.state === '' || s.state === 'unknown' || s.state === 'unavailable') return null;
+  const v = Number(s.state);
+  return Number.isFinite(v) ? v : null;
+};
+
+export function statusIconsOf(sig?: HaState | null, kind?: HaState | null, bat?: HaState | null): StatusIcons {
+  let nw: NetIcon | null = null;
+  if (/ethernet|rj45|day|dây|lan/i.test(kind?.state ?? '')) nw = { k: 'eth' };
+  else {
+    const v = num(sig), unit = sig?.attributes?.unit_of_measurement;
+    if (v != null && (unit === '%' ? v >= 0 : v < 0)) nw = { k: 'wifi', q: wifiBars(v, unit) };
+  }
+  const b = num(bat);
+  return { nw, bt: b == null ? null : Math.max(0, Math.min(100, Math.round(b))) };
+}

@@ -1,3 +1,7 @@
+## V2.9.121
+- Đồng hồ trên cùng mọi trang: **pin bên trái** (mức đầy theo % còn lại, đỏ khi ≤ 20%), **mạng bên phải** (Wi-Fi 3 vạch
+  theo cường độ sóng, hoặc biểu tượng cáp mạng khi dùng cổng RJ45). Màn không có cảm biến pin chỉ hiện mạng.
+
 ## V2.9.120
 - Cài đặt → Wi-Fi & Mạng: thêm hàng **Kênh & chuẩn kết nối** (kênh, chuẩn Wi-Fi, cường độ, công suất phát — cần firmware P4
   mới có cảm biến "Liên kết Wi-Fi"), giúp nhận ra nhiễu cùng kênh khi video chậm.

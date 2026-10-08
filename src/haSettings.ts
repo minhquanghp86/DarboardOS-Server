@@ -7,7 +7,7 @@
 // REST khong co), trang thai va goi dich vu (REST). Quyen: `homeassistant_api: true` cua addon -> SUPERVISOR_TOKEN
 // (khong can token nguoi dung). Duong dan doi duoc qua bien moi truong de thu tich hop voi HA gia.
 import WebSocket from 'ws';
-import { HaDevice, HaEntity, HaState, ServiceCall, SettingsView, buildSettingsView, findDeviceByMac, macFromDeviceId } from './settingsModel.js';
+import { HaDevice, HaEntity, HaState, ServiceCall, SettingsView, StatusIcons, buildSettingsView, findDeviceByMac, macFromDeviceId, statusEntityIds, statusIconsOf } from './settingsModel.js';
 
 const API = () => process.env.HA_API_URL || 'http://supervisor/core/api';
 const WS = () => process.env.HA_WS_URL || 'ws://supervisor/core/websocket';
@@ -94,6 +94,23 @@ export async function getSettingsView(deviceId: string): Promise<SettingsResult>
   } catch (e) {
     return { ok: false, error: `Không kết nối được Home Assistant (${(e as Error).message}).` };
   }
+}
+
+/** (08/10/2026) Pin + mang cho bieu tuong canh dong ho. null = khong doc duoc (khong co HA / chua them thiet bi). */
+export async function getStatusIcons(deviceId: string): Promise<StatusIcons | null> {
+  const mac = macFromDeviceId(deviceId);
+  if (!token() || !mac) return null;
+  const reg = await getRegistry();
+  const dev = findDeviceByMac(reg.devices, mac);
+  if (!dev) return null;
+  const ids = statusEntityIds(reg.entities, dev.id);
+  const one = async (id?: string): Promise<HaState | null> => {
+    if (!id) return null;
+    const r = await haFetch(`/states/${id}`);
+    return r.ok ? await r.json() as HaState : null;
+  };
+  const [sig, kind, bat] = await Promise.all([one(ids.sig), one(ids.kind), one(ids.bat)]);
+  return statusIconsOf(sig, kind, bat);
 }
 
 export async function callService(c: ServiceCall): Promise<boolean> {
