@@ -46,9 +46,10 @@ describe("cu chi Quay lai (mep trai/phai)", () => {
     return seq.flatMap(([k, x, y]) => g.feed(t(k, x, y), x, y, H, W));
   }
   it("keo tu mep trai vao du xa -> Quay lai", () => {
-    const a = runW(new EdgeGestures(), [[TouchKind.Down, 4, 300], [TouchKind.Move, 40, 302], [TouchKind.Move, 120, 305], [TouchKind.Up, 130, 305]]);
+    // (08/10/2026) quang duong tinh toi lan DI CHUYEN cuoi (goi nhac tay cua firmware mang (0,0))
+    const a = runW(new EdgeGestures(), [[TouchKind.Down, 4, 300], [TouchKind.Move, 40, 302], [TouchKind.Move, 120, 305], [TouchKind.Up, 0, 0]]);
     expect(a.map((x) => x.type)).toEqual(["back", "back", "back"]);
-    expect(a[2]).toEqual({ type: "back", phase: "end", side: "left", d: 126, y: 305, commit: true });
+    expect(a[2]).toEqual({ type: "back", phase: "end", side: "left", d: 116, y: 305, commit: true });
   });
   it("keo tu mep phai vao chua du xa -> huy (commit=false), khong gui gi cho trang", () => {
     const a = runW(new EdgeGestures(), [[TouchKind.Down, 1020, 300], [TouchKind.Move, 990, 300], [TouchKind.Up, 970, 300]]);
@@ -155,12 +156,12 @@ describe("(08/10/2026) vuot tu vien vao: diem dau bao muon", () => {
   });
   it("S3 480x480 xoay 180°: mep PHAI (toa do tho x=24 -> trang x=455) lao vao -> Quay lai", () => {
     const g = new EdgeGestures();
-    const a = feedAll(g, 480, 480, [[TouchKind.Down, 455, 240, 0], [TouchKind.Move, 443, 241, 12], [TouchKind.Move, 400, 242, 25], [TouchKind.Up, 380, 242, 40]]);
+    const a = feedAll(g, 480, 480, [[TouchKind.Down, 455, 240, 0], [TouchKind.Move, 443, 241, 12], [TouchKind.Move, 400, 242, 25], [TouchKind.Move, 380, 242, 35], [TouchKind.Up, 479, 479, 40]]);
     expect(a[a.length - 1]).toMatchObject({ type: "back", phase: "end", side: "right", commit: true });
   });
   it("S3 mep DUOI: diem dau y=450 (ngoai dai cu 19) dang vuot len -> ve man hinh chinh", () => {
     const g = new EdgeGestures();
-    const a = feedAll(g, 480, 480, [[TouchKind.Down, 240, 450, 0], [TouchKind.Move, 240, 438, 10], [TouchKind.Move, 240, 400, 20], [TouchKind.Up, 240, 360, 40]]);
+    const a = feedAll(g, 480, 480, [[TouchKind.Down, 240, 450, 0], [TouchKind.Move, 240, 438, 10], [TouchKind.Move, 240, 400, 20], [TouchKind.Move, 240, 360, 35], [TouchKind.Up, 479, 479, 40]]);
     expect(a.filter((x) => x.type !== "homeDrag")).toEqual([{ type: "home" }]);
     expect(g.takeReport()).toMatchObject({ edge: "bottom", band: "ext", result: "home" });
   });
@@ -175,12 +176,39 @@ describe("(08/10/2026) goc duoi: dai mo rong canh + duoi chong nhau", () => {
   const go = (seq: [TouchKind, number, number, number][]) => { const g = new EdgeGestures();
     return { g, a: seq.flatMap(([k, x, y, ms]) => g.feed(t(k, x, y), x, y, 480, 480, 1000 + ms)) }; };
   it("S3 goc duoi trai (40,450) vuot LEN -> ve man hinh chinh (khong bi dai canh nuot)", () => {
-    const { g, a } = go([[TouchKind.Down, 40, 450, 0], [TouchKind.Move, 41, 436, 10], [TouchKind.Move, 42, 400, 22], [TouchKind.Up, 42, 360, 40]]);
+    const { g, a } = go([[TouchKind.Down, 40, 450, 0], [TouchKind.Move, 41, 436, 10], [TouchKind.Move, 42, 400, 22], [TouchKind.Move, 42, 360, 35], [TouchKind.Up, 479, 479, 40]]);
     expect(a.filter((x) => x.type !== "homeDrag")).toEqual([{ type: "home" }]);
     expect(g.takeReport()).toMatchObject({ edge: "bottom", band: "ext", result: "home" });
   });
   it("cung goc do vuot NGANG vao trong -> Quay lai", () => {
     const { a } = go([[TouchKind.Down, 40, 450, 0], [TouchKind.Move, 54, 449, 10], [TouchKind.Move, 110, 447, 25], [TouchKind.Up, 120, 447, 40]]);
     expect(a[a.length - 1]).toMatchObject({ type: "back", phase: "end", side: "left", commit: true });
+  });
+});
+
+// (08/10/2026) Log [cu chi] THAT: goi nhac tay cua firmware luon mang toa do tho (0,0).
+describe("(08/10/2026) goi nhac tay (0,0) — dung vi tri di chuyen cuoi", () => {
+  const feed = (g: EdgeGestures, W: number, Hh: number, seq: [TouchKind, number, number, number][]) =>
+    seq.flatMap(([k, x, y, ms]) => g.feed(t(k, x, y), x, y, Hh, W, 1000 + ms));
+  it("S3 xoay 180: mep phai (log 05:11:19 x=470) — nhac tay o (479,479) van Quay lai", () => {
+    const a = feed(new EdgeGestures(), 480, 480, [[TouchKind.Down, 470, 228, 0], [TouchKind.Move, 450, 230, 30], [TouchKind.Move, 346, 232, 168],
+      [TouchKind.Up, 479, 479, 200]]);
+    expect(a[a.length - 1]).toMatchObject({ type: "back", phase: "end", side: "right", commit: true, d: 124 });
+  });
+  it("S3 xoay 180: tu duoi len (log 05:10:52 y=476) — nhac tay o (479,479) van ve man hinh chinh", () => {
+    const g = new EdgeGestures();
+    const a = feed(g, 480, 480, [[TouchKind.Down, 232, 476, 0], [TouchKind.Move, 232, 420, 40], [TouchKind.Move, 232, 286, 133], [TouchKind.Up, 479, 479, 150]]);
+    expect(a.filter((x) => x.type !== "homeDrag")).toEqual([{ type: "home" }]);
+    expect(g.takeReport()).toMatchObject({ edge: "bottom", result: "home" });
+  });
+  it("P4: mep trai — nhac tay o (0,0) van Quay lai (truoc day luon huy)", () => {
+    const a = feed(new EdgeGestures(), 1024, 600, [[TouchKind.Down, 6, 300, 0], [TouchKind.Move, 60, 302, 20], [TouchKind.Move, 140, 305, 60], [TouchKind.Up, 0, 0, 80]]);
+    expect(a[a.length - 1]).toMatchObject({ type: "back", side: "left", commit: true, d: 134 });
+  });
+  it("reset(): bo cu chi dang do", () => {
+    const g = new EdgeGestures();
+    feed(g, 480, 480, [[TouchKind.Down, 240, 476, 0], [TouchKind.Move, 240, 440, 20]]);
+    g.reset();
+    expect(feed(g, 480, 480, [[TouchKind.Down, 240, 240, 100]]).map((x) => x.type)).toEqual(["pass"]);
   });
 });

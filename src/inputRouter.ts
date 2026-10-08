@@ -39,6 +39,14 @@ export class InputRouter {
 
     let g = this._gestures.get(dev.deviceId);
     if (!g) { g = new EdgeGestures(); this._gestures.set(dev.deviceId, g); }
+    // (08/10/2026) MAN HINH KHOA: tat cu chi mep he thong — moi cham di thang toi lop khoa (vuot len tu duoi = mo khoa nhu
+    // iPhone). Do that S3: vuot len sat mep duoi bi cu chi "ve Home" nuot (khong mo khoa duoc), vuot mep trai lai mo
+    // __system -> MO KHOA (vuot qua lop khoa).
+    if (dev.saverOn && dev.locked) {
+      g.reset();
+      await this._dispatchTouchAsync(dev, pkt.kind, pkt.x, pkt.y);
+      return;
+    }
     const p = mapPointForRotation(pkt.x, pkt.y, dev.cfg.width, dev.cfg.height, dev.cfg.rotation);
     await this._runActions(dev, g.feed({ kind: pkt.kind, x: pkt.x, y: pkt.y }, p.x, p.y, dev.cfg.height, dev.cfg.width));
     this._armHold(dev, g);
