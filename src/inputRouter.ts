@@ -42,6 +42,23 @@ export class InputRouter {
     const p = mapPointForRotation(pkt.x, pkt.y, dev.cfg.width, dev.cfg.height, dev.cfg.rotation);
     await this._runActions(dev, g.feed({ kind: pkt.kind, x: pkt.x, y: pkt.y }, p.x, p.y, dev.cfg.height, dev.cfg.width));
     this._armHold(dev, g);
+    if (pkt.kind === TouchKind.Up) this._logEdge(dev, g, pkt.x, pkt.y);
+  }
+
+  /** (08/10/2026) Ghi log moi lan cham SAT MEP (vi tri, lan di chuyen dau, ket qua) — chinh dai mep theo so lieu that
+   *  (nguoi dung bao vuot mep khong tac dung). Toi da 1 dong / 300 ms moi man. */
+  private readonly _edgeLogAt = new Map<string, number>();
+  private _logEdge(dev: DeviceSession, g: EdgeGestures, rawX: number, rawY: number): void {
+    const r = g.takeReport();
+    if (!r) return;
+    const now = Date.now();
+    if (now - (this._edgeLogAt.get(dev.deviceId) ?? 0) < 300) return;
+    this._edgeLogAt.set(dev.deviceId, now);
+    const EDGE = { left: 'mep trai', right: 'mep phai', bottom: 'mep duoi', top: 'mep tren' } as const;
+    const RES = { back: 'quay lai', 'back-huy': 'quay lai (huy: keo chua du)', home: 've man hinh chinh', 'home-huy': 've man hinh chinh (huy)',
+      recents: 'gan day', shade: 'thanh trang thai', cham: 'cham (chuyen cho trang)', trang: 'chuyen cho trang (khong phai cu chi)' } as const;
+    console.log(`[cu chi] ${dev.deviceId}: ${EDGE[r.edge]} (${r.band === 'core' ? 'dai mep' : 'dai mo rong'}) x=${r.x} y=${r.y}` +
+      ` tho=${rawX},${rawY}${r.first ? ` · lan dau ${r.first.d} px/${r.first.dt} ms` : ''} -> ${RES[r.result]}`);
   }
 
   /** Dat lai hen gio "giu yen": khi toi han ma ngon tay van dung yen qua nguong -> g.poll() mo Gan day. */

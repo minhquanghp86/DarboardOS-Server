@@ -92,3 +92,12 @@ describe("truyen YouTube", () => {
     expect(p.set("a", "rwv.cast_name", "x".repeat(41))).toBe(false);
   });
 });
+
+describe("(08/10/2026) Cai dat kieu iOS — muc cua addon", () => {
+  it("moi muc deu co muc lon + nhom con", () => {
+    const p = new PanelPrefsStore(null);
+    const items = p.items("a", D);
+    for (const i of items) { expect(i.cat, i.id).toBeTruthy(); expect(i.sub, i.id).toBeTruthy(); }
+    expect(items.filter((i) => i.cat === "lock").map((i) => i.sub)).toEqual(["Khóa", "Khóa", "Khóa", "Hiển thị", "Hiển thị", "Widget", "Widget", "Widget"]);
+  });
+});

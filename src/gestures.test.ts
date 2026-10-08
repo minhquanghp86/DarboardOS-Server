@@ -115,3 +115,72 @@ describe('YouTube TV: vuot -> phim mui ten', () => {
     expect(tvSwipeKeys(0, -2000)).toHaveLength(6);
   });
 });
+
+// (08/10/2026) Nguoi dung bao: P4 vuot mep trai, S3 (xoay 180°) vuot mep phai / tu duoi len khong tac dung. Chip GT911
+// bao diem dau tien khi ngon tay da chay vao trong -> dai mep noi rong + dai mo rong nhan "lao vao tu ngoai vien".
+import { FLICK_WINDOW_MS, edgeBands } from "./gestures.js";
+describe("(08/10/2026) vuot tu vien vao: diem dau bao muon", () => {
+  type Ev = [TouchKind, number, number, number];   // loai, x, y, thoi diem ms
+  const feedAll = (g: EdgeGestures, W: number, Hh: number, seq: Ev[]) =>
+    seq.flatMap(([k, x, y, ms]) => g.feed(t(k, x, y), x, y, Hh, W, 1000 + ms));
+  it("dai mep: P4 26 px canh / 30 px duoi, S3 20 / 24 (cu 18-24 / 12-19)", () => {
+    expect(edgeBands(1024, 600)).toMatchObject({ side: 26, bottom: 30, sideExt: 72, bottomExt: 54 });
+    expect(edgeBands(480, 480)).toMatchObject({ side: 20, bottom: 24, sideExt: 48, bottomExt: 43 });
+  });
+  it("P4 mep trai: diem dau x=30 (ngoai dai cu 18) nhung dang lao vao -> Quay lai", () => {
+    const g = new EdgeGestures();
+    const a = feedAll(g, 1024, 600, [[TouchKind.Down, 30, 300, 0], [TouchKind.Move, 42, 301, 10], [TouchKind.Move, 80, 303, 22],
+      [TouchKind.Move, 150, 305, 40], [TouchKind.Up, 150, 305, 50]]);
+    expect(a.every((x) => x.type === "back")).toBe(true);
+    expect(a[a.length - 1]).toMatchObject({ phase: "end", side: "left", commit: true });
+    expect(g.takeReport()).toEqual({ edge: "left", band: "ext", x: 30, y: 300, first: { dt: 10, d: 12 }, result: "back" });
+  });
+  it("keo thanh truot gan mep (cham roi moi keo) -> chuyen cho trang sau toi da FLICK_WINDOW_MS, khong Quay lai", () => {
+    const g = new EdgeGestures();
+    const a = feedAll(g, 1024, 600, [[TouchKind.Down, 40, 300, 0], [TouchKind.Move, 42, 300, 15], [TouchKind.Move, 44, 301, 40]]);
+    expect(a).toEqual([]);                                             // dang cho trong cua so
+    expect(g.holdDeadline()).toBe(1000 + FLICK_WINDOW_MS);
+    expect(g.poll(1000 + FLICK_WINDOW_MS)).toEqual([{ type: "pass", events: [t(TouchKind.Down, 40, 300)] }]);
+    const b = feedAll(g, 1024, 600, [[TouchKind.Move, 120, 302, 100], [TouchKind.Up, 120, 302, 120]]);
+    expect(b.every((x) => x.type === "pass")).toBe(true);
+    expect(g.takeReport()).toMatchObject({ edge: "left", band: "ext", result: "trang" });
+  });
+  it("cham nhanh trong dai mo rong (nut sat mep) -> van la cham cua trang", () => {
+    expect(feedAll(new EdgeGestures(), 1024, 600, [[TouchKind.Down, 40, 300, 0], [TouchKind.Up, 40, 300, 30]]))
+      .toEqual([{ type: "pass", events: [t(TouchKind.Down, 40, 300), t(TouchKind.Up, 40, 300)] }]);
+  });
+  it("lao vao nhung CHEO / doc -> khong phai Quay lai", () => {
+    const a = feedAll(new EdgeGestures(), 1024, 600, [[TouchKind.Down, 40, 300, 0], [TouchKind.Move, 52, 330, 10], [TouchKind.Up, 60, 380, 30]]);
+    expect(a.every((x) => x.type === "pass")).toBe(true);
+  });
+  it("S3 480x480 xoay 180°: mep PHAI (toa do tho x=24 -> trang x=455) lao vao -> Quay lai", () => {
+    const g = new EdgeGestures();
+    const a = feedAll(g, 480, 480, [[TouchKind.Down, 455, 240, 0], [TouchKind.Move, 443, 241, 12], [TouchKind.Move, 400, 242, 25], [TouchKind.Up, 380, 242, 40]]);
+    expect(a[a.length - 1]).toMatchObject({ type: "back", phase: "end", side: "right", commit: true });
+  });
+  it("S3 mep DUOI: diem dau y=450 (ngoai dai cu 19) dang vuot len -> ve man hinh chinh", () => {
+    const g = new EdgeGestures();
+    const a = feedAll(g, 480, 480, [[TouchKind.Down, 240, 450, 0], [TouchKind.Move, 240, 438, 10], [TouchKind.Move, 240, 400, 20], [TouchKind.Up, 240, 360, 40]]);
+    expect(a.filter((x) => x.type !== "homeDrag")).toEqual([{ type: "home" }]);
+    expect(g.takeReport()).toMatchObject({ edge: "bottom", band: "ext", result: "home" });
+  });
+  it("cuon trang tu gan mep duoi nhung bat dau CHAM (cham roi moi vuot) -> cuon trang, khong ve Home", () => {
+    const g = new EdgeGestures();
+    expect(feedAll(g, 480, 480, [[TouchKind.Down, 240, 445, 0], [TouchKind.Move, 240, 443, 20]])).toEqual([]);
+    expect(g.poll(1000 + FLICK_WINDOW_MS).map((x) => x.type)).toEqual(["pass"]);
+    expect(feedAll(g, 480, 480, [[TouchKind.Move, 240, 300, 120], [TouchKind.Up, 240, 250, 160]]).every((x) => x.type === "pass")).toBe(true);
+  });
+});
+describe("(08/10/2026) goc duoi: dai mo rong canh + duoi chong nhau", () => {
+  const go = (seq: [TouchKind, number, number, number][]) => { const g = new EdgeGestures();
+    return { g, a: seq.flatMap(([k, x, y, ms]) => g.feed(t(k, x, y), x, y, 480, 480, 1000 + ms)) }; };
+  it("S3 goc duoi trai (40,450) vuot LEN -> ve man hinh chinh (khong bi dai canh nuot)", () => {
+    const { g, a } = go([[TouchKind.Down, 40, 450, 0], [TouchKind.Move, 41, 436, 10], [TouchKind.Move, 42, 400, 22], [TouchKind.Up, 42, 360, 40]]);
+    expect(a.filter((x) => x.type !== "homeDrag")).toEqual([{ type: "home" }]);
+    expect(g.takeReport()).toMatchObject({ edge: "bottom", band: "ext", result: "home" });
+  });
+  it("cung goc do vuot NGANG vao trong -> Quay lai", () => {
+    const { a } = go([[TouchKind.Down, 40, 450, 0], [TouchKind.Move, 54, 449, 10], [TouchKind.Move, 110, 447, 25], [TouchKind.Up, 120, 447, 40]]);
+    expect(a[a.length - 1]).toMatchObject({ type: "back", phase: "end", side: "left", commit: true });
+  });
+});
