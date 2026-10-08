@@ -553,7 +553,7 @@
   function wifiScan() {
     wifiScanAt = Date.now(); wifiScanning = true;
     ctl({ settings: 'wifi', op: 'scan' });
-    setTimeout(function () { wifiScanning = false; if (last) render(last); }, 6000);
+    setTimeout(function () { wifiScanning = false; if (last) render(last); }, 10000);   // quet that ~6,5 s + len HA
   }
   function netPage() {
     var w = wifiItems(), out = [];

@@ -1583,8 +1583,8 @@ async function handleSettings(dev: DeviceSession, tab: Tab, msg: any): Promise<v
     const ok = await callService(plan).catch(() => false);
     console.log(`[settings] ${dev.deviceId}: Wi-Fi ${msg.op === 'scan' ? 'quet mang' : `doi sang "${String(msg.ssid).slice(0, 32)}"`} -> ${ok ? 'OK' : 'LOI'}`);
     if (!ok) return pushSettings(dev, tab, { ok: false, msg: 'Home Assistant không nhận lệnh (firmware chưa cập nhật?).' });
-    // Quet mat ~2-4 s; ket qua qua HA -> doc lai sau 5 s (trang tu doc moi 5 s).
-    setTimeout(() => { pushSettings(dev, tab).catch(() => { }); }, msg.op === 'scan' ? 5000 : 1500);
+    // Do that S3 08/10: quet mat ~6,5 s (13 kenh, ve kenh dang dung giua cac kenh) roi moi len HA -> doc lai sau 9 s.
+    setTimeout(() => { pushSettings(dev, tab).catch(() => { }); }, msg.op === 'scan' ? 9000 : 1500);
     return;
   }
   if (msg.settings !== 'set' || typeof msg.id !== 'string') return;
