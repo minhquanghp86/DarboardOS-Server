@@ -1,3 +1,14 @@
+## V2.9.118
+### Đổi Wi-Fi ngay trên màn hình
+- Cài đặt → Wi-Fi & Mạng kiểu iPhone: mạng đang dùng (vạch sóng, dấu ✓), danh sách mạng xung quanh (tự quét khi mở
+  trang, không làm rớt mạng), "Mạng khác…" cho mạng ẩn, trang nhập mật khẩu (bàn phím ảo, "Hiện mật khẩu").
+- An toàn: màn hình thử mạng mới trong ~40 giây; không vào được, hoặc vào được nhưng không thấy máy chủ Darboard, thì tự
+  quay lại mạng đang dùng. Mạng mới chỉ được lưu khi đã chạy được; mất điện giữa chừng thì khởi động lại vẫn ở mạng cũ.
+- Thông tin đầy đủ: tên mạng, BSSID, IP, MAC, DNS, cường độ sóng; Chẩn đoán thêm thời gian chạy; Giới thiệu thêm tên
+  ESPHome.
+- Cần firmware có hành động `wifi_scan` / `wifi_connect` (xem ví dụ YAML trong repo client, tệp `wifi_ui.h`); firmware cũ
+  thì trang chỉ hiện thông tin.
+
 ## V2.9.117
 ### Cài đặt thiết kế lại kiểu iOS
 - Màn ngang (7 inch) chia đôi như iPad: danh sách mục bên trái, nội dung bên phải. Màn vuông (4 inch) kiểu iPhone: danh

@@ -54,6 +54,14 @@ const PLACE: PlaceRule[] = [
   { re: /_wifi_signal$/, cat: 'net', sub: 'Wi-Fi', title: 'Cường độ sóng', ord: 1 },
   { re: /^sensor\..*_(ip|ip_address)$/, cat: 'net', sub: 'Wi-Fi', title: 'Địa chỉ IP', ord: 2 },
   { re: /^sensor\..*_(mac_esp|mac|mac_address)$/, cat: 'net', sub: 'Wi-Fi', title: 'Địa chỉ MAC', ord: 3 },
+  // (08/10/2026) Firmware doi Wi-Fi tu Cai dat: BSSID / DNS; danh sach mang quanh day + ket qua lan doi mang (trang Wi-Fi
+  // dung rieng, khong hien thanh dong); ten node ESPHome (server tim dich vu esphome.<ten>_wifi_*).
+  { re: /^sensor\..*_bssid$/, cat: 'net', sub: 'Wi-Fi', title: 'BSSID (điểm phát)', ord: 4 },
+  { re: /^sensor\..*_dns$/, cat: 'net', sub: 'Wi-Fi', title: 'DNS', ord: 5 },
+  { re: /^sensor\..*_mang_wi_fi_xung_quanh$/, cat: 'net', sub: 'Wi-Fi', title: 'Mạng Wi-Fi xung quanh', hide: true },
+  { re: /^sensor\..*_doi_wi_fi$/, cat: 'net', sub: 'Wi-Fi', title: 'Đổi Wi-Fi', hide: true },
+  { re: /^sensor\..*_ten_esphome$/, cat: 'about', sub: 'Thiết bị', title: 'Tên ESPHome' },
+  { re: /^sensor\..*_thoi_gian_chay$/, cat: 'diag', sub: 'Hiệu năng', title: 'Thời gian chạy', ord: 2 },
   { re: /_ha_darboard_server$/, cat: 'net', sub: 'Máy chủ Darboard', title: 'Địa chỉ máy chủ', ord: 0 },
   { re: /_ws_connected$/, cat: 'net', sub: 'Máy chủ Darboard', title: 'Kết nối', ord: 1 },
   { re: /_toc_do_tai_tcp$/, cat: 'net', sub: 'Đo tốc độ', title: 'Tốc độ tải lần đo gần nhất', ord: 0 },
@@ -221,6 +229,25 @@ export function isSaverPhotosSwitchId(entityId: string): boolean {
 }
 
 export interface ServiceCall { domain: string; service: string; data: Record<string, unknown> }
+
+/**
+ * (08/10/2026) DOI WI-FI tu Cai dat: firmware co dich vu (action ESPHome) wifi_scan / wifi_connect -> HA dat ten
+ * esphome.<ten node, '-' thanh '_'>_<action>. Ten node lay tu cam bien "Tên ESPHome" cua CHINH man hinh nay (ten node
+ * khac tien to ma thuc the — do that: P4 node esp32-p4-tab7, thuc the 7inch_tab_* / 7_0_guition_*). Kiem tra: ten mang
+ * 1-32 byte, mat khau rong (mang mo) hoac 8-63 ky tu (WPA2). Chuoi = loi (khong goi HA).
+ */
+export function planWifi(view: SettingsView, op: unknown, ssid?: unknown, password?: unknown): ServiceCall | string {
+  const node = view.items.find((i) => /^sensor\..*_ten_esphome$/.test(i.id) && !i.unavailable)?.value ?? '';
+  if (!/^[a-z0-9][a-z0-9-]{0,62}$/.test(node)) return 'firmware chua ho tro doi Wi-Fi';
+  const svc = node.replace(/-/g, '_');
+  if (op === 'scan') return { domain: 'esphome', service: `${svc}_wifi_scan`, data: {} };
+  if (op !== 'connect') return 'thao tac la';
+  if (typeof ssid !== 'string' || typeof password !== 'string') return 'thieu ten mang / mat khau';
+  const bytes = new TextEncoder().encode(ssid).length;
+  if (!ssid.trim() || bytes > 32 || /[\u0000-\u001f]/.test(ssid)) return 'ten mang khong hop le';
+  if (password.length && (password.length < 8 || password.length > 63 || /[\u0000-\u001f]/.test(password))) return 'mat khau phai 8-63 ky tu';
+  return { domain: 'esphome', service: `${svc}_wifi_connect`, data: { ssid, password } };
+}
 
 /**
  * Kiem tra thao tac cua nguoi dung voi MOT muc cai dat (phai nam trong view cua CHINH man hinh do) va doi thanh loi goi

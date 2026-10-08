@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HaEntity, HaState, SettingItem, buildSettingsView, findDeviceByMac, findNoSleepSwitch, findPresenceSelect, isSaverPhotosSwitchId, macFromDeviceId, placeSetting, planSet } from "./settingsModel.js";
+import { HaEntity, HaState, SettingItem, buildSettingsView, findDeviceByMac, findNoSleepSwitch, findPresenceSelect, isSaverPhotosSwitchId, macFromDeviceId, placeSetting, planSet, planWifi } from "./settingsModel.js";
 import { REAL_P4, REAL_S3 } from "./settingsModel.fixture.js";
 
 const dev = { id: "d1", name: "7.0 Guition JC1060P470C", model: "esp32-p4-evboard", sw_version: "2026.9.0",
@@ -151,5 +151,35 @@ describe("(08/10/2026) Cai dat kieu iOS — xep muc lon / nhom con", () => {
   it("khong khop luat nao -> theo group cua HA", () => {
     expect(place("switch.x_den_bao", "switch", "control", "Đèn báo")).toMatchObject({ cat: "other", sub: "Điều khiển" });
     expect(place("sensor.x_nhiet_do_chip", "value", "diag", "Nhiệt độ chip")).toMatchObject({ cat: "diag", sub: "Khác" });
+  });
+});
+
+describe("(08/10/2026) doi Wi-Fi tu Cai dat — tim dich vu ESPHome cua man hinh nay", () => {
+  const view = (node: string | null) => ({ device: { name: "x" }, items: node == null ? [] :
+    [{ id: "sensor.7_0_guition_jc1060p470c_ten_esphome", kind: "value" as const, group: "diag" as const, label: "Tên ESPHome", value: node }] });
+  it("ten node (khong theo tien to thuc the) -> esphome.<node>_wifi_*", () => {
+    expect(planWifi(view("esp32-p4-tab7"), "scan")).toEqual({ domain: "esphome", service: "esp32_p4_tab7_wifi_scan", data: {} });
+    expect(planWifi(view("guition-webview-4848s040"), "connect", "Nhà Tầng 2", "matkhau123"))
+      .toEqual({ domain: "esphome", service: "guition_webview_4848s040_wifi_connect", data: { ssid: "Nhà Tầng 2", password: "matkhau123" } });
+    expect(planWifi(view("esp32-p4-tab7"), "connect", "Quan cafe", "")).toMatchObject({ data: { password: "" } });   // mang mo
+  });
+  it("tu choi: firmware cu (khong co cam bien), ten mang / mat khau sai", () => {
+    expect(planWifi(view(null), "scan")).toBe("firmware chua ho tro doi Wi-Fi");
+    expect(planWifi(view("Bad Name!"), "scan")).toBe("firmware chua ho tro doi Wi-Fi");
+    expect(planWifi(view("p4"), "connect", "", "12345678")).toBe("ten mang khong hop le");
+    expect(planWifi(view("p4"), "connect", "a".repeat(33), "12345678")).toBe("ten mang khong hop le");
+    expect(planWifi(view("p4"), "connect", "Nhà", "1234567")).toBe("mat khau phai 8-63 ky tu");
+    expect(planWifi(view("p4"), "connect", "Nhà", "x".repeat(64))).toBe("mat khau phai 8-63 ky tu");
+    expect(planWifi(view("p4"), "xoa")).toBe("thao tac la");
+  });
+  it("cam bien moi cua firmware vao dung muc", () => {
+    const P = (id: string) => placeSetting({ id, kind: "value", group: "diag", label: "x", value: "" });
+    expect(P("sensor.7_0_guition_jc1060p470c_bssid")).toMatchObject({ cat: "net", title: "BSSID (điểm phát)" });
+    expect(P("sensor.7_0_guition_jc1060p470c_dns")).toMatchObject({ cat: "net", title: "DNS" });
+    expect(P("sensor.7_0_guition_jc1060p470c_wi_fi_ssid")).toMatchObject({ cat: "net", title: "Mạng đang kết nối" });
+    expect(P("sensor.4_3_guition_4848s040_mang_wi_fi_xung_quanh")).toMatchObject({ cat: "net", hide: true });
+    expect(P("sensor.4_3_guition_4848s040_doi_wi_fi")).toMatchObject({ cat: "net", hide: true });
+    expect(P("sensor.4_3_guition_4848s040_ten_esphome")).toMatchObject({ cat: "about", title: "Tên ESPHome" });
+    expect(P("sensor.4_3_guition_4848s040_thoi_gian_chay")).toMatchObject({ cat: "diag", sub: "Hiệu năng" });
   });
 });
