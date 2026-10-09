@@ -29,6 +29,18 @@ export function cameraHost(): CamHost | undefined {
   return hosts.values().next().value;
 }
 
+/**
+ * (09/10/2026) Camera / the nho cua man `dev`. Khong truyen dev -> man co camera dau tien.
+ * strict: dev da chi ro ma man do dang tat -> KHONG thay bang man khac (quan ly file / tai len: ghi nham the la hong du lieu).
+ */
+export function camHostOf(dev?: string | null, strict = false): { h?: CamHost; id?: string } {
+  if (dev && hosts.has(dev)) return { h: hosts.get(dev), id: dev };
+  if (dev && strict) return { id: dev };
+  return { h: cameraHost(), id: cameraDeviceId() };
+}
+/** (09/10/2026) Cac man co camera / the nho dang ket noi. */
+export function cameraDevices(): string[] { return [...hosts.keys()]; }
+
 /** Header Authorization cho moi lan goi cam_app cua P4 (firmware chua bat mat khau -> rong, chay nhu cu). */
 export function camAuth(h: CamHost): Record<string, string> {
   return h.auth ? { authorization: 'Basic ' + h.auth } : {};

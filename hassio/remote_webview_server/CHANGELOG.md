@@ -1,3 +1,11 @@
+## V2.9.128
+- **Quản lý file (trang Darboard) chọn được màn hình:** nhà có từ 2 màn có thẻ nhớ thì đầu thẻ Quản lý file có ô chọn
+  màn; xem / tải lên / đổi tên / xoá đều làm trên thẻ của màn đã chọn. Màn đã chọn đang tắt thì báo rõ, không ghi nhầm
+  sang thẻ màn khác. Danh sách “Tải lên” ghi tên màn đích.
+- **IPTV:** hộp “Chọn trên thẻ nhớ…” cũng chọn được màn; danh sách trên thẻ màn khác lưu dạng `sd@<màn>:/…`
+  (dạng cũ `sd:/…` vẫn chạy như trước). Trang IPTV trên màn hình duyệt thẻ nhớ của chính màn đó.
+- Tên màn hình (Tin nhắn, Báo thức, Quản lý file) có ngay sau khi add-on khởi động, không phải chờ 5 phút.
+
 ## V2.9.127
 - **Nhà có nhiều màn có camera:** ứng dụng Camera, Thư viện, Quản lý file trên màn hình và Tin nhắn (gửi ảnh từ thẻ nhớ,
   chụp nhanh, ghi âm) dùng camera / thẻ nhớ **của chính màn đang dùng** (trước đây luôn màn có camera đầu tiên).

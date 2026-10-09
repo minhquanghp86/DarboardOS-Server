@@ -471,12 +471,15 @@
 
   // ── Quan ly danh sach (nhu app IPTV that: them link / tep the nho, bat tat, sua, xoa) ──
   function mask(u) { return String(u).replace(/((?:password|pass|pwd|token|key)=)[^&]+/gi, '$1•••'); }
+  // (09/10/2026) "sd:/a.m3u" = the nho man co camera dau tien; "sd@<man>:/a.m3u" = the nho cua man do (nha nhieu P4).
+  function sdParse(u) { var m = /^sd(?:@([A-Za-z0-9_-]+))?:(\/.*)$/.exec(u || ''); return m ? { dev: m[1] || '', p: m[2] } : null; }
   function srcText(u) {
-    if (u.indexOf('sd:') === 0) return 'Thẻ nhớ · ' + u.slice(3);
+    var sp = sdParse(u);
+    if (sp) return 'Thẻ nhớ · ' + sp.p;
     if (u.charAt(0) === '/') return 'Home Assistant · ' + u;
     return mask(u.replace(/^https?:\/\//i, ''));
   }
-  function srcIcon(u) { return u.indexOf('sd:') === 0 ? 'sd' : u.charAt(0) === '/' ? 'folder-outline' : 'link-variant'; }
+  function srcIcon(u) { return sdParse(u) ? 'sd' : u.charAt(0) === '/' ? 'folder-outline' : 'link-variant'; }
   function hhmm(t) { var d = new Date(t), p = function (n) { return String(n).padStart(2, '0'); }; return p(d.getHours()) + ':' + p(d.getMinutes()) + ' ' + p(d.getDate()) + '/' + p(d.getMonth() + 1); }
   function openLists() {
     show('lists');
@@ -552,8 +555,10 @@
       return;
     }
     var l = i >= 0 ? S.cfg[i] : null;
-    E.i = i; E.mode = l && l.url.indexOf('sd:') === 0 ? 'sd' : 'url';
-    E.file = l && E.mode === 'sd' ? l.url.slice(3) : '';
+    var sp = l ? sdParse(l.url) : null;
+    E.i = i; E.mode = sp ? 'sd' : 'url';
+    E.file = sp ? sp.p : '';
+    E.dev = sp && sp.dev ? sp.dev : DEV; E.multi = false;
     E.dir = E.file ? E.file.slice(0, E.file.lastIndexOf('/')) || '/' : '/';
     E.autoName = '';
     $('edTitle').textContent = l ? 'Sửa danh sách' : 'Thêm danh sách';
@@ -576,8 +581,10 @@
     E.dir = dir;
     crumbs(dir);
     RwvUI.state($('sdList'), { kind: 'loading', title: 'Đang đọc thẻ nhớ…' });
-    api('/iptv/sd?t=' + S.token + '&p=' + encodeURIComponent(dir)).then(function (j) {
+    api('/iptv/sd?t=' + S.token + '&p=' + encodeURIComponent(dir) + (E.dev ? '&dev=' + encodeURIComponent(E.dev) : '')).then(function (j) {
       if (E.dir !== dir) return;
+      if (j.device) E.dev = j.device;
+      E.multi = (j.devices || []).length > 1;
       var rows = [];
       j.items.forEach(function (it) {
         var p = (dir === '/' ? '' : dir) + '/' + it.n;
@@ -617,7 +624,7 @@
     box.replaceChildren.apply(box, out);
   }
   function editorSave() {
-    var url = E.mode === 'url' ? $('edUrl').value.trim() : (E.file ? 'sd:' + E.file : '');
+    var url = E.mode === 'url' ? $('edUrl').value.trim() : (E.file ? (E.multi && E.dev ? 'sd@' + E.dev + ':' : 'sd:') + E.file : '');
     if (!url) { $('edErr').textContent = E.mode === 'url' ? 'Nhập đường link danh sách (bắt đầu bằng http:// hoặc https://).' : 'Chạm chọn một tệp danh sách trên thẻ nhớ.'; return; }
     if (E.mode === 'url' && !/^https?:\/\/\S+$/i.test(url)) { $('edErr').textContent = 'Đường link phải bắt đầu bằng http:// hoặc https://.'; return; }
     var name = $('edName').value.trim(), next = S.cfg.slice(), i = E.i;

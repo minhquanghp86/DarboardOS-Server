@@ -310,7 +310,7 @@ http.createServer((req, res) => {
   if (handleCalendarApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
   if (handleChatApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
   if (handleAlarmApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`), () => connectedScreens().map((s) => ({
-    id: s.id, name: screenNames.get(s.id) || `Màn hình ${s.w}×${s.h}`, spk: s.spk })))) return;
+    id: s.id, name: screenNameOf(s.id) || `Màn hình ${s.w}×${s.h}`, spk: s.spk })))) return;
 
   // (25/09/2026) Vi tri nha trong Home Assistant cho weather.html (cung nguon goc 127.0.0.1:HEALTH_PORT).
   if (pathname === '/weather-location') {
@@ -354,10 +354,18 @@ async function refreshScreenNames(): Promise<void> {
 }
 refreshScreenNames();
 setInterval(refreshScreenNames, 5 * 60_000);
+// (09/10/2026) Luc khoi dong chua man nao noi -> bang ten trong toi 5 phut (Tin nhan / Bao thuc / Quan ly file hien ma thô).
+// Gap man chua co ten -> nap lai ngay (toi da 30 s / lan).
+let namesAt = 0;
+function screenNameOf(id: string): string | undefined {
+  const n = screenNames.get(id);
+  if (!n && Date.now() - namesAt > 30_000) { namesAt = Date.now(); void refreshScreenNames(); }
+  return n;
+}
 setChatHooks({
   screens: () => connectedScreens().map((s) => {
     if (!screenNames.has(s.id)) refreshScreenNames();
-    return { ...s, name: screenNames.get(s.id) || '', online: true };  // '' = chua co ten HA -> chat.ts dung ten da luu
+    return { ...s, name: screenNameOf(s.id) || '', online: true };  // '' = chua co ten HA -> chat.ts dung ten da luu
   }),
   notify: (device, title, message, conv, image) => { postNotify({ device, title, message, priority: 'high', app: 'chat', arg: conv, ...(image ? { image } : {}) }); },
   people: async () => {
@@ -376,7 +384,7 @@ setChatHooks({
 });
 setNoticeArgHook((device, app, arg) => { if (app === 'chat') requestOpenConv(device, arg); });
 setChatUnreadProvider(unreadForScreen);
-setFileManagerHooks({ mediaBusy: (device) => isMediaPlaying(device) });
+setFileManagerHooks({ mediaBusy: (device) => isMediaPlaying(device), screenName: (id) => screenNameOf(id) || id });
 startWeatherMini();
 // (27/09/2026) Truyen YouTube tu dien thoai: panel hien nhu mot TV trong nut truyen (DIAL). Tat: tuy chon cast_enabled.
 if (!['0', 'false'].includes(process.env.CAST_ENABLED ?? '')) {
