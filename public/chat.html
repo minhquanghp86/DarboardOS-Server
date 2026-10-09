@@ -184,6 +184,8 @@
   var tT = 0;
   function toast(m, ms) { var t = $('toast'); t.textContent = m; t.hidden = false; clearTimeout(tT); tT = setTimeout(function () { t.hidden = true; }, ms || 2600); }
   var withDev = function (u) { return u + (u.indexOf('?') < 0 ? '?' : '&') + 'dev=' + encodeURIComponent(DEV); };
+  // (09/10/2026) Nha nhieu P4: the nho / camera CUA man nay (src/camProxy.ts pickCamHost).
+  var camUrl = function (u) { return DEV ? u + (u.indexOf('?') < 0 ? '?' : '&') + 'rwvdev=' + encodeURIComponent(DEV) : u; };
   function api(path, opt) {
     opt = opt || {};
     var init = { method: opt.method || 'GET', cache: 'no-store' };
@@ -502,7 +504,7 @@
   }
   function pickFromSd(sh) {
     sh.box.replaceChildren(el('h2', '', 'Chọn ảnh / video'), el('p', '', 'Đang đọc thẻ…'));
-    fetch('/api/cam/sd/ls?p=%2FDCIM', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (r) {
+    fetch(camUrl('/api/cam/sd/ls?p=%2FDCIM'), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (r) {
       var items = (r.items || []).filter(function (it) { return !it.d && /\.(jpe?g|png|mkv|mp4|webm)$/i.test(it.n); })
         .sort(function (a, b) { return b.t - a.t || (b.n > a.n ? 1 : -1); }).slice(0, 60);
       sh.box.replaceChildren(el('h2', '', 'Chọn ảnh / video'));
@@ -512,7 +514,7 @@
       items.forEach(function (it) {
         var p = '/DCIM/' + it.n, isV = /\.(mkv|mp4|webm)$/i.test(it.n);
         var bt = el('button'); bt.type = 'button';
-        var im = el('img'); im.loading = 'lazy'; im.alt = ''; im.src = '/api/cam/sd/thumb?p=' + encodeURIComponent(p) + '&s=' + it.s + '&t=' + it.t;
+        var im = el('img'); im.loading = 'lazy'; im.alt = ''; im.src = camUrl('/api/cam/sd/thumb?p=' + encodeURIComponent(p) + '&s=' + it.s + '&t=' + it.t);
         im.onerror = function () { im.remove(); };
         bt.append(im); if (isV) { var pl = svg('play'); pl.classList.add('play'); bt.append(pl); }
         bt.onclick = function () {
@@ -599,7 +601,7 @@
       // Micro (firmware cam_app api >= 3): hoi trang thai camera mot lan.
       if (cam && S.mic === undefined) {
         S.mic = false;
-        fetch('/api/cam/cam/status', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) { if (j && j.mic) { S.mic = true; buildComposer(); } }).catch(function () { });
+        fetch(camUrl('/api/cam/cam/status'), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) { if (j && j.mic) { S.mic = true; buildComposer(); } }).catch(function () { });
       }
     }
     if (S.cur && !S.convs.some(function (c) { return c.id === S.cur; })) { toast('Cuộc trò chuyện đã bị xoá'); closeConv(); }
