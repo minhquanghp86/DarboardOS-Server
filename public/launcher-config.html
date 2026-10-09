@@ -509,7 +509,7 @@
 <div class="wrap">
   <header>
     <h1>Widget trên màn hình khóa</h1>
-    <p>Màn hình khóa / chờ của các panel hiện năng lượng, lịch 3 ngày tới và lần camera phát hiện gần nhất. Bật / tắt từng loại trên mỗi panel: Cài đặt → Màn hình khóa.</p>
+    <p>Màn hình khóa / chờ của các panel hiện năng lượng, lịch 3 ngày tới (lịch Home Assistant hoặc lịch Google) và lần camera phát hiện gần nhất. Bật / tắt từng loại trên mỗi panel: Cài đặt → Màn hình khóa.</p>
   </header>
   <section class="card">
     <div class="card-head"><h2>Năng lượng</h2><span class="count" id="lwFrom"></span></div>
@@ -522,6 +522,22 @@
   </section>
   <div class="iv-status" id="lwStatus" role="status"></div>
   <div class="fm-note iv-help" id="lwHelp"></div>
+  <!-- (09/10/2026) LICH: lich cua Home Assistant (neu co) + lich Google / .ics dan dia chi bi mat (src/calendarSource.ts). -->
+  <section class="card" id="calCard">
+    <div class="card-head"><h2>Lịch</h2><span class="count" id="calCount"></span></div>
+    <div class="lw-now" id="calHa" role="status"></div>
+    <div id="calList"></div>
+    <form class="iv-form" id="calForm" novalidate>
+      <label class="field">Tên <input type="text" id="calName" maxlength="40" placeholder="Ví dụ: Lịch gia đình"></label>
+      <label class="field">Địa chỉ iCal <input type="text" id="calUrl" placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" autocomplete="off" spellcheck="false"></label>
+      <div class="err" id="calErr" role="alert"></div>
+      <div class="acts"><button class="btn primary" type="submit" id="calAdd">Thêm lịch</button></div>
+    </form>
+  </section>
+  <div class="iv-status" id="calStatus" role="status"></div>
+  <div class="fm-note iv-help">Lịch Google: mở calendar.google.com trên máy tính → ⚙ Cài đặt → chọn lịch ở cột trái → “Tích hợp lịch” → chép
+    “Địa chỉ bí mật ở định dạng iCal”. Địa chỉ này cho quyền xem lịch nên chỉ lưu trong add-on, trang này chỉ hiện phần cuối.
+    Không có lịch nào thì màn hình khóa và trang “Hôm nay” bỏ phần lịch.</div>
 </div>
 </main>
 <datalist id="lwDlP"></datalist><datalist id="lwDlE"></datalist><datalist id="lwDlS"></datalist>
@@ -1796,6 +1812,67 @@
   })();
 
   function enter() { if (visible() && !T.loaded && !T.busy) load(false); }
+  window.addEventListener('hashchange', enter);
+  render(); enter();
+})();
+</script>
+<script>
+// (09/10/2026) LICH (the "Màn khóa"): API src/calendarSource.ts "calendar/config" — GET {ha:[ten], ical:[{name,url(rut gon),ok,msg}]};
+// POST {add:{name,url}} | {remove:i}. Chi tu ingress.
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; }
+  var C = { loaded: false, busy: false, d: null };
+  function api(body) {
+    var init = { cache: 'no-store' };
+    if (body !== undefined) { init.method = 'POST'; init.headers = { 'content-type': 'application/json' }; init.body = JSON.stringify(body); }
+    return fetch('calendar/config', init).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok || j.ok === false) throw new Error(j.error || ('Lỗi ' + r.status)); return j; });
+    });
+  }
+  function status(t, k) { var x = $('calStatus'); x.textContent = t || ''; x.className = 'iv-status' + (k ? ' ' + k : ''); }
+  function render() {
+    var d = C.d || { ha: [], ical: [] };
+    $('calHa').textContent = !C.loaded ? 'Đang tải…' : d.ha.length ? 'Lịch của Home Assistant: ' + d.ha.join(', ') : 'Home Assistant chưa có lịch nào — thêm lịch Google bên dưới.';
+    var rows = d.ical.map(function (c, i) {
+      var r = el('div', 'row iv-row'), meta = el('div', 'meta'), st = el('div', 'iv-st' + (c.ok === false ? ' err' : ''));
+      meta.append(el('div', 'name', c.name), el('div', 'sub', c.url));
+      st.textContent = c.ok === false ? 'Lỗi: ' + c.msg : (c.msg || '');
+      meta.appendChild(st);
+      var del = el('button', 'btn', 'Xoá'); del.type = 'button'; del.disabled = C.busy;
+      del.onclick = function () {
+        if (!confirm('Xoá lịch “' + c.name + '”?')) return;
+        C.busy = true; render();
+        api({ remove: i }).then(function (j) { C.d = j; status('Đã xoá “' + c.name + '”.', 'ok'); })
+          .catch(function (e) { status(e.message, 'err'); }).then(function () { C.busy = false; render(); });
+      };
+      r.append(meta, del);
+      return r;
+    });
+    $('calList').replaceChildren.apply($('calList'), rows);
+    $('calCount').textContent = C.loaded ? (d.ha.length + d.ical.length) + ' lịch' : '';
+    $('calAdd').disabled = C.busy;
+  }
+  function load() {
+    C.busy = true; render();
+    api().then(function (j) { C.d = j; C.loaded = true; }).catch(function (e) { C.loaded = true; status(e.message, 'err'); })
+      .then(function () { C.busy = false; render(); });
+  }
+  $('calForm').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var url = $('calUrl').value.trim(), name = $('calName').value.trim();
+    $('calErr').textContent = '';
+    if (!/^(https?|webcal):\/\//i.test(url)) { $('calErr').textContent = 'Dán địa chỉ bắt đầu bằng https:// (hoặc webcal://).'; return; }
+    C.busy = true; render(); status('Đang thêm và tải thử lịch…');
+    api({ add: { name: name, url: url } }).then(function (j) {
+      C.d = j; $('calUrl').value = ''; $('calName').value = '';
+      var last = j.ical[j.ical.length - 1];
+      status(last && last.ok === false ? 'Đã lưu nhưng chưa tải được: ' + last.msg : 'Đã thêm lịch — màn hình khóa cập nhật trong vài phút.', last && last.ok === false ? 'err' : 'ok');
+    }).catch(function (e) { $('calErr').textContent = e.message; status(''); })
+      .then(function () { C.busy = false; render(); });
+  });
+  function enter() { if (location.hash === '#man-khoa' && !C.loaded && !C.busy) load(); }
   window.addEventListener('hashchange', enter);
   render(); enter();
 })();

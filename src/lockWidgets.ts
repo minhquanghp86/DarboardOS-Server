@@ -16,6 +16,7 @@ import path from 'node:path';
 import type http from 'node:http';
 import { haFetch, wsCalls } from './haSettings.js';
 import { cameraHosts, recentEvents } from './frigate.js';
+import { allCalendarEvents } from './calendarSource.js';
 
 /** Cam bien nang luong (entity_id). bat: + = DANG XA (quy uoc HA); batInvert: cam bien nguoc dau (+ = dang sac).
  *  grid: + = MUA dien (quy uoc HA); gridInvert: nguoc dau. pvToday: san luong mat troi HOM NAY (kWh, tu ve 0 luc nua dem). */
@@ -159,17 +160,9 @@ export function pickEvents(perCal: HaCalEvent[][], nowMs: number, tzMin: number,
   return out.sort((a, b) => a.s - b.s || Number(!!b.ad) - Number(!!a.ad)).slice(0, max);
 }
 async function fetchCalendar(tzMin: number): Promise<LwEvent[]> {
-  const r = await haFetch('/calendars');
-  if (!r.ok) throw new Error('calendars ' + r.status);
-  const cals = (await r.json() as { entity_id: string }[]).slice(0, 12);
-  const now = Date.now(), from = new Date(now - 86_400_000).toISOString(), to = new Date(now + CAL_DAYS * 86_400_000).toISOString();
-  const per = await Promise.all(cals.map(async (c) => {
-    try {
-      const e = await haFetch(`/calendars/${encodeURIComponent(c.entity_id)}?start=${encodeURIComponent(from)}&end=${encodeURIComponent(to)}`);
-      return e.ok ? await e.json() as HaCalEvent[] : [];
-    } catch { return []; }
-  }));
-  return pickEvents(per, now, tzMin);
+  // (09/10/2026) Lich HA (neu co) + lich iCal (Google...) da dan trong trang Darboard — src/calendarSource.ts.
+  const now = Date.now();
+  return pickEvents(await allCalendarEvents(now - 86_400_000, now + CAL_DAYS * 86_400_000) as HaCalEvent[][], now, tzMin);
 }
 
 // ── Bo dem + lam moi ─────────────────────────────────────────────────────────────────────────────────────────────

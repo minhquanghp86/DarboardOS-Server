@@ -40,6 +40,7 @@ import { startWeatherMini } from './weatherMini.js';
 import { handleIptvApi } from './iptv.js';
 import { handleFrigateApi } from './frigate.js';
 import { handleLockWidgetsApi, noteDeviceIp } from './lockWidgets.js';
+import { handleCalendarApi } from './calendarSource.js';
 import type WebSocket from 'ws';
 
 const WS_PORT   = env.get("WS_PORT").default("8081").asIntPositive();
@@ -305,6 +306,8 @@ http.createServer((req, res) => {
   if (handleLauncherApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
   // (08/10/2026) Trang Darboard -> tab "Màn khóa": cam bien nang luong cho widget (src/lockWidgets.ts).
   if (handleLockWidgetsApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
+  // (09/10/2026) Lich iCal (Google...) cho widget / trang Hom nay — src/calendarSource.ts.
+  if (handleCalendarApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
   if (handleChatApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
   if (handleAlarmApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`), () => connectedScreens().map((s) => ({
     id: s.id, name: screenNames.get(s.id) || `Màn hình ${s.w}×${s.h}`, spk: s.spk })))) return;

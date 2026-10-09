@@ -7,6 +7,7 @@
 // calendar.* cua HA qua REST), viec chua xong (todo.*, WebSocket), ghi chu bang tin; va doc loi chao qua loa cua panel
 // (tts.speak toi media_player cua chinh thiet bi ESPHome, tim theo MAC nhu ung dung Cai dat).
 import { board } from './board.js';
+import { allCalendarEvents } from './calendarSource.js';
 import { callService, getRegistry, getStates, haFetch, haReady, wsCalls } from './haSettings.js';
 import { buildTodoLists, todoItemsOf } from './homeModel.js';
 import { findDeviceByMac, macFromDeviceId } from './settingsModel.js';
@@ -16,22 +17,16 @@ import { getWeatherMini } from './weatherMini.js';
 export interface TodayView extends BriefingInput { date: string; briefing: string }
 
 async function events(tzMin: number): Promise<TodayEvent[]> {
-  const r = await haFetch('/calendars');
-  if (!r.ok) return [];
-  const cals = await r.json() as { entity_id: string }[];
+  // (09/10/2026) Lich HA (neu co) + lich iCal (Google...) — src/calendarSource.ts. Hom nay theo gio THIET BI.
   const { date } = deviceClock(Date.now(), tzMin);
-  const sign = tzMin >= 0 ? '+' : '-', hh = String(Math.floor(Math.abs(tzMin) / 60)).padStart(2, '0'), mm = String(Math.abs(tzMin) % 60).padStart(2, '0');
-  const start = `${date}T00:00:00${sign}${hh}:${mm}`, end = `${date}T23:59:59${sign}${hh}:${mm}`;
+  const start = Date.parse(`${date}T00:00:00Z`) - tzMin * 60_000, end = start + 86_400_000;
   const out: TodayEvent[] = [];
-  for (const c of cals.slice(0, 8)) {
-    try {
-      const e = await haFetch(`/calendars/${encodeURIComponent(c.entity_id)}?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
-      if (!e.ok) continue;
-      for (const ev of await e.json() as any[]) {
-        const s = ev?.start?.dateTime ?? ev?.start?.date;
-        if (typeof ev?.summary === 'string' && typeof s === 'string') out.push({ title: ev.summary.slice(0, 80), start: s, allDay: !ev.start.dateTime });
-      }
-    } catch { /* lich loi: bo qua */ }
+  for (const ev of (await allCalendarEvents(start, end)).flat()) {
+    const s = ev?.start?.dateTime ?? ev?.start?.date;
+    if (typeof ev?.summary !== 'string' || typeof s !== 'string') continue;
+    // Su kien ca ngay: tinh neu hom nay nam trong [bat dau, ket thuc) (ket thuc cua HA / iCal la ngay KE TIEP).
+    if (ev.start.date && !(ev.start.date <= date && date < (ev.end?.date ?? ev.start.date + '\uffff'))) continue;
+    out.push({ title: ev.summary.slice(0, 80), start: s, allDay: !ev.start.dateTime });
   }
   return out.sort((a, b) => Number(!a.allDay) - Number(!b.allDay) || a.start.localeCompare(b.start)).slice(0, 12);
 }
