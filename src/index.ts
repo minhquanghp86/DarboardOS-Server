@@ -105,7 +105,8 @@ wss.on("connection", async (ws, req) => {
 
   broadcaster.addClient(id, ws);
   // (08/10/2026) ca = base64(user:pass) HTTP cua P4 (firmware co bat mat khau) — khong nam trong cfg (cfg in ra /metrics).
-  noteCameraHost(id, req.socket.remoteAddress, cfg.camPort, url.searchParams.get("ca"));
+  // (09/10/2026) Man chi co the nho (?sd=, S3): cung so may cua Thu vien / Quan ly file, danh dau sdOnly.
+  noteCameraHost(id, req.socket.remoteAddress, cfg.camPort || cfg.sdPort, url.searchParams.get("ca"), !cfg.camPort && cfg.sdPort > 0);
   // (08/10/2026) Widget man khoa: nhan ra camera Frigate cua chinh panel (theo IP) de khong bao chinh nguoi dang dung truoc.
   noteDeviceIp(id, req.socket.remoteAddress);
 

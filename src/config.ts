@@ -42,6 +42,8 @@ export type DeviceConfig = {
   // (01/10/2026) ?cam=<cong>: firmware co ung dung Camera (cam_app, chi P4). 0 = khong co -> an ung dung Camera. Co dinh
   // theo firmware, KHONG dua vao deviceConfigsEqual().
   camPort: number;
+  /** (09/10/2026) Man KHONG co camera nhung co the nho (firmware sd_files, vd S3 4848S040): ?sd=<cong>. 0 = khong. */
+  sdPort: number;
   // (01/10/2026) ?snd=1: firmware tu phat chuong / bao thuc (DeviceControl PlaySound, am luong rieng Thong bao / Bao thuc,
   // Khong lam phien tren thiet bi). Khong co -> chuong qua luong am thanh trang web nhu cu. Co dinh theo firmware.
   sound: boolean;
@@ -158,6 +160,7 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
   const halfScale = params.get("half") === "1" || params.get("half") === "2";
   const halfVideo = params.get("half") === "2";
   const camPort = Math.max(0, Math.min(65535, parseInt(params.get("cam") || "0", 10) || 0));
+  const sdPort = Math.max(0, Math.min(65535, parseInt(params.get("sd") || "0", 10) || 0));
   const sound = params.get("snd") === "1";
   const urlSet = params.get("urlset") === "1";
   const fbBands = params.get("fb") === "1";
@@ -183,6 +186,7 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
     halfScale,
     halfVideo,
     camPort,
+    sdPort,
     sound,
     urlSet,
     fbBands,

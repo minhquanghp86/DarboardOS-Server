@@ -1742,9 +1742,9 @@ let noticeArgHook: ((deviceId: string, app: string, arg: string) => void) | null
 export function setNoticeArgHook(fn: (deviceId: string, app: string, arg: string) => void): void { noticeArgHook = fn; }
 
 /** (01/10/2026) Man hinh dang ket noi — cho Tin nhan (ten lay tu HA o index.ts). */
-export function connectedScreens(): { id: string; w: number; h: number; cam: boolean; spk: boolean }[] {
+export function connectedScreens(): { id: string; w: number; h: number; cam: boolean; sd: boolean; spk: boolean }[] {
   return [...devices.values()].filter((d) => broadcaster.getClientCount(d.deviceId) > 0)
-    .map((d) => ({ id: d.deviceId, w: d.cfg.width, h: d.cfg.height, cam: d.cfg.camPort > 0, spk: !!d.cfg.audioEnabled }));
+    .map((d) => ({ id: d.deviceId, w: d.cfg.width, h: d.cfg.height, cam: d.cfg.camPort > 0, sd: d.cfg.camPort > 0 || d.cfg.sdPort > 0, spk: !!d.cfg.audioEnabled }));
 }
 /** Ung dung `key` dang la tab hien tren man hinh (va den nen dang bat). */
 /** (02/10/2026) Man hinh dang phat video/am thanh — Quan ly file tam dung day tep len the de video khong giat. */
@@ -1853,8 +1853,8 @@ async function reloadLauncherTab(device: DeviceSession, tab: Tab): Promise<boole
   }
 }
 
-function homeLayoutFor(homeUrl: string | undefined, hasCamera = true): HomeLayout {
-  return resolveLayout(getLauncherConfig().home, buildLauncherApps(homeUrl, hasCamera).map((a) => a.id));
+function homeLayoutFor(homeUrl: string | undefined, hasCamera = true, hasSd = hasCamera): HomeLayout {
+  return resolveLayout(getLauncherConfig().home, buildLauncherApps(homeUrl, hasCamera, hasSd).map((a) => a.id));
 }
 
 /**
@@ -1865,7 +1865,7 @@ function homeLayoutFor(homeUrl: string | undefined, hasCamera = true): HomeLayou
 async function applyHomeLayout(except?: DeviceSession): Promise<void> {
   for (const dev of devices.values()) {
     const src = buildLauncherScript(dev.cfg.homeUrl, dev.cfg);
-    const layout = JSON.stringify(homeLayoutFor(dev.cfg.homeUrl, dev.cfg.camPort > 0));
+    const layout = JSON.stringify(homeLayoutFor(dev.cfg.homeUrl, dev.cfg.camPort > 0, dev.cfg.camPort > 0 || dev.cfg.sdPort > 0));
     for (const tab of dev.tabs.values()) {
       try {
         if (tab.launcherScriptId) await tab.session.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: tab.launcherScriptId });
@@ -1920,9 +1920,10 @@ function shellMotion(cfg: DeviceConfig | undefined): 'full' | 'reduced' | 'minim
  */
 export function buildLauncherScript(homeUrl: string | undefined, devCfg?: DeviceConfig): string {
   const hasCamera = !devCfg || devCfg.camPort > 0;
+  const hasSd = hasCamera || (devCfg?.sdPort ?? 0) > 0;   // (09/10/2026) S3 co the nho: Thu vien + Quan ly file
   const cfg = {
-    apps: buildLauncherApps(homeUrl, hasCamera),
-    home: homeLayoutFor(homeUrl, hasCamera),
+    apps: buildLauncherApps(homeUrl, hasCamera, hasSd),
+    home: homeLayoutFor(homeUrl, hasCamera, hasSd),
     groups: Object.entries(GROUP_TITLES),
     motion: shellMotion(devCfg),
     urls: {
@@ -2881,12 +2882,12 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
       // OTA xong, phien duoc tao boi firmware CU (khong co half=1); firmware moi noi lai roi vao day va
       // halfScale ket o false vinh vien. Cung loai loi voi homeUrl ben duoi. Hai co nay khong can dung lai
       // gi (khong script/target nao phu thuoc) nen chi can gan lai.
-      if (device.cfg.halfScale !== cfg.halfScale || device.cfg.halfVideo !== cfg.halfVideo || device.cfg.camPort !== cfg.camPort || device.cfg.audioEnabled !== cfg.audioEnabled || device.cfg.sound !== cfg.sound ||
+      if (device.cfg.halfScale !== cfg.halfScale || device.cfg.halfVideo !== cfg.halfVideo || device.cfg.camPort !== cfg.camPort || device.cfg.sdPort !== cfg.sdPort || device.cfg.audioEnabled !== cfg.audioEnabled || device.cfg.sound !== cfg.sound ||
           device.cfg.urlSet !== cfg.urlSet || device.cfg.fbBands !== cfg.fbBands ||
           device.cfg.devControl !== cfg.devControl || device.cfg.voice !== cfg.voice) {
         console.log(`[device] ${id}: cap nhat co firmware half=${cfg.halfScale}${cfg.halfVideo ? "(video)" : ""} cam=${cfg.camPort} audio=${cfg.audioEnabled} urlset=${cfg.urlSet} fb=${cfg.fbBands}`);
-        const camChanged = device.cfg.camPort !== cfg.camPort;
-        device.cfg = { ...device.cfg, halfScale: cfg.halfScale, halfVideo: cfg.halfVideo, camPort: cfg.camPort, sound: cfg.sound, audioEnabled: cfg.audioEnabled, urlSet: cfg.urlSet,
+        const camChanged = device.cfg.camPort !== cfg.camPort || device.cfg.sdPort !== cfg.sdPort;
+        device.cfg = { ...device.cfg, halfScale: cfg.halfScale, halfVideo: cfg.halfVideo, camPort: cfg.camPort, sdPort: cfg.sdPort, sound: cfg.sound, audioEnabled: cfg.audioEnabled, urlSet: cfg.urlSet,
                        fbBands: cfg.fbBands, devControl: cfg.devControl, voice: cfg.voice };
         device.processor.setBandSplit(cfg.fbBands);
         // (01/10/2026) Firmware moi co / het ung dung Camera: dung lai launcher (hien / an bieu tuong Camera).

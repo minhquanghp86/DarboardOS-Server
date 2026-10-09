@@ -209,7 +209,7 @@
   function shortTime(ts) { return dayKey(ts) === dayKey(Date.now()) ? hm(ts) : dayLabel(ts); }
   function fmtDur(s) { if (!s) return ''; s = Math.round(s); return Math.floor(s / 60) + ':' + p2(s % 60); }
 
-  var S = { rev: 0, me: null, convs: [], screens: [], cur: null, conv: null, msgs: [], read: {}, sending: 0, cam: false };
+  var S = { rev: 0, me: null, convs: [], screens: [], cur: null, conv: null, msgs: [], read: {}, sending: 0, cam: false, sd: false };
 
   if (!DEV) {
     RwvUI.state(document.body, { kind: 'err', title: 'Không nhận ra màn hình', text: 'Mở Tin nhắn từ menu ứng dụng của màn hình.' });
@@ -420,7 +420,7 @@
   // ---- Soan va gui ----
   function buildComposer() {
     var f = $('comp'); f.replaceChildren();
-    if (S.cam) f.append(ib('paperclip', 'Đính kèm ảnh / video', attach));
+    if (S.cam || S.sd) f.append(ib('paperclip', 'Đính kèm ảnh / video', attach));
     var t = el('input'); t.id = 'text'; t.type = 'text'; t.placeholder = 'Nhắn tin…'; t.maxLength = 2000; t.enterKeyHint = 'send';
     t.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); sendText(); } });
     f.append(t);
@@ -500,11 +500,14 @@
     };
     var b = el('button', 'big'); b.type = 'button'; b.append(svg('image-album'), document.createTextNode('Chọn từ Thư viện (thẻ SD)'));
     b.onclick = function () { pickFromSd(sh); };
-    sh.box.append(a, b); sh.acts(el('button', 'tb', 'Đóng'));
+    if (S.cam) sh.box.append(a);   // (09/10/2026) man chi co the nho: khong co nut chup
+    sh.box.append(b); sh.acts(el('button', 'tb', 'Đóng'));
   }
-  function pickFromSd(sh) {
+  function pickFromSd(sh, dir) {
+    // (09/10/2026) Man co camera: DCIM (anh / video tu chup). Man chi co the nho (S3): goc the (khong co DCIM thi cung goc).
+    dir = dir || (S.cam ? '/DCIM' : '/');
     sh.box.replaceChildren(el('h2', '', 'Chọn ảnh / video'), el('p', '', 'Đang đọc thẻ…'));
-    fetch(camUrl('/api/cam/sd/ls?p=%2FDCIM'), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (r) {
+    fetch(camUrl('/api/cam/sd/ls?p=' + encodeURIComponent(dir)), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (r) {
       var items = (r.items || []).filter(function (it) { return !it.d && /\.(jpe?g|png|mkv|mp4|webm)$/i.test(it.n); })
         .sort(function (a, b) { return b.t - a.t || (b.n > a.n ? 1 : -1); }).slice(0, 60);
       sh.box.replaceChildren(el('h2', '', 'Chọn ảnh / video'));
@@ -512,7 +515,7 @@
       if (!items.length) { sh.box.append(el('p', '', 'Thẻ chưa có ảnh hay video.')); sh.acts(el('button', 'tb', 'Đóng')); return; }
       var g = el('div', 'pick');
       items.forEach(function (it) {
-        var p = '/DCIM/' + it.n, isV = /\.(mkv|mp4|webm)$/i.test(it.n);
+        var p = (dir === '/' ? '' : dir) + '/' + it.n, isV = /\.(mkv|mp4|webm)$/i.test(it.n);
         var bt = el('button'); bt.type = 'button';
         var im = el('img'); im.loading = 'lazy'; im.alt = ''; im.src = camUrl('/api/cam/sd/thumb?p=' + encodeURIComponent(p) + '&s=' + it.s + '&t=' + it.t);
         im.onerror = function () { im.remove(); };
@@ -596,8 +599,9 @@
     S.rev = r.rev; S.me = r.me; S.convs = r.convs; S.screens = r.screens; S.people = r.people || {};
     var meScreen = S.screens.find(function (s) { return s.id === DEV; });
     var cam = !!(meScreen && meScreen.cam);
-    if (cam !== S.cam || !$('text')) {
-      S.cam = cam; buildComposer();
+    var sd = !!(meScreen && (meScreen.sd || meScreen.cam));   // (09/10/2026) man chi co the nho (S3)
+    if (cam !== S.cam || sd !== S.sd || !$('text')) {
+      S.cam = cam; S.sd = sd; buildComposer();
       // Micro (firmware cam_app api >= 3): hoi trang thai camera mot lan.
       if (cam && S.mic === undefined) {
         S.mic = false;

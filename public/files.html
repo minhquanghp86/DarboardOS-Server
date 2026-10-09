@@ -212,7 +212,11 @@
       S.sd = r; S.err = '';
       if (!r.sd) { S.items = []; return; }
       S.items = (r.items || []).map(function (it) { it.k = kindOf(it); it.p = join(S.dir, it.n); it.date = timeOf(it); return it; });
-    }).catch(function (e) { S.err = e.message; S.items = []; });
+    }).catch(function (e) {
+      // (09/10/2026) Man chi co the nho (S3, khong co ung dung Camera): the khong co DCIM -> Thu vien xem goc the.
+      if (GALLERY && GDIR === '/DCIM' && S.dir === '/DCIM' && /404|khong mo duoc/i.test(e.message)) { GDIR = S.dir = '/'; return load(); }
+      S.err = e.message; S.items = [];
+    });
   }
   function visible() {
     var a = S.items.slice();
@@ -300,7 +304,7 @@
     if (!a.length) {
       var box = el('div'); m.append(box);
       RwvUI.state(box, { kind: 'empty', title: GALLERY ? 'Chưa có ảnh hay video' : 'Thư mục trống',
-        text: GALLERY ? 'Ảnh và video chụp bằng ứng dụng Camera sẽ hiện ở đây.' : '' });
+        text: GALLERY ? (GDIR === '/DCIM' ? 'Ảnh và video chụp bằng ứng dụng Camera sẽ hiện ở đây.' : 'Chép ảnh / video vào thẻ (thẻ Quản lý file trên trang Darboard trong Home Assistant) để xem ở đây.') : '' });
       return;
     }
     if (GALLERY) renderGrid(m, a); else renderList(m, a);
