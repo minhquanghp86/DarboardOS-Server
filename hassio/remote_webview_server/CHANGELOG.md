@@ -1,9 +1,5 @@
-## V2.9.130
-- **Video qua Wi-Fi hồi nhanh sau mỗi đợt mạng giật:** trước đây một cú giật giữ màn ở ~15–20 fps tới 1–2 phút. Đo trên P4
-  qua Wi-Fi: YouTube 11,3 → 26,7 fps, YouTube TV 24,3 → 27,3 fps (cáp không đổi).
-- **YouTube tự bỏ qua quảng cáo** và **YouTube TV tự vào chế độ khách** khi hỏi tài khoản — hai công tắc mới trong Cài đặt
-  của màn (nhóm YouTube), mặc định bật.
-- `/metrics` có `adaptiveTick`: lý do + số đo từng nhịp của bộ điều tiết (chẩn đoán).
+## V2.9.131
+- **Trả về như 2.9.129** (bỏ thay đổi của 2.9.130: bộ điều tiết Wi-Fi, trợ giúp YouTube) — đo cuối 09/10 chưa ổn định, sẽ điều tra lại.
 
 ## V2.9.129
 - **Màn S3 có thẻ nhớ** (firmware fw-2026.10.12, component `sd_files`, `sd_card_api_port`): màn hiện **Thư viện** và

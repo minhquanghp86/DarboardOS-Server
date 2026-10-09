@@ -15,7 +15,7 @@ describe("cai dat addon theo tung man hinh", () => {
   it("chao buoi sang + thoi gian cho", () => {
     const p = new PanelPrefsStore(null);
     expect(p.items("esp32-0a0b0c0d0002", D).filter((i) => i.sec === "screen").map((i) => [i.id, i.on, i.value])).toEqual([
-      ["rwv.morning", true, ""], ["rwv.cast", true, ""], ["rwv.yt_skip_ads", true, ""], ["rwv.yttv_guest", true, ""], ["rwv.cast_name", true, "Darboard 0218"]]);
+      ["rwv.morning", true, ""], ["rwv.cast", true, ""], ["rwv.cast_name", true, "Darboard 0218"]]);
     expect(p.set("a", "rwv.morning", false)).toBe(true);
     expect(p.morning("a", true)).toBe(false);
     expect(p.set("a", "rwv.saver_idle", "Tắt")).toBe(true);

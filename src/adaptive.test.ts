@@ -421,32 +421,3 @@ describe("GĐ3 - ước lượng đường truyền", () => {
     return { state: out, now };
   }
 });
-
-describe('(09/10/2026) nguong tranh nghen do MANG het han', () => {
-  const cfgP4 = { ...DEFAULT_ADAPTIVE_CFG, decodeBudgetRatio: 1.3, maxBacklogBytes: 196_608, intervalBackoffFactor: 1.5,
-    intervalStepMs: 17, goodStreakNeeded: 1, cooldownMs: 5_000 };
-  const T = 1_000_000;
-  it('Wi-Fi giat mot lan (ton dong) -> ~20 s sau ve lai nhip goc, khong phai 145 s', () => {
-    let st = initialAdaptiveState(40, 33, T);
-    const spike = { decodeMs: 17, bytesPerSec: 400_000, frameErrors: 0, backlogBytes: 250_000 };
-    st = decideAdaptive(spike, st, cfgP4, T + 10_000).state;
-    expect(st.minFrameIntervalMs).toBeGreaterThan(33);
-    expect(st.probeFloorNet).toBe(true);
-    // Sau do mang lai binh thuong nhung ton dong lung chung (khong "thoai mai") -> cach cu ket lau
-    const ok = { decodeMs: 17, bytesPerSec: 400_000, frameErrors: 0, backlogBytes: 30_000 };
-    let back = 0;
-    for (let t = T + 15_000; t <= T + 60_000; t += 5_000) {
-      st = decideAdaptive(ok, st, cfgP4, t).state;
-      if (st.minFrameIntervalMs === 33 && !back) back = t - (T + 10_000);
-    }
-    expect(back).toBeGreaterThan(0);
-    expect(back).toBeLessThanOrEqual(25_000);
-  });
-  it('nguong do GIAI MA khong het han (tranh dao dong tab nang)', () => {
-    let st = { ...initialAdaptiveState(80, 33, T), quality: 40, minFrameIntervalMs: 50 };
-    st = decideAdaptive({ decodeMs: 200, bytesPerSec: 1000, frameErrors: 0 }, st, cfgP4, T + 60_000).state;
-    expect(st.probeFloorNet).toBe(false);
-    const s2 = decideAdaptive({ decodeMs: 5, bytesPerSec: 1000, frameErrors: 0, backlogBytes: 0 }, st, cfgP4, T + 90_000).state;
-    expect(s2.probeFloorMs).toBe(50);
-  });
-});
