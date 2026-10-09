@@ -1,11 +1,17 @@
+## V2.9.125
+- **Sửa địa chỉ ứng dụng web có sẵn** trong Darboard → Menu panel (ô "Địa chỉ web"): YouTube, Tin tức, Solar… Để trống =
+  mặc định; "Khôi phục mặc định" bỏ địa chỉ riêng. Trang hệ thống của add-on và Home Assistant (ô riêng) không đổi.
+- **Solar** là ứng dụng chung, địa chỉ mặc định trống — chưa nhập thì mở trang hướng dẫn.
+- **Sửa lỗi:** cấu hình Menu panel (ứng dụng ẩn, thứ tự, ứng dụng tự thêm, tên / biểu tượng đã sửa, bố cục màn hình
+  chính) bị bỏ qua sau mỗi lần add-on khởi động lại cho tới khi bấm Lưu.
+
 ## V2.9.124
 ### Dùng được ở nhà khác (không còn gắn với hệ thống của tác giả)
 - **Lịch không phụ thuộc Home Assistant:** màn hình khóa và trang "Hôm nay" lấy lịch của HA (nếu có) và **lịch Google /
   tệp .ics** — dán "Địa chỉ bí mật ở định dạng iCal" trong trang Darboard → Màn khóa → Lịch (sự kiện lặp lại, múi giờ).
 - **Camera không cần mở cổng go2rtc 1984:** các trang camera, lưới Frigate, ảnh trong thông báo đi qua add-on (`/go2rtc/`),
   add-on tự tìm go2rtc của Frigate. Ứng dụng Camera tự nhận luồng của chính màn hình (không gắn tên `p4_panel`).
-- Ẩn ứng dụng "Frigate" / "Sự kiện camera" khi nhà không có Frigate. Bỏ ứng dụng "Solar" (trang riêng của tác giả) và
-  vị trí bản đồ cố định — thêm trang riêng bằng ứng dụng tuỳ chỉnh trong "Menu panel".
+- Ẩn ứng dụng "Frigate" / "Sự kiện camera" khi nhà không có Frigate. Bản đồ không còn gắn một vị trí cố định.
 
 ## V2.9.123
 - **Bỏ** việc addon tự "Cấu hình lại" tích hợp ESPHome trong Home Assistant khi màn hình đổi IP (có ở 2.9.122): addon không
