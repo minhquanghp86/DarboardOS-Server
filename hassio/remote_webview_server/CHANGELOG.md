@@ -1,3 +1,9 @@
+## V2.9.127
+- **Nhà có nhiều màn có camera:** ứng dụng Camera, Thư viện, Quản lý file trên màn hình và Tin nhắn (gửi ảnh từ thẻ nhớ,
+  chụp nhanh, ghi âm) dùng camera / thẻ nhớ **của chính màn đang dùng** (trước đây luôn màn có camera đầu tiên).
+- **Bảo mật LAN:** toạ độ nhà (`/weather-location`) và danh sách camera (`/cams/list`) chỉ trả cho trình duyệt của add-on,
+  máy khác trong mạng không đọc được nữa.
+
 ## V2.9.126
 - **Ứng dụng Chrome** (thay "Trình duyệt"): logo Chrome, mở lại trang đang xem hoặc Google; thanh công cụ kiểu Chrome ở
   đáy màn hình — lùi / tiến / tải lại / ô địa chỉ (chạm để gõ địa chỉ hoặc từ khoá tìm Google) / trang chủ / thu gọn.
