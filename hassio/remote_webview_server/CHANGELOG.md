@@ -1,3 +1,10 @@
+## V2.9.129
+- **Màn S3 có thẻ nhớ** (firmware fw-2026.10.12, component `sd_files`, `sd_card_api_port`): màn hiện **Thư viện** và
+  **Quản lý file**, đính kèm ảnh / video từ thẻ trong Tin nhắn (không có nút chụp — màn không có camera), thẻ của S3 có
+  trong ô chọn màn ở thẻ Quản lý file và IPTV. Không hiện ứng dụng Camera.
+- Màn mặc định (IPTV `sd:/…`, Quản lý file lần đầu) luôn là màn có camera, dù màn chỉ có thẻ kết nối trước.
+- Thư viện: thẻ không có thư mục `/DCIM` thì xem ảnh / video ở gốc thẻ.
+
 ## V2.9.128
 - **Quản lý file (trang Darboard) chọn được màn hình:** nhà có từ 2 màn có thẻ nhớ thì đầu thẻ Quản lý file có ô chọn
   màn; xem / tải lên / đổi tên / xoá đều làm trên thẻ của màn đã chọn. Màn đã chọn đang tắt thì báo rõ, không ghi nhầm
