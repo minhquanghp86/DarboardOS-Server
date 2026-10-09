@@ -376,7 +376,7 @@ setChatHooks({
 });
 setNoticeArgHook((device, app, arg) => { if (app === 'chat') requestOpenConv(device, arg); });
 setChatUnreadProvider(unreadForScreen);
-setFileManagerHooks({ mediaBusy: (device) => isMediaPlaying(device) });
+setFileManagerHooks({ mediaBusy: (device) => isMediaPlaying(device), screenName: (id) => screenNames.get(id) || id });
 startWeatherMini();
 // (27/09/2026) Truyen YouTube tu dien thoai: panel hien nhu mot TV trong nut truyen (DIAL). Tat: tuy chon cast_enabled.
 if (!['0', 'false'].includes(process.env.CAST_ENABLED ?? '')) {

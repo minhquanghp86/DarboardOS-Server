@@ -17,7 +17,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { camAuth, cameraDeviceId, cameraHost, fileGate, serveThumb, smallGate } from './camProxy.js';
+import { camAuth, camHostOf, cameraDevices, fileGate, serveThumb, smallGate } from './camProxy.js';
 
 const INGRESS_IP = '172.30.32.2';
 const DATA_DIR = fs.existsSync('/data') ? '/data' : path.join(process.cwd(), 'data');
@@ -33,9 +33,13 @@ const VIDEO_RE = /\.(mkv|mp4|m4v|mov|webm|avi|3gp|ts|mts|m2ts|wmv|flv|hevc|h265)
 export interface FileManagerHooks {
   /** Man hinh dang phat video/am thanh -> tam dung day tep vao the. */
   mediaBusy(deviceId: string): boolean;
+  /** (09/10/2026) Ten man hinh (so dang ky thiet bi HA) cho o chon man o trang Darboard. */
+  screenName?(deviceId: string): string;
 }
 let hooks: FileManagerHooks | null = null;
 export function setFileManagerHooks(h: FileManagerHooks): void { hooks = h; }
+/** (09/10/2026) Ten man hinh (so dang ky HA) — IPTV hien o chon man khi duyet the nho. */
+export function fmScreenName(id: string): string { return hooks?.screenName?.(id) || id; }
 
 for (const d of [TMP_DIR, MP4_DIR]) fs.mkdirSync(d, { recursive: true });
 // Tai len do dang tu lan chay truoc: bo (trang se bao loi va nguoi dung tai lai).
@@ -73,8 +77,9 @@ function readBody(req: http.IncomingMessage, max: number): Promise<Buffer> {
 }
 
 /** Goi cam_app, doc JSON. */
-function cam(pathQuery: string, method = 'GET', body?: Buffer): Promise<{ code: number; j: any }> {
-  const h = cameraHost();
+// (09/10/2026) dev: man co the nho can thao tac (nha nhieu P4); bo trong -> man co camera dau tien.
+function cam(pathQuery: string, method = 'GET', body?: Buffer, dev?: string | null): Promise<{ code: number; j: any }> {
+  const h = camHostOf(dev, true).h;
   if (!h) return Promise.reject(new Error('Màn hình có thẻ SD chưa kết nối.'));
   const gate = body ? fileGate : smallGate;
   return gate.run(() => new Promise((resolve, reject) => {
@@ -94,10 +99,10 @@ function cam(pathQuery: string, method = 'GET', body?: Buffer): Promise<{ code: 
 const enc = encodeURIComponent;
 
 /** (07/10/2026) IPTV (src/iptv.ts): liet ke mot thu muc the SD — chon tep danh sach kenh ngay tren panel / trang Darboard. */
-export async function sdLs(dir: string): Promise<{ n: string; d: boolean; s: number; t: number }[]> {
+export async function sdLs(dir: string, dev?: string | null): Promise<{ n: string; d: boolean; s: number; t: number }[]> {
   const q = cleanSdPath(dir);
   if (!q) throw new Error('Đường dẫn không hợp lệ');
-  const r = await cam('/sd/ls?p=' + enc(q));
+  const r = await cam('/sd/ls?p=' + enc(q), 'GET', undefined, dev);
   if (r.code >= 400) throw new Error(r.j?.error || r.j?.err || `Thẻ nhớ báo lỗi ${r.code}`);
   return ((r.j?.items || []) as { n?: unknown; d?: unknown; s?: unknown; t?: unknown }[])
     .map((i) => ({ n: String(i.n ?? ''), d: !!i.d, s: Number(i.s) || 0, t: Number(i.t) || 0 }))
@@ -105,10 +110,10 @@ export async function sdLs(dir: string): Promise<{ n: string; d: boolean; s: num
 }
 
 /** (07/10/2026) IPTV: doc mot tep van ban (danh sach M3U) tu the SD, toi da `max` byte. */
-export function sdReadText(p: string, max: number): Promise<string> {
+export function sdReadText(p: string, max: number, dev?: string | null): Promise<string> {
   const q = cleanSdPath(p);
   if (!q || q === '/') return Promise.reject(new Error('Đường dẫn không hợp lệ'));
-  const h = cameraHost();
+  const h = camHostOf(dev, true).h;
   if (!h) return Promise.reject(new Error('màn hình có thẻ nhớ chưa kết nối'));
   return fileGate.run(() => new Promise<string>((resolve, reject) => {
     const up = http.request({ host: h.ip, port: h.port, path: '/sd/get?p=' + enc(q), timeout: 30_000, headers: camAuth(h) }, (r) => {
@@ -127,8 +132,8 @@ export function sdReadText(p: string, max: number): Promise<string> {
 }
 
 /** Tai mot tep tu the ve dia (de doi MP4 / ...). */
-function downloadTo(p: string, dest: string): Promise<void> {
-  const h = cameraHost();
+function downloadTo(p: string, dest: string, dev?: string | null): Promise<void> {
+  const h = camHostOf(dev, true).h;
   if (!h) return Promise.reject(new Error('Màn hình có thẻ SD chưa kết nối.'));
   return fileGate.run(() => new Promise<void>((resolve, reject) => {
     const up = http.request({ host: h.ip, port: h.port, path: '/sd/get?p=' + enc(p), timeout: 60_000, headers: camAuth(h) }, (r) => {
@@ -199,8 +204,8 @@ function pruneMp4Cache(): void {
 }
 
 /** MKV/MOV/WebM tren the -> MP4 (hinh chep nguyen, tieng AAC). Khoa theo duong + kich thuoc + gio sua. */
-export function ensureMp4(p: string, size: string, t: string): Promise<string> {
-  const key = crypto.createHash('sha1').update(`${p}|${size}|${t}`).digest('hex').slice(0, 20);
+export function ensureMp4(p: string, size: string, t: string, dev?: string | null): Promise<string> {
+  const key = crypto.createHash('sha1').update(`${dev || ''}|${p}|${size}|${t}`).digest('hex').slice(0, 20);
   const out = path.join(MP4_DIR, key + '.mp4');
   if (fs.existsSync(out)) { const now = new Date(); fs.utimesSync(out, now, now); return Promise.resolve(out); }
   const cur = mp4Inflight.get(key);
@@ -208,7 +213,7 @@ export function ensureMp4(p: string, size: string, t: string): Promise<string> {
   const job = (async () => {
     const src = path.join(TMP_DIR, key + '.src'), tmp = path.join(TMP_DIR, key + '.mp4');
     try {
-      await downloadTo(p, src);
+      await downloadTo(p, src, dev);
       // Hinh: chep nguyen neu la H.264/HEVC/AV1 (MP4 nhan); con lai (VP8...) thi nen lai. Tieng: AAC (mu-law/PCM/Opus...).
       let vcodec = '';
       await run('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=codec_name', '-of', 'csv=p=0', src], (l) => { vcodec += l.trim(); });
@@ -233,6 +238,8 @@ export function ensureMp4(p: string, size: string, t: string): Promise<string> {
 // ── Tai len: khuc -> dia, roi viec nen (tuy chon) + day vao the ─────────────────────────────────────────────────────
 export interface Job {
   id: string; name: string; dest: string; size: number; opt: boolean;
+  /** (09/10/2026) man dich (the nho) + ten de hien trong danh sach Tai len. */
+  dev?: string; devName?: string;
   stage: 'queue' | 'convert' | 'push' | 'wait' | 'done' | 'error' | 'cancel';
   pct: number; err?: string; created: number; finished?: number;
 }
@@ -243,8 +250,8 @@ let worker: Promise<void> | null = null;
 
 function upPath(u: string): string { return path.join(TMP_DIR, u + '.part'); }
 
-async function uniqueDest(dir: string, name: string): Promise<string> {
-  const r = await cam('/sd/ls?p=' + enc(dir));
+async function uniqueDest(dir: string, name: string, dev?: string | null): Promise<string> {
+  const r = await cam('/sd/ls?p=' + enc(dir), 'GET', undefined, dev);
   if (r.code !== 200 || !Array.isArray(r.j.items)) throw new Error(r.j.err || 'Không đọc được thư mục trên thẻ.');
   const have = new Set<string>((r.j.items as { n: string }[]).map((i) => i.n.toLowerCase()));
   const dot = name.lastIndexOf('.');
@@ -264,12 +271,12 @@ async function pushToCard(job: Job, file: string, ctl: { cancelled?: boolean }):
   try {
     while (off < size || size === 0) {
       if (ctl.cancelled) throw new Error('Đã huỷ');
-      const dev = cameraDeviceId();
+      const dev = job.dev ?? camHostOf().id;
       if (dev && hooks?.mediaBusy(dev)) { job.stage = 'wait'; await new Promise((r) => setTimeout(r, 2000)); continue; }
       job.stage = 'push';
       const n = fs.readSync(fd, buf, 0, Math.min(PUSH_CHUNK, size - off), off);
       try {
-        const r = await cam(`/sd/put?p=${enc(part)}&off=${off}${off === 0 ? `&size=${size}` : ''}`, 'POST', buf.subarray(0, n));
+        const r = await cam(`/sd/put?p=${enc(part)}&off=${off}${off === 0 ? `&size=${size}` : ''}`, 'POST', buf.subarray(0, n), job.dev);
         if (r.code === 409 && typeof r.j.have === 'number') { off = r.j.have; continue; }     // lech: ghi tiep tu cho the co
         if (r.code !== 200 || !r.j.ok) throw Object.assign(new Error(r.j.err || `HTTP ${r.code}`), { fatal: r.code === 507 || r.code === 400 });
         off = r.j.size; fails = 0;
@@ -277,14 +284,14 @@ async function pushToCard(job: Job, file: string, ctl: { cancelled?: boolean }):
         if ((e as { fatal?: boolean }).fatal || ++fails > 6) throw e;
         await new Promise((r) => setTimeout(r, 1500 * fails));
         // Hoi lai kich thuoc that tren the (khuc vua roi co the da ghi mot phan)
-        const r = await cam(`/sd/put?p=${enc(part)}&off=${off + 1}`, 'POST', Buffer.alloc(0)).catch(() => null);
+        const r = await cam(`/sd/put?p=${enc(part)}&off=${off + 1}`, 'POST', Buffer.alloc(0), job.dev).catch(() => null);
         if (r && r.code === 409 && typeof r.j.have === 'number') off = r.j.have;
       }
       job.pct = size ? Math.min(99, Math.round((off / size) * 100)) : 99;
       if (size === 0) break;
     }
   } finally { fs.closeSync(fd); }
-  const mv = await cam(`/sd/mv?p=${enc(part)}&to=${enc(job.dest)}`, 'POST');
+  const mv = await cam(`/sd/mv?p=${enc(part)}&to=${enc(job.dest)}`, 'POST', undefined, job.dev);
   if (mv.code !== 200 || !mv.j.ok) throw new Error(mv.j.err || 'Không đổi tên tệp tạm trên thẻ');
 }
 
@@ -307,7 +314,7 @@ async function runJob(job: Job): Promise<void> {
       file = out;
       const dot = job.name.lastIndexOf('.');
       const nn = (dot > 0 ? job.name.slice(0, dot) : job.name) + '.mp4';
-      job.dest = await uniqueDest(job.dest.slice(0, job.dest.lastIndexOf('/')) || '/', nn);
+      job.dest = await uniqueDest(job.dest.slice(0, job.dest.lastIndexOf('/')) || '/', nn, job.dev);
       job.name = nn;
     }
     job.size = fs.statSync(file).size;
@@ -346,23 +353,26 @@ export function handleFileManager(req: http.IncomingMessage, res: http.ServerRes
   const ip = (req.socket.remoteAddress || '').replace(/^::ffff:/, '');
   if (ip !== INGRESS_IP && process.env.LAUNCHER_CONFIG_OPEN !== '1') { json(res, 403, { error: 'Chỉ dùng được từ trang Darboard trong Home Assistant.' }); return true; }
   const route = url.pathname.slice(4), q = url.searchParams;
+  const DEV = q.get('dev');    // (09/10/2026) man co the nho dang chon (GET); POST: body.dev
   const fail = (e: unknown, code = 502) => { if (!res.headersSent) json(res, code, { error: (e as Error).message || String(e) }); else res.destroy(); };
   (async () => {
+    // (09/10/2026) devices: moi man co the nho dang ket noi (o chon man o trang); device: man dang chon (?dev=, mac dinh man dau).
+    const devices = cameraDevices().map((id) => ({ id, name: hooks?.screenName?.(id) || id }));
     if (route === 'info' && req.method === 'GET') {
-      const dev = cameraDeviceId();
-      if (!dev || !cameraHost()) return json(res, 200, { ok: true, online: false });
-      const st = await cam('/cam/status').catch(() => null);
-      return json(res, 200, { ok: true, online: !!st, device: dev, busy: !!hooks?.mediaBusy(dev), sd: st?.j?.sd ?? null,
+      const { h, id: dev } = camHostOf(DEV, true);
+      if (!dev || !h) return json(res, 200, { ok: true, online: false, device: dev ?? null, devices, jobs: visibleJobs() });
+      const st = await cam('/cam/status', 'GET', undefined, dev).catch(() => null);
+      return json(res, 200, { ok: true, online: !!st, device: dev, devices, busy: !!hooks?.mediaBusy(dev), sd: st?.j?.sd ?? null,
         rec: st?.j?.rec ?? null, jobs: visibleJobs() });
     }
     if (route === 'ls' && req.method === 'GET') {
       const p = cleanSdPath(q.get('p') || '/');
       if (!p) return json(res, 400, { error: 'Đường dẫn không hợp lệ' });
-      const r = await cam('/sd/ls?p=' + enc(p));
+      const r = await cam('/sd/ls?p=' + enc(p), 'GET', undefined, DEV);
       return json(res, r.code, r.j);
     }
     if (route === 'thumb' && req.method === 'GET') {
-      const h = cameraHost();
+      const h = camHostOf(DEV, true).h;
       if (!h) return json(res, 503, { error: 'offline' });
       return serveThumb(h, url.search, res);
     }
@@ -371,10 +381,10 @@ export function handleFileManager(req: http.IncomingMessage, res: http.ServerRes
       if (!p || p === '/') return json(res, 400, { error: 'Đường dẫn không hợp lệ' });
       const name = p.slice(p.lastIndexOf('/') + 1);
       if (route === 'mp4') {
-        const file = await ensureMp4(p, q.get('s') || '', q.get('t') || '');
+        const file = await ensureMp4(p, q.get('s') || '', q.get('t') || '', DEV);
         return sendFile(req, res, file, 'video/mp4', q.get('dl') ? name.replace(/\.[^.]+$/, '') + '.mp4' : undefined);
       }
-      const h = cameraHost();
+      const h = camHostOf(DEV, true).h;
       if (!h) return json(res, 503, { error: 'Màn hình có thẻ SD chưa kết nối.' });
       return fileGate.run(() => new Promise<void>((done) => {
         const up = http.request({ host: h.ip, port: h.port, path: '/sd/get?p=' + enc(p), timeout: 30_000,
@@ -407,13 +417,16 @@ export function handleFileManager(req: http.IncomingMessage, res: http.ServerRes
       return json(res, 200, { ok: true, size: have + b.length });
     }
     const body = JSON.parse((await readBody(req, 64 * 1024)).toString('utf8') || '{}');
+    const BDEV: string | null = typeof body.dev === 'string' ? body.dev : DEV;
     if (route === 'commit') {
       const u = String(body.u || ''), dir = cleanSdPath(body.dir), name = cleanName(body.name);
       if (!/^[a-f0-9]{16,40}$/.test(u) || !fs.existsSync(upPath(u)) || !dir || !name) return json(res, 400, { error: 'Tham số không hợp lệ' });
       const size = fs.statSync(upPath(u)).size;
       if (typeof body.size === 'number' && body.size !== size) return json(res, 400, { error: 'Tải lên chưa đủ — thử lại' });
       const id = crypto.randomBytes(8).toString('hex');
-      const job: Job = { id, name, dest: await uniqueDest(dir, name), size, opt: !!body.opt && VIDEO_RE.test(name), stage: 'queue', pct: 0, created: Date.now() };
+      const tgt = camHostOf(BDEV, true).id;
+      const job: Job = { id, name, dest: await uniqueDest(dir, name, tgt), size, opt: !!body.opt && VIDEO_RE.test(name), stage: 'queue', pct: 0, created: Date.now(),
+        ...(tgt ? { dev: tgt, devName: hooks?.screenName?.(tgt) || tgt } : {}) };
       const f = path.join(TMP_DIR, id + '.src');
       fs.renameSync(upPath(u), f);
       jobFiles.set(id, f); cancels.set(id, {});
@@ -437,7 +450,7 @@ export function handleFileManager(req: http.IncomingMessage, res: http.ServerRes
       if (!list.length) return json(res, 400, { error: 'Chưa chọn tệp' });
       const failed: { p: string; err: string }[] = [];
       for (const p of list) {
-        const r = await cam('/sd/rm?p=' + enc(p), 'POST').catch((e) => ({ code: 502, j: { err: (e as Error).message } }));
+        const r = await cam('/sd/rm?p=' + enc(p), 'POST', undefined, BDEV).catch((e) => ({ code: 502, j: { err: (e as Error).message } }));
         if (r.code !== 200 || !r.j.ok) failed.push({ p, err: r.j.err || `HTTP ${r.code}` });
       }
       console.log(`[fm] xoa ${list.length - failed.length}/${list.length} muc`);
@@ -446,13 +459,13 @@ export function handleFileManager(req: http.IncomingMessage, res: http.ServerRes
     if (route === 'mv') {
       const p = cleanSdPath(body.p), to = cleanSdPath(body.to);
       if (!p || !to || p === '/' || to === '/') return json(res, 400, { error: 'Đường dẫn không hợp lệ' });
-      const r = await cam(`/sd/mv?p=${enc(p)}&to=${enc(to)}`, 'POST');
+      const r = await cam(`/sd/mv?p=${enc(p)}&to=${enc(to)}`, 'POST', undefined, BDEV);
       return json(res, r.code, r.j.ok ? { ok: true } : { error: r.j.err || `HTTP ${r.code}` });
     }
     if (route === 'mkdir') {
       const p = cleanSdPath(body.p);
       if (!p || p === '/') return json(res, 400, { error: 'Tên thư mục không hợp lệ' });
-      const r = await cam('/sd/mkdir?p=' + enc(p), 'POST');
+      const r = await cam('/sd/mkdir?p=' + enc(p), 'POST', undefined, BDEV);
       return json(res, r.code, r.j.ok ? { ok: true } : { error: r.j.err || `HTTP ${r.code}` });
     }
     return json(res, 404, { error: 'khong co' });

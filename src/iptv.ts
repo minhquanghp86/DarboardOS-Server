@@ -19,7 +19,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import type { Readable } from 'node:stream';
-import { cleanSdPath, sdLs, sdReadText } from './fileManager.js';
+import { cleanSdPath, fmScreenName, sdLs, sdReadText } from './fileManager.js';
+import { camHostOf, cameraDevices } from './camProxy.js';
 
 export type StreamKind = 'hls' | 'ts' | 'flv' | 'mp4' | 'dash' | 'auto';
 export interface Channel {
@@ -321,15 +322,20 @@ const inflight = new Map<string, Promise<ListState>>();
 
 /** Ten may chu (khong lo duong dan / tai khoan Xtream trong log). */
 function hostOf(u: string): string {
-  if (u.startsWith('sd:')) return 'the nho';
+  if (/^sd[:@]/.test(u)) return 'the nho';
   try { return new URL(u).host; } catch { return u.startsWith('/') ? 'tep cuc bo' : '?'; }
 }
-/** (07/10/2026) "sd:/thu-muc/kenh.m3u" = tep tren THE NHO cua man hinh co camera (P4), doc qua cam_app. */
-function sdPath(u: string): string | null {
-  if (!u.startsWith('sd:')) return null;
-  const p = cleanSdPath(u.slice(3));
-  return p && p !== '/' ? p : null;
+/**
+ * (07/10/2026) "sd:/thu-muc/kenh.m3u" = tep tren THE NHO cua man hinh co camera (P4), doc qua cam_app.
+ * (09/10/2026) Nha nhieu man co the nho: "sd@<id man hinh>:/thu-muc/kenh.m3u" (dang cu "sd:/..." = man co camera dau tien).
+ */
+export function sdRef(u: string): { p: string; dev?: string } | null {
+  const m = /^sd(?:@([A-Za-z0-9_-]{1,40}))?:(\/.*)$/.exec(u);
+  if (!m) return null;
+  const p = cleanSdPath(m[2]);
+  return p && p !== '/' ? { p, ...(m[1] ? { dev: m[1] } : {}) } : null;
 }
+function sdPath(u: string): string | null { return sdRef(u)?.p ?? null; }
 
 /** Duong dan tep cuc bo duoc phep: /media (HA, chi doc) va /config (thu muc cau hinh rieng cua addon). */
 function localPath(u: string): string | null {
@@ -339,8 +345,8 @@ function localPath(u: string): string | null {
 }
 
 async function fetchText(u: string): Promise<string> {
-  const sp = sdPath(u);
-  if (sp) return sdReadText(sp, MAX_LIST_BYTES);
+  const sr = sdRef(u);
+  if (sr) return sdReadText(sr.p, MAX_LIST_BYTES, sr.dev);
   const lp = localPath(u);
   if (lp) {
     const st = await fs.promises.stat(lp);
@@ -631,8 +637,12 @@ export function handleIptvApi(req: http.IncomingMessage, res: http.ServerRespons
     // Duyet the nho tim tep danh sach (tu trang IPTV tren panel — can ma phien — hoac trang Darboard).
     if (!ingress && url.searchParams.get('t') !== TOKEN) { json(res, 403, { error: 'Thiếu mã phiên.' }); return true; }
     const dir = url.searchParams.get('p') || '/';
-    sdLs(dir).then((items) => json(res, 200, {
-      ok: true, dir, items: items.filter((i) => i.d || /\.(m3u8?|txt)$/i.test(i.n))
+    // (09/10/2026) Nha nhieu man co the nho: ?dev= chon man; devices de trang hien o chon man.
+    // Trang Darboard: man da chon (chat — man tat thi bao loi, khong doc nham the khac); panel: the cua chinh no, khong co -> man dau.
+    const dev = ingress ? url.searchParams.get('dev') : (camHostOf(url.searchParams.get('dev')).id ?? null);
+    const devices = cameraDevices().map((id) => ({ id, name: fmScreenName(id) }));
+    sdLs(dir, dev).then((items) => json(res, 200, {
+      ok: true, dir, device: camHostOf(dev, true).id ?? null, devices, items: items.filter((i) => i.d || /\.(m3u8?|txt)$/i.test(i.n))
         .sort((a, b) => (a.d === b.d ? a.n.localeCompare(b.n, 'vi', { numeric: true }) : a.d ? -1 : 1)),
     })).catch((e) => json(res, 200, { ok: false, error: (e as Error).message }));
     return true;

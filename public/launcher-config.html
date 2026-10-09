@@ -238,6 +238,11 @@
   .crumbs button svg { width: 20px; height: 20px; fill: currentColor; }
   .crumbs .sep { color: var(--muted); padding: 0 1px; }
   .fm-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  /* (09/10/2026) Chon man co the nho (chi hien khi nha co tu 2 man) */
+  .fm-dev { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+  .fm-dev svg { width: 18px; height: 18px; fill: currentColor; }
+  .fm-dev select { font: inherit; font-size: 14px; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; max-width: 220px; }
+  .fm-dev select:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
   .btn svg { width: 18px; height: 18px; fill: currentColor; vertical-align: -4px; margin-right: 6px; }
   .fm-sub { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
   .fm-store { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 5px; color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
@@ -382,6 +387,7 @@
 
 <main id="filesView" hidden>
   <div class="fm-head">
+    <label class="fm-dev" id="fmDevBox" hidden><select id="fmDev" aria-label="Thẻ nhớ của màn hình"></select></label>
     <nav class="crumbs" id="fmCrumbs" aria-label="Thư mục"></nav>
     <div class="fm-actions">
       <button class="btn primary" id="fmUpload" type="button"></button>
@@ -544,7 +550,7 @@
 <dialog id="ivSdDlg">
   <form class="dlg" method="dialog">
     <div class="dlg-head"><h3>Chọn tệp trên thẻ nhớ</h3></div>
-    <div class="dlg-body"><nav class="crumbs" id="ivSdCrumbs" aria-label="Thư mục"></nav><div id="ivSdList" class="iv-sdl"></div></div>
+    <div class="dlg-body"><label class="fm-dev" id="ivSdDevBox" hidden><select id="ivSdDev" aria-label="Thẻ nhớ của màn hình"></select></label><nav class="crumbs" id="ivSdCrumbs" aria-label="Thư mục"></nav><div id="ivSdList" class="iv-sdl"></div></div>
     <div class="dlg-foot"><button type="button" class="btn" id="ivSdClose">Đóng</button></div>
   </form>
 </dialog>
@@ -1318,11 +1324,14 @@
   var MP4ABLE = /\.(mkv|mov|webm)$/i, CH = 768 * 1024;
   var F = { dir: '/', items: [], total: 0, free: 0, sort: 'date', sel: new Set(), selMode: false, info: null, ups: [], loaded: false, busy: false, lastJobs: '' };
   try { F.sort = localStorage.getItem('fmSort') || 'date'; } catch (e) { /* */ }
+  // (09/10/2026) Nha nhieu man co the nho: F.dev = man dang xem ('' = man may chu chon — man co camera dau tien).
+  F.dev = ''; try { F.dev = localStorage.getItem('fmDev') || ''; } catch (e) { /* */ }
+  function dq(u) { return F.dev ? u + (u.indexOf('?') < 0 ? '?' : '&') + 'dev=' + enc(F.dev) : u; }
 
   function api(path, body) {
     var init = { cache: 'no-store' };
-    if (body !== undefined) { init.method = 'POST'; init.headers = { 'content-type': 'application/json' }; init.body = JSON.stringify(body); }
-    return fetch('fm/' + path, init).then(function (r) {
+    if (body !== undefined) { init.method = 'POST'; init.headers = { 'content-type': 'application/json' }; init.body = JSON.stringify(F.dev ? Object.assign({ dev: F.dev }, body) : body); }
+    return fetch('fm/' + (body === undefined ? dq(path) : path), init).then(function (r) {
       return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) throw new Error(j.error || j.err || ('Lỗi ' + r.status)); return j; });
     });
   }
@@ -1344,8 +1353,8 @@
   function toast(msg) { var n = $('fmNote'); n.className = 'fm-note'; n.hidden = false; n.replaceChildren(svg('information-outline'), el('div', '', msg)); clearTimeout(toast.t); toast.t = setTimeout(renderNote, 4000); }
   function fail(e) { var n = $('fmNote'); n.className = 'fm-note warn'; n.hidden = false; n.replaceChildren(svg('alert-circle-outline'), el('div', '', e.message || String(e))); clearTimeout(toast.t); toast.t = setTimeout(renderNote, 6000); }
   function download(url) { var a = el('a'); a.href = url; a.download = ''; document.body.append(a); a.click(); a.remove(); }
-  function urlGet(p, dl) { return 'fm/get?p=' + enc(p) + (dl ? '&dl=1' : ''); }
-  function urlMp4(it, dl) { return 'fm/mp4?p=' + enc(it.p) + '&s=' + it.s + '&t=' + it.t + (dl ? '&dl=1' : ''); }
+  function urlGet(p, dl) { return dq('fm/get?p=' + enc(p) + (dl ? '&dl=1' : '')); }
+  function urlMp4(it, dl) { return dq('fm/mp4?p=' + enc(it.p) + '&s=' + it.s + '&t=' + it.t + (dl ? '&dl=1' : '')); }
 
   // ── Nap thu muc ──
   function load(dir, keepSel) {
@@ -1404,7 +1413,7 @@
     var n = $('fmNote'), i = F.info;
     if (!i) { n.hidden = true; return; }
     var msg = null, warn = true;
-    if (!i.online) msg = 'Màn hình có thẻ SD (P4) đang không kết nối với máy chủ.';
+    if (!i.online) msg = (i.devices || []).length ? 'Màn hình này đang không kết nối với máy chủ — chọn màn khác ở góc trái hoặc đợi màn bật lại.' : 'Màn hình có thẻ SD (P4) đang không kết nối với máy chủ.';
     else if (i.sd && !i.sd.ok) msg = i.sd.unformatted ? 'Thẻ SD chưa định dạng FAT32 — định dạng trong ứng dụng Quản lý file trên màn hình.' : 'Chưa có thẻ SD trong màn hình.';
     else if (i.busy && F.ups.length + (i.jobs || []).filter(function (j) { return j.stage === 'wait'; }).length) { msg = 'Màn hình đang phát video — việc chép vào thẻ tạm dừng để video không giật.'; warn = false; }
     n.hidden = !msg; if (!msg) return;
@@ -1421,7 +1430,7 @@
       var im = el('img'); im.loading = 'lazy'; im.alt = '';
       im.onload = function () { b.classList.add('has-img'); if (k === 'vid') { var pl = svg('play'); pl.classList.add('play'); b.append(pl); } };
       im.onerror = function () { im.remove(); };
-      im.src = 'fm/thumb?p=' + enc(it.p) + '&s=' + it.s + '&t=' + it.t;
+      im.src = dq('fm/thumb?p=' + enc(it.p) + '&s=' + it.s + '&t=' + it.t);
       b.append(im);
     }
     return b;
@@ -1465,6 +1474,7 @@
         var active = ['queue', 'convert', 'push', 'wait'].indexOf(j.stage) >= 0;
         var t = STAGE[j.stage] + (j.stage === 'convert' || j.stage === 'push' ? ' · ' + j.pct + '%' : '') + (j.err ? ': ' + j.err : '') +
           (j.stage === 'done' ? ' · ' + j.dest + ' · ' + fsize(j.size) : '');
+        if (j.devName && ((F.info && F.info.devices) || []).length > 1) t = j.devName + ' · ' + t;
         return { name: j.name, txt: t, pct: j.stage === 'done' ? 100 : j.pct, cls: j.stage === 'error' ? 'err' : j.stage === 'done' ? 'ok' : '', job: active ? j : null };
       }));
     $('fmJobs').hidden = !rows.length;
@@ -1480,10 +1490,30 @@
       list.append(row);
     });
   }
+  // O chon man: chi hien khi co tu 2 man co the nho (hoac man da chon dang tat).
+  function renderDev() {
+    var i = F.info || {}, list = (i.devices || []).slice(), cur = F.dev || i.device || '';
+    if (cur && !list.some(function (d) { return d.id === cur; })) list.push({ id: cur, name: cur, off: true });
+    $('fmDevBox').hidden = list.length < 2;
+    if ($('fmDevBox').hidden) return;
+    var sel = $('fmDev'), sig = JSON.stringify(list) + cur;
+    if (sel.dataset.sig === sig) return;
+    sel.dataset.sig = sig;
+    sel.replaceChildren.apply(sel, list.map(function (d) { var o = el('option', '', d.name + (d.off ? ' (đang tắt)' : '')); o.value = d.id; return o; }));
+    sel.value = cur;
+  }
+  $('fmDevBox').prepend(svg('tablet'));
+  $('fmDev').onchange = function () {
+    F.dev = $('fmDev').value;
+    try { localStorage.setItem('fmDev', F.dev); } catch (e) { /* */ }
+    F.info = null; F.items = []; F.loaded = false; F.sel.clear(); F.selMode = false; render();
+    poll(); load('/');
+  };
   function poll() {
     if (!visible() || document.hidden) return Promise.resolve();
     return api('info').then(function (i) {
       F.info = i;
+      renderDev();
       var sig = JSON.stringify((i.jobs || []).map(function (j) { return [j.id, j.stage]; }));
       if (F.lastJobs && sig !== F.lastJobs && (i.jobs || []).some(function (j) { return j.stage === 'done'; })) load(F.dir, true);
       F.lastJobs = sig;
@@ -1698,7 +1728,7 @@
       };
       sw.append(cb, el('span'));
       var meta = el('div', 'meta'), st = el('div', 'iv-st');
-      meta.append(el('div', 'name', l.name), el('div', 'sub', l.url.indexOf('sd:') === 0 ? 'Thẻ nhớ · ' + l.url.slice(3) : mask(l.url)));
+      meta.append(el('div', 'name', l.name), el('div', 'sub', sdParse(l.url) ? 'Thẻ nhớ · ' + sdParse(l.url).p : mask(l.url)));
       if (!l.on) st.textContent = 'Đang tắt';
       else if (l.error) { st.className += ' err'; st.textContent = 'Lỗi: ' + l.error + (l.stale ? ' — đang dùng bản đã lưu (' + l.count + ' kênh).' : '.'); }
       else if (l.at) st.textContent = l.count + ' kênh' + (l.skipped ? ' · bỏ ' + l.skipped + ' kênh udp/rtmp' : '') + ' · cập nhật ' + when(l.at);
@@ -1763,6 +1793,9 @@
   $('ivAskNo').onclick = function () { $('ivAskDlg').close(); };
   $('ivAskYes').onclick = function () { $('ivAskDlg').close(); if (askFn) askFn(); };
   // Duyet the nho (API iptv/sd — cung du lieu voi the Quan ly file), chon tep -> "sd:/duong/dan".
+  // (09/10/2026) "sd@<man>:/a.m3u" = the nho cua man do (nha nhieu P4); "sd:/a.m3u" = man co camera dau tien.
+  function sdParse(u) { var m = /^sd(?:@([A-Za-z0-9_-]+))?:(\/.*)$/.exec(u || ''); return m ? { dev: m[1] || '', p: m[2] } : null; }
+  var ivSd = { dev: '', multi: false };
   function sdOpen(dir) {
     var box = $('ivSdList'), cr = $('ivSdCrumbs'), parts = dir === '/' ? [] : dir.slice(1).split('/');
     var items = [];
@@ -1776,7 +1809,8 @@
     });
     cr.replaceChildren.apply(cr, items);
     box.replaceChildren(el('div', 'empty', 'Đang đọc thẻ nhớ…'));
-    fetch('iptv/sd?p=' + encodeURIComponent(dir), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
+    fetch('iptv/sd?p=' + encodeURIComponent(dir) + (ivSd.dev ? '&dev=' + encodeURIComponent(ivSd.dev) : ''), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
+      ivSdDevs(j);
       if (!j.ok) throw new Error(j.error || 'Không đọc được thẻ nhớ');
       if (!j.items.length) { box.replaceChildren(el('div', 'empty', 'Không có thư mục hay tệp .m3u / .m3u8 / .txt ở đây.')); return; }
       box.replaceChildren.apply(box, j.items.map(function (it) {
@@ -1785,7 +1819,7 @@
         b.append(svg(it.d ? 'folder' : 'file-document-outline'), el('span', 'n', it.n), el('span', 's', it.d ? '' : (it.s < 1024 ? it.s + ' B' : Math.round(it.s / 1024) + ' KB')));
         b.onclick = function () {
           if (it.d) { sdOpen(p); return; }
-          $('ivUrl').value = 'sd:' + p;
+          $('ivUrl').value = (ivSd.multi && ivSd.dev ? 'sd@' + ivSd.dev + ':' : 'sd:') + p;
           if (!$('ivName').value.trim()) $('ivName').value = it.n.replace(/\.(m3u8?|txt)$/i, '');
           $('ivSdDlg').close();
         };
@@ -1794,8 +1828,20 @@
     }).catch(function (e) { box.replaceChildren(el('div', 'empty', e.message)); });
   }
   $('ivPickSd').append(svg('sd'), el('span', '', 'Chọn trên thẻ nhớ…'));
-  $('ivPickSd').onclick = function () { var cur = $('ivUrl').value.trim(); $('ivSdDlg').showModal();
-    sdOpen(cur.indexOf('sd:/') === 0 && cur.lastIndexOf('/') > 3 ? cur.slice(3, cur.lastIndexOf('/')) : '/'); };
+  $('ivPickSd').onclick = function () { var sp = sdParse($('ivUrl').value.trim()); $('ivSdDlg').showModal();
+    ivSd.dev = sp && sp.dev ? sp.dev : '';
+    sdOpen(sp && sp.p.lastIndexOf('/') > 0 ? sp.p.slice(0, sp.p.lastIndexOf('/')) : '/'); };
+  // O chon man trong hop thoai (nha co tu 2 man co the nho).
+  function ivSdDevs(j) {
+    var list = j.devices || [], sel = $('ivSdDev');
+    ivSd.multi = list.length > 1; if (j.device) ivSd.dev = j.device;
+    $('ivSdDevBox').hidden = !ivSd.multi;
+    if (!ivSd.multi) return;
+    sel.replaceChildren.apply(sel, list.map(function (d) { var o = el('option', '', d.name); o.value = d.id; return o; }));
+    sel.value = ivSd.dev;
+  }
+  $('ivSdDevBox').prepend(svg('tablet'));
+  $('ivSdDev').onchange = function () { ivSd.dev = $('ivSdDev').value; sdOpen('/'); };
   $('ivSdClose').onclick = function () { $('ivSdDlg').close(); };
   $('ivAdd').append(svg('playlist-plus'), el('span', '', 'Thêm danh sách'));
   $('ivAdd').onclick = function () { openForm(-1); };
