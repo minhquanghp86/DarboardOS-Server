@@ -24,6 +24,8 @@ export type Tuning = {
   decodeBudgetRatio?: number;
   intervalBackoffFactor?: number;
   wsHighWaterBytes?: number;
+  /** (09/10/2026) Man co tieng: ton dong toi da tinh theo ms bang thong (0 = tat, dung wsHighWaterBytes co dinh). */
+  audioPaceMs?: number;
   fullFrameAreaThreshold?: number;
   passthroughFit?: boolean;
   videoLowQ?: boolean;
@@ -55,6 +57,7 @@ export function sanitizeTuning(j: unknown): Tuning {
   const r = num(o.decodeBudgetRatio, 0.1, 1.5); if (r !== undefined) t.decodeBudgetRatio = r;
   const k = num(o.intervalBackoffFactor, 1.05, 4); if (k !== undefined) t.intervalBackoffFactor = k;
   const w = num(o.wsHighWaterBytes, 16384, 8_388_608); if (w !== undefined) t.wsHighWaterBytes = Math.round(w);
+  const ap = num(o.audioPaceMs, 0, 2000); if (ap !== undefined) t.audioPaceMs = Math.round(ap);
   const a = num(o.fullFrameAreaThreshold, 0.05, 1); if (a !== undefined) t.fullFrameAreaThreshold = a;
   return t;
 }
