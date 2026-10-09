@@ -3734,6 +3734,10 @@ export function runAdaptiveTick(): void {
       cfgA,
       now
     );
+    {
+      const bl = broadcaster.backlogBytes(m.id), pk = device.backlogSkipPeak ?? 0;
+      metrics.onAdaptiveTick(m.id, `${res.reason} | nhip ${res.state.minFrameIntervalMs} san ${res.state.probeFloorMs ?? '-'}${res.state.probeFloorNet ? 'm' : ''} | ton ${Math.round(bl / 1024)}K dinh ${Math.round(pk / 1024)}K | tai ${Math.round((link?.recentBytesPerSec ?? 0) / 1024)}K bt ${Math.round((link?.capacityBytesPerSec ?? 0) / 1024)}K | khung ${Math.round((link?.recentFrameBytes ?? 0) / 1024)}K`);
+    }
     device.backlogSkipPeak = 0;
     adaptiveStates.set(m.id, res.state);
     if (!res.changed) continue;

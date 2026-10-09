@@ -29,6 +29,8 @@ export type AdaptiveCfg = {
   maxBacklogBytes: number;    // tồn đọng bộ đệm gửi WS tối đa (trên ngưỡng -> hạ tải)
   probeRetryAfter: number;    // số lần bị chặn trước khi nới ngưỡng tránh nghẽn một bước
   linkUtilization: number;    // tỉ lệ băng thông đo được được phép dùng (phần còn lại = đệm an toàn)
+  /** (09/10/2026) Ngưỡng tránh nghẽn HẾT HẠN sau chừng này ms không nghẽn lại (tồn đọng đã thấp). 0 = không hết hạn. */
+  probeFloorTtlMs: number;
 };
 
 export const DEFAULT_ADAPTIVE_CFG: AdaptiveCfg = {
@@ -81,6 +83,12 @@ export const DEFAULT_ADAPTIVE_CFG: AdaptiveCfg = {
   // (24/09/2026) Chi dung 75% bang thong do duoc. Phan con lai hap thu dao dong WiFi
   // va cac khung full-frame lon hon trung binh.
   linkUtilization: 0.75,
+  // (09/10/2026) Do that P4 qua Wi-Fi (kenh 11, -20 dBm): moi cu giat (ton dong vuot nguong MOT lan) dat nguong tranh
+  // nghen, roi nguong chi duoc noi sau 6 mau "thoai mai" — tren Wi-Fi ton dong hay lung chung nen mau thoai mai hiem:
+  // 08:06:48 giat 33 -> 50 ms, 08:09:13 moi ve 33 (145 s o ~20 fps); dau bai YouTube 113 ms -> 33 ms mat ~5 phut (moi
+  // buoc ~35 s). Nguong la "ky uc" cua lan nghen; 20 s khong nghen lai (va ton dong thap) = ky uc cu -> bo. Duong truyen
+  // yeu that thi lan nghen ke tiep dat lai ngay (nhu TCP). Cap mang khong bi anh huong (khong co nghen de dat nguong).
+  probeFloorTtlMs: 20_000,
 };
 
 export type AdaptiveState = {
@@ -96,6 +104,11 @@ export type AdaptiveState = {
    * Dao động đó còn chiếm hết các lượt hồi phục nên quality kẹt vĩnh viễn ở sàn.
    */
   probeFloorMs?: number;
+  /** (09/10/2026) Lúc đặt / nâng `probeFloorMs` gần nhất (ms) — hết hạn sau cfg.probeFloorTtlMs. */
+  probeFloorAt?: number;
+  /** (09/10/2026) Nguong dat do NGHEN MANG (ton dong) — chi loai nay het han; nguong do giai ma / heap (CPU, RAM cua thiet
+   * bi khong tu khoi) giu cach noi cu, neu khong se dao dong (tab 5 camera, test adaptive). */
+  probeFloorNet?: boolean;
   /** Số lần hồi phục bị `probeFloorMs` chặn — đủ nhiều thì nới thử lại một bước. */
   probeBlocked?: number;
   lastChangeAt: number;
@@ -242,10 +255,13 @@ export function initialAdaptiveState(quality: number, minFrameIntervalMs: number
 // tung buoc 50ms nhu cu. Day la nguyen tac cua moi thuat toan chong nghen
 // mang, va ly do cung y het: HONG THI PHAI LUI NHANH, HOI PHUC THI PHAI CHAM.
 /** Ghi nho nhip vua gay qua tai, de hoi phuc khong lao xuong lai dung cho do. */
-function rememberFailure(out: AdaptiveState, failedAt: number): void {
+function rememberFailure(out: AdaptiveState, failedAt: number, now: number, net = false): void {
   out.probeFloorMs = out.probeFloorMs != null
     ? Math.max(out.probeFloorMs, failedAt)
     : failedAt;
+  out.probeFloorAt = now;
+  // Mot lan nghen do giai ma / heap thi ca nguong khong con "chi do mang" nua.
+  out.probeFloorNet = net && (out.probeFloorNet ?? true);
   out.probeBlocked = 0;
 }
 
@@ -253,6 +269,15 @@ function backoffInterval(cur: number, cfg: AdaptiveCfg): number {
   const next = Math.round(cur * cfg.intervalBackoffFactor);
   // bao dam luon tien it nhat mot buoc, phong khi cur qua nho
   return Math.min(cfg.maxIntervalMs, Math.max(next, cur + cfg.intervalStepMs));
+}
+
+/** San hoi phuc = max(tran thiet bi yeu cau, nguong tranh nghen + mot buoc, nhip toi thieu ma bang thong chiu duoc). */
+function recoverFloorOf(out: AdaptiveState, sample: AdaptiveSample, cfg: AdaptiveCfg): number {
+  const baseIntervalMs = out.baseIntervalMs ?? out.minFrameIntervalMs;
+  return Math.max(
+    out.probeFloorMs != null ? Math.max(baseIntervalMs, out.probeFloorMs + cfg.intervalStepMs) : baseIntervalMs,
+    bandwidthFloorMs(sample, cfg),
+  );
 }
 
 export function adaptiveBudgetMs(state: AdaptiveState, cfg: AdaptiveCfg): number {
@@ -278,7 +303,7 @@ export function decideAdaptive(
       out.quality = Math.max(cfg.minQuality, out.quality - cfg.qualityStepDown);
       out.lastReason = `heap thiet bi ${sample.heapFree}B < ${cfg.minDeviceHeapFree}B → giảm quality còn ${out.quality}`;
     } else if (out.minFrameIntervalMs < cfg.maxIntervalMs) {
-      rememberFailure(out, out.minFrameIntervalMs);
+      rememberFailure(out, out.minFrameIntervalMs, now);
       out.minFrameIntervalMs = backoffInterval(out.minFrameIntervalMs, cfg);
       out.lastReason = `heap thiet bi ${sample.heapFree}B < ${cfg.minDeviceHeapFree}B → giãn nhịp còn ${out.minFrameIntervalMs}ms`;
     } else {
@@ -299,7 +324,7 @@ export function decideAdaptive(
       return { state: out, changed: false, reason: 'tồn đọng cao nhưng đang trong thời gian trễ' };
     }
     if (out.minFrameIntervalMs < cfg.maxIntervalMs) {
-      rememberFailure(out, out.minFrameIntervalMs);
+      rememberFailure(out, out.minFrameIntervalMs, now, true);
       // (24/09/2026) Biet bang thong thi nhay THANG toi nhip duong truyen chiu duoc,
       // thay vi nhan doi mu (182 -> 364 -> 400 trong khi chi can ~250).
       const bwFloor = bandwidthFloorMs(sample, cfg);
@@ -337,7 +362,7 @@ export function decideAdaptive(
       out.quality = Math.max(cfg.minQuality, out.quality - cfg.qualityStepDown);
       out.lastReason = `decode ${sample.decodeMs.toFixed(1)}ms > ngân sách ${budget}ms → giảm quality còn ${out.quality}`;
     } else if (out.minFrameIntervalMs < cfg.maxIntervalMs) {
-      rememberFailure(out, out.minFrameIntervalMs);
+      rememberFailure(out, out.minFrameIntervalMs, now);
       out.minFrameIntervalMs = backoffInterval(out.minFrameIntervalMs, cfg);
       out.lastReason = `decode ${sample.decodeMs.toFixed(1)}ms > ngân sách ${budget}ms → giãn nhịp còn ${out.minFrameIntervalMs}ms`;
     } else {
@@ -372,10 +397,7 @@ export function decideAdaptive(
   const baseIntervalMs = out.baseIntervalMs ?? out.minFrameIntervalMs;
   // San hoi phuc = max(tran thiet bi yeu cau, nguong tranh nghen + mot buoc,
   //                   nhip toi thieu ma bang thong chiu duoc).
-  const recoverFloor = Math.max(
-    out.probeFloorMs != null ? Math.max(baseIntervalMs, out.probeFloorMs + cfg.intervalStepMs) : baseIntervalMs,
-    bandwidthFloorMs(sample, cfg),
-  );
+  const recoverFloor = recoverFloorOf(out, sample, cfg);
 
   // Bi ngUong chan ma van rat thoai mai qua nhieu vong -> noi thu mot buoc.
   // Khong co co che noi nay thi mot lan qua tai nhat thoi se khoa fps vinh vien.
@@ -383,6 +405,23 @@ export function decideAdaptive(
   // lien -> BO HAN nguong (nguong la cua luc nghen cu). Do that P4 07/10: nguong hoc luc mang P4 nghen (~350 ms) giu ~3 fps
   // nhieu phut sau khi doi cho / mang het nghen (cach cu moi ~45 s noi 50 ms: ~5 phut; noi nua khoang cach: ~3 phut;
   // bo han: ~1 phut). Thieu so do -> giu cach cu. Duong truyen van yeu -> lan nghen ke tiep dat lai nguong ngay.
+  // (09/10/2026) Nguong tranh nghen HET HAN: khong nghen lai trong probeFloorTtlMs va ton dong dang thap.
+  if (out.probeFloorMs != null && out.probeFloorNet && cfg.probeFloorTtlMs > 0 && out.probeFloorAt != null
+      && now - out.probeFloorAt >= cfg.probeFloorTtlMs && (sample.backlogBytes ?? 0) <= cfg.maxBacklogBytes / 4) {
+    out.probeFloorMs = undefined;
+    out.probeFloorAt = undefined;
+    out.probeFloorNet = undefined;
+    out.probeBlocked = 0;
+    const r = recoverFloorOf(out, sample, cfg);
+    if (comfortable && out.minFrameIntervalMs > r) {
+      out.minFrameIntervalMs = Math.max(r, out.minFrameIntervalMs - Math.max(cfg.intervalStepMs, Math.ceil((out.minFrameIntervalMs - r) / 2)));
+      out.goodStreak = 0;
+      out.lastChangeAt = now;
+      out.changes = state.changes + 1;
+      out.lastReason = `het nghen ${Math.round((now - (state.probeFloorAt ?? now)) / 1000)}s -> bo nguong tranh nghen, rut nhip ve ${out.minFrameIntervalMs}ms`;
+      return { state: out, changed: true, reason: out.lastReason };
+    }
+  }
   const clearlyHealthy = sample.backlogBytes != null && sample.backlogBytes <= cfg.maxBacklogBytes / 8
     && cap != null && cap > 0 && rate < 0.25 * cap;
   if (comfortable && out.probeFloorMs != null && out.minFrameIntervalMs <= recoverFloor) {
