@@ -8,8 +8,8 @@ describe("buildLauncherApps (25/09/2026: menu chia nhom)", () => {
     expect(withHome.find(a => a.kind === "media")?.url).toBe("http://192.168.1.2:8123/media-browser/browser");
     // (27/09/2026) Bo "Nang luong", thay bang Solar (trang rieng cua nguoi dung)
     expect(withHome.some(a => a.kind === "energy")).toBe(false);
-    // (09/10/2026) Khong con ung dung "Solar" (trang rieng cua tac gia) trong danh sach mac dinh.
-    expect(withHome.some(a => a.id === "solar")).toBe(false);
+    // (09/10/2026) "Solar" la ung dung chung, dia chi mac dinh trong (nguoi dung dien trong Menu panel).
+    expect(withHome.find(a => a.id === "solar")?.url).toMatch(/no-url\.html/);
     const noHome = buildLauncherApps(undefined);
     expect(noHome.some(a => a.id === "home" || a.kind === "media")).toBe(false);
   });

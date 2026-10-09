@@ -638,6 +638,8 @@
       if (i.color !== d.color) o.color = i.color;
       if (i.group !== d.group) o.group = i.group;
       if (i.icon) o.icon = i.icon;
+      // (09/10/2026) Ung dung web co san: dia chi rieng (vd Solar mac dinh trong).
+      if (i.urlEditable && i.setUrl && i.setUrl !== (d.url || '')) o.url = i.setUrl;
       if (Object.keys(o).length) cfg.overrides[i.id] = o;
     });
     return cfg;
@@ -675,7 +677,7 @@
         var m = document.createElement('div'); m.className = 'meta';
         m.innerHTML = '<div class="name"></div><div class="sub"></div>';
         m.firstChild.textContent = it.label;
-        m.lastChild.textContent = it.builtin ? (it.action === 'url' ? 'Có sẵn · ô nhập địa chỉ' : 'Có sẵn') : it.url;
+        m.lastChild.textContent = it.builtin ? (it.action === 'url' ? 'Có sẵn · ô nhập địa chỉ' : it.urlEditable ? (it.setUrl || (it.defaults && it.defaults.url) || 'Có sẵn · chưa có địa chỉ — bấm sửa để nhập') : 'Có sẵn') : it.url;
         var sw = document.createElement('label'); sw.className = 'switch'; sw.title = it.hidden ? 'Đang ẩn' : 'Đang hiện';
         sw.innerHTML = '<input type="checkbox"><span></span>';
         sw.firstChild.checked = !it.hidden;
@@ -712,8 +714,9 @@
       { id: 'c_' + Date.now().toString(36), builtin: false, label: '', url: '', group: group || 'tien_ich', icon: 'mdi:star', color: PALETTE[0], hidden: false, baseKind: 'generic' };
     $('dlgTitle').textContent = it ? 'Sửa “' + it.label + '”' : 'Thêm ứng dụng';
     $('fLabel').value = draft.label;
-    $('fUrl').value = draft.url || '';
-    $('urlField').hidden = !!draft.builtin;
+    // (09/10/2026) Ung dung co san dang web (urlEditable): sua duoc dia chi; trong = dung mac dinh.
+    $('fUrl').value = draft.builtin ? (draft.setUrl || (draft.defaults && draft.defaults.url) || '') : (draft.url || '');
+    $('urlField').hidden = !!draft.builtin && !draft.urlEditable;
     $('fUrl').required = !draft.builtin;
     $('fReset').hidden = !draft.builtin;
     $('fErr').textContent = '';
@@ -791,6 +794,7 @@
   $('fReset').onclick = function () {
     var d = editing.defaults || {};
     draft.label = d.label; draft.color = d.color; draft.group = d.group; draft.icon = '';
+    if (draft.urlEditable) { draft.setUrl = ''; $('fUrl').value = d.url || ''; }
     $('fLabel').value = draft.label; renderGroupSeg(); renderSwatches(); renderIcons(''); renderPreview();
   };
   $('form').addEventListener('submit', function (e) {
@@ -800,6 +804,11 @@
     if (!draft.builtin) {
       draft.url = $('fUrl').value.trim();
       if (!/^https?:\/\//i.test(draft.url)) { $('fErr').textContent = 'Địa chỉ phải bắt đầu bằng http:// hoặc https://'; return; }
+    } else if (draft.urlEditable) {
+      var u = $('fUrl').value.trim();
+      if (u && !/^https?:\/\//i.test(u)) { $('fErr').textContent = 'Địa chỉ phải bắt đầu bằng http:// hoặc https://'; return; }
+      draft.setUrl = u === ((draft.defaults && draft.defaults.url) || '') ? '' : u;
+      if (u) draft.url = u;
     }
     if (editing) {
       var groupChanged = editing.group !== draft.group;

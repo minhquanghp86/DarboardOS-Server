@@ -15,7 +15,9 @@ export interface LauncherApp {
   path?: string;
 }
 /** Cho trang cau hinh: them trang thai an + thong tin mac dinh. */
-export interface LauncherAppInfo extends LauncherApp { hidden: boolean; builtin: boolean; icon: string; baseKind: string; defaults?: { label: string; color: string; group: AppGroup; }; }
+export interface LauncherAppInfo extends LauncherApp { hidden: boolean; builtin: boolean; icon: string; baseKind: string; defaults?: { label: string; color: string; group: AppGroup; url?: string; };
+  /** (09/10/2026) Ung dung web co san sua duoc dia chi (Menu panel); setUrl = dia chi nguoi dung dat ('' = mac dinh). */
+  urlEditable?: boolean; setUrl?: string; }
 /** Bieu tuong MDI gan nhat voi bieu tuong ve tay co san — de trang cau hinh xem truoc. */
 export const BUILTIN_PREVIEW: Record<string, string> = {
   home: 'home-assistant', ha: 'home-assistant', camera: 'camera', cams: 'view-grid-outline', energy: 'lightning-bolt',
@@ -71,7 +73,9 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   add('nha', 'Điều khiển', 'remote', '#7c3aed', `${LOCAL}/remote.html`);
   // (27/09/2026) Bo ung dung "Nang luong" (trang Energy cua HA) theo yeu cau nguoi dung — thay bang Solar.
   // (27/09/2026) Trang Solar rieng cua nguoi dung (khong doc cam bien nao — chi mo trang).
-  // (09/10/2026) Bo ung dung 'Solar' (trang rieng cua tac gia) — nha khac them bang 'Trình duyệt' / Menu panel.
+  // (09/10/2026) 'Solar' la ung dung CHUNG, dia chi mac dinh TRONG — moi nha dien dia chi trang solar cua minh trong trang
+  // Menu panel (Darboard -> Menu panel -> Solar -> Địa chỉ web). Chua dien -> mo trang huong dan (no-url.html).
+  add('nha', 'Solar', 'solar', '#eab308', '');
 
   add('giai_tri', 'YouTube', 'youtube', '#ff0033', 'https://m.youtube.com');
   add('giai_tri', 'TikTok', 'tiktok', '#161616', 'https://www.tiktok.com');
@@ -120,11 +124,15 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   // Doi ten / bieu tuong / mau / nhom
   const out: LauncherAppInfo[] = apps.map(a => {
     const o = conf.overrides[a.id] || {};
-    const defaults = { label: a.label, color: a.color, group: a.group };
+    const defaults = { label: a.label, color: a.color, group: a.group, ...(a.url !== undefined ? { url: a.url } : {}) };
+    // (09/10/2026) Ung dung WEB co san (khong phai trang he thong cua add-on, khong phai Home Assistant / Trinh duyet): sua duoc dia chi.
+    const urlEditable = builtinIds.has(a.id) && a.url !== undefined && a.id !== 'home' && !a.url.startsWith(LOCAL);
     const icon = o.icon || iconOf.get(a.id) || a.defIcon || '';
     const info: LauncherAppInfo = {
       ...a, label: o.label || a.label, color: o.color || a.color, group: o.group || a.group,
       hidden: false, builtin: builtinIds.has(a.id), icon, baseKind: a.kind, defaults: builtinIds.has(a.id) ? defaults : undefined,
+      ...(urlEditable ? { urlEditable: true, setUrl: o.url || '',
+        url: o.url || a.url || `${LOCAL}/no-url.html?app=${encodeURIComponent(o.label || a.label)}` } : {}),
     };
     const p = getMdiPath(icon) ?? (o.icon || iconOf.get(a.id) ? null : a.defPath ?? null);
     if (p) { info.kind = 'mdi'; info.path = p; }
