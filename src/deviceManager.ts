@@ -3011,7 +3011,7 @@ async function flushPending(dev: DeviceSession): Promise<void> {
       //
       // Bỏ nguyên khung (không bỏ một phần) để không bao giờ sinh khung rách.
       const backlog = broadcaster.backlogBytes(dev.deviceId);
-      const highWater = frameHighWater(dev);
+      const highWater = tuning().wsHighWaterBytes ?? WS_HIGH_WATER_BYTES;
       // (01/10/2026) NGHEN -> NUA DO PHAN GIAI (chi thiet bi half=1: P4). Do that 01/10 sang: YouTube thuong khung day du
       // ~42 KB, WiFi P4 yeu di -> ton dong 200 -> 934 KB, ping P4 2 s, WebSocket roi/noi lai, dung hinh ~40 s moi lan.
       // Ton dong qua NUA nguong bo khung -> gui khung nua (1/4 byte) toi NET_HALF_HOLD_MS sau lan nghen cuoi. Van chi ap
@@ -3378,21 +3378,6 @@ export function refreshDisplaysTick(): void {
 const adaptiveStates = new Map<string, AdaptiveState>();
 // (24/09/2026) Uoc luong duong truyen theo thiet bi, cap nhat moi tick (5s). Xem adaptive.ts.
 const linkEstimates = new Map<string, LinkEstimate>();
-/**
- * (09/10/2026) NGUONG BO KHUNG THEO THOI GIAN cho man CO TIENG. Tieng (goi PCM nho) di chung WebSocket voi khung hinh, xep
- * SAU moi byte dang ton: ton dong 196 KB qua Wi-Fi P4 (~600 KB/s) = tieng cho ~330 ms > bo dem loa 250 ms -> hở roi don cuc,
- * loa tu choi (do that 09/10: Wi-Fi 116 KB / 17 trong 22 cua so 30 s, cap 2,5 KB / 2 trong 27). Gioi han ton dong ~200 ms
- * theo bang thong uoc luong (san 64 KB, tran = nguong cu) -> cap (bang thong lon) khong doi; Wi-Fi bo khung / chuyen khung
- * nua som hon thay vi de tieng xep hang. Tat: "audioPaceMs": 0 trong /data/rwv-tuning.json.
- */
-function frameHighWater(dev: DeviceSession): number {
-  const base = tuning().wsHighWaterBytes ?? WS_HIGH_WATER_BYTES;
-  const paceMs = tuning().audioPaceMs ?? 200;
-  if (!dev.cfg.audioEnabled || paceMs <= 0) return base;
-  const cap = linkEstimates.get(dev.deviceId)?.capacityBytesPerSec;
-  if (!cap || cap <= 0) return base;
-  return Math.max(65_536, Math.min(base, Math.round((cap * paceMs) / 1000)));
-}
 
 /** (17/09/2026) Danh dau thiet bi vua nhan su kien cham — xem lastInputMs. */
 export function markInteraction(deviceId: string): void {
@@ -3751,7 +3736,7 @@ export function runAdaptiveTick(): void {
     );
     {
       const bl = broadcaster.backlogBytes(m.id), pk = device.backlogSkipPeak ?? 0;
-      metrics.onAdaptiveTick(m.id, `${res.reason} | nguong bo ${Math.round(frameHighWater(device) / 1024)}K | nhip ${res.state.minFrameIntervalMs} san ${res.state.probeFloorMs ?? '-'}${res.state.probeFloorNet ? 'm' : ''} | ton ${Math.round(bl / 1024)}K dinh ${Math.round(pk / 1024)}K | tai ${Math.round((link?.recentBytesPerSec ?? 0) / 1024)}K bt ${Math.round((link?.capacityBytesPerSec ?? 0) / 1024)}K | khung ${Math.round((link?.recentFrameBytes ?? 0) / 1024)}K`);
+      metrics.onAdaptiveTick(m.id, `${res.reason} | nhip ${res.state.minFrameIntervalMs} san ${res.state.probeFloorMs ?? '-'}${res.state.probeFloorNet ? 'm' : ''} | ton ${Math.round(bl / 1024)}K dinh ${Math.round(pk / 1024)}K | tai ${Math.round((link?.recentBytesPerSec ?? 0) / 1024)}K bt ${Math.round((link?.capacityBytesPerSec ?? 0) / 1024)}K | khung ${Math.round((link?.recentFrameBytes ?? 0) / 1024)}K`);
     }
     device.backlogSkipPeak = 0;
     adaptiveStates.set(m.id, res.state);
