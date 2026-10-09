@@ -16,6 +16,8 @@ export interface PanelPrefs {
   photoClock?: boolean; photoInfo?: boolean; photoSource?: 'folder' | 'google' | 'both'; gphotosUrl?: string;
   /** (27/09/2026) Nhan truyen YouTube tu dien thoai (DIAL) + ten hien tren dien thoai. */
   cast?: boolean; castName?: string;
+  /** (09/10/2026) YouTube: tu bo qua quang cao / YouTube TV: tu vao che do khach (mac dinh bat). */
+  ytSkipAds?: boolean; ytTvGuest?: boolean;
   /** (07/10/2026) Man hinh KHOA kieu dien thoai: vuot len de mo; do sang khi khoa (0 = giu nguyen); co dong ho; thoi
    *  tiet chi tiet. Xem src/shell/main.ts screensaver + deviceManager (locked). */
   lockMode?: boolean; lockBrightness?: number; clockSize?: ClockSize; wxDetail?: boolean;
@@ -85,6 +87,8 @@ export class PanelPrefsStore {
       case 'rwv.photo_clock': if (typeof v === 'boolean') patch = { photoClock: v }; break;
       case 'rwv.photo_info': if (typeof v === 'boolean') patch = { photoInfo: v }; break;
       case 'rwv.cast': if (typeof v === 'boolean') patch = { cast: v }; break;
+      case 'rwv.yt_skip_ads': if (typeof v === 'boolean') patch = { ytSkipAds: v }; break;
+      case 'rwv.yttv_guest': if (typeof v === 'boolean') patch = { ytTvGuest: v }; break;
       case 'rwv.lock': if (typeof v === 'boolean') patch = { lockMode: v }; break;
       case 'rwv.wx_detail': if (typeof v === 'boolean') patch = { wxDetail: v }; break;
       case 'rwv.lw_energy': if (typeof v === 'boolean') patch = { lwEnergy: v }; break;
@@ -127,6 +131,8 @@ export class PanelPrefsStore {
   }
   albumUrl(envDefault = ''): string { return this.global().gphotosUrl ?? envDefault; }
   cast(dev: string, addonDefault: boolean): boolean { return this.get(dev).cast ?? addonDefault; }
+  ytSkipAds(dev: string): boolean { return this.get(dev).ytSkipAds ?? true; }
+  ytTvGuest(dev: string): boolean { return this.get(dev).ytTvGuest ?? true; }
   /** Ten panel hien trong nut truyen cua dien thoai. */
   castName(dev: string): string { return this.get(dev).castName || `Darboard ${dev.replace(/^esp32-/, '').slice(-4).toUpperCase()}`; }
   frame(dev: string, envAlbum = ''): FrameSettings {
@@ -162,6 +168,8 @@ export class PanelPrefsStore {
       sel('rwv.photo_interval', 'lock', 'Đổi ảnh sau', INTERVAL_CHOICES, f.intervalS, `${f.intervalS} giây`),
       sw('rwv.morning', 'screen', 'Chào buổi sáng', this.morning(dev, d.morning), 'Camera thấy người buổi sáng → mở “Hôm nay”'),
       sw('rwv.cast', 'screen', 'Nhận truyền YouTube', this.cast(dev, d.cast ?? true), 'Hiện trong nút truyền của app YouTube (cùng WiFi)'),
+      sw('rwv.yt_skip_ads', 'screen', 'Tự bỏ qua quảng cáo YouTube', this.ytSkipAds(dev), 'Bấm “Bỏ qua” / tua hết quảng cáo video'),
+      sw('rwv.yttv_guest', 'screen', 'YouTube TV: chế độ khách', this.ytTvGuest(dev), 'Tự chọn “Xem ở chế độ khách” khi hỏi tài khoản'),
       { id: 'rwv.cast_name', kind: 'text', group: 'panel', sec: 'screen', label: 'Tên khi truyền', maxLength: 40, on: true,
         value: this.castName(dev), hint: '' },
       sel('rwv.photo_effect', 'frame', 'Hiệu ứng chuyển', EFFECT_CHOICES, f.effect, 'Mờ dần'),
