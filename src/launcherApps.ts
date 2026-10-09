@@ -163,14 +163,16 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
 }
 
 /** (01/10/2026) Ung dung chi co tren man hinh co camera + the SD (firmware bao ?cam=, hien chi P4). */
-export const CAMERA_ONLY_APPS = new Set(['camera', 'gallery', 'files']);
+export const CAMERA_ONLY_APPS = new Set(['camera']);
+/** (09/10/2026) Can THE NHO (man co camera hoac man chi co the — S3 sd_files). */
+export const SD_APPS = new Set(['gallery', 'files']);
 
 /** Ung dung HIEN tren menu (bo an), gon cho launcher. */
 /** (09/10/2026) Ung dung can Frigate: an khi biet chac nha khong co tich hop Frigate (src/frigate.ts frigateKnown). */
 export const FRIGATE_APPS = new Set(['cams', 'events']);
 
-export function buildLauncherApps(homeUrl: string | undefined, hasCamera = true): LauncherApp[] {
+export function buildLauncherApps(homeUrl: string | undefined, hasCamera = true, hasSd = hasCamera): LauncherApp[] {
   const noFrigate = frigateKnown() === false;
-  return listAllApps(homeUrl).filter(a => !a.hidden && (hasCamera || !CAMERA_ONLY_APPS.has(a.id)) && !(noFrigate && FRIGATE_APPS.has(a.id)))
+  return listAllApps(homeUrl).filter(a => !a.hidden && (hasCamera || !CAMERA_ONLY_APPS.has(a.id)) && (hasSd || !SD_APPS.has(a.id)) && !(noFrigate && FRIGATE_APPS.has(a.id)))
     .map(({ id, label, kind, color, group, url, action, path }) => ({ id, label, kind, color, group, url, action, path }));
 }

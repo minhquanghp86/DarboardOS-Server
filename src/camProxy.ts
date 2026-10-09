@@ -10,23 +10,32 @@ import http from 'node:http';
 import { go2rtcStreams, hostsOfRuntime } from './frigate.js';
 
 /** (08/10/2026) auth = base64("user:pass") cho HTTP Basic Auth cua cam_app / av_stream (firmware gui ?ca=<hex(user:pass)>). */
-export type CamHost = { ip: string; port: number; auth?: string };
+export type CamHost = { ip: string; port: number; auth?: string; /** (09/10/2026) chi the nho, khong camera (S3) */ sdOnly?: boolean };
 const hosts = new Map<string, CamHost>();
 
 /**
  * Goi luc thiet bi ket noi WS: nho IP + cong ung dung Camera (0 = khong co -> quen). (08/10/2026) auth: tai khoan HTTP
  * cua P4 (firmware gui ?ca=) — CHI giu trong bo nho de gan header khi goi P4; khong log, khong vao /metrics.
  */
-export function noteCameraHost(deviceId: string, remoteAddress: string | undefined, port: number, authHex?: string | null): void {
+export function noteCameraHost(deviceId: string, remoteAddress: string | undefined, port: number, authHex?: string | null, sdOnly = false): void {
   const ip = (remoteAddress || '').replace(/^::ffff:/, '');
   // Firmware gui hex (khoi ma hoa + / = trong URL) -> base64 cho header Basic.
   const a = authHex && /^(?:[0-9a-f]{2}){3,150}$/i.test(authHex) ? Buffer.from(authHex, 'hex').toString('base64') : undefined;
-  if (port > 0 && /^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) hosts.set(deviceId, { ip, port, ...(a ? { auth: a } : {}) });
+  if (port > 0 && /^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) hosts.set(deviceId, { ip, port, ...(a ? { auth: a } : {}), ...(sdOnly ? { sdOnly } : {}) });
   else hosts.delete(deviceId);
 }
 
+/**
+ * Mac dinh (khong chi ro man): man co CAMERA dau tien; khong co thi man chi co the nho (S3). Truoc 09/10 chi P4 vao so nay
+ * — S3 noi truoc P4 khong duoc cuop mac dinh (danh sach IPTV 'sd:/...' cu, Quan ly file mo lan dau).
+ */
+function defaultEntry(): [string, CamHost] | undefined {
+  let sdFirst: [string, CamHost] | undefined;
+  for (const e of hosts) { if (!e[1].sdOnly) return e; sdFirst ??= e; }
+  return sdFirst;
+}
 export function cameraHost(): CamHost | undefined {
-  return hosts.values().next().value;
+  return defaultEntry()?.[1];
 }
 
 /**
@@ -48,7 +57,7 @@ export function camAuth(h: CamHost): Record<string, string> {
 
 /** (02/10/2026) Id thiet bi co camera/the SD (Quan ly file). */
 export function cameraDeviceId(): string | undefined {
-  return hosts.keys().next().value;
+  return defaultEntry()?.[0];
 }
 
 // (01/10/2026) + ung dung Tep / Thu vien: sd/ls (duyet), sd/get (tai, co Range de tua video), sd/rm (xoa), sd/thumb.

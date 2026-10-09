@@ -17,3 +17,22 @@ describe('(09/10/2026) nha nhieu man co the nho', () => {
     expect(camHostOf('esp32-dddddddddddd').h).toBeDefined();   // khong strict -> man dau
   });
 });
+
+describe('(09/10/2026) man chi co the nho (S3 sd_files)', () => {
+  it('man co camera van la mac dinh khi man chi co the noi truoc', async () => {
+    const { cameraDeviceId, noteCameraHost: note } = await import('./camProxy.js');
+    note('esp32-111111111111', '192.168.1.21', 8082, null, true);
+    const before = cameraDeviceId();
+    expect(before).not.toBe('esp32-111111111111');   // da co man camera (test tren) -> khong bi cuop
+    note('esp32-111111111111', '192.168.1.21', 0);
+  });
+  it('S3 co Thu vien + Quan ly file, KHONG co Camera', async () => {
+    const { buildLauncherApps } = await import('./launcherApps.js');
+    const ids = buildLauncherApps(undefined, false, true).map((a) => a.id);
+    expect(ids).toContain('gallery');
+    expect(ids).toContain('files');
+    expect(ids).not.toContain('camera');
+    const none = buildLauncherApps(undefined, false, false).map((a) => a.id);
+    expect(none).not.toContain('files');
+  });
+});

@@ -44,7 +44,7 @@ export interface Conv {
   nextId: number;
   msgs: Msg[];
 }
-export interface ScreenInfo { id: string; name: string; w: number; h: number; cam: boolean; online: boolean; spk?: boolean }
+export interface ScreenInfo { id: string; name: string; w: number; h: number; cam: boolean; /** (09/10/2026) co the nho */ sd?: boolean; online: boolean; spk?: boolean }
 
 export const MAX_CONVS = 100;
 export const MAX_MSGS = 500;        // moi cuoc tro chuyen; cu hon bi bo (ca tep)
@@ -216,7 +216,7 @@ function screens(): ScreenInfo[] {
     const k = known.get(s.id);
     // Ten HA chua tai xong (vua khoi dong): giu ten da luu, khong co thi tam goi theo co man hinh.
     if (!s.name) s.name = k?.name || `Màn hình ${s.w}×${s.h}`;
-    if (!k || k.name !== s.name || k.w !== s.w || k.cam !== s.cam) changed = true;
+    if (!k || k.name !== s.name || k.w !== s.w || k.cam !== s.cam || k.sd !== s.sd) changed = true;
     known.set(s.id, s);
   }
   const liveIds = new Set(live.map((s) => s.id));
