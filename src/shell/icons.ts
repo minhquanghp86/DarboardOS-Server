@@ -78,10 +78,9 @@ export function appIcon(app: App, cls = 'app-ic'): HTMLElement {
       line('path', { d: 'M3.5 17l5-5 4 4 3-3 5 5' });
       break;
     case 'timer': line('circle', { cx: '12', cy: '13.5', r: '7.5' }); line('path', { d: 'M12 9.5v4l2.5 2M9.5 2.5h5M19 6l1.5-1.5' }); break;
-    case 'browser':
-      line('circle', { cx: '12', cy: '12', r: '9' });
-      line('path', { d: 'M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z' });
-      break;
+    case 'browser':   // (09/10/2026) ung dung Chrome: logo Chrome 4 mau (thay hinh qua dia cau)
+      box.appendChild(chromeLogo('74%'));
+      return box;
     default: {
       const t = svgEl('text', { x: '12', y: '16.5', 'text-anchor': 'middle', fill: '#fff', 'font-size': '13', 'font-weight': '700' });
       t.textContent = (app.label || '?').charAt(0).toUpperCase();
@@ -105,5 +104,18 @@ export function weatherIcon(code: number, day: boolean): SVGElement {
   } else if (code <= 3 || code === 45 || code === 48) p(cloud, '#cbd5e1');
   else if (code >= 95) { p(cloud, '#94a3b8'); p('M12.5 13l-2 4h3l-2 4', 'none', '#fbbf24'); }
   else { p('M7 14a4 4 0 010-8 5 5 0 019.6 1.5A3.3 3.3 0 0117 14z', '#cbd5e1'); p('M8 17l-1 3M12 17l-1 3M16 17l-1 3', 'none', '#60a5fa'); }
+  return s;
+}
+
+/** (09/10/2026) Logo Chrome (3 hinh quat do / vang / xanh la + vong trang + tam xanh duong), khung 48. */
+export function chromeLogo(size = '100%'): SVGElement {
+  const s = svgEl('svg', { viewBox: '0 0 48 48', width: size, height: size, 'aria-hidden': 'true' });
+  for (const [d, c] of [
+    ['M24 24L6.68 14A20 20 0 0 1 41.32 14Z', '#ea4335'],
+    ['M24 24L41.32 14A20 20 0 0 1 24 44Z', '#fbbc04'],
+    ['M24 24L24 44A20 20 0 0 1 6.68 14Z', '#34a853'],
+  ]) s.appendChild(svgEl('path', { d, fill: c }));
+  s.appendChild(svgEl('circle', { cx: '24', cy: '24', r: '10.5', fill: '#fff' }));
+  s.appendChild(svgEl('circle', { cx: '24', cy: '24', r: '8.2', fill: '#4285f4' }));
   return s;
 }

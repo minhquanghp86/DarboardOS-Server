@@ -22,7 +22,7 @@ export interface LauncherAppInfo extends LauncherApp { hidden: boolean; builtin:
 export const BUILTIN_PREVIEW: Record<string, string> = {
   home: 'home-assistant', ha: 'home-assistant', camera: 'camera', cams: 'view-grid-outline', energy: 'lightning-bolt',
   youtube: 'youtube', tiktok: 'music-note', music: 'play-circle-outline', radio: 'radio', news: 'newspaper-variant-outline',
-  media: 'music', weather: 'weather-partly-cloudy', calendar: 'calendar-month-outline', timer: 'timer-outline', browser: 'web', settings: 'cog-outline',
+  media: 'music', weather: 'weather-partly-cloudy', calendar: 'calendar-month-outline', timer: 'timer-outline', browser: 'google-chrome', settings: 'cog-outline',
   rooms: 'home-floor-1', remote: 'remote-tv', todo: 'format-list-checks', photos: 'image-multiple-outline',
   today: 'weather-sunset-up', board: 'note-multiple-outline', solar: 'solar-power-variant-outline', yttv: 'youtube-tv',
 };
@@ -111,7 +111,9 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   add('tien_ich', 'Xổ số', 'xoso', '#dc2626', 'https://www.minhngoc.net.vn', undefined, 'xoso', 'mdi:ticket-confirmation-outline');
   // (01/10/2026) Nguoi dung: dat ten Google Maps + bieu tuong Google Maps (mo san lop giao thong). id giu 'giaothong'.
   add('tien_ich', 'Google Maps', 'giaothong', '#4285f4', LAUNCHER_TRAFFIC_URL, undefined, 'giaothong', 'mdi:google-maps');
-  add('tien_ich', 'Trình duyệt', 'browser', '#0891b2', undefined, 'url');
+  // (09/10/2026) 'Trình duyệt' -> 'Chrome' (logo Chrome 4 mau ve trong Shell): mo lai tab Chrome dang co hoac trang Google;
+  // thanh cong cu kieu Chrome (lui / toi / tai lai / o dia chi / trang chu) o day man hinh — src/shell/browserBar.ts.
+  add('tien_ich', 'Chrome', 'browser', '#ffffff');
   // (26/09/2026 OS-4) Cai dat cua CHINH man hinh nay (thuc the ESPHome qua HA API) — public/settings.html.
   add('tien_ich', 'Cài đặt', 'settings', '#475569', `${LOCAL}/settings.html`);
 

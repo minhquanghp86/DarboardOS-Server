@@ -8,6 +8,7 @@
 import { CSS } from './styles';
 import { el, mdi, pad2, setText, svgEl } from './dom';
 import { App, appIcon, weatherIcon } from './icons';
+import { mountBrowserBar } from './browserBar';
 import { HomeApi, mountHome } from './home';
 import { classifyLockGesture } from './lockGesture';
 import { loadClockFont } from './clockFont';
@@ -390,6 +391,8 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   const isHome = (() => { try { return new URL(CFG.urls.osHome).pathname === location.pathname && location.port === new URL(CFG.urls.osHome).port; } catch { return false; } })();
   if (isHome) startHome();
   root.append(scrim, shade, pill);
+  // (09/10/2026) Tab trinh duyet (ung dung Chrome): thanh cong cu kieu Chrome o day man hinh — src/shell/browserBar.ts.
+  if ((window as unknown as { __RWV_BROWSER?: number }).__RWV_BROWSER && !isHome) mountBrowserBar(Z);
 
   // ── O nhap dia chi (ung dung Trinh duyet) — DOM THUONG (khong Shadow) de ban phim ao nhan focus ──
   let urlBox: HTMLDivElement | null = null, urlInput: HTMLInputElement | null = null;
