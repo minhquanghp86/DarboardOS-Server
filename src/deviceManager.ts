@@ -41,6 +41,7 @@ import { callService, getRegistry, getSettingsView, getStates, haReady, getStatu
 import { NetIcon, findDeviceByMac, findNoSleepSwitch, findPresenceSelect, isSaverPhotosSwitchId, macFromDeviceId, planCamAuth, planSet, planWifi } from "./settingsModel.js";
 import { getLauncherConfig, saveHomeLayout } from "./launcherConfig.js";
 import { lockWidgetsFor, refreshLockWidgets } from "./lockWidgets.js";
+import { getHaLocation, haLocationCached } from "./haLocation.js";
 import { HomeLayout, resolveLayout } from "./homeLayout.js";
 import { ControlField, DeviceEventKind, DeviceStateInfo, Encoding, VoiceState, FRAME_HEADER_BYTES, TILE_HEADER_BYTES, parseDeviceStatePacket } from "./protocol.js";
 
@@ -2002,6 +2003,14 @@ export function goBack(dev: DeviceSession): void {
 // tinh vao day). Tab dang active hoac dang phat am thanh nen (radio/nhac) khong bao gio bi don. Moi tab la mot tien
 // trinh renderer Chromium song rieng — RAM addon da do thuc te ~1,1 GB/3 man hinh o che do MOT tab; gia tri nay giu
 // muc tang RAM trong tam kiem soat khi mo them ung dung. Chinh qua bien moi truong neu may chu du RAM.
+/** (09/10/2026) Quyen + vi tri (nha trong HA) cho mot tab. Loi (Chrome cu / chua co vi tri) -> bo qua. */
+async function grantGeolocation(root: CDPRoot, session: CDPSession): Promise<void> {
+  try {
+    await root.send('Browser.grantPermissions', { permissions: ['geolocation'] });
+    const l = haLocationCached() ?? await getHaLocation();
+    if (l) await session.send('Emulation.setGeolocationOverride', { latitude: l.lat, longitude: l.lon, accuracy: 50 });
+  } catch { /* bo qua */ }
+}
 /** (09/10/2026) Trang mo dau cua ung dung Chrome. */
 const BROWSER_START_URL = process.env.BROWSER_START_URL || 'https://www.google.com/';
 const MAX_APP_TABS = Math.max(0, parseInt(process.env.MAX_APP_TABS ?? '2', 10) || 2);
@@ -2499,6 +2508,9 @@ async function createTab(dev: DeviceSession, key: string, kind: string, pinned: 
     await session.send('Page.addScriptToEvaluateOnNewDocument', { source: buildTvCodecScript(YT_MAX_H, YT_MAX_FPS) });
   }
   await session.send('Page.addScriptToEvaluateOnNewDocument', { source: KIOSK_KEYBOARD_SCRIPT });
+  // (09/10/2026) VI TRI cho trang web (Google Maps "Vị trí của bạn" / diem khoi hanh): Chrome tren may chu khong co GPS va chua
+  // duoc cap quyen -> trang bao loi. Cap quyen vi tri + dat vi tri = NHA trong Home Assistant (Cai dat -> Khu vuc).
+  await grantGeolocation(root, session);
   // (09/10/2026) Tab trinh duyet (ung dung Chrome): Shell ve thanh cong cu kieu Chrome (src/shell/browserBar.ts).
   if (kind === 'browser') await session.send('Page.addScriptToEvaluateOnNewDocument', { source: 'window.__RWV_BROWSER=1;' });
   const { identifier: launcherScriptId } = await session.send(
