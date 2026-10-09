@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chưa có địa chỉ</title>
+<!-- (09/10/2026) Ung dung web co san chua dien dia chi (vd "Solar" mac dinh trong) — huong dan cach dien trong Menu panel. -->
+<link rel="stylesheet" href="/ui.css">
+<style>
+  html, body { height: 100%; margin: 0; }
+  body { display: flex; align-items: center; justify-content: center; padding: 24px; box-sizing: border-box; text-align: center; }
+  .box { max-width: 560px; }
+  h1 { font-size: clamp(22px, 4.5vmin, 34px); margin: 0 0 12px; }
+  p { font-size: clamp(15px, 3vmin, 20px); line-height: 1.5; opacity: 0.85; margin: 0; }
+  b { white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1 id="t">Ứng dụng chưa có địa chỉ</h1>
+  <p>Trên Home Assistant mở <b>Darboard</b> → <b>Menu panel</b> → bấm sửa <b id="a">ứng dụng này</b> → nhập <b>Địa chỉ web</b> (https://…) → Lưu.</p>
+</div>
+<script>
+  (function () {
+    var n = new URLSearchParams(location.search).get('app');
+    if (n) { document.getElementById('t').textContent = '“' + n + '” chưa có địa chỉ'; document.getElementById('a').textContent = '“' + n + '”'; }
+  })();
+</script>
+</body>
+</html>

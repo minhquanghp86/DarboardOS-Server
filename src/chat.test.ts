@@ -43,7 +43,7 @@ describe('ChatStore', () => {
     st.onOrphans = (f) => orphans.push(...f);
     const c = st.create(ha, '', ['esp32-p4'], false);
     st.add(c, ha, '', { kind: 'image', file: 'a.jpg', thumb: 'a_t.jpg', mime: 'image/jpeg', size: 1 });
-    for (let i = 0; i < MAX_MSGS; i++) st.add(c, ha, 'x' + i);
+    for (let i = 0; i < MAX_MSGS; i++) st.add(c, ha, 'x' + i, undefined);
     expect(c.msgs).toHaveLength(MAX_MSGS);
     expect(orphans).toEqual(['a.jpg', 'a_t.jpg']);
     st.add(c, ha, '', { kind: 'video', file: 'b.mp4', mime: 'video/mp4', size: 1 });
@@ -55,17 +55,17 @@ describe('ChatStore', () => {
   it('man hinh chi xoa duoc tin cua minh; HA xoa duoc moi tin', () => {
     const st = new ChatStore();
     const c = st.create(ha, '', ['esp32-p4', 'esp32-s3'], false);
-    const m1 = st.add(c, s3, 'cua S3');
+    const m1 = st.add(c, s3, 'cua S3', undefined);
     expect(() => st.delMsg(c, m1.id, p4)).toThrow();
     expect(st.delMsg(c, m1.id, ha)).toBe(true);
-    const m2 = st.add(c, p4, 'cua P4');
+    const m2 = st.add(c, p4, 'cua P4', undefined);
     expect(st.delMsg(c, m2.id, p4)).toBe(true);
   });
 
   it('tin trong bi tu choi; chu duoc lam sach', () => {
     const st = new ChatStore();
     const c = st.create(ha, '', ['esp32-p4'], false);
-    expect(() => st.add(c, ha, '   ')).toThrow();
+    expect(() => st.add(c, ha, '   ', undefined)).toThrow();
     expect(clean('a\u0000b\n\n\n\nc', 100, true)).toBe('a b\n\nc');
     expect(clean('ten\nmoi', 100)).toBe('ten moi');
   });

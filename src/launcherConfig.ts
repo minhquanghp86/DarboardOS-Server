@@ -8,7 +8,8 @@ import type { AppGroup } from './launcherApps.js';
 import { HomeLayout, sanitizeLayout } from './homeLayout.js';
 
 export interface CustomApp { id: string; label: string; url: string; group: AppGroup; icon: string; color: string; }
-export interface AppOverride { label?: string; icon?: string; color?: string; group?: AppGroup; }
+/** (09/10/2026) url: dia chi rieng cho ung dung web co san (vd 'Solar' mac dinh trong) — sua trong trang Menu panel. */
+export interface AppOverride { label?: string; icon?: string; color?: string; group?: AppGroup; url?: string; }
 export interface LauncherConfig {
   hidden: string[];
   order: Partial<Record<AppGroup, string[]>>;
@@ -27,7 +28,10 @@ export const MDI_VERSION = '7.4.47';
 const GROUPS: AppGroup[] = ['nha', 'giai_tri', 'tien_ich'];
 const EMPTY: LauncherConfig = { hidden: [], order: {}, custom: [], overrides: {}, home: null };
 
-let cfg: LauncherConfig = load();
+// (09/10/2026) LOI: truoc day `= load()` chay o DAY — truoc khi ID_RE / ICON_RE / COLOR_RE (ben duoi) duoc khai bao -> sanitize
+// nem loi (TDZ), load() lang lang tra cau hinh RONG -> moi lan add-on khoi dong lai mat het an / thu tu / ung dung tu them /
+// doi ten / bo cuc man hinh chinh (toi khi bam Luu tren trang Menu). Nay nap o CUOI tep.
+let cfg: LauncherConfig = structuredClone(EMPTY);
 let mdi: Record<string, string> = loadMdi();
 
 function load(): LauncherConfig {
@@ -74,6 +78,7 @@ export function sanitize(raw: any): LauncherConfig {
       if (ICON_RE.test(o.icon)) ov.icon = o.icon;
       if (COLOR_RE.test(o.color)) ov.color = o.color;
       if (isGroup(o.group)) ov.group = o.group;
+      const url = str(o.url, 500); if (/^https?:\/\//i.test(url)) ov.url = url;
       if (Object.keys(ov).length) out.overrides[id] = ov;
     }
   }
@@ -134,3 +139,6 @@ export async function ensureMdiIcons(c: LauncherConfig = cfg): Promise<boolean> 
   }
   return changed;
 }
+
+// Nap cau hinh da luu SAU khi moi hang so / ham o tren da khai bao (xem chu thich o `let cfg`).
+cfg = load();
