@@ -31,3 +31,6 @@ export async function getHaLocation(): Promise<HaLocation | null> {
   cached = { at: Date.now(), loc };
   return loc;
 }
+
+/** (09/10/2026) Vi tri da doc gan nhat (khong cho) — Google Maps / quyen vi tri cua Chrome. null = chua doc / khong co. */
+export function haLocationCached(): HaLocation | null { return cached?.loc ?? null; }

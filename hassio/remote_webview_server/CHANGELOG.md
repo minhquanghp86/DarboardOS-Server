@@ -1,3 +1,9 @@
+## V2.9.126
+- **Ứng dụng Chrome** (thay "Trình duyệt"): logo Chrome, mở lại trang đang xem hoặc Google; thanh công cụ kiểu Chrome ở
+  đáy màn hình — lùi / tiến / tải lại / ô địa chỉ (chạm để gõ địa chỉ hoặc từ khoá tìm Google) / trang chủ / thu gọn.
+- **Google Maps:** các trang web được cấp quyền vị trí, vị trí = nhà trong Home Assistant (Cài đặt → Khu vực) → "Vị trí
+  của bạn" / điểm khởi hành dùng được. Ứng dụng Google Maps mở giao diện đầy đủ (có nút Đường đi), căn giữa nhà, lớp giao thông.
+
 ## V2.9.125
 - **Sửa địa chỉ ứng dụng web có sẵn** trong Darboard → Menu panel (ô "Địa chỉ web"): YouTube, Tin tức, Solar… Để trống =
   mặc định; "Khôi phục mặc định" bỏ địa chỉ riêng. Trang hệ thống của add-on và Home Assistant (ô riêng) không đổi.

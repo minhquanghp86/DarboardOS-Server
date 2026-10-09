@@ -41,6 +41,7 @@ import { callService, getRegistry, getSettingsView, getStates, haReady, getStatu
 import { NetIcon, findDeviceByMac, findNoSleepSwitch, findPresenceSelect, isSaverPhotosSwitchId, macFromDeviceId, planCamAuth, planSet, planWifi } from "./settingsModel.js";
 import { getLauncherConfig, saveHomeLayout } from "./launcherConfig.js";
 import { lockWidgetsFor, refreshLockWidgets } from "./lockWidgets.js";
+import { getHaLocation, haLocationCached } from "./haLocation.js";
 import { HomeLayout, resolveLayout } from "./homeLayout.js";
 import { ControlField, DeviceEventKind, DeviceStateInfo, Encoding, VoiceState, FRAME_HEADER_BYTES, TILE_HEADER_BYTES, parseDeviceStatePacket } from "./protocol.js";
 
@@ -1235,7 +1236,7 @@ async function navigateToUrlNow(dev: DeviceSession, url: string): Promise<void> 
   if (!tab) {
     tab = key === 'home' ? await createTab(dev, key, 'ha', true, 'Home Assistant')
       : spec ? await createTab(dev, key, spec.kind, false, spec.label)
-      : await createTab(dev, key, 'browser', false, 'Trình duyệt');
+      : await createTab(dev, key, 'browser', false, 'Chrome');
     if (devices.get(dev.deviceId) !== dev) { closeTab(dev, key, 'phien thiet bi da bi xoa'); return; }
     // Bat screencast TRUOC (tren trang trang, an toan) roi moi dieu huong cheo nguon — xem createTab().
     await activateTab(dev, key);
@@ -2002,6 +2003,16 @@ export function goBack(dev: DeviceSession): void {
 // tinh vao day). Tab dang active hoac dang phat am thanh nen (radio/nhac) khong bao gio bi don. Moi tab la mot tien
 // trinh renderer Chromium song rieng — RAM addon da do thuc te ~1,1 GB/3 man hinh o che do MOT tab; gia tri nay giu
 // muc tang RAM trong tam kiem soat khi mo them ung dung. Chinh qua bien moi truong neu may chu du RAM.
+/** (09/10/2026) Quyen + vi tri (nha trong HA) cho mot tab. Loi (Chrome cu / chua co vi tri) -> bo qua. */
+async function grantGeolocation(root: CDPRoot, session: CDPSession): Promise<void> {
+  try {
+    await root.send('Browser.grantPermissions', { permissions: ['geolocation'] });
+    const l = haLocationCached() ?? await getHaLocation();
+    if (l) await session.send('Emulation.setGeolocationOverride', { latitude: l.lat, longitude: l.lon, accuracy: 50 });
+  } catch { /* bo qua */ }
+}
+/** (09/10/2026) Trang mo dau cua ung dung Chrome. */
+const BROWSER_START_URL = process.env.BROWSER_START_URL || 'https://www.google.com/';
 const MAX_APP_TABS = Math.max(0, parseInt(process.env.MAX_APP_TABS ?? '2', 10) || 2);
 
 /** Ung dung nguoi dung co the "mo" tu Shell (khong ke Home Assistant/man hinh chinh, xu ly rieng o day). */
@@ -2010,6 +2021,11 @@ function resolveAppSpec(dev: DeviceSession, key: string): { kind: string; label:
   if (key === 'home') return dev.cfg.homeUrl ? { kind: 'ha', label: 'Home Assistant', url: dev.cfg.homeUrl, pinned: true } : null;
   if (key === '__doorbell') return dev.doorbell ? { kind: 'doorbell', label: 'Chuông cửa', url: dev.doorbell.url, pinned: false } : null;
   if (key === 'yttv') return { kind: 'yttv', label: 'YouTube TV', url: dev.castUrl ?? YT_TV_URL, pinned: false };
+  // (09/10/2026) Ung dung Chrome = tab 'browser' (cung tab nhan URL ngoai ung dung): co roi thi chuyen sang, chua co -> Google.
+  if (key === 'browser') {
+    const a = listAllApps(dev.cfg.homeUrl).find((x) => x.id === 'browser');
+    return a && !a.hidden ? { kind: 'browser', label: a.label, url: BROWSER_START_URL, pinned: false } : null;
+  }
   const app = listAllApps(dev.cfg.homeUrl).find((a) => a.id === key && !a.hidden);
   if (!app || !app.url) return null;
   // (01/10/2026) Tin nhan can biet DANG chay tren man hinh nao (src/chat.ts nhan dien bang ?dev=). (07/10/2026) + IPTV:
@@ -2492,6 +2508,11 @@ async function createTab(dev: DeviceSession, key: string, kind: string, pinned: 
     await session.send('Page.addScriptToEvaluateOnNewDocument', { source: buildTvCodecScript(YT_MAX_H, YT_MAX_FPS) });
   }
   await session.send('Page.addScriptToEvaluateOnNewDocument', { source: KIOSK_KEYBOARD_SCRIPT });
+  // (09/10/2026) VI TRI cho trang web (Google Maps "Vị trí của bạn" / diem khoi hanh): Chrome tren may chu khong co GPS va chua
+  // duoc cap quyen -> trang bao loi. Cap quyen vi tri + dat vi tri = NHA trong Home Assistant (Cai dat -> Khu vuc).
+  await grantGeolocation(root, session);
+  // (09/10/2026) Tab trinh duyet (ung dung Chrome): Shell ve thanh cong cu kieu Chrome (src/shell/browserBar.ts).
+  if (kind === 'browser') await session.send('Page.addScriptToEvaluateOnNewDocument', { source: 'window.__RWV_BROWSER=1;' });
   const { identifier: launcherScriptId } = await session.send(
     'Page.addScriptToEvaluateOnNewDocument', { source: buildLauncherScript(dev.cfg.homeUrl, dev.cfg) }
   );
@@ -2925,7 +2946,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
 
   const initialKey = cfg.homeUrl ? 'home' : 'browser';
   const initialTab = await createTab(newDevice, initialKey, cfg.homeUrl ? 'ha' : 'browser', !!cfg.homeUrl,
-    cfg.homeUrl ? 'Home Assistant' : 'Trình duyệt');
+    cfg.homeUrl ? 'Home Assistant' : 'Chrome');
   newDevice.id = initialTab.targetId;
   newDevice.cdp = initialTab.session;
   devices.set(id, newDevice);
