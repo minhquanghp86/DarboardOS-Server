@@ -232,10 +232,9 @@ describe("(08/10/2026) pin + mang canh dong ho", () => {
 
 describe("(09/10/2026) chon mang Cap / Wi-Fi", () => {
   const S = (state: string, unit?: string) => ({ entity_id: "x", state, attributes: unit ? { unit_of_measurement: unit } : {} });
-  it("HA mat ket noi (moi thuc the unavailable) -> off; con mot thuc the co so lieu -> khong off", () => {
-    expect(statusIconsOf(S("unavailable"), S("unavailable"), S("unavailable"))).toEqual({ nw: null, bt: null, off: true });
+  it("HA mat ket noi (moi thuc the unavailable) -> an bieu tuong", () => {
+    expect(statusIconsOf(S("unavailable"), S("unavailable"), S("unavailable"))).toEqual({ nw: null, bt: null });
     expect(statusIconsOf(S("unavailable"), S("Ethernet"), null)).toEqual({ nw: { k: "eth" }, bt: null });
-    expect(statusIconsOf(null, null, null)).toEqual({ nw: null, bt: null });
   });
   it("cap cam vao mang khac -> bieu tuong Wi-Fi (khong phai cap)", () => {
     expect(statusIconsOf(S("-62", "dBm"), S("Wi-Fi · cáp khác mạng"), null)).toEqual({ nw: { k: "wifi", q: 2 }, bt: null });

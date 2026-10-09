@@ -187,9 +187,6 @@ export function noteDeviceIp(deviceId: string, remoteAddress: string | undefined
   if (/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) devIp.set(deviceId, ip);
 }
 
-/** (09/10/2026) IP hien tai cua man hinh (ket noi WebSocket gan nhat) — tu sua dia chi trong HA khi doi Cap <-> Wi-Fi. */
-export function deviceIp(deviceId: string): string | undefined { return devIp.get(deviceId); }
-
 async function run<T>(slot: Slot<T>, every: number, fn: () => Promise<T>): Promise<boolean> {
   const now = Date.now();
   // Loi (vd chua cai Frigate): thu lai sau 5 phut, khong hoi lien tuc.

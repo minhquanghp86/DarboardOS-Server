@@ -320,7 +320,7 @@ export function planSet(view: SettingsView, id: string, value: unknown): Service
 // ── (08/10/2026) BIEU TUONG CANH DONG HO (giot nuoc o mep tren moi trang): pin ben trai, mang ben phai ──────────────────
 /** k = 'eth' (dang dung cap RJ45) | 'wifi' (q = so vach sang 0..3). */
 export type NetIcon = { k: 'eth' } | { k: 'wifi'; q: 0 | 1 | 2 | 3 };
-export interface StatusIcons { nw: NetIcon | null; bt: number | null; off?: boolean }
+export interface StatusIcons { nw: NetIcon | null; bt: number | null }
 export interface StatusIds { sig?: string; kind?: string; bat?: string }
 
 /** Thuc the cua thiet bi HA `devId`: cuong do Wi-Fi, kieu ket noi (firmware co Ethernet), muc pin. */
@@ -356,8 +356,5 @@ export function statusIconsOf(sig?: HaState | null, kind?: HaState | null, bat?:
     if (v != null && (unit === '%' ? v >= 0 : v < 0)) nw = { k: 'wifi', q: wifiBars(v, unit) };
   }
   const b = num(bat);
-  // (09/10/2026) off = moi thuc the doc duoc deu "unavailable" -> HA mat ket noi toi thiet bi (vd doi Cap <-> Wi-Fi doi IP).
-  const got = [sig, kind, bat].filter((x): x is HaState => !!x);
-  const off = got.length > 0 && got.every((x) => x.state === 'unavailable');
-  return { nw, bt: b == null ? null : Math.max(0, Math.min(100, Math.round(b))), ...(off ? { off } : {}) };
+  return { nw, bt: b == null ? null : Math.max(0, Math.min(100, Math.round(b))) };
 }
