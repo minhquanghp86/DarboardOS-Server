@@ -154,7 +154,7 @@
   function toast(m, ms) { var t = $('toast'); t.textContent = m; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(function () { t.hidden = true; }, ms || 2800); }
 
   function api(path, method) {
-    return fetch('/api/cam' + path, { method: method || 'GET', cache: 'no-store' }).then(function (r) {
+    return fetch(withDev('/api/cam' + path), { method: method || 'GET', cache: 'no-store' }).then(function (r) {
       return r.json().catch(function () { return null; }).then(function (j) {
         if (!r.ok) throw new Error((j && (j.err || j.error)) || ('HTTP ' + r.status));
         return j;
@@ -163,8 +163,11 @@
   }
   var enc = encodeURIComponent;
   var join = function (dir, n) { return (dir === '/' ? '' : dir) + '/' + n; };
-  var fileUrl = function (p) { return '/api/cam/sd/get?p=' + enc(p); };
-  var thumbUrl = function (p, it) { return '/api/cam/sd/thumb?p=' + enc(p) + '&s=' + it.s + '&t=' + it.t; };
+  // (09/10/2026) Nha nhieu P4: gui kem man hinh nay (?dev= do server them) -> the nho cua dung man.
+  var DEV = new URLSearchParams(location.search).get('dev');
+  function withDev(u) { return DEV ? u + (u.indexOf('?') >= 0 ? '&' : '?') + 'rwvdev=' + encodeURIComponent(DEV) : u; }
+  var fileUrl = function (p) { return withDev('/api/cam/sd/get?p=' + enc(p)); };
+  var thumbUrl = function (p, it) { return withDev('/api/cam/sd/thumb?p=' + enc(p) + '&s=' + it.s + '&t=' + it.t); };
 
   // ---- Dinh dang ----
   var KIND = [[/\.(jpe?g|png|gif|webp|bmp)$/i, 'img'], [/\.(mkv|mp4|m4v|webm|mov)$/i, 'vid'], [/\.(mp3|wav|m4a|aac|ogg|opus|flac)$/i, 'aud'],

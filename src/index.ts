@@ -314,6 +314,8 @@ http.createServer((req, res) => {
 
   // (25/09/2026) Vi tri nha trong Home Assistant cho weather.html (cung nguon goc 127.0.0.1:HEALTH_PORT).
   if (pathname === '/weather-location') {
+    // (09/10/2026) Toa do NHA: chi trang trong Chromium cua add-on (127.0.0.1) — truoc day ca LAN doc duoc.
+    if (!/^(::ffff:)?127\.0\.0\.1$|^::1$/.test(req.socket.remoteAddress || '')) { res.writeHead(403); res.end('{}'); return; }
     getHaLocation().then((loc) => {
       res.writeHead(loc ? 200 : 404, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
       res.end(JSON.stringify(loc ?? { error: 'khong co vi tri HA' }));

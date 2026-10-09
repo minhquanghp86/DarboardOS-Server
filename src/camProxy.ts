@@ -101,21 +101,38 @@ export async function serveThumb(h: { ip: string; port: number }, search: string
 }
 
 /** (01/10/2026) Cho server (Tin nhan: gui anh tu the SD / chup ngay). Toi da 200 MB. */
-export async function camFetch(pathAndQuery: string, method = 'GET'): Promise<{ code: number; type: string; body: Buffer }> {
-  const h = cameraHost();
+export async function camFetch(pathAndQuery: string, method = 'GET', device?: string): Promise<{ code: number; type: string; body: Buffer }> {
+  // (09/10/2026) device: man hinh dang dung (Tin nhan) — nha nhieu P4 thi dung camera / the nho CUA man do.
+  const h = (device && hosts.get(device)) || cameraHost();
   if (!h) throw new Error('Màn hình có camera chưa kết nối.');
   const big = pathAndQuery.startsWith('/sd/get');
   return (big ? fileGate : smallGate).run(() => fetchBuf(h, pathAndQuery, 200 * 1024 * 1024, method));
 }
 
+/**
+ * (09/10/2026) NHIEU MAN CO CAMERA: trang (camera.html / files.html) gui ?rwvdev=<id man hinh> -> dung camera CUA MAN DO
+ * (truoc day luon man co camera dau tien -> nha co 2 P4: cham chup tren man B lai chup o man A). Bo tham so truoc khi gui
+ * firmware; khong co / khong biet -> man co camera dau tien nhu truoc.
+ */
+export function pickCamHost(search: string): { h?: CamHost; id?: string; search: string } {
+  const sp = new URLSearchParams(search);
+  const d = sp.get('rwvdev');
+  if (d == null) return { h: cameraHost(), id: cameraDeviceId(), search };
+  sp.delete('rwvdev');
+  const rest = sp.toString();
+  const s2 = rest ? '?' + rest : '';
+  return hosts.has(d) ? { h: hosts.get(d), id: d, search: s2 } : { h: cameraHost(), id: cameraDeviceId(), search: s2 };
+}
+
 /** true = da xu ly yeu cau (pathname bat dau /api/cam/). */
-export function handleCamProxy(req: http.IncomingMessage, res: http.ServerResponse, pathname: string, search: string): boolean {
+export function handleCamProxy(req: http.IncomingMessage, res: http.ServerResponse, pathname: string, search0: string): boolean {
   if (!pathname.startsWith('/api/cam/')) return false;
+  const pick = pickCamHost(search0), search = pick.search;
   // (09/10/2026) Ten luong go2rtc cua CHINH panel co camera (nguon tro toi IP panel hoac /cam/live/<id>) — camera.html.
   if (pathname === '/api/cam/stream') {
     const ok = /^(::ffff:)?127\.0\.0\.1$|^::1$/.test(req.socket.remoteAddress || '');
     const j = (code: number, b: unknown) => { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }); res.end(JSON.stringify(b)); };
-    const id = cameraDeviceId(), h = cameraHost();
+    const id = pick.id, h = pick.h;
     if (!ok) { j(403, { error: 'Chỉ dùng được từ màn hình.' }); return true; }
     if (!id || !h) { j(200, { src: null }); return true; }
     go2rtcStreams().then((streams) => {
@@ -133,7 +150,7 @@ export function handleCamProxy(req: http.IncomingMessage, res: http.ServerRespon
   const sub = pathname.slice('/api/cam'.length);
   if (!local) { send(403, { error: 'Chỉ dùng được từ màn hình.' }); return true; }
   if (!ALLOWED.test(sub) || (req.method !== 'GET' && req.method !== 'POST')) { send(404, { error: 'khong co' }); return true; }
-  const h = cameraHost();
+  const h = pick.h;
   if (!h) { send(503, { error: 'Màn hình có camera chưa kết nối.' }); return true; }
   if (sub === '/sd/thumb') {
     serveThumb(h, search, res).catch((e) => { if (!res.headersSent) send(502, { error: (e as Error).message }); else res.destroy(); });

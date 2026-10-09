@@ -26,6 +26,8 @@ function json(res: http.ServerResponse, code: number, body: unknown): void {
 export function handleAppApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL): boolean {
   const p = url.pathname;
   if (p === '/cams/list' && req.method === 'GET') {
+    // (09/10/2026) Ten camera trong nha: chi trang trong Chromium cua add-on (truoc day ca LAN doc duoc).
+    if (!/^(::ffff:)?127\.0\.0\.1$|^::1$/.test(req.socket.remoteAddress || '')) { json(res, 403, { error: 'Chỉ dùng được từ màn hình.' }); return true; }
     listCams().then(l => json(res, 200, l)).catch(e => json(res, 502, { error: (e as Error).message }));
     return true;
   }

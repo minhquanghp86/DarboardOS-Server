@@ -165,7 +165,7 @@ export interface ChatHooks {
   /** Bao HA (su kien) khi man hinh gui tin. */
   haEvent(data: Record<string, unknown>): void;
   /** Panel co camera: goi cam_app (duong dan nhu /sd/get?p=..), tra ve noi dung. */
-  camFetch(pathAndQuery: string, method?: string): Promise<{ code: number; type: string; body: Buffer }>;
+  camFetch(pathAndQuery: string, method?: string, device?: string): Promise<{ code: number; type: string; body: Buffer }>;
   /** (01/10/2026) Nguoi trong HA (thuc the person co user_id): ten + duong anh dai dien (entity_picture). */
   people(): Promise<{ userId: string; name: string; pic: string | null }[]>;
   /** Tai anh tu HA (duong /api/image/serve/... cua entity_picture). */
@@ -495,6 +495,7 @@ export function handleChatApi(req: http.IncomingMessage, res: http.ServerRespons
     return true;
   }
   const me = who(req, url);
+  const camDev = me?.side === 'screen' ? me.id : undefined;   // (09/10/2026) camera cua CHINH man nay
   if (!me) { json(res, 403, { error: 'Chỉ dùng được từ màn hình hoặc trang Darboard trong Home Assistant.' }); return true; }
   const route = url.pathname.slice(6);
   const q = url.searchParams;
@@ -605,9 +606,9 @@ export function handleChatApi(req: http.IncomingMessage, res: http.ServerRespons
       case 'attach-sd': {
         const c = conv(body.c);
         if (!hooks || typeof body.p !== 'string' || !body.p.startsWith('/')) throw new Error('Thiếu tệp.');
-        const f = await hooks.camFetch('/sd/get?p=' + encodeURIComponent(body.p));
+        const f = await hooks.camFetch('/sd/get?p=' + encodeURIComponent(body.p), 'GET', camDev);
         if (f.code !== 200) throw new Error('Không đọc được tệp trên thẻ SD.');
-        const th = await hooks.camFetch('/sd/thumb?p=' + encodeURIComponent(body.p)).catch(() => null);
+        const th = await hooks.camFetch('/sd/thumb?p=' + encodeURIComponent(body.p), 'GET', camDev).catch(() => null);
         const media = await makeMedia(f.body, th && th.code === 200 ? th.body : undefined, { w: body.w, h: body.h, dur: body.dur });
         const m = chat.add(c, me, body.text, media);
         afterSend(c, m);
@@ -619,12 +620,12 @@ export function handleChatApi(req: http.IncomingMessage, res: http.ServerRespons
         if (!hooks || me.side !== 'screen') throw new Error('Chỉ ghi âm được trên màn hình có micro.');
         const act = q.get('act');
         if (act === 'start') {
-          const r = await hooks.camFetch('/mic/rec?on=1', 'POST');
+          const r = await hooks.camFetch('/mic/rec?on=1', 'POST', camDev);
           if (r.code !== 200) throw new Error(r.code === 404 ? 'Màn hình chưa có micro (cần firmware mới).' : 'Micro đang bận — thử lại.');
           return json(res, 200, { ok: true });
         }
-        if (act === 'cancel') { await hooks.camFetch('/mic/rec?on=2', 'POST').catch(() => null); return json(res, 200, { ok: true }); }
-        const r = await hooks.camFetch('/mic/rec?on=0', 'POST');
+        if (act === 'cancel') { await hooks.camFetch('/mic/rec?on=2', 'POST', camDev).catch(() => null); return json(res, 200, { ok: true }); }
+        const r = await hooks.camFetch('/mic/rec?on=0', 'POST', camDev);
         if (r.code !== 200 || !/wav/.test(r.type)) throw new Error('Không lấy được bản ghi âm.');
         if (r.body.length < 44 + 16000) throw new Error('Ghi âm quá ngắn — giữ nút lâu hơn.');
         const m = chat.add(c, me, '', await makeMedia(r.body, undefined, {}, 'audio'));
@@ -634,9 +635,9 @@ export function handleChatApi(req: http.IncomingMessage, res: http.ServerRespons
       case 'snap': {
         const c = conv(q.get('c'));
         if (!hooks) throw new Error('Không có camera.');
-        const r = await hooks.camFetch('/cam/photo', 'POST');
+        const r = await hooks.camFetch('/cam/photo', 'POST', camDev);
         if (r.code !== 200) throw new Error('Camera chưa chụp được — thử lại.');
-        const img = await hooks.camFetch('/cam/last.jpg');
+        const img = await hooks.camFetch('/cam/last.jpg', 'GET', camDev);
         if (img.code !== 200) throw new Error('Không lấy được ảnh vừa chụp.');
         const m = chat.add(c, me, '', await makeMedia(img.body));
         afterSend(c, m);
