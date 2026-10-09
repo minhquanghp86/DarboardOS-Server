@@ -41,7 +41,8 @@
 (function () {
   'use strict';
   var grid = document.getElementById('grid');
-  var GO2RTC = location.protocol + '//' + location.hostname + ':1984';
+  // (09/10/2026) go2rtc qua server (/go2rtc), khong gia dinh cong 1984 mo ra may chu.
+  var GO2RTC = '/go2rtc';
   var NAMES = { p4_panel: 'Panel P4' };
   function pretty(n) { return NAMES[n] || (n.charAt(0).toUpperCase() + n.slice(1)).replace(/_/g, ' '); }
   function layout(n) {

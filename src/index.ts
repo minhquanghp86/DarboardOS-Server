@@ -15,6 +15,7 @@ import { makeConfigFromParams, setConfigFor, logDeviceConfig } from "./config.js
 import { reloadAllLaunchers, broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick, refreshDisplaysTick, markInteraction, screensaverTick, postNotify, repaintRect, onDeviceStatePacket, onDeviceEvent, anyTzOffset, postDoorbell, closeDoorbell, unlockDoorbell, dialHooks, YT_TV_URL, hostMem, pipelineStats } from './deviceManager.js';
 import type { DeviceSession } from './deviceManager.js';
 import { camFetch, handleCamLive, handleCamProxy, noteCameraHost } from './camProxy.js';
+import { handleGo2rtcHttp, handleGo2rtcUpgrade } from './go2rtcProxy.js';
 import { handleFileManager, setFileManagerHooks } from './fileManager.js';
 import { handleChatApi, requestOpenConv, setChatHooks, unreadForScreen } from './chat.js';
 import { chatChanged, connectedScreens, isMediaPlaying, isUserViewing, setChatUnreadProvider, setNoticeArgHook, syncSoundToDevice } from './deviceManager.js';
@@ -39,6 +40,7 @@ import { startWeatherMini } from './weatherMini.js';
 import { handleIptvApi } from './iptv.js';
 import { handleFrigateApi } from './frigate.js';
 import { handleLockWidgetsApi, noteDeviceIp } from './lockWidgets.js';
+import { handleCalendarApi } from './calendarSource.js';
 import type WebSocket from 'ws';
 
 const WS_PORT   = env.get("WS_PORT").default("8081").asIntPositive();
@@ -210,6 +212,8 @@ http.createServer((req, res) => {
   const reqUrl = new URL(req.url || "/", `http://localhost:${HEALTH_PORT}`);
   const pathname = reqUrl.pathname;
   // (01/10/2026) Ung dung Camera: chuyen tiep toi cam_app cua panel co camera (src/camProxy.ts).
+  // (09/10/2026) go2rtc qua server (trang camera) — src/go2rtcProxy.ts.
+  if (handleGo2rtcHttp(req, res, pathname, reqUrl.search)) return;
   if (handleCamLive(req, res, pathname)) return;
   if (handleCamProxy(req, res, pathname, reqUrl.search)) return;
   // (02/10/2026) Quan ly file (the SD cua P4) tu trang Darboard — chi ingress.
@@ -302,6 +306,8 @@ http.createServer((req, res) => {
   if (handleLauncherApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
   // (08/10/2026) Trang Darboard -> tab "Màn khóa": cam bien nang luong cho widget (src/lockWidgets.ts).
   if (handleLockWidgetsApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
+  // (09/10/2026) Lich iCal (Google...) cho widget / trang Hom nay — src/calendarSource.ts.
+  if (handleCalendarApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
   if (handleChatApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
   if (handleAlarmApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`), () => connectedScreens().map((s) => ({
     id: s.id, name: screenNames.get(s.id) || `Màn hình ${s.w}×${s.h}`, spk: s.spk })))) return;
@@ -328,7 +334,7 @@ http.createServer((req, res) => {
   }
 
   res.writeHead(200); res.end('ok');
-}).listen(HEALTH_PORT);
+}).on('upgrade', (req, socket, head) => { if (!handleGo2rtcUpgrade(req, socket, head)) socket.destroy(); }).listen(HEALTH_PORT);
 
 setInterval(() => cleanupIdleAsync(), 60_000);
 

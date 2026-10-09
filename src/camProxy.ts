@@ -7,6 +7,7 @@
 // server chuyen tiep toi HTTP cua firmware (component cam_app, chi P4) tai IP cua CHINH thiet bi da bao ?cam=<cong> luc
 // ket noi WebSocket. Khong nhan dia chi tuy y (khong thanh proxy mo); chi duong cua cam_app; chi tu 127.0.0.1.
 import http from 'node:http';
+import { go2rtcStreams, hostsOfRuntime } from './frigate.js';
 
 /** (08/10/2026) auth = base64("user:pass") cho HTTP Basic Auth cua cam_app / av_stream (firmware gui ?ca=<hex(user:pass)>). */
 export type CamHost = { ip: string; port: number; auth?: string };
@@ -110,6 +111,20 @@ export async function camFetch(pathAndQuery: string, method = 'GET'): Promise<{ 
 /** true = da xu ly yeu cau (pathname bat dau /api/cam/). */
 export function handleCamProxy(req: http.IncomingMessage, res: http.ServerResponse, pathname: string, search: string): boolean {
   if (!pathname.startsWith('/api/cam/')) return false;
+  // (09/10/2026) Ten luong go2rtc cua CHINH panel co camera (nguon tro toi IP panel hoac /cam/live/<id>) — camera.html.
+  if (pathname === '/api/cam/stream') {
+    const ok = /^(::ffff:)?127\.0\.0\.1$|^::1$/.test(req.socket.remoteAddress || '');
+    const j = (code: number, b: unknown) => { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }); res.end(JSON.stringify(b)); };
+    const id = cameraDeviceId(), h = cameraHost();
+    if (!ok) { j(403, { error: 'Chỉ dùng được từ màn hình.' }); return true; }
+    if (!id || !h) { j(200, { src: null }); return true; }
+    go2rtcStreams().then((streams) => {
+      const hosts = hostsOfRuntime(streams);
+      const name = Object.keys(hosts).find((n) => hosts[n].includes(h.ip) || hosts[n].includes('cam-live:' + id)) ?? null;
+      j(200, { src: name });
+    }).catch(() => j(200, { src: null }));
+    return true;
+  }
   const send = (code: number, body: unknown) => {
     res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
     res.end(JSON.stringify(body));

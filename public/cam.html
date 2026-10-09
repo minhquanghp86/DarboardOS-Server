@@ -17,7 +17,7 @@
     poster  ảnh hiện NGAY trong lúc chờ       (thường là entity_picture của
             image.<camera>_person do Frigate sinh lúc phát hiện)
     fit     cover | contain                   (mặc định contain — xem lý do bên dưới)
-    host    địa chỉ go2rtc                    (mặc định 192.168.1.2:1984)
+    host    địa chỉ go2rtc                    (mặc định: qua server /go2rtc/)
     mode    mse | mjpeg                       (mặc định mse)
 
   (18/09/2026) VÌ SAO fit MẶC ĐỊNH LÀ contain CHỨ KHÔNG PHẢI cover
@@ -155,7 +155,8 @@
 <script type="module">
   const q      = new URLSearchParams(location.search);
   const src    = q.get('src')    || 'ezviz';
-  const host   = q.get('host')   || '192.168.1.2:1984';
+  // (09/10/2026) Mac dinh go2rtc qua server (/go2rtc/), khong gan IP may HA. ?host= van ghi de.
+  const G2     = q.get('host') ? `http://${q.get('host')}/` : new URL('/go2rtc/', location.origin).href;
   const fit    = q.get('fit')    || 'contain';
   const mode   = q.get('mode')   || 'mse';
   const poster = q.get('poster') || '';
@@ -220,7 +221,7 @@
     daLui = true;
     console.log('[cam] MSE khong ra khung, lui sang MJPEG');
     nhan.textContent = 'Đang thử chế độ dự phòng…';
-    mjpeg.src = `http://${host}/api/stream.mjpeg?src=${encodeURIComponent(src)}&_=${Date.now()}`;
+    mjpeg.src = `${G2}api/stream.mjpeg?src=${encodeURIComponent(src)}&_=${Date.now()}`;
     (function doi() {
       if (daCoKhung) return;
       if (mjpeg.naturalWidth > 0) return coKhung('mjpeg', mjpeg);
@@ -234,13 +235,13 @@
   } else {
     // video-stream.js là ES module và nạp bất đồng bộ, nên phải đợi phần tử
     // tuỳ biến được đăng ký rồi mới dựng.
-    import(`http://${host}/video-stream.js`)
+    import(`${G2}video-stream.js`)
       .then(() => customElements.whenDefined('video-stream'))
       .then(() => {
         const v = document.createElement('video-stream');
         v.background = true;               // vẫn chạy khi tab không hiển thị
         v.mode = mode;                     // 'mse'
-        v.src = new URL(`api/ws?src=${encodeURIComponent(src)}`, `http://${host}/`);
+        v.src = new URL(`api/ws?src=${encodeURIComponent(src)}`, G2);
         phat.appendChild(v);
 
         (function doi() {

@@ -1,6 +1,6 @@
 {
   "name": "remotewebviewserver",
-  "version": "2.9.123",
+  "version": "2.9.124",
   "type": "module",
   "scripts": {
     "dev": "tsx src/index.ts",
@@ -17,6 +17,7 @@
     "devtools-protocol": "^0.0.1510116",
     "env-var": "^7.5.0",
     "hls.js": "^1.6.15",
+    "ical.js": "^2.2.1",
     "mpegts.js": "^1.8.0",
     "playwright-core": "1.55.0",
     "shaka-player": "^4.16.51",
