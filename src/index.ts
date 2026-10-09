@@ -14,7 +14,7 @@ import env from "env-var";
 import { makeConfigFromParams, setConfigFor, logDeviceConfig } from "./config.js";
 import { reloadAllLaunchers, broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick, refreshDisplaysTick, markInteraction, screensaverTick, postNotify, repaintRect, onDeviceStatePacket, onDeviceEvent, anyTzOffset, postDoorbell, closeDoorbell, unlockDoorbell, dialHooks, YT_TV_URL, hostMem, pipelineStats } from './deviceManager.js';
 import type { DeviceSession } from './deviceManager.js';
-import { camFetch, handleCamProxy, noteCameraHost } from './camProxy.js';
+import { camFetch, handleCamLive, handleCamProxy, noteCameraHost } from './camProxy.js';
 import { handleFileManager, setFileManagerHooks } from './fileManager.js';
 import { handleChatApi, requestOpenConv, setChatHooks, unreadForScreen } from './chat.js';
 import { chatChanged, connectedScreens, isMediaPlaying, isUserViewing, setChatUnreadProvider, setNoticeArgHook, syncSoundToDevice } from './deviceManager.js';
@@ -210,6 +210,7 @@ http.createServer((req, res) => {
   const reqUrl = new URL(req.url || "/", `http://localhost:${HEALTH_PORT}`);
   const pathname = reqUrl.pathname;
   // (01/10/2026) Ung dung Camera: chuyen tiep toi cam_app cua panel co camera (src/camProxy.ts).
+  if (handleCamLive(req, res, pathname)) return;
   if (handleCamProxy(req, res, pathname, reqUrl.search)) return;
   // (02/10/2026) Quan ly file (the SD cua P4) tu trang Darboard — chi ingress.
   if (handleFileManager(req, res, reqUrl)) return;

@@ -1,3 +1,12 @@
+## V2.9.122
+### Chọn mạng Cáp / Wi-Fi (P4 có cổng RJ45, cần firmware có "Mạng sử dụng")
+- Cài đặt → Wi-Fi & Mạng: khối **Kết nối** kiểu laptop — Cáp mạng / Wi-Fi, dấu tích ở đường đang dùng, chạm để đổi. Cũng
+  chọn được từ Home Assistant (select "Mạng sử dụng").
+- Đổi đường làm IP màn hình đổi (hai cổng khác MAC): server **tự sửa địa chỉ thiết bị trong Home Assistant** (Cấu hình lại
+  ESPHome) ~15 s sau khi màn hình nối lại từ IP mới; dự phòng khi HA báo mất kết nối > 60 s.
+- **Luồng camera cho Frigate qua server:** `http://172.30.32.1:18080/cam/live/<id màn hình>` luôn tới IP hiện tại của màn
+  hình — Frigate không mất camera khi đổi Cáp ↔ Wi-Fi. Chỉ nhận từ mạng nội bộ của Home Assistant.
+
 ## V2.9.121
 - Đồng hồ trên cùng mọi trang: **pin bên trái** (mức đầy theo % còn lại, đỏ khi ≤ 20%), **mạng bên phải** (Wi-Fi 3 vạch
   theo cường độ sóng, hoặc biểu tượng cáp mạng khi dùng cổng RJ45). Màn không có cảm biến pin chỉ hiện mạng.

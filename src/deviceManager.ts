@@ -37,10 +37,10 @@ import type { DialHooks } from "./dial.js";
 import { Notice, NoticeStore, NotifyRequest, noticeKind, parseNotify, shouldPopup, shouldWake } from "./notifications.js";
 import { Sound, soundForNotice, soundPrefs } from "./sound.js";
 import { alarms, type Ringing } from "./alarms.js";
-import { callService, getRegistry, getSettingsView, getStates, haReady, getStatusIcons } from "./haSettings.js";
+import { callService, getRegistry, getSettingsView, getStates, haReady, getStatusIcons, healEsphomeHost } from "./haSettings.js";
 import { NetIcon, findDeviceByMac, findNoSleepSwitch, findPresenceSelect, isSaverPhotosSwitchId, macFromDeviceId, planCamAuth, planSet, planWifi } from "./settingsModel.js";
 import { getLauncherConfig, saveHomeLayout } from "./launcherConfig.js";
-import { lockWidgetsFor, refreshLockWidgets } from "./lockWidgets.js";
+import { deviceIp, lockWidgetsFor, refreshLockWidgets } from "./lockWidgets.js";
 import { HomeLayout, resolveLayout } from "./homeLayout.js";
 import { ControlField, DeviceEventKind, DeviceStateInfo, Encoding, VoiceState, FRAME_HEADER_BYTES, TILE_HEADER_BYTES, parseDeviceStatePacket } from "./protocol.js";
 
@@ -199,6 +199,12 @@ export type DeviceSession = {
   presenceSel?: { id: string; v: string; o: string[]; at: number } | null;
   /** (08/10/2026) Bieu tuong canh dong ho: pin (%) + mang (Wi-Fi vach / Ethernet), doc tu HA moi 30 s. */
   sb?: { nw: NetIcon | null; bt: number | null; at: number };
+  /** (09/10/2026) HA mat ket noi toi thiet bi tu luc nao (trong khi thiet bi van noi Darboard) + lan tu sua dia chi gan nhat. */
+  haOffSince?: number;
+  haHealAt?: number;
+  /** IP gan nhat da thay + luc doi IP (man hinh doi Cap <-> Wi-Fi) -> sua dia chi HA ngay, khong cho HA bao mat ket noi. */
+  lastIp?: string;
+  ipChangedAt?: number;
   /** (27/09/2026) Ngay (gio thiet bi) da chao buoi sang — moi ngay mot lan. */
   morningDate?: string;
   /** (27/09/2026) Chuong cua dang hien: id lan bam, URL trang, tab dang dung truoc do, hen gio tu dong. */
@@ -3491,9 +3497,29 @@ let sbRefreshBusy = false;
 /** (08/10/2026) Doc lai pin + mang cua tung man (toi da moi 30 s); doi thi day xuong trang. */
 async function refreshStatusIcons(now: number): Promise<void> {
   for (const d of [...devices.values()]) {
-    if (d.sb && now - d.sb.at < 30_000) continue;
+    if (d.sb && now - d.sb.at < (d.ipChangedAt || d.haOffSince ? 10_000 : 30_000)) continue;
     const r = await getStatusIcons(d.deviceId).catch(() => null);
     if (!r) { d.sb = { nw: d.sb?.nw ?? null, bt: d.sb?.bt ?? null, at: now }; continue; }
+    // (09/10/2026) Man hinh noi lai tu IP MOI (doi Cap <-> Wi-Fi): 15 s sau (duong cu da tat) cau hinh lai HA ngay — do that:
+    // HA can ~90 s moi bao "unavailable", cong 60 s cho = gan 3 phut mat cam bien.
+    const ipNow = deviceIp(d.deviceId);
+    if (ipNow && d.lastIp && ipNow !== d.lastIp) d.ipChangedAt = now;
+    if (ipNow) d.lastIp = ipNow;
+    if (d.ipChangedAt && now - d.ipChangedAt > 15_000 && ipNow && broadcaster.getClientCount(d.deviceId) > 0) {
+      d.ipChangedAt = undefined; d.haHealAt = now;
+      const res = await healEsphomeHost(d.deviceId, ipNow).catch((e) => `loi ${(e as Error).message}`);
+      console.log(`[ha-host] ${d.deviceId}: man hinh doi IP -> ${ipNow}, cau hinh lai dia chi trong HA: ${res}`);
+    }
+    // (09/10/2026) Du phong: HA "unavailable" > 60 s ma man hinh van noi Darboard -> HA dang goi IP cu: cau hinh lai.
+    if (r.off && broadcaster.getClientCount(d.deviceId) > 0) {
+      d.haOffSince ??= now;
+      const ip = deviceIp(d.deviceId);
+      if (ip && now - d.haOffSince > 60_000 && (!d.haHealAt || now - d.haHealAt > 10 * 60_000)) {
+        d.haHealAt = now;
+        const res = await healEsphomeHost(d.deviceId, ip).catch((e) => `loi ${(e as Error).message}`);
+        console.log(`[ha-host] ${d.deviceId}: HA mat ket noi ${Math.round((now - d.haOffSince) / 1000)} s -> cau hinh lai dia chi ${ip}: ${res}`);
+      }
+    } else d.haOffSince = undefined;
     const changed = !d.sb || JSON.stringify([d.sb.nw, d.sb.bt]) !== JSON.stringify([r.nw, r.bt]);
     d.sb = { ...r, at: now };
     if (changed) pushDeviceStateToPage(d);

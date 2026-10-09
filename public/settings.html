@@ -561,8 +561,37 @@
     ctl({ settings: 'wifi', op: 'scan' });
     setTimeout(function () { wifiScanning = false; if (last) render(last); }, 10000);   // quet that ~6,5 s + len HA
   }
+  // ── (09/10/2026) CHON MANG nhu laptop: firmware P4 co select "Mạng sử dụng" (Cáp mạng / Wi-Fi) + cam bien "Kết nối mạng".
+  // Cham dong -> doi (firmware: Wi-Fi vao duoc moi tat cap; 60 s khong vao duoc -> tu ve cap; cap cam vao mang khac -> giu Wi-Fi).
+  function connGroup(out) {
+    var all = haItems(), pick = function (re) { return all.filter(function (i) { return re.test(i.id); })[0]; };
+    var pref = pick(/^select\..*_mang_su_dung$/);
+    if (!pref || !(pref.options || []).length) return;
+    var kind = pick(/^sensor\..*_ket_noi_mang$/), eip = pick(/^sensor\..*_ip_mang_day$/), w = wifiItems();
+    var cur = good(pref.value) ? pref.value : '', k = kind && good(kind.value) ? kind.value : '';
+    var ip = eip && good(eip.value) ? eip.value : '', ssid = w.ssid && good(w.ssid.value) ? w.ssid.value : '';
+    var cabSub = k === 'Ethernet' ? 'Đang dùng' + (ip ? ' · ' + ip : '')
+      : /khác mạng/.test(k) ? 'Cáp cắm vào mạng khác' + (ip ? ' (' + ip + ')' : '') + ' — đang dùng Wi-Fi'
+      : cur === 'Cáp mạng' ? 'Chưa có cáp mạng — đang dùng Wi-Fi' : 'Chạm để chuyển sang cáp mạng';
+    var wifiSub = /^Wi-Fi/.test(k) && cur === 'Wi-Fi' ? 'Đang dùng' + (ssid ? ' · ' + ssid : '')
+      : cur === 'Wi-Fi' ? 'Đang kết nối…' : 'Chạm để dùng Wi-Fi (cáp vẫn cắm)';
+    var g = el('div', 'grp');
+    [['Cáp mạng', 'ethernet', cabSub], ['Wi-Fi', 'wifi', wifiSub]].forEach(function (o) {
+      if (pref.options.indexOf(o[0]) < 0) return;
+      var row = el('button', 'row tap hasic'); row.type = 'button';
+      var ic = el('span', 'ico sig'); ic.append(svg(o[1]));
+      row.append(ic, textCol(o[0], o[2]));
+      if (cur === o[0]) row.append(svg('check', 'tick'));
+      row.addEventListener('click', function () { if (cur !== o[0]) set(pref.id, o[0]); });
+      g.append(row);
+    });
+    out.push(el('div', 'gh first', 'Kết nối'), g,
+      el('div', 'gf', 'Giống laptop: chọn đường mạng khi cả cáp và Wi-Fi đều dùng được. Đổi mất vài giây. Wi-Fi không vào được trong ' +
+        '60 giây thì tự quay lại cáp; cáp cắm vào mạng khác (không tới được máy chủ) thì vẫn dùng Wi-Fi.'));
+  }
   function netPage() {
     var w = wifiItems(), out = [];
+    connGroup(out);
     var cur = w.ssid && good(w.ssid.value) ? w.ssid.value : '';
     var rssi = w.rssi && good(w.rssi.value) && isFinite(Number(w.rssi.value)) ? Math.round(Number(w.rssi.value)) : null;
     var can = !!(w.node && good(w.node.value) && w.scan);
@@ -573,7 +602,7 @@
     g.append(r);
     var st = wifiPending || (w.status && good(w.status.value) ? w.status.value : '');
     if (st) g.append(valueRow('Đổi mạng', '', st));
-    out.push(el('div', 'gh first', 'Wi-Fi'), g);
+    out.push(el('div', 'gh' + (out.length ? '' : ' first'), 'Wi-Fi'), g);
     if (can) {
       if (!nav.sub && Date.now() - wifiScanAt > 60000) setTimeout(wifiScan, 0);   // mo trang: quet mot lan / phut
       var nets = parseScan(w.scan.value, cur), g2 = el('div', 'grp');
