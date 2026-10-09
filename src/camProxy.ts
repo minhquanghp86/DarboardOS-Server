@@ -146,3 +146,31 @@ export function handleCamProxy(req: http.IncomingMessage, res: http.ServerRespon
   })).catch(() => { });
   return true;
 }
+
+// ── (09/10/2026) LUONG CAMERA CHO FRIGATE QUA SERVER: P4 doi Cap mang <-> Wi-Fi thi doi IP (hai cong khac MAC); Frigate tro
+// vao http://172.30.32.1:18080/cam/live/<id thiet bi> (dia chi co dinh) va server chuyen tiep toi av_stream :8080/live
+// tai IP HIEN TAI cua thiet bi. CHI nhan tu mang noi bo cua Home Assistant (172.30.32.0/23 — Frigate, go2rtc) va may chu:
+// khong mo duong vuot mat khau camera cho may khac trong LAN. Server la may chu tin cay cua P4 (khong can mat khau).
+const AV_PORT = Number(process.env.RWV_AV_PORT || 8080);
+const INTERNAL = /^(::ffff:)?(127\.0\.0\.1|172\.30\.3[23]\.\d{1,3})$|^::1$/;
+export function isInternalPeer(addr: string | undefined): boolean { return INTERNAL.test(addr || ''); }
+
+export function handleCamLive(req: http.IncomingMessage, res: http.ServerResponse, pathname: string): boolean {
+  const m = /^\/cam\/live\/([A-Za-z0-9_-]{1,40})$/.exec(pathname);
+  if (!m) return false;
+  const txt = (code: number, msg: string) => { res.writeHead(code, { 'content-type': 'text/plain; charset=utf-8' }); res.end(msg); };
+  if (!isInternalPeer(req.socket.remoteAddress)) { txt(403, 'Chi Frigate / Home Assistant noi bo.'); return true; }
+  const h = hosts.get(m[1]);
+  if (!h) { txt(503, 'Man hinh chua ket noi.'); return true; }
+  const up = http.request({ host: h.ip, port: AV_PORT, path: '/live', method: 'GET', headers: camAuth(h) }, (r) => {
+    res.writeHead(r.statusCode || 502, { 'content-type': r.headers['content-type'] || 'video/x-matroska', 'cache-control': 'no-store' });
+    r.pipe(res);
+  });
+  up.setTimeout(20_000, () => up.destroy(new Error('het gio')));   // khong co du lieu 20 s -> dong (go2rtc tu noi lai)
+  up.on('error', (e) => { if (!res.headersSent) txt(502, `Khong goi duoc camera (${e.message}).`); else res.destroy(); });
+  const stop = () => up.destroy();
+  req.on('close', stop); res.on('close', stop);
+  up.end();
+  console.log(`[cam-live] ${req.socket.remoteAddress?.replace(/^::ffff:/, '')} -> ${m[1]} @ ${h.ip}:${AV_PORT}`);
+  return true;
+}

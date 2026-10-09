@@ -229,3 +229,21 @@ describe("(08/10/2026) pin + mang canh dong ho", () => {
     expect(statusIconsOf(null, null, null)).toEqual({ nw: null, bt: null });
   });
 });
+
+describe("(09/10/2026) chon mang Cap / Wi-Fi", () => {
+  const S = (state: string, unit?: string) => ({ entity_id: "x", state, attributes: unit ? { unit_of_measurement: unit } : {} });
+  it("HA mat ket noi (moi thuc the unavailable) -> off; con mot thuc the co so lieu -> khong off", () => {
+    expect(statusIconsOf(S("unavailable"), S("unavailable"), S("unavailable"))).toEqual({ nw: null, bt: null, off: true });
+    expect(statusIconsOf(S("unavailable"), S("Ethernet"), null)).toEqual({ nw: { k: "eth" }, bt: null });
+    expect(statusIconsOf(null, null, null)).toEqual({ nw: null, bt: null });
+  });
+  it("cap cam vao mang khac -> bieu tuong Wi-Fi (khong phai cap)", () => {
+    expect(statusIconsOf(S("-62", "dBm"), S("Wi-Fi · cáp khác mạng"), null)).toEqual({ nw: { k: "wifi", q: 2 }, bt: null });
+  });
+  it("select / cam bien moi vao muc Wi-Fi & Mang", () => {
+    const P = (id: string) => placeSetting({ id, kind: "value", group: "diag", label: "x", value: "" });
+    expect(P("select.7_0_guition_jc1060p470c_mang_su_dung")).toMatchObject({ cat: "net", hide: true });
+    expect(P("sensor.7_0_guition_jc1060p470c_ket_noi_mang")).toMatchObject({ cat: "net", hide: true });
+    expect(P("sensor.7_0_guition_jc1060p470c_ip_mang_day")).toMatchObject({ cat: "net", title: "IP mạng dây" });
+  });
+});

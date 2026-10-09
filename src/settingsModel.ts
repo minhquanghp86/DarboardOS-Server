@@ -14,6 +14,7 @@ export type SettingGroup = 'control' | 'config' | 'diag' | 'stream';
 const STREAM_LABEL = /^Tiếng (luồng camera|khi quay video)$/i;
 
 export interface HaDevice { id: string; name?: string | null; name_by_user?: string | null; connections?: [string, string][];
+  config_entries?: string[];
   model?: string | null; sw_version?: string | null; manufacturer?: string | null; }
 export interface HaEntity { entity_id: string; device_id?: string | null; entity_category?: string | null;
   disabled_by?: string | null; hidden_by?: string | null; }
@@ -64,6 +65,10 @@ const PLACE: PlaceRule[] = [
   // diem phat theo kenh (dai, an — de chan doan nhieu cung kenh).
   { re: /^sensor\..*_lien_ket_wi_fi$/, cat: 'net', sub: 'Wi-Fi', title: 'Kênh & chuẩn kết nối', ord: 6 },
   { re: /^sensor\..*_kenh_wi_fi_xung_quanh$/, cat: 'net', sub: 'Wi-Fi', title: 'Kênh Wi-Fi xung quanh', hide: true },
+  // (09/10/2026) Chon mang Cap / Wi-Fi: trang Wi-Fi & Mang ve rieng khoi "Kết nối" (an dong chung); IP cong cap o Chi tiet.
+  { re: /^select\..*_mang_su_dung$/, cat: 'net', sub: 'Wi-Fi', title: 'Mạng sử dụng', hide: true },
+  { re: /^sensor\..*_ket_noi_mang$/, cat: 'net', sub: 'Wi-Fi', title: 'Kết nối mạng', hide: true },
+  { re: /^sensor\..*_ip_mang_day$/, cat: 'net', sub: 'Wi-Fi', title: 'IP mạng dây', ord: 3 },
   { re: /^sensor\..*_ten_esphome$/, cat: 'about', sub: 'Thiết bị', title: 'Tên ESPHome' },
   // (08/10/2026) Trang thai mat khau luong camera ("Bật · <ten>" / "Tắt" — KHONG co mat khau); trang Cai dat mo trang doi.
   { re: /^sensor\..*_mat_khau_luong_camera$/, cat: 'camera', sub: 'Bảo mật luồng camera', title: 'Mật khẩu luồng camera' },
@@ -315,7 +320,7 @@ export function planSet(view: SettingsView, id: string, value: unknown): Service
 // ── (08/10/2026) BIEU TUONG CANH DONG HO (giot nuoc o mep tren moi trang): pin ben trai, mang ben phai ──────────────────
 /** k = 'eth' (dang dung cap RJ45) | 'wifi' (q = so vach sang 0..3). */
 export type NetIcon = { k: 'eth' } | { k: 'wifi'; q: 0 | 1 | 2 | 3 };
-export interface StatusIcons { nw: NetIcon | null; bt: number | null }
+export interface StatusIcons { nw: NetIcon | null; bt: number | null; off?: boolean }
 export interface StatusIds { sig?: string; kind?: string; bat?: string }
 
 /** Thuc the cua thiet bi HA `devId`: cuong do Wi-Fi, kieu ket noi (firmware co Ethernet), muc pin. */
@@ -351,5 +356,8 @@ export function statusIconsOf(sig?: HaState | null, kind?: HaState | null, bat?:
     if (v != null && (unit === '%' ? v >= 0 : v < 0)) nw = { k: 'wifi', q: wifiBars(v, unit) };
   }
   const b = num(bat);
-  return { nw, bt: b == null ? null : Math.max(0, Math.min(100, Math.round(b))) };
+  // (09/10/2026) off = moi thuc the doc duoc deu "unavailable" -> HA mat ket noi toi thiet bi (vd doi Cap <-> Wi-Fi doi IP).
+  const got = [sig, kind, bat].filter((x): x is HaState => !!x);
+  const off = got.length > 0 && got.every((x) => x.state === 'unavailable');
+  return { nw, bt: b == null ? null : Math.max(0, Math.min(100, Math.round(b))), ...(off ? { off } : {}) };
 }
