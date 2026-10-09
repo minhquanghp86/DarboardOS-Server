@@ -56,6 +56,8 @@ export type DeviceMetrics = {
   appliedQuality: number | null;
   appliedMinFrameIntervalMs: number | null;
   lastAdaptiveReason: string | null;
+  /** (09/10/2026) Nhip quyet dinh GAN NHAT cua bo dieu tiet (ke ca khi khong doi): ly do + so do dau vao — de biet vi sao khong hoi. */
+  adaptiveTick: string | null;
   adaptiveChanges: number;
   // (24/09/2026) Uoc luong duong truyen cua bo dieu tiet (byte/s, byte). null = chua do duoc.
   linkCapacityBytesPerSec: number | null;
@@ -105,6 +107,7 @@ function dev(id: string): DeviceMetrics {
       appliedQuality: null,
       appliedMinFrameIntervalMs: null,
       lastAdaptiveReason: null,
+      adaptiveTick: null,
       linkCapacityBytesPerSec: null,
       recentBytesPerSec: null,
       recentFrameBytes: null,
@@ -175,6 +178,7 @@ export const metrics = {
     d.lastAdaptiveReason = reason;
     d.adaptiveChanges++;
   },
+  onAdaptiveTick(id: string, text: string): void { dev(id).adaptiveTick = text; },
   onLinkEstimate(id: string, capacity: number | null, recentBps: number | null, frameBytes: number | null): void {
     const d = dev(id);
     d.linkCapacityBytesPerSec = capacity;
