@@ -45,7 +45,7 @@ const PLACE: Record<string, [NonNullable<PanelPrefItem['cat']>, string]> = {
   'rwv.photo_effect': ['wall', 'Trình chiếu'], 'rwv.photo_fit': ['wall', 'Trình chiếu'], 'rwv.photo_order': ['wall', 'Trình chiếu'],
   'rwv.photo_source': ['wall', 'Nguồn ảnh'], 'rwv.gphotos_url': ['wall', 'Nguồn ảnh'],
   'rwv.photo_clock': ['wall', 'Trên ảnh'], 'rwv.photo_info': ['wall', 'Trên ảnh'],
-  'rwv.morning': ['camera', 'Khi thấy người'], 'rwv.cast': ['cast', 'YouTube'], 'rwv.cast_name': ['cast', 'YouTube'],
+  'rwv.morning': ['camera', 'Khi thấy người'], 'rwv.cast': ['cast', 'YouTube'], 'rwv.cast_name': ['cast', 'YouTube'], 'rwv.yt_skip_ads': ['cast', 'YouTube'], 'rwv.yttv_guest': ['cast', 'YouTube'],
 };
 /** Tat ca thong so khung anh cua MOT man hinh (da ap mac dinh). */
 export interface FrameSettings {
