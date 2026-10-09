@@ -113,30 +113,6 @@ export async function getStatusIcons(deviceId: string): Promise<StatusIcons | nu
   return statusIconsOf(sig, kind, bat);
 }
 
-/**
- * (09/10/2026) TU SUA DIA CHI THIET BI ESPHOME TRONG HA: man hinh doi Cap mang <-> Wi-Fi (hai cong khac MAC -> khac IP), HA
- * van goi IP cu -> moi cam bien "unavailable" (mDNS bao IP moi luc HA con ket noi duong cu nen HA bo qua). Server biet IP
- * hien tai (ket noi WebSocket) -> chay luong "Cấu hình lại" cua tich hop ESPHome voi IP do (HA tu kiem dung MAC thiet bi).
- */
-export async function healEsphomeHost(deviceId: string, ip: string): Promise<string> {
-  const mac = macFromDeviceId(deviceId);
-  if (!token() || !mac || !/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) return 'bo qua';
-  const reg = await getRegistry();
-  const dev = findDeviceByMac(reg.devices, mac);
-  if (!dev) return 'khong thay thiet bi';
-  const r = await haFetch('/config/config_entries/entry?domain=esphome');
-  if (!r.ok) return `HA ${r.status}`;
-  const entry = (await r.json() as { entry_id: string }[]).find((e) => (dev.config_entries || []).includes(e.entry_id));
-  if (!entry) return 'khong thay muc ESPHome';
-  const f = await haFetch('/config/config_entries/flow', { method: 'POST', body: JSON.stringify({ handler: 'esphome', entry_id: entry.entry_id }) });
-  const fj = await f.json() as { flow_id?: string; type?: string; reason?: string };
-  if (!fj.flow_id || fj.type !== 'form') return `khong mo duoc (${fj.reason ?? f.status})`;
-  const d = await haFetch(`/config/config_entries/flow/${fj.flow_id}`, { method: 'POST', body: JSON.stringify({ host: ip, port: 6053 }) });
-  const dj = await d.json() as { type?: string; reason?: string; errors?: unknown };
-  if (dj.type === 'form') await haFetch(`/config/config_entries/flow/${fj.flow_id}`, { method: 'DELETE' }).catch(() => null);
-  return dj.reason ?? (dj.errors ? JSON.stringify(dj.errors) : String(dj.type));
-}
-
 export async function callService(c: ServiceCall): Promise<boolean> {
   const r = await haFetch(`/services/${c.domain}/${c.service}`, { method: 'POST', body: JSON.stringify(c.data) });
   return r.ok;

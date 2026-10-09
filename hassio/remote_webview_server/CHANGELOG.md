@@ -1,3 +1,8 @@
+## V2.9.123
+- **Bỏ** việc addon tự "Cấu hình lại" tích hợp ESPHome trong Home Assistant khi màn hình đổi IP (có ở 2.9.122): addon không
+  sửa cấu hình tích hợp / addon khác. Đổi Cáp ↔ Wi-Fi làm IP đổi thì người dùng tự cập nhật địa chỉ trong HA (Cài đặt →
+  Thiết bị & Dịch vụ → ESPHome → ⋮ → Cấu hình lại) nếu HA không tự nhận.
+
 ## V2.9.122
 ### Chọn mạng Cáp / Wi-Fi (P4 có cổng RJ45, cần firmware có "Mạng sử dụng")
 - Cài đặt → Wi-Fi & Mạng: khối **Kết nối** kiểu laptop — Cáp mạng / Wi-Fi, dấu tích ở đường đang dùng, chạm để đổi. Cũng
