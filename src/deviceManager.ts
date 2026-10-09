@@ -1437,7 +1437,8 @@ export function chatChanged(): void {
     pushDeviceStateToPage(dev);
   }
 }
-const GO2RTC_FOR_PAGES = process.env.GO2RTC_URL || 'http://127.0.0.1:1984';
+// (09/10/2026) Anh camera trong thong bao: qua server (/go2rtc -> go2rtc cua Frigate), khong gia dinh cong 1984 mo ra may chu.
+const GO2RTC_FOR_PAGES = `${LOCAL_ORIGIN}/go2rtc`;
 // Khong lam phien: ghi ra /data (ben qua cap nhat addon). Loi ghi chi mat tinh ben, khong anh huong chay.
 const DND_FILE = process.env.DND_FILE || (fs.existsSync('/data') ? '/data/rwv-dnd.json' : '');
 const dnd: Record<string, boolean> = (() => {

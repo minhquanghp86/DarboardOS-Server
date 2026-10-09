@@ -56,3 +56,12 @@ describe("(08/10/2026) mat khau HTTP cua P4 — server gan header khi goi cam_ap
     expect(cameraHost()).toBeUndefined();
   });
 });
+
+describe("(09/10/2026) luong qua server /cam/live/<id>", () => {
+  it("them dau cam-live:<id> de nhan camera cua chinh panel", () => {
+    const h = hostsOfRuntime({ p4_panel: { producers: [{ url: "ffmpeg:http://172.30.32.1:18080/cam/live/esp32-0a0b0c0d0003#video=copy" }] },
+      cong: { producers: [{ url: "rtsp://u:p@192.168.1.20:554/s" }] } });
+    expect(h.p4_panel).toContain("cam-live:esp32-0a0b0c0d0003");
+    expect(h.cong).toEqual(["192.168.1.20"]);
+  });
+});

@@ -42,9 +42,22 @@ async function discover(): Promise<string> {
   return `http://${ip}:${hp.port}`;
 }
 
+/** (09/10/2026) Tich hop Frigate co hay khong (null = chua biet) — an ung dung Frigate / Su kien khi nha khong co Frigate. */
+let known: boolean | null = null;
+export function frigateKnown(): boolean | null { return known; }
+/** IP noi bo cua Frigate (go2rtc cua Frigate nghe cong 1984 cung IP) — src/go2rtcProxy.ts. */
+export async function frigateHostIp(): Promise<string | null> {
+  try { return new URL(await frigateBase()).hostname; } catch { return null; }
+}
+/** Luong go2rtc dang chay cua Frigate (ten -> nguon). */
+export async function go2rtcStreams(): Promise<Record<string, unknown>> {
+  return await getJson('/api/go2rtc/streams') as Record<string, unknown>;
+}
+
 async function frigateBase(): Promise<string> {
   if (base && Date.now() - base.at < BASE_TTL_MS) return base.url;
-  const url = await discover();
+  let url: string;
+  try { url = await discover(); known = true; } catch (e) { if (/Chưa cài tích hợp Frigate/.test((e as Error).message)) known = false; throw e; }
   if (base?.url !== url) console.log(`[frigate] API: ${url}`);
   base = { url, at: Date.now() };
   return url;
@@ -122,7 +135,9 @@ export function hostsOfRuntime(streams: unknown): Record<string, string[]> {
   const out: Record<string, string[]> = {};
   for (const [name, s] of Object.entries((streams && typeof streams === 'object' ? streams : {}) as Record<string, unknown>)) {
     const prods = ((s as { producers?: { url?: unknown }[] })?.producers ?? []);
-    out[name] = [...new Set(prods.map((p) => hostOf(p?.url)).filter((h): h is string => !!h))];
+    // (09/10/2026) Nguon qua server Darboard (/cam/live/<id thiet bi>) -> them dau "cam-live:<id>" (nhan camera cua chinh panel).
+    const live = prods.map((p) => /\/cam\/live\/([A-Za-z0-9_-]+)/.exec(String(p?.url ?? ''))?.[1]).filter((x): x is string => !!x).map((x) => 'cam-live:' + x);
+    out[name] = [...new Set([...prods.map((p) => hostOf(p?.url)).filter((h): h is string => !!h), ...live])];
   }
   return out;
 }

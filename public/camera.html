@@ -9,7 +9,7 @@
   cam.html), chup anh 1920x1080 / quay video H.264 (.mkv) luu the SD cua panel; o thu vien mo files.html?view=gallery
   (01/10/2026 — xem, phat, xoa). Moi lenh qua
   /api/cam/* cua server -> firmware cam_app (src/camProxy.ts). Khong co the SD: van chup duoc, anh chi xem tam.
-  Tham so: src (luong go2rtc, mac dinh p4_panel), host (go2rtc, mac dinh 192.168.1.2:1984).
+  Tham so: src (luong go2rtc; mac dinh hoi server luong cua chinh panel), host (go2rtc; mac dinh qua server /go2rtc/).
 -->
 <link rel="stylesheet" href="/ui.css">
 <style>
@@ -78,8 +78,10 @@
 
 <script type="module">
   const q = new URLSearchParams(location.search);
-  const src = q.get('src') || 'p4_panel';
-  const host = q.get('host') || '192.168.1.2:1984';
+  // (09/10/2026) Khong gan cung: go2rtc qua server (/go2rtc/ — src/go2rtcProxy.ts, tu tim go2rtc cua Frigate); ten luong
+  // cua chinh panel hoi server (/api/cam/stream: luong go2rtc tro toi camera nay). ?host= / ?src= van ghi de duoc.
+  const G2 = q.get('host') ? `http://${q.get('host')}/` : new URL('/go2rtc/', location.origin).href;
+  let src = q.get('src');
   const $ = (id) => document.getElementById(id);
   const api = (p, method = 'GET') => fetch('/api/cam' + p, { method, cache: 'no-store' }).then(async (r) => {
     let j = null; try { j = await r.json(); } catch { /* */ }
@@ -96,12 +98,17 @@
   const gb = (mb) => (mb / 1024).toLocaleString('vi-VN', { maximumFractionDigits: 1 });
 
   // ---- Xem truc tiep (MSE qua go2rtc, nhu cam.html) ----
-  import(`http://${host}/video-stream.js`)
+  (src ? Promise.resolve(src) : fetch('/api/cam/stream', { cache: 'no-store' }).then((r) => r.json()).then((j) => j.src || null).catch(() => null))
+    .then((name) => {
+      if (!name) throw new Error('khong co luong');
+      src = name;
+      return import(`${G2}video-stream.js`);
+    })
     .then(() => customElements.whenDefined('video-stream'))
     .then(() => {
       const v = document.createElement('video-stream');
       v.background = true; v.mode = 'mse';
-      v.src = new URL(`api/ws?src=${encodeURIComponent(src)}`, `http://${host}/`);
+      v.src = new URL(`api/ws?src=${encodeURIComponent(src)}`, G2);
       $('live').appendChild(v);
       (function doi() {
         const vid = v.querySelector('video') || (v.shadowRoot && v.shadowRoot.querySelector('video'));
@@ -109,7 +116,7 @@
         requestAnimationFrame(doi);
       })();
     })
-    .catch(() => { $('wait').firstElementChild.textContent = 'Không mở được hình trực tiếp (go2rtc).'; });
+    .catch(() => { $('wait').firstElementChild.textContent = src ? 'Không mở được hình trực tiếp (go2rtc).' : 'Chưa có luồng go2rtc / Frigate cho camera này — vẫn chụp ảnh / quay video được.'; });
 
   // ---- Trang thai (the SD, dang quay, anh cuoi) ----
   function render() {

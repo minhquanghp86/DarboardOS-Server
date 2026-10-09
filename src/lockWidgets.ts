@@ -229,7 +229,7 @@ export function lockWidgetsFor(deviceId: string, want: LwWant, nowMs = Date.now(
   if (want.cal) { const ev = S.cal.v.filter((e) => e.e > nowMs); if (ev.length) out.ev = ev; }
   if (want.cam) {
     const ip = devIp.get(deviceId);
-    const self = new Set(ip ? Object.entries(S.hosts.v).filter(([, h]) => h.includes(ip)).map(([c]) => c) : []);
+    const self = new Set(Object.entries(S.hosts.v).filter(([, h]) => (ip && h.includes(ip)) || h.includes('cam-live:' + deviceId)).map(([c]) => c));
     const e = S.cam.v.find((x) => !self.has(x.c) && (x.live || nowMs - x.s < CAM_WINDOW_MS));
     if (e) out.cam = e;
   }

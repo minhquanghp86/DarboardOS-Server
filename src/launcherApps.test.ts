@@ -8,7 +8,8 @@ describe("buildLauncherApps (25/09/2026: menu chia nhom)", () => {
     expect(withHome.find(a => a.kind === "media")?.url).toBe("http://192.168.1.2:8123/media-browser/browser");
     // (27/09/2026) Bo "Nang luong", thay bang Solar (trang rieng cua nguoi dung)
     expect(withHome.some(a => a.kind === "energy")).toBe(false);
-    expect(withHome.find(a => a.id === "solar")?.url).toBe("http://solar.example.com");
+    // (09/10/2026) Khong con ung dung "Solar" (trang rieng cua tac gia) trong danh sach mac dinh.
+    expect(withHome.some(a => a.id === "solar")).toBe(false);
     const noHome = buildLauncherApps(undefined);
     expect(noHome.some(a => a.id === "home" || a.kind === "media")).toBe(false);
   });

@@ -4,10 +4,10 @@
 // scene/script qua addon).
 import type http from 'node:http';
 
-const GO2RTC = process.env.GO2RTC_URL || 'http://127.0.0.1:1984';
+import { go2rtcFetch } from './go2rtcProxy.js';
 
 async function listCams(): Promise<Array<{ name: string; snap: string; live: string }>> {
-  const r = await fetch(`${GO2RTC}/api/streams`, { signal: AbortSignal.timeout(5000) });
+  const r = await go2rtcFetch('/api/streams');   // (09/10/2026) tu tim go2rtc (Frigate) thay vi 127.0.0.1:1984
   if (!r.ok) throw new Error(`go2rtc ${r.status}`);
   const names = Object.keys(await r.json() as Record<string, unknown>);
   const set = new Set(names);
