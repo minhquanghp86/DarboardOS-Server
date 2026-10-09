@@ -45,7 +45,20 @@ function icon(d: string, color = '#e8eaed', size = 22): SVGElement {
   return s;
 }
 
+/**
+ * Goi tu Shell luc trang MOI bat dau tai (script tiem truoc HTML) — luc do document.documentElement / body co the CHUA co:
+ * cho toi khi co roi moi ve. Loi bat ky o day KHONG duoc lam chet Shell (do that 09/10: thanh gan ngay -> TypeError ->
+ * Shell khong chay tren google.com, mat ca dong ho).
+ */
 export function mountBrowserBar(z: string): void {
+  const go = () => {
+    if (!document.documentElement || !document.body) { requestAnimationFrame(go); return; }
+    try { mountNow(z); } catch (e) { console.warn('[rwv] thanh Chrome:', e); }
+  };
+  go();
+}
+
+function mountNow(z: string): void {
   if (document.getElementById('__rwv_bb')) return;
   const h = Math.round(Math.max(44, Math.min(56, Math.min(innerWidth, innerHeight) * 0.085)));
   const bar = document.createElement('div');
