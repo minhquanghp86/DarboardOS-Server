@@ -1,3 +1,17 @@
+## V2.9.133
+- **Thẻ IPTV (trang Darboard) có danh sách kênh + 2 nút cho mỗi kênh** (trước đây thẻ chỉ quản lý danh sách M3U):
+  - **Phát trên màn hình** (icon *cast*): hiện danh sách màn đang kết nối để chọn **một màn** hoặc **Tất cả màn hình** →
+    máy chủ tự mở ứng dụng IPTV của màn đó và phát kênh (`iptv.html?dev=<id>&play=<kênh>`), log
+    `[iptv] phat "<kênh>" tren N man: …`. Màn không kết nối thì báo rõ, không gửi.
+  - **Phát trong trình duyệt** (icon *play*): mở trang phát `iptv.html?play=<kênh>` ở tab mới để xem ngay trên máy tính.
+  - Thêm ô **chọn danh sách** + **ô tìm kênh**; hiện 200 kênh mỗi lần, có nút “Hiện thêm”.
+- Trang phát `iptv.html` nay dùng **đường dẫn tương đối theo `location`** (`ui.css`, `ui.js`, `icons.js`, mọi API `/iptv/...`,
+  thư viện `/vendor/...`) và **đoạn phim trong playlist HLS được viết lại thành tương đối** (`p?...`) — nhờ vậy trang phát
+  chạy được cả khi mở trong tab Trình duyệt từ trang Darboard (đường dẫn ingress `/api/hassio_ingress/<token>/`). Trước đây
+  mở ở tab mới thì trắng trang, hoặc kẹt ở “Đang mở …” với kênh HLS.
+- Proxy luồng `/iptv/p` và `/iptv/probe` nay chấp nhận cả **trang Darboard (ingress — đã xác thực Home Assistant)**, vẫn
+  **bắt buộc mã phiên**, để nút “Phát trong trình duyệt” xem được cả kênh cần header Referer/User-Agent.
+
 ## V2.9.132
 - **Trợ giúp YouTube (khôi phục + cải tiến từ 2.9.130, phần Wi-Fi vẫn để nguyên đã hoàn tác):** trên tab YouTube / YouTube TV
   đang hiện, server kiểm mỗi 1,5 s và **tự bỏ qua quảng cáo** (bấm “Bỏ qua” nếu có, đồng thời tua quảng cáo tới cuối cho
