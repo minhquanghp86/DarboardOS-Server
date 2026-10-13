@@ -472,8 +472,14 @@ function decHeaders(s: string | null): Record<string, string> {
     return out;
   } catch { return {}; }
 }
+/**
+ * (13/10/2026) URL proxy de VIET LAI trong playlist HLS — tra ve duong dan TUONG DOI so voi chinh `/iptv/p`
+ * (`p?...`), KHONG phai '/iptv/p?...'. Ly do: trang phat con mo trong tab Trinh duyet tu trang Darboard, khi do goc la
+ * `/api/hassio_ingress/<token>/` — '/iptv/p' se tro sai goc (hls.js khong tai duoc doan phim, trang ket o "Dang mo ...").
+ * `p?...` duoc giai theo URL cua playlist nen dung o CA HAI noi: panel `/iptv/p` -> `/iptv/p`; ingress -> `/api/.../iptv/p`.
+ */
 function proxyUrl(abs: string, h: string): string {
-  return `/iptv/p?t=${TOKEN}&u=${encodeURIComponent(abs)}${h ? '&h=' + h : ''}`;
+  return `p?t=${TOKEN}&u=${encodeURIComponent(abs)}${h ? '&h=' + h : ''}`;
 }
 
 /** Doc goi du lieu DAU (roi tam dung luong) — de nhan ra playlist HLS ma may chu khong bao dung content-type. */
