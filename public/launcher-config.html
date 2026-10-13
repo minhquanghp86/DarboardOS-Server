@@ -336,6 +336,23 @@
   .iv-sdl .s { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
   .iv-sdl .empty { padding: 14px; color: var(--muted); }
   #iptvView .add:disabled, #iptvView .btn:disabled, #iptvView .ic:disabled { opacity: 0.45; cursor: default; }
+  /* (13/10/2026) The IPTV: danh sach kenh + 2 nut moi kenh (phat tren man / phat trong trinh duyet). */
+  .iv-chfilter { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 16px 12px; }
+  .iv-chfilter select, .iv-chfilter input { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--surface); color: var(--text); min-width: 0; }
+  .iv-chfilter input { flex: 1 1 160px; }
+  .iv-chfilter select { flex: 0 1 240px; }
+  .iv-ch { align-items: center; gap: 10px; padding: 8px 8px 8px 16px; }
+  .iv-ch .lg { width: 34px; height: 34px; flex: none; border-radius: 7px; background: var(--surface-2); overflow: hidden;
+    display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--muted); }
+  .iv-ch .lg img { width: 100%; height: 100%; object-fit: contain; }
+  .iv-ch .meta { flex: 1; min-width: 0; }
+  .iv-ch .meta .sub { color: var(--muted); font-size: 12px; }
+  .iv-cast-ch { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+  .iv-cast-list { display: flex; flex-direction: column; gap: 6px; max-height: 40vh; overflow-y: auto; }
+  .iv-cast-list .scr { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+  .iv-cast-list .scr input { margin: 0; }
+  .iv-cast-list .scr .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* (08/10/2026) The "Màn khóa": cam bien nang luong cho widget man hinh khoa (src/lockWidgets.ts). */
   .lw-form { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
   .lw-now { padding: 10px 12px; border-radius: 10px; background: var(--surface-2); font-size: 13.5px; font-variant-numeric: tabular-nums; }
@@ -486,6 +503,17 @@
   </form>
 </dialog>
 
+<dialog id="ivCastDlg">
+  <form class="dlg" method="dialog">
+    <div class="dlg-head"><h3>Phát trên màn hình</h3></div>
+    <div class="dlg-body">
+      <p class="iv-cast-ch" id="ivCastCh"></p>
+      <div class="iv-cast-list" id="ivCastList"></div>
+    </div>
+    <div class="dlg-foot"><button type="button" class="btn" id="ivCastNo">Huỷ</button><button type="button" class="btn primary" id="ivCastGo">Phát</button></div>
+  </form>
+</dialog>
+
 <main id="iptvView" hidden>
 <div class="wrap">
   <header>
@@ -496,6 +524,15 @@
     <div class="card-head"><h2>Danh sách kênh</h2><span class="count" id="ivCount"></span><button class="btn" id="ivRefresh" type="button"></button></div>
     <div id="ivLists"></div>
     <button class="add" id="ivAdd" type="button"></button>
+  </section>
+  <section class="card">
+    <div class="card-head"><h2>Kênh</h2><span class="count" id="ivChCount"></span></div>
+    <div class="iv-chfilter">
+      <select id="ivChList" aria-label="Chọn danh sách kênh"></select>
+      <input id="ivChQ" type="search" placeholder="Tìm kênh…" aria-label="Tìm kênh" autocomplete="off" spellcheck="false">
+    </div>
+    <div id="ivChannels"></div>
+    <button class="add" id="ivChMore" type="button" hidden></button>
   </section>
   <section class="card" id="ivForm" hidden>
     <div class="card-head"><h2 id="ivFormTitle">Thêm danh sách</h2></div>
@@ -1697,7 +1734,9 @@
     var p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', IC[n] || ''); s.appendChild(p); return s; }
   function icBtn(icon, label, fn) { var b = el('button', 'ic'); b.type = 'button'; b.title = label; b.setAttribute('aria-label', label); b.append(svg(icon)); b.onclick = fn; return b; }
 
-  var T = { lists: [], loaded: false, busy: false, edit: null };
+  var CH_PAGE = 200;
+  var T = { lists: [], loaded: false, busy: false, edit: null,
+            ch: [], chLists: [], chLoaded: false, chBusy: false, chList: '', chQ: '', chShown: CH_PAGE, castCh: null };
   function api(path, body) {
     var init = { cache: 'no-store' };
     if (body !== undefined) { init.method = 'POST'; if (body !== null) { init.headers = { 'content-type': 'application/json' }; init.body = JSON.stringify(body); } }
@@ -1759,7 +1798,7 @@
     return api('config', { lists: lists.map(function (l) { return { id: l.id, name: l.name, url: l.url, on: l.on }; }) })
       .then(function (j) { T.lists = j.lists || []; status(okText || 'Đã lưu.', 'ok'); })
       .catch(function (e) { status(e.message, 'err'); throw e; })
-      .finally(function () { T.busy = false; render(); });
+      .finally(function () { T.busy = false; render(); if (T.chLoaded) loadChannels(false); });
   }
   function openForm(i) {
     T.edit = i;
@@ -1866,7 +1905,120 @@
     box.replaceChildren(svg('information-outline'), body);
   })();
 
-  function enter() { if (visible() && !T.loaded && !T.busy) load(false); }
+  // ── (13/10/2026) DANH SÁCH KÊNH — mỗi kênh 2 nút: phát trên màn hình (chọn 1 màn hoặc "Tất cả") / phát trong trình
+  // duyệt (mở trang phát iptv.html ở tab mới). Máy chủ nhận `POST iptv/cast {dev, ch}` rồi tự điều hướng tab IPTV của màn.
+  function norm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd'); }
+  function chListName(id) { var l = (T.chLists || []).filter(function (x) { return x.id === id; })[0]; return l ? l.name : ''; }
+  function chInitials(n) {
+    var w = String(n || '').trim().split(/\s+/).slice(0, 2), s = '';
+    w.forEach(function (x) { s += x.charAt(0); });
+    return s.toUpperCase() || '?';
+  }
+  function loadChannels(force) {
+    if (T.chBusy) return Promise.resolve();
+    T.chBusy = true;
+    if (!T.chLoaded) renderChannels();
+    return api('channels' + (force ? '?refresh=1' : ''))
+      .then(function (j) { T.ch = j.channels || []; T.chLists = j.lists || []; T.chLoaded = true; })
+      .catch(function (e) { status(e.message, 'err'); })
+      .then(function () { T.chBusy = false; renderChannels(); });
+  }
+  function chView() {
+    var L = T.chList, q = norm(T.chQ);
+    return T.ch.filter(function (c) {
+      if (L && c.list !== L) return false;
+      return !q || norm(c.name).indexOf(q) >= 0;
+    });
+  }
+  function renderChannels() {
+    var sel = $('ivChList'), cur = T.chList;
+    var opts = [el('option', '', 'Tất cả danh sách')];
+    opts[0].value = '';
+    (T.chLists || []).forEach(function (l) { var o = el('option', '', l.name + ' (' + (l.count || 0) + ' kênh)'); o.value = l.id; opts.push(o); });
+    sel.replaceChildren.apply(sel, opts);
+    sel.value = cur;
+    var box = $('ivChannels'), all = chView(), shown = all.slice(0, T.chShown);
+    if (!T.chLoaded) {
+      box.replaceChildren(el('div', 'iv-empty', 'Đang tải danh sách kênh…'));
+      $('ivChCount').textContent = ''; $('ivChMore').hidden = true;
+      return;
+    }
+    if (!all.length) {
+      box.replaceChildren(el('div', 'iv-empty', T.ch.length ? 'Không có kênh nào khớp.' : 'Chưa có kênh — thêm danh sách M3U ở trên.'));
+      $('ivChCount').textContent = ''; $('ivChMore').hidden = true;
+      return;
+    }
+    box.replaceChildren.apply(box, shown.map(chRow));
+    $('ivChCount').textContent = (shown.length < all.length ? shown.length + '/' + all.length : String(all.length)) + ' kênh';
+    $('ivChMore').hidden = shown.length >= all.length;
+    $('ivChMore').textContent = 'Hiện thêm ' + Math.min(CH_PAGE, all.length - shown.length) + ' kênh';
+  }
+  function chRow(c) {
+    var r = el('div', 'row iv-ch');
+    var lg = el('div', 'lg', chInitials(c.name));
+    if (c.logo) {
+      var im = el('img'); im.alt = ''; im.loading = 'lazy'; im.src = c.logo;
+      im.onerror = function () { im.remove(); };   // logo http / loi -> giu chu cai dau
+      lg.appendChild(im);
+    }
+    var sub = [chListName(c.list)].concat(c.groups && c.groups.length ? [c.groups[0]] : []).filter(Boolean).join(' · ');
+    var meta = el('div', 'meta');
+    meta.append(el('div', 'name', c.name), el('div', 'sub', sub));
+    r.append(lg, meta,
+      icBtn('cast', 'Phát trên màn hình', function () { openCast(c); }),
+      icBtn('play', 'Phát trong trình duyệt', function () { window.open('iptv.html?play=' + encodeURIComponent(c.id), '_blank', 'noopener'); }));
+    return r;
+  }
+  function openCast(c) {
+    T.castCh = c;
+    $('ivCastCh').textContent = c.name;
+    $('ivCastGo').disabled = true;
+    $('ivCastDlg').showModal();
+    var box = $('ivCastList');
+    box.replaceChildren(el('div', 'iv-empty', 'Đang tải danh sách màn hình…'));
+    api('screens').then(function (j) {
+      var list = j.screens || [];
+      if (!list.length) { box.replaceChildren(el('div', 'iv-empty', 'Chưa có màn hình nào kết nối với server.')); return; }
+      var rows = [castOpt('all', 'Tất cả màn hình (' + list.length + ')')];
+      list.forEach(function (s) { rows.push(castOpt(s.id, s.name || s.id)); });
+      box.replaceChildren.apply(box, rows);
+      rows[0].querySelector('input').checked = true;
+      $('ivCastGo').disabled = false;
+    }).catch(function (e) { box.replaceChildren(el('div', 'iv-empty', e.message)); });
+  }
+  function castOpt(v, label) {
+    var l = el('label', 'scr'), inp = el('input');
+    inp.type = 'radio'; inp.name = 'ivCastDev'; inp.value = v;
+    l.append(inp, el('span', 'nm', label));
+    return l;
+  }
+  $('ivCastNo').onclick = function () { $('ivCastDlg').close(); };
+  $('ivCastGo').onclick = function () {
+    var c = T.castCh, picked = $('ivCastList').querySelector('input[name=ivCastDev]:checked');
+    if (!c) return;
+    if (!picked) { status('Chọn một màn hình hoặc “Tất cả màn hình”.', 'err'); return; }
+    $('ivCastGo').disabled = true;
+    api('cast', { dev: picked.value, ch: c.id })
+      .then(function () {
+        status('Đã gửi “' + c.name + '” tới ' + (picked.value === 'all' ? 'tất cả màn hình đang kết nối' : 'màn hình đã chọn') + '.', 'ok');
+        $('ivCastDlg').close();
+      })
+      .catch(function (e) { status(e.message, 'err'); })
+      .finally(function () { $('ivCastGo').disabled = false; });
+  };
+  $('ivChList').onchange = function () { T.chList = $('ivChList').value; T.chShown = CH_PAGE; renderChannels(); };
+  var chQ = null;
+  $('ivChQ').oninput = function () {
+    clearTimeout(chQ);
+    chQ = setTimeout(function () { T.chQ = $('ivChQ').value; T.chShown = CH_PAGE; renderChannels(); }, 150);
+  };
+  $('ivChMore').onclick = function () { T.chShown += CH_PAGE; renderChannels(); };
+
+  function enter() {
+    if (!visible()) return;
+    if (!T.loaded && !T.busy) load(false);
+    if (!T.chLoaded && !T.chBusy) loadChannels(false);
+  }
   window.addEventListener('hashchange', enter);
   render(); enter();
 })();

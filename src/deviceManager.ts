@@ -1746,6 +1746,24 @@ export function connectedScreens(): { id: string; w: number; h: number; cam: boo
   return [...devices.values()].filter((d) => broadcaster.getClientCount(d.deviceId) > 0)
     .map((d) => ({ id: d.deviceId, w: d.cfg.width, h: d.cfg.height, cam: d.cfg.camPort > 0, sd: d.cfg.camPort > 0 || d.cfg.sdPort > 0, spk: !!d.cfg.audioEnabled }));
 }
+
+/**
+ * (13/10/2026) Trang Darboard (the IPTV): nut "phat tren man" — mo 1 URL tren cac man da chon.
+ * `urlOf(deviceId)` tra URL RIENG cho tung man (trang iptv.html can ?dev=<id> de nho kenh xem cuoi theo man).
+ * Chi gui cho man DANG ket noi (khong co client thi navigateToUrl vo nghia). Tra ve danh sach man da gui.
+ */
+export function castUrlToDevices(ids: string[], urlOf: (deviceId: string) => string): { ok: boolean; sent: string[]; error?: string } {
+  const sent: string[] = [];
+  for (const id of ids) {
+    const dev = devices.get(id);
+    if (!dev || broadcaster.getClientCount(id) === 0) continue;
+    const url = urlOf(id);
+    if (!/^https?:\/\//i.test(url) || url.length > 2048) continue;
+    navigateToUrl(dev, url).catch((e: unknown) => console.warn(`[cast] ${id}: mo URL that bai:`, e));
+    sent.push(id);
+  }
+  return sent.length ? { ok: true, sent } : { ok: false, sent, error: 'khong co man hinh nao dang ket noi' };
+}
 /** Ung dung `key` dang la tab hien tren man hinh (va den nen dang bat). */
 /** (02/10/2026) Man hinh dang phat video/am thanh — Quan ly file tam dung day tep len the de video khong giat. */
 export function isMediaPlaying(deviceId: string): boolean {
