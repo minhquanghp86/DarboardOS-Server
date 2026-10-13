@@ -14,9 +14,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>IPTV</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="/ui.css">
-<script src="/ui.js"></script>
-<script src="/icons.js"></script>
+<!-- (13/10/2026) Duong dan TUONG DOI: trang nay con mo trong tab Trinh duyet tu trang Darboard (qua ingress
+     /api/hassio_ingress/<token>/iptv.html) — '/ui.css' se tro sai goc va trang trang chi con dong tim kiem. -->
+<link rel="stylesheet" href="ui.css">
+<script src="ui.js"></script>
+<script src="icons.js"></script>
 <style>
   :root { --accent: #c026d3; --gold: #fbbf24; }  /* nen, be mat, chu, bo goc: /ui.css (dung chung voi Shell) */
   * { box-sizing: border-box; }
@@ -309,18 +311,23 @@
       im.src = c.logo; box.replaceChildren(im);
     } else box.replaceChildren(el('span', 'ini', initials(c.name)));
   }
+  // (13/10/2026) Trang nay chay o HAI noi: tren PANEL (http://127.0.0.1:18080/iptv.html -> goc '/') va trong TAB TRINH
+  // DUYET mo tu trang Darboard (qua ingress: /api/hassio_ingress/<token>/iptv.html). Moi duong dan toi server phai theo
+  // location — bat dau bang '/' se tro SAI goc khi o trong ingress (loi 13/10: tab trang chi hien o "Tim kenh theo ten").
+  var REL_BASE = location.pathname.replace(/[^/]*$/, '');
+  function rel(p) { return REL_BASE + String(p).replace(/^\//, ''); }
   function report(msg) {
     try {
-      fetch('/iptv/log', { method: 'POST', headers: { 'content-type': 'application/json' },
+      fetch(rel('/iptv/log'), { method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ dev: DEV, ch: S.cur ? S.cur.name : '', msg: msg }) }).catch(function () { });
     } catch (e) { /* */ }
   }
-  function pxUrl(u, h) { return '/iptv/p?t=' + S.token + '&u=' + encodeURIComponent(u) + (h ? '&h=' + h : ''); }
+  function pxUrl(u, h) { return rel('/iptv/p?t=' + S.token + '&u=' + encodeURIComponent(u) + (h ? '&h=' + h : '')); }
   function px(c) { return pxUrl(c.url, c.h); }
   var scripts = {};
   function loadScript(src) {
     if (!scripts[src]) scripts[src] = new Promise(function (ok, fail) {
-      var s = document.createElement('script'); s.src = src;
+      var s = document.createElement('script'); s.src = rel(src);   // thu vien phuc vu tu server (theo goc cua location)
       s.onload = function () { ok(); };
       s.onerror = function () { delete scripts[src]; fail(new Error('Không tải được thư viện phát (' + src + ').')); };
       document.head.appendChild(s);
@@ -330,7 +337,7 @@
   function api(path, body) {
     var init = { cache: 'no-store' };
     if (body !== undefined) { init.method = 'POST'; init.headers = { 'content-type': 'application/json' }; init.body = JSON.stringify(body); }
-    return fetch(path, init).then(function (r) {
+    return fetch(rel(path), init).then(function (r) {
       return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok || j.ok === false) throw new Error(j.error || ('Lỗi ' + r.status)); return j; });
     });
   }
@@ -698,7 +705,7 @@
     msg('loading', 'Đang mở ' + c.name + '…', '');
     if (c.drm) { fail('Kênh này dùng DRM Widevine / PlayReady nên không phát được.', false); return; }
     if (c.kind !== 'auto') { begin(c, c.kind, seq); return; }
-    fetch('/iptv/probe?t=' + S.token + '&u=' + encodeURIComponent(c.url) + (c.h ? '&h=' + c.h : ''), { cache: 'no-store' })
+    fetch(rel('/iptv/probe?t=' + S.token + '&u=' + encodeURIComponent(c.url) + (c.h ? '&h=' + c.h : '')), { cache: 'no-store' })
       .then(function (r) { return r.json(); })
       .then(function (r) {
         if (seq !== S.seq) return;
@@ -793,7 +800,7 @@
       ne.registerRequestFilter(function (type, req) {
         if (type === RT.LICENSE || type === RT.SERVER_CERTIFICATE) return;
         req.uris = req.uris.map(function (u) {
-          return /^https?:\/\//i.test(u) && u.indexOf(location.origin + '/iptv/') !== 0 ? location.origin + pxUrl(u, c.h) : u;
+          return /^https?:\/\//i.test(u) && u.indexOf(location.origin + rel('/iptv/')) !== 0 ? location.origin + pxUrl(u, c.h) : u;
         });
       });
       ne.registerResponseFilter(function (_type, res) { var f = res.headers && res.headers['x-final-url']; if (f) res.uri = f; });
