@@ -3744,6 +3744,49 @@ export function runAdaptiveTick(): void {
   }
 }
 
+// (13/10/2026) TRO GIUP YOUTUBE tren tab DANG HIEN (moi 1,5 s; chi khi tab la YouTube / YouTube TV). Truoc day da co o
+// 2.9.130 nhung bi hoan tac cung 2.9.130 (ly do hoan tac la phan Wi-Fi, khong phai phan nay).
+//  - Tu bo qua quang cao (tuy chon "Tự bỏ qua quảng cáo YouTube"): bam "Bo qua" neu co, va tua quang cao toi cuoi —
+//    do that 09/10 gap quang cao KHONG co nut va dai toi 159 s; .click() khong an voi mot so mau nut.
+//  - YouTube TV hoi chon tai khoan (tuy chon "YouTube TV: chế độ khách"): CHAM THAT (CDP Input.dispatchMouseEvent) vao
+//    "Xem ở chế độ khách" vi YouTube TV dieu khien bang phim, .click() khong an (do that 09/10).
+function ytHelperJs(skip: boolean, guest: boolean): string {
+  return `(()=>{const o={};const h=location.hostname;if(!/(^|\\.)youtube\\.com$/.test(h))return o;
+const ad=!!(document.querySelector('.ad-showing,.ad-interrupting')||document.querySelector('.ytp-ad-player-overlay'));
+const v=document.querySelector('video');
+if(${skip}&&ad&&v&&isFinite(v.duration)&&v.duration>0.5&&v.currentTime<v.duration-0.3){v.currentTime=v.duration-0.1;o.seek=1}
+if(${skip}&&ad){for(const b of document.querySelectorAll('.ytp-ad-skip-button,.ytp-ad-skip-button-modern,.ytp-skip-ad-button,.ytm-skip-ad-button,.ytp-ad-overlay-close-button')){try{b.click();o.skip=1}catch(e){}}}
+if(${guest}&&location.pathname.indexOf('/tv')===0){const g=[...document.querySelectorAll('ytlr-button-renderer')].find(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&/ch\u1ebf \u0111\u1ed9 kh\u00e1ch|guest/i.test(e.textContent||'')});
+if(g){const r=g.getBoundingClientRect();o.guest=[Math.round(r.x+r.width/2),Math.round(r.y+r.height/2)]}}return o})()`;
+}
+const ytLast = new Map<string, number>();
+async function ytHelperTick(): Promise<void> {
+  for (const dev of devices.values()) {
+    const tab = dev.tabs.get(dev.activeTabKey);
+    if (!tab) continue;
+    if (!/youtube\.com/.test(tab.url || '') && tab.kind !== 'yttv') continue;
+    const skip = panelPrefs.ytSkipAds(dev.deviceId), guest = panelPrefs.ytTvGuest(dev.deviceId);
+    if (!skip && !guest) continue;
+    try {
+      const r = await tab.session.send('Runtime.evaluate', {
+        expression: ytHelperJs(skip, guest), returnByValue: true,
+      }) as { result?: { value?: { seek?: number; skip?: number; guest?: [number, number] } } };
+      const o = r?.result?.value ?? {};
+      if (o.guest) {
+        const [x, y] = o.guest;
+        const base = { x, y, button: 'left' as const, clickCount: 1 };
+        await tab.session.send('Input.dispatchMouseEvent', { type: 'mousePressed', ...base, buttons: 1 });
+        await tab.session.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...base, buttons: 0 });
+      }
+      if ((o.seek || o.skip || o.guest) && Date.now() - (ytLast.get(dev.deviceId) ?? 0) > 20_000) {
+        ytLast.set(dev.deviceId, Date.now());
+        console.log(`[youtube] ${dev.deviceId}: ${o.guest ? 'chon che do khach' : 'bo qua quang cao'}`);
+      }
+    } catch { /* tab dang tai / dong */ }
+  }
+}
+setInterval(() => { ytHelperTick().catch(() => { }); }, 1500).unref?.();
+
 // (14/09/2026) GD2: dinh ky xin MOI thiet bi bao so lieu decode (FrameStats).
 // Thiet bi chi tra loi khi duoc hoi, nen khong hoi thi khong co so lieu de do.
 export function requestStatsFromDevices(): void {

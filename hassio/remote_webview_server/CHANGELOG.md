@@ -1,3 +1,10 @@
+## V2.9.132
+- **Trợ giúp YouTube (khôi phục + cải tiến từ 2.9.130, phần Wi-Fi vẫn để nguyên đã hoàn tác):** trên tab YouTube / YouTube TV
+  đang hiện, server kiểm mỗi 1,5 s và **tự bỏ qua quảng cáo** (bấm “Bỏ qua” nếu có, đồng thời tua quảng cáo tới cuối cho
+  quảng cáo không có nút) và **tự chọn “Xem ở chế độ khách”** trên YouTube TV khi hỏi tài khoản (chạm thật qua CDP).
+- Hai tuỳ chọn mới trong **Cài đặt → YouTube** cho từng màn hình, **mặc định BẬT**: “Tự bỏ qua quảng cáo YouTube”,
+  “YouTube TV: chế độ khách”. Tắt được riêng từng màn hình.
+
 ## V2.9.131
 - **Trả về như 2.9.129** (bỏ thay đổi của 2.9.130: bộ điều tiết Wi-Fi, trợ giúp YouTube) — đo cuối 09/10 chưa ổn định, sẽ điều tra lại.
 
