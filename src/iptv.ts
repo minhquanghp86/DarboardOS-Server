@@ -22,6 +22,17 @@ import type { Readable } from 'node:stream';
 import { cleanSdPath, fmScreenName, sdLs, sdReadText } from './fileManager.js';
 import { camHostOf, cameraDevices } from './camProxy.js';
 
+// (13/10/2026) The IPTV (trang Darboard): nut "phat tren man" — hook do src/index.ts gan (o day khong duoc import
+// deviceManager vi se tao vong). screens() = man dang ket noi (kem ten nguoi dung dat); cast() gui lenh mo URL.
+export interface IptvHooks {
+  screens(): { id: string; name: string; online: boolean }[];
+  cast(ids: string[], urlOf: (id: string) => string): { ok: boolean; sent: string[]; error?: string };
+}
+let hooks: IptvHooks | null = null;
+export function setIptvHooks(h: IptvHooks): void { hooks = h; }
+// Dia chi server nhin tu chinh Chromium cua no (giong launcherApps.LOCAL) — trang iptv.html phai mo qua 127.0.0.1.
+const LOCAL_BASE = `http://127.0.0.1:${process.env.HEALTH_PORT || '18080'}`;
+
 export type StreamKind = 'hls' | 'ts' | 'flv' | 'mp4' | 'dash' | 'auto';
 export interface Channel {
   /** On dinh trong mot danh sach: bam (danh sach | URL). */
@@ -461,8 +472,14 @@ function decHeaders(s: string | null): Record<string, string> {
     return out;
   } catch { return {}; }
 }
+/**
+ * (13/10/2026) URL proxy de VIET LAI trong playlist HLS — tra ve duong dan TUONG DOI so voi chinh `/iptv/p`
+ * (`p?...`), KHONG phai '/iptv/p?...'. Ly do: trang phat con mo trong tab Trinh duyet tu trang Darboard, khi do goc la
+ * `/api/hassio_ingress/<token>/` — '/iptv/p' se tro sai goc (hls.js khong tai duoc doan phim, trang ket o "Dang mo ...").
+ * `p?...` duoc giai theo URL cua playlist nen dung o CA HAI noi: panel `/iptv/p` -> `/iptv/p`; ingress -> `/api/.../iptv/p`.
+ */
 function proxyUrl(abs: string, h: string): string {
-  return `/iptv/p?t=${TOKEN}&u=${encodeURIComponent(abs)}${h ? '&h=' + h : ''}`;
+  return `p?t=${TOKEN}&u=${encodeURIComponent(abs)}${h ? '&h=' + h : ''}`;
 }
 
 /** Doc goi du lieu DAU (roi tam dung luong) — de nhan ra playlist HLS ma may chu khong bao dung content-type. */
@@ -598,12 +615,39 @@ export function handleIptvApi(req: http.IncomingMessage, res: http.ServerRespons
   if (!p.startsWith('/iptv/')) return false;
   const local = isLocal(req), ingress = fromIngress(req);
   if (p === '/iptv/p' || p === '/iptv/probe') {
-    if (!local || url.searchParams.get('t') !== TOKEN) { json(res, 403, { error: 'Chỉ dùng được từ màn hình.' }); return true; }
+    // (13/10/2026) Cho phep CA trang Darboard (ingress — da xac thuc Home Assistant) de nut "phat trong trinh duyet" o
+    // the IPTV xem duoc kenh: trang public/iptv.html luon phat qua proxy nay (can header Referer/User-Agent rieng tung
+    // kenh va tranh CORS; trinh duyet khong tu dat duoc). VAN doi ma phien TOKEN (chi lay duoc tu /iptv/channels).
+    if ((!local && !ingress) || url.searchParams.get('t') !== TOKEN) { json(res, 403, { error: 'Chỉ dùng được từ màn hình.' }); return true; }
     if (p === '/iptv/p') { proxy(req, res, url).catch(() => res.destroy()); return true; }
     probe(url.searchParams.get('u') || '', decHeaders(url.searchParams.get('h'))).then((r) => json(res, 200, r));
     return true;
   }
   if (!local && !ingress) { json(res, 403, { error: 'Chỉ dùng được từ màn hình hoặc trang Darboard.' }); return true; }
+  if (p === '/iptv/screens' && req.method === 'GET') {
+    json(res, 200, { ok: true, screens: hooks ? hooks.screens() : [] });
+    return true;
+  }
+  // (13/10/2026) The IPTV (trang Darboard): "phat tren man" — gui lenh mo kenh tren 1 man hoac TAT CA man dang ket noi.
+  // Chi gui URL `iptv.html?dev=<id>&play=<kenh>`; server tu mo/chuyen tab 'iptv' cua man do (deviceManager.navigateToUrl),
+  // trang iptv.html da co autoPlay() theo ?play= (nhan id hoac ten ken, khop mo).
+  if (p === '/iptv/cast' && req.method === 'POST') {
+    readJson(req, 4096).then((b) => {
+      if (!hooks) throw new Error('server chua san sang');
+      const o = b as { dev?: unknown; ch?: unknown };
+      const ch = String(o.ch ?? '').trim().slice(0, 120);
+      if (!ch) throw new Error('thiếu kênh');
+      const want = String(o.dev ?? 'all');
+      const online = hooks.screens().filter((s) => s.online);
+      const ids = want === 'all' ? online.map((s) => s.id) : [want];
+      if (!ids.length) throw new Error('chưa có màn hình nào kết nối');
+      const r = hooks.cast(ids, (id) => `${LOCAL_BASE}/iptv.html?dev=${encodeURIComponent(id)}&play=${encodeURIComponent(ch)}`);
+      if (!r.ok) throw new Error(r.error || 'không gửi được lệnh phát');
+      console.log(`[iptv] phat "${ch}" tren ${r.sent.length} man: ${r.sent.join(', ')}`);
+      json(res, 200, r);
+    }).catch((e) => json(res, 400, { ok: false, error: (e as Error).message }));
+    return true;
+  }
   if (p === '/iptv/channels' && req.method === 'GET') {
     allChannels(url.searchParams.get('refresh') === '1').then(({ lists, channels }) => json(res, 200, {
       ok: true, token: TOKEN, favs: config().favs,

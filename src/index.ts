@@ -18,7 +18,7 @@ import { camFetch, handleCamLive, handleCamProxy, noteCameraHost } from './camPr
 import { handleGo2rtcHttp, handleGo2rtcUpgrade } from './go2rtcProxy.js';
 import { handleFileManager, setFileManagerHooks } from './fileManager.js';
 import { handleChatApi, requestOpenConv, setChatHooks, unreadForScreen } from './chat.js';
-import { chatChanged, connectedScreens, isMediaPlaying, isUserViewing, setChatUnreadProvider, setNoticeArgHook, syncSoundToDevice } from './deviceManager.js';
+import { castUrlToDevices, chatChanged, connectedScreens, isMediaPlaying, isUserViewing, setChatUnreadProvider, setNoticeArgHook, syncSoundToDevice } from './deviceManager.js';
 import { handleAlarmApi } from './alarms.js';
 import { getRegistry, haFetch, haGetRaw } from './haSettings.js';
 import { findDeviceByMac, macFromDeviceId } from './settingsModel.js';
@@ -37,7 +37,7 @@ import { handleLauncherApi } from './launcherApi.js';
 import { ensureMdiIcons } from './launcherConfig.js';
 import { startDebugProxy } from './debugProxy.js';
 import { startWeatherMini } from './weatherMini.js';
-import { handleIptvApi } from './iptv.js';
+import { handleIptvApi, setIptvHooks } from './iptv.js';
 import { handleFrigateApi } from './frigate.js';
 import { handleLockWidgetsApi, noteDeviceIp } from './lockWidgets.js';
 import { handleCalendarApi } from './calendarSource.js';
@@ -386,6 +386,11 @@ setChatHooks({
 setNoticeArgHook((device, app, arg) => { if (app === 'chat') requestOpenConv(device, arg); });
 setChatUnreadProvider(unreadForScreen);
 setFileManagerHooks({ mediaBusy: (device) => isMediaPlaying(device), screenName: (id) => screenNameOf(id) || id });
+// (13/10/2026) The IPTV (trang Darboard): nut "phat tren man" — o chon man + gui lenh phat kenh (xem src/iptv.ts).
+setIptvHooks({
+  screens: () => connectedScreens().map((s) => ({ id: s.id, name: screenNameOf(s.id) || s.id, online: true })),
+  cast: (ids, urlOf) => castUrlToDevices(ids, urlOf),
+});
 startWeatherMini();
 // (27/09/2026) Truyen YouTube tu dien thoai: panel hien nhu mot TV trong nut truyen (DIAL). Tat: tuy chon cast_enabled.
 if (!['0', 'false'].includes(process.env.CAST_ENABLED ?? '')) {
