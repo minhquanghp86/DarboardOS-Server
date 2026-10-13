@@ -315,6 +315,23 @@ Trang **Darboard** (thanh bên Home Assistant) › thẻ **Quản lý file**:
 - Màn hình **phát được**: .mp4 / .m4v / .mkv / .webm / .mov với hình **H.264** (tốt nhất), VP9, AV1 và tiếng AAC, MP3,
   Opus, Vorbis, FLAC. **Không** phát được: H.265/HEVC, .avi / .wmv / .flv / .ts, tiếng AC3/DTS. Nên dùng 720p, 2–4 Mbps.
 
+### IPTV trên màn hình + phát từ trang Darboard (2.9.133)
+
+Trang **Darboard** (thanh bên Home Assistant) › thẻ **IPTV**: thêm **danh sách kênh M3U** (đường link, tệp `.m3u` trong
+thư mục `/media` của Home Assistant, hoặc tệp trên thẻ nhớ của màn — `sd:/…`). Kênh có mặt trong ứng dụng **IPTV** của
+mọi panel; mỗi thay đổi lưu ngay, danh sách tự cập nhật 6 giờ/lần (mất mạng thì dùng bản đã lưu).
+
+- **Danh sách kênh** (thẻ “Kênh”): ô **chọn danh sách** + **ô tìm kênh** (gõ không dấu vẫn ra). Hiện 200 kênh mỗi lần,
+  bấm **Hiện thêm** để xem tiếp. Mỗi kênh có hai nút:
+  - **Phát trên màn hình** (biểu tượng *cast*): hiện danh sách **màn đang kết nối** — chọn **một màn** hoặc **Tất cả
+    màn hình** rồi bấm **Phát**. Máy chủ tự mở ứng dụng IPTV của màn đó và phát kênh; màn không kết nối thì báo rõ, không gửi.
+  - **Phát trong trình duyệt** (biểu tượng *play*): mở trang phát `iptv.html?play=<kênh>` ở tab mới để xem ngay trên máy
+    tính. Kênh cần header `Referer` / `User-Agent` vẫn xem được vì máy chủ làm proxy hộ.
+- **Phát được**: HLS (`.m3u8`), MPEG-TS / FLV qua HTTP (Xtream, udpxy), video `.mp4`, DASH và kênh ClearKey. **Không phát
+  được**: DRM Widevine / PlayReady, `udp://` / `rtmp://`, video H.265 hoặc MPEG-2.
+- Trên màn hình: ứng dụng **IPTV** → nút *danh sách* (góc trên) để thêm / xoá danh sách ngay tại chỗ. Địa chỉ
+  `iptv.html?play=<tên|id>` mở thẳng một kênh — dùng được trong automation Home Assistant.
+
 ### Âm thanh: Media / Thông báo / Báo thức (2.9.95, P4)
 
 | Loại | Gồm | Chỉnh ở |
