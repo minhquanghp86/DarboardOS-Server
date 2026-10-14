@@ -12,9 +12,9 @@
   ?dev=<id thiet bi> do server them khi mo ung dung (nhan dien man hinh). Cap nhat tuc thi: long-poll chat/state.
   Khong hieu ung chay lien tuc (moi khung dong la bang thong WiFi toi panel).
 -->
-<link rel="stylesheet" href="/ui.css">
-<script src="/ui.js"></script>
-<script src="/icons.js"></script>
+<link rel="stylesheet" href="ui.css">
+<script src="ui.js"></script>
+<script src="icons.js"></script>
 <style>
   :root { --accent: #3b82f6; --mine: #2563eb; --kb: 0px; --hdr: clamp(44px, 9vmin, 58px); --fs: clamp(13.5px, 3.1vmin, 16px); }
   html, body { height: 100%; overflow: hidden; }
@@ -183,7 +183,7 @@
   function ib(icon, label, fn, cls) { var b = el('button', 'ib' + (cls ? ' ' + cls : '')); b.type = 'button'; b.setAttribute('aria-label', label); b.append(svg(icon)); b.onclick = fn; return b; }
   var tT = 0;
   function toast(m, ms) { var t = $('toast'); t.textContent = m; t.hidden = false; clearTimeout(tT); tT = setTimeout(function () { t.hidden = true; }, ms || 2600); }
-  var withDev = function (u) { return u + (u.indexOf('?') < 0 ? '?' : '&') + 'dev=' + encodeURIComponent(DEV); };
+  var withDev = function (u) { return window.rwvRel(u + (u.indexOf('?') < 0 ? '?' : '&') + 'dev=' + encodeURIComponent(DEV)); };
   // (09/10/2026) Nha nhieu P4: the nho / camera CUA man nay (src/camProxy.ts pickCamHost).
   var camUrl = function (u) { return DEV ? u + (u.indexOf('?') < 0 ? '?' : '&') + 'rwvdev=' + encodeURIComponent(DEV) : u; };
   function api(path, opt) {
@@ -364,7 +364,7 @@
     a.style.background = hueOf(from.id);
     a.textContent = ((from.name || '?').trim().split(/\s+/).pop() || '?').charAt(0).toUpperCase();
     var p = S.people && S.people[from.id];
-    if (p && p.pic) { var im = el('img'); im.alt = ''; im.src = '/chat/avatar?u=' + encodeURIComponent(from.id); im.onerror = function () { im.remove(); }; a.append(im); }
+    if (p && p.pic) { var im = el('img'); im.alt = ''; im.src = window.rwvRel('/chat/avatar?u=' + encodeURIComponent(from.id)); im.onerror = function () { im.remove(); }; a.append(im); }
     return a;
   }
   function members(c) {

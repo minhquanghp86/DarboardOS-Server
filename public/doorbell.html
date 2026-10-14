@@ -11,7 +11,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Chuông cửa</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="/ui.css">
+<link rel="stylesheet" href="ui.css">
 <style>
   :root { --accent: #f97316; }
   html, body { height: 100%; overflow: hidden; background: #000; }
@@ -45,7 +45,8 @@
   var q = new URLSearchParams(location.search);
   var id = q.get('id') || '', left = Math.max(10, Number(q.get('t')) || 60);
   document.getElementById('tt').textContent = q.get('title') || 'Có người bấm chuông';
-  document.getElementById('cam').src = '/cam.html?src=' + encodeURIComponent(q.get('cam') || '') + '&fit=cover';
+  // (13/10/2026) Trang nay khong nap ui.js -> tu gan goc cua trang (chay dung ca khi mo qua ingress).
+  document.getElementById('cam').src = location.pathname.replace(/[^/]*$/, '') + 'cam.html?src=' + encodeURIComponent(q.get('cam') || '') + '&fit=cover';
   var d = new Date(), tm = document.getElementById('tm');
   var at = (d.getHours() < 10 ? '0' : '') + d.getHours() + ':' + (d.getMinutes() < 10 ? '0' : '') + d.getMinutes();
   function tick() { tm.textContent = at + ' · tự đóng sau ' + left + ' giây'; }

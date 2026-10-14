@@ -12,9 +12,9 @@
   Moi lenh qua /api/cam/sd/{ls,get,rm,thumb}. Xoa luon hoi lai trong trang (khong co hop thoai he thong tren panel).
   Nut quay lai / vuot quay lai cua he thong: history (pushState) cho thu muc va trinh xem.
 -->
-<link rel="stylesheet" href="/ui.css">
-<script src="/ui.js"></script>
-<script src="/icons.js"></script>
+<link rel="stylesheet" href="ui.css">
+<script src="ui.js"></script>
+<script src="icons.js"></script>
 <style>
   :root { --accent: #14b8a6; --hdr: clamp(48px, 9.5vmin, 60px); }
   html, body { height: 100%; overflow: hidden; }
@@ -165,7 +165,7 @@
   var join = function (dir, n) { return (dir === '/' ? '' : dir) + '/' + n; };
   // (09/10/2026) Nha nhieu P4: gui kem man hinh nay (?dev= do server them) -> the nho cua dung man.
   var DEV = new URLSearchParams(location.search).get('dev');
-  function withDev(u) { return DEV ? u + (u.indexOf('?') >= 0 ? '&' : '?') + 'rwvdev=' + encodeURIComponent(DEV) : u; }
+  function withDev(u) { return window.rwvRel(DEV ? u + (u.indexOf('?') >= 0 ? '&' : '?') + 'rwvdev=' + encodeURIComponent(DEV) : u); }
   var fileUrl = function (p) { return withDev('/api/cam/sd/get?p=' + enc(p)); };
   var thumbUrl = function (p, it) { return withDev('/api/cam/sd/thumb?p=' + enc(p) + '&s=' + it.s + '&t=' + it.t); };
 

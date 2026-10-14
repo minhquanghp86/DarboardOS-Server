@@ -12,9 +12,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sự kiện camera</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="/ui.css">
-<script src="/ui.js"></script>
-<script src="/icons.js"></script>
+<link rel="stylesheet" href="ui.css">
+<script src="ui.js"></script>
+<script src="icons.js"></script>
 <style>
   :root { --accent: #0e7490; --hi: #22d3ee; }  /* nen, be mat, chu, bo goc: /ui.css */
   * { box-sizing: border-box; }
@@ -245,7 +245,7 @@
     if (S.playing && e.clip) {
       var v = document.createElement('video');
       v.controls = true; v.autoplay = true; v.playsInline = true; v.preload = 'auto';
-      if (!PRIV) v.src = '/frigate/clip/' + encodeURIComponent(e.id);
+      if (!PRIV) v.src = window.rwvRel('/frigate/clip/' + encodeURIComponent(e.id));
       v.addEventListener('ended', function () { S.playing = false; renderButtons(); });
       v.addEventListener('error', function () { st.appendChild(el('div', 'msg', 'Không phát được clip (Frigate có thể đã xoá bản ghi).')); });
       out.push(v);
@@ -255,7 +255,7 @@
     } else {
       var im = new Image(); im.alt = label(e); im.decoding = 'async';
       im.onerror = function () { st.replaceChildren(el('div', 'ph0'), el('div', 'msg', 'Không tải được ảnh chụp.')); };
-      im.src = '/frigate/snap/' + encodeURIComponent(e.id);
+      im.src = window.rwvRel('/frigate/snap/' + encodeURIComponent(e.id));
       out.push(im);
     }
     st.replaceChildren.apply(st, out);
