@@ -152,3 +152,14 @@ export function appKeyForUrl(url: string, apps: { id: string; url?: string }[]):
   }
   return best ? best.id : null;
 }
+
+/**
+ * (14/10/2026) Mo lai ung dung da bi dong (RAM / khoi dong lai): dung lai URL cu de ve dung cho dang xem (video YouTube,
+ * trang HA...). Rieng ung dung NOI BO (trang cua addon, 127.0.0.1): URL cu chi dung khi van bat dau bang URL hien tai cua
+ * ung dung — doi ban (vd Media chuyen tu trang Media cua HA sang media.html, hoac them ?dev=) thi mo URL moi.
+ */
+export function ghostUrlFor(ghost: string | undefined, appUrl: string): string | null {
+  if (!ghost || ghost === 'about:blank') return null;
+  if (/^http:\/\/127\.0\.0\.1:\d+\//.test(appUrl) && !ghost.startsWith(appUrl)) return null;
+  return ghost;
+}

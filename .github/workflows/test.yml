@@ -4,13 +4,9 @@
 # error") — truoc khi ban nao duoc nap len HASS.
 name: Test
 
+# (14/10/2026) CHI chay tay (tai khoan het phut Actions). Truoc khi phat hanh: chay cuc bo `npm run typecheck`,
+# `npm run test:run`, `npm run build`, `CHROME_EXECUTABLE=... npm run test:integration`.
 on:
-  pull_request:
-  push:
-    branches:
-      - main
-      - "claude/**"
-      - "feature/**"
   workflow_dispatch:
 
 permissions:

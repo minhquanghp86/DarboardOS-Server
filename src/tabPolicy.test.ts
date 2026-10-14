@@ -130,3 +130,17 @@ describe("ngan sach RAM (dong tab nen nhan roi)", () => {
     expect(parseMeminfo("x")).toBeNull();
   });
 });
+
+import { ghostUrlFor } from "./tabPolicy.js";
+describe("ghostUrlFor (14/10/2026: mo lai ung dung da dong)", () => {
+  it("ung dung web: giu URL cu (video dang xem)", () => {
+    expect(ghostUrlFor("https://m.youtube.com/watch?v=x", "https://m.youtube.com")).toBe("https://m.youtube.com/watch?v=x");
+    expect(ghostUrlFor("about:blank", "https://m.youtube.com")).toBeNull();
+  });
+  it("ung dung noi bo: URL cu khong con khop ban moi -> mo URL moi", () => {
+    const app = "http://127.0.0.1:18080/media.html?dev=esp32-1";
+    expect(ghostUrlFor("http://192.168.1.2:8123/media-browser/browser", app)).toBeNull();
+    expect(ghostUrlFor("http://127.0.0.1:18080/media.html", app)).toBeNull();
+    expect(ghostUrlFor(app + "&x=1", app)).toBe(app + "&x=1");
+  });
+});

@@ -23,7 +23,7 @@ import { fileURLToPath } from "node:url";
 import { buildLauncherApps, listAllApps, GROUP_TITLES, LOCAL_ORIGIN, LAUNCHER_CAMS_URL, LAUNCHER_OS_HOME_URL, LAUNCHER_TIMER_URL, LAUNCHER_WEATHER_URL } from "./launcherApps.js";
 import { createRequire } from "node:module";
 import { getWeatherMini, onWeatherMiniUpdate } from "./weatherMini.js";
-import { SerialQueue, appKeyForUrl, nowPlaying, parseMeminfo, pickEvictions, pickIdleCloses, recentsList, tabBudget } from "./tabPolicy.js";
+import { SerialQueue, appKeyForUrl, ghostUrlFor, nowPlaying, parseMeminfo, pickEvictions, pickIdleCloses, recentsList, tabBudget } from "./tabPolicy.js";
 import { SCREENSAVER_IDLE_S, SCREENSAVER_PHOTOS, deviceHour, isNightHour, shouldShowSaver } from "./screensaver.js";
 import { listPhotos } from "./homeApi.js";
 import { panelPrefs } from "./panelPrefs.js";
@@ -2082,7 +2082,7 @@ async function openAppNow(dev: DeviceSession, key: string): Promise<void> {
     if (devices.get(dev.deviceId) !== dev) { closeTab(dev, key, 'phien thiet bi da bi xoa'); return; }
     // Bat screencast TRUOC (tren trang trang, an toan) roi moi dieu huong cheo nguon — xem createTab().
     await activateTab(dev, key);
-    await navigateTab(dev, tab, ghost?.url && ghost.url !== 'about:blank' ? ghost.url : spec.url);
+    await navigateTab(dev, tab, ghostUrlFor(ghost?.url, spec.url) ?? spec.url);
   } else {
     await activateTab(dev, key);
   }
