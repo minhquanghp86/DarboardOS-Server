@@ -32,6 +32,49 @@ export interface DoorConfig { ringPanels: string[]; ringS: number; gateS: number
 let cfg: DoorConfig = { ringPanels: [], ringS: 45, gateS: 3 };
 try { cfg = { ...cfg, ...JSON.parse(fs.readFileSync(CFG_FILE, 'utf8')) }; } catch { /* chua co */ }
 export function doorConfig(): DoorConfig { return cfg; }
+
+// ── (14/10/2026) NHAT KY CHUONG CONG: anh MOI lan bam chuong (+ anh tu chup), ket qua Nho / Da nghe / Tu choi; GIU 30 NGAY
+// (qua 30 ngay tu xoa — anh moi thay cho anh cu nhat). Xem lai: ung dung "Chuong cong" (door-log.html) tren moi man, cham
+// thong bao "Cuoc goi nho", tab "Chuong cong" trong Darboard. /data/rwv-door/log.json + <tep>.jpg.
+export type LogKind = 'ring' | 'missed' | 'answered' | 'declined' | 'shot';
+export interface LogItem { f: string; ts: number; door: string; name: string; kind: LogKind; by?: string }
+const LOG_FILE = path.join(SNAP_DIR, 'log.json');
+const KEEP_MS = 30 * 24 * 3600_000;
+let log: LogItem[] = [];
+try { log = JSON.parse(fs.readFileSync(LOG_FILE, 'utf8')); } catch { /* chua co */ }
+function saveLog(): void {
+  try { fs.mkdirSync(SNAP_DIR, { recursive: true }); fs.writeFileSync(LOG_FILE, JSON.stringify(log)); } catch { /* */ }
+}
+/** Xoa anh qua 30 ngay (ca tep jpg khong con trong nhat ky — vd anh cu truoc khi co nhat ky). */
+function pruneLog(): void {
+  const cut = Date.now() - KEEP_MS;
+  const keep = log.filter((x) => x.ts >= cut);
+  const names = new Set(keep.map((x) => x.f));
+  let n = 0;
+  try {
+    for (const f of fs.readdirSync(SNAP_DIR)) {
+      if (!f.endsWith('.jpg') || names.has(f)) continue;
+      const st = fs.statSync(path.join(SNAP_DIR, f));
+      if (st.mtimeMs < cut || log.some((x) => x.f === f)) { fs.rmSync(path.join(SNAP_DIR, f), { force: true }); n++; }
+    }
+  } catch { /* */ }
+  if (keep.length !== log.length || n) { log = keep; saveLog(); console.log(`[door] nhat ky: xoa ${n} anh qua 30 ngay`); }
+}
+setInterval(pruneLog, 3600_000);
+setTimeout(pruneLog, 30_000);
+function addLog(d: Door, f: string, kind: LogKind, by?: string): LogItem {
+  const it: LogItem = { f, ts: Date.now(), door: d.id, name: d.name, kind, ...(by ? { by } : {}) };
+  log.push(it); saveLog(); pruneLog();
+  return it;
+}
+function setLogKind(f: string | null | undefined, kind: LogKind, by?: string): void {
+  const it = f ? log.find((x) => x.f === f) : undefined;
+  if (!it) return;
+  it.kind = kind; if (by) it.by = by; saveLog();
+}
+/** Cham thong bao "Cuoc goi nho" -> mo ung dung Chuong cong dung anh nay (trang hoi /door/log?dev=). */
+const openReq = new Map<string, string>();
+export function requestOpenLog(dev: string, f: string): void { if (/^[\w.-]+\.jpg$/.test(f)) openReq.set(dev, f); }
 export function setDoorConfig(b: any): DoorConfig {
   const panels = Array.isArray(b?.ringPanels) ? b.ringPanels.filter((x: unknown) => typeof x === 'string' && /^[\w-]{1,40}$/.test(x)).slice(0, 20) : cfg.ringPanels;
   const num = (v: unknown, lo: number, hi: number, d: number) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
@@ -48,7 +91,7 @@ interface Door {
   /** Co mic + loa (module I2S) -> noi chuyen duoc; khong -> man chi xem hinh / mo cong. */
   canTalk: boolean;
   lastPress: number;
-  ring: { id: string; panels: string[]; timer: NodeJS.Timeout } | null;
+  ring: { id: string; panels: string[]; timer: NodeJS.Timeout; snap: string | null; result?: LogKind; by?: string } | null;
   talk: { panel: string; since: number; ringId: string; maxT: NodeJS.Timeout } | null;
   ledT: NodeJS.Timeout | null;
 }
@@ -108,7 +151,11 @@ function press(d: Door, only?: string[]): void {
   if (d.ring) { clearTimeout(d.ring.timer); closeDoorbell(d.ring.id); }
   const sel = only?.length ? only : cfg.ringPanels.length ? cfg.ringPanels : d.panels.length ? d.panels : undefined;
   const r = ringDoorPanels(d.id, d.name, cfg.ringS, sel, d.canTalk);
-  d.ring = { id: r.id, panels: r.devices, timer: setTimeout(() => missed(d, r.id), cfg.ringS * 1000) };
+  d.ring = { id: r.id, panels: r.devices, timer: setTimeout(() => missed(d, r.id), cfg.ringS * 1000), snap: null };
+  // Anh khach NGAY khi bam (nhat ky moi lan bam chuong); ket qua cap nhat sau.
+  const ring = d.ring;
+  // Nghe / tu choi TRUOC khi anh xong -> ghi dung ket qua (ring.result).
+  snapshot(d).then((f) => { ring.snap = f; addLog(d, f, ring.result || 'ring', ring.by); }).catch(() => { });
   led(d, DoorState.Ringing);
   haFetch('/events/darboard_doorbell', { method: 'POST', body: JSON.stringify({ door: d.id, name: d.name, panels: r.devices }) })
     .then((x) => { if (!x.ok) console.warn(`[door] su kien HA: ${x.status}`); }).catch(() => { });
@@ -116,11 +163,15 @@ function press(d: Door, only?: string[]): void {
 
 async function missed(d: Door, ringId: string): Promise<void> {
   if (!d.ring || d.ring.id !== ringId) return;
+  const ring = d.ring;
   d.ring = null;
   led(d, DoorState.Missed, 60_000);
-  const img = await snapshot(d).catch(() => null);
+  let img = ring.snap;
+  if (!img) { img = await snapshot(d).catch(() => null); if (img) addLog(d, img, 'missed'); }
+  else setLogKind(img, 'missed');
+  // Cham thong bao -> ung dung "Chuong cong" mo dung anh nay (xem lai bat cu luc nao trong 30 ngay).
   postNotify({ title: 'Cuộc gọi nhỡ ở cổng', message: `${d.name}: không ai nghe lúc ${new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`,
-    priority: 'high', device: 'all', ...(img ? { image: `${LOCAL_ORIGIN}/door/snap/${img}` } : {}) });
+    priority: 'high', device: 'all', app: 'doorlog', ...(img ? { arg: img, image: `${LOCAL_ORIGIN}/door/snap/${img}` } : {}) });
   console.log(`[door] ${d.id}: cuoc goi nho${img ? ' (co anh)' : ''}`);
 }
 
@@ -137,8 +188,6 @@ function snapshot(d: Door): Promise<string> {
         fs.mkdirSync(SNAP_DIR, { recursive: true });
         const name = `${d.id}-${Date.now()}.jpg`;
         fs.writeFileSync(path.join(SNAP_DIR, name), b);
-        const old = fs.readdirSync(SNAP_DIR).filter((f) => f.endsWith('.jpg')).sort();
-        for (const f of old.slice(0, Math.max(0, old.length - 30))) fs.rmSync(path.join(SNAP_DIR, f), { force: true });
         ok(name);
       });
     });
@@ -154,6 +203,8 @@ export function answer(ringId: string, panel: string): { ok: boolean; error?: st
   const d = doorOfRing(ringId);
   if (!d || !d.ring) return { ok: false, error: 'Cuộc gọi đã kết thúc.' };
   clearTimeout(d.ring.timer);
+  d.ring.result = 'answered'; d.ring.by = panel;
+  setLogKind(d.ring.snap, 'answered', panel);
   d.ring = null;
   answerDoorbell(ringId, panel);
   if (!startCall(d.id) || !startCall(panel)) { endCall(d.id); endCall(panel); return { ok: false, error: 'Màn hoặc chuông đang bận.' }; }
@@ -169,6 +220,8 @@ export function decline(ringId: string): boolean {
   const d = doorOfRing(ringId);
   if (!d || !d.ring) return false;
   clearTimeout(d.ring.timer);
+  d.ring.result = 'declined';
+  setLogKind(d.ring.snap, 'declined');
   d.ring = null;
   closeDoorbell(ringId);
   led(d, DoorState.Idle);
@@ -273,8 +326,16 @@ export function handleDoorApi(req: http.IncomingMessage, res: http.ServerRespons
     req.on('end', () => { try { json(res, 200, { ok: true, cfg: setDoorConfig(JSON.parse(body || '{}')) }); } catch { json(res, 400, { ok: false, error: 'JSON sai' }); } });
     return true;
   }
-  if (!isLocal(req)) { json(res, 403, { error: 'Chỉ dùng từ màn hình.' }); return true; }
+  const ingress = (req.socket.remoteAddress || '').replace(/^::ffff:/, '') === '172.30.32.2';
   const q = (k: string) => url.searchParams.get(k) || '';
+  // Nhat ky (man + Darboard): danh sach moi nhat truoc; ?dev= -> kem anh can mo (cham thong bao) roi xoa yeu cau.
+  if (p === '/door/log' && req.method === 'GET' && (isLocal(req) || ingress)) {
+    const dev = q('dev'), open = dev ? openReq.get(dev) : undefined;
+    if (dev) openReq.delete(dev);
+    json(res, 200, { items: [...log].reverse(), keepDays: 30, open: open || null });
+    return true;
+  }
+  if (!isLocal(req) && !(ingress && /^\/door\/snap\//.test(p))) { json(res, 403, { error: 'Chỉ dùng từ màn hình.' }); return true; }
   const m = /^\/door\/snap\/([\w.-]+\.jpg)$/.exec(p);
   if (m && req.method === 'GET') {
     fs.readFile(path.join(SNAP_DIR, m[1]), (e, b) => {
@@ -298,7 +359,8 @@ export function handleDoorApi(req: http.IncomingMessage, res: http.ServerRespons
     const d = doors.get(q('door'));
     if (!d) { json(res, 404, { ok: false, error: 'Không có chuông.' }); return true; }
     snapshot(d).then((img) => {
-      postNotify({ title: 'Ảnh ở cổng', message: `${d.name} — ${new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`,
+      addLog(d, img, 'shot', q('dev') || undefined);
+      postNotify({ title: 'Ảnh ở cổng', app: 'doorlog', arg: img, message: `${d.name} — ${new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`,
         device: q('dev') || 'all', image: `${LOCAL_ORIGIN}/door/snap/${img}` });
       json(res, 200, { ok: true });
     }).catch((e) => json(res, 502, { ok: false, error: 'Không chụp được: ' + (e as Error).message }));

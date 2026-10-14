@@ -40,7 +40,7 @@ import { startWeatherMini } from './weatherMini.js';
 import { handleIptvApi, setIptvHooks } from './iptv.js';
 import { handleMediaApi } from './mediaLib.js';
 import { endCall, handleCallApi, handleCallUpgrade, onMicFrame } from './callBridge.js';
-import { attachDoor, handleDoorApi, setDoorHooks } from './door.js';
+import { attachDoor, handleDoorApi, requestOpenLog, setDoorHooks } from './door.js';
 import { handleRingtone } from './ringtone.js';
 import { handleCallsApi, handleCallsUpgrade, setCallHooks } from './calls.js';
 import { handleFrigateApi } from './frigate.js';
@@ -199,7 +199,7 @@ const STATIC_PAGES = ['no-url.html', 'cam.html', 'camera.html', 'weather.html', 
   // (01/10/2026) Thu vien / Tep (the SD cua P4), Tin nhan noi bo, bieu tuong dung chung.
   'files.html', 'chat.html', 'icons.js', 'alarm.html',
   // (07/10/2026) IPTV (src/iptv.ts). (08/10/2026) Su kien camera Frigate (src/frigate.ts).
-  'iptv.html', 'events.html', 'media.html', 'call-test.html', 'door.html', 'call.html', 'call-web.html', 'call-ui.js', 'call-ui.css'];
+  'iptv.html', 'events.html', 'media.html', 'call-test.html', 'door.html', 'call.html', 'call-web.html', 'call-ui.js', 'call-ui.css', 'door-log.html'];
 const staticCache = new Map<string, Buffer>();
 for (const name of STATIC_PAGES) {
   const p = path.join(__dirname, '..', 'public', name);
@@ -412,7 +412,7 @@ setChatHooks({
   haEvent: (data) => { haFetch('/events/darboard_chat_message', { method: 'POST', body: JSON.stringify(data) }).catch(() => { }); },
   camFetch,
 });
-setNoticeArgHook((device, app, arg) => { if (app === 'chat') requestOpenConv(device, arg); });
+setNoticeArgHook((device, app, arg) => { if (app === 'chat') requestOpenConv(device, arg); else if (app === 'doorlog') requestOpenLog(device, arg); });
 setChatUnreadProvider(unreadForScreen);
 setFileManagerHooks({ mediaBusy: (device) => isMediaPlaying(device), screenName: (id) => screenNameOf(id) || id });
 // (13/10/2026) The IPTV (trang Darboard): nut "phat tren man" — o chon man + gui lenh phat kenh (xem src/iptv.ts).
