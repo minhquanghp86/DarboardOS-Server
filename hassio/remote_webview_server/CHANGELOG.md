@@ -1,3 +1,7 @@
+## V2.9.140
+- Sửa: màn nối lại máy chủ mở lại địa chỉ CŨ mà firmware nhớ (vd `media.html` thiếu nhận diện màn) — ứng dụng nội bộ nay
+  luôn mở đúng địa chỉ hiện tại (giữ nguyên tham số khi cùng trang và cùng màn, vd Thư viện mở từ Camera).
+
 ## V2.9.139
 - **Ứng dụng Media mới** (thay trang Media tiếng Anh của Home Assistant):
   - Nguồn: thư mục media của HA và thẻ nhớ của màn (bỏ thư mục DCIM — đã có Thư viện). Nguồn đã có ứng dụng riêng

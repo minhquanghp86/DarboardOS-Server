@@ -1230,6 +1230,8 @@ async function navigateToUrlNow(dev: DeviceSession, url: string): Promise<void> 
   const appKey = appKeyForUrl(url, listAllApps(dev.cfg.homeUrl).filter((a) => !a.hidden && a.id !== 'home'))
     ?? (isHaUrl(dev, url) ? 'home' : null);
   const spec = appKey && appKey !== 'home' ? resolveAppSpec(dev, appKey) : null;
+  // (14/10/2026) URL cu cua ung dung NOI BO (firmware gui lai URL cuoi khi noi lai, vd media.html thieu ?dev=) -> URL hien tai.
+  if (spec?.url) url = ghostUrlFor(url, spec.url) ?? spec.url;
   const key = appKey === 'home' ? 'home' : spec ? appKey! : 'browser';
   let tab = dev.tabs.get(key);
   let navigated = false;
