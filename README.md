@@ -7,10 +7,10 @@ chính, dock, thanh trạng thái kéo xuống, thông báo, tin nhắn nội b�
 
 Dự án gồm hai repo dùng cùng nhau:
 
-| Repo | Vai trò | Phiên bản hiện tại (13/10/2026) |
+| Repo | Vai trò | Phiên bản hiện tại (14/10/2026) |
 |---|---|---|
 | **HA-Darboard-Server** (repo này) | Máy chủ — addon Home Assistant (hoặc container Docker) | **2.9.142** |
-| [HA-Darboard-Client](https://github.com/minhquanghp86/HA-Darboard-Client) | Firmware màn hình (ESPHome) + cấu hình mẫu đang chạy thật | tag **`fw-2026.10.13b`** |
+| [HA-Darboard-Client](https://github.com/minhquanghp86/HA-Darboard-Client) | Firmware màn hình (ESPHome) + cấu hình mẫu đang chạy thật | tag **`fw-2026.10.16`** |
 
 > Tài liệu bàn giao / báo cáo nội bộ được giữ riêng (không công khai).
 
@@ -66,6 +66,7 @@ Nhật ký thay đổi từng phiên bản: [`CHANGELOG.md`](hassio/remote_webvi
 
 | Nhóm | Ứng dụng |
 |---|---|
+| Liên lạc | **Gọi** (gọi video giữa các màn / với trình duyệt), **Chuông cổng** (nhật ký 30 ngày) |
 | Nhà | Home Assistant, **Camera** (chụp/quay của chính P4), **Frigate** (lưới camera go2rtc), **Thư viện** + **Quản lý file** (thẻ SD), Phòng, Điều khiển, Solar |
 | Giải trí | **IPTV**, YouTube, YouTube TV, YouTube Music, TikTok, Radio VOV, Tin tức, VTVgo, Zing MP3, NhacCuaTui, Media, Khung ảnh |
 | Tiện ích | **Tin nhắn**, **Báo thức**, Hẹn giờ, Thời tiết, Lịch âm dương, Việc cần làm, Hôm nay, Bảng tin, Báo Mới, Giá vàng, Xổ số, Google Maps, Trình duyệt, **Cài đặt** |
@@ -114,7 +115,13 @@ trên thanh bên Home Assistant.
 
 - `POST /notify` (từ `rest_command` của HA): `normal` / `high` (bật sáng + chuông) / `critical` (hiện cả khi Không làm
   phiền), kèm ảnh camera go2rtc, chạm để mở ứng dụng/URL; lưu qua khởi động lại addon.
-- `POST /doorbell`: màn hình chuông cửa toàn màn với camera cổng, nút Mở cổng.
+- **Chuông cổng Darboard** (ESP32-S3 CAM, firmware `fw-2026.10.16`): bấm nút → các màn đổ chuông (đè lên màn khóa) với
+  hình cổng trực tiếp, **Nói chuyện** hai chiều, **Mở khóa cổng**, Chụp ảnh; không ai nghe → thông báo "Cuộc gọi nhỡ" kèm
+  ảnh; nhật ký ảnh 30 ngày (ứng dụng + tab trên trang Darboard); sự kiện HA `darboard_doorbell`; nhạc chuông từ
+  `media/audio/chuong-cua.mp3` (2.9.141).
+- **Gọi video** kiểu điện thoại giữa các màn có camera + mic và tab **Gọi** trên trang Darboard (trình duyệt / điện thoại
+  qua HTTPS, chạy được qua Cloudflare Tunnel — tiếng + hình đi qua addon bằng WebSocket); nhạc chuông `media/audio/zalo.mp3`.
+- `POST /doorbell`: màn hình chuông cửa toàn màn với camera go2rtc bất kỳ, nút Mở cổng (cho chuông không phải Darboard).
 - `POST /board`: ghi chú lên Bảng tin gia đình; *Hôm nay* tổng hợp lịch, thời tiết, việc cần làm (bản tin buổi sáng).
 
 ### Nhận biết người (P4)
