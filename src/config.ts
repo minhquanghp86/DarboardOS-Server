@@ -60,6 +60,10 @@ export type DeviceConfig = {
   voice: boolean;
   /** (14/10/2026) INTERCOM: firmware co mic cuoc goi (?mic=1, YAML call_microphone) -> goi duoc toi man nay. */
   micCall: boolean;
+  /** (14/10/2026) Chuong cong (?door=1): khong man hinh; mj = cong MJPEG, sn = cong anh chup (esp32_camera_web_server). */
+  door: boolean;
+  mjPort: number;
+  snapPort: number;
 };
 
 const DEFAULTS = {
@@ -169,6 +173,9 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
   const devControl = params.get("ctl") === "1";
   const voice = params.get("va") === "1";
   const micCall = params.get("mic") === "1";
+  const door = params.get("door") === "1";
+  const mjPort = Math.max(0, Math.min(65535, parseInt(params.get("mj") || "0", 10) || 0));
+  const snapPort = Math.max(0, Math.min(65535, parseInt(params.get("sn") || "0", 10) || 0));
 
   const dimensions = getRotatedDimensions(width, height, rotation);
 
@@ -196,6 +203,9 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
     devControl,
     voice,
     micCall,
+    door,
+    mjPort,
+    snapPort,
   };
 }
 

@@ -2244,10 +2244,58 @@ export function postDoorbell(body: unknown): { ok: boolean; error?: string; id?:
       const t = dev.tabs.get('__doorbell');
       if (t) { await activateTab(dev, '__doorbell'); await navigateTab(dev, t, url); }
       else await openAppNow(dev, '__doorbell');
+      showBellOverLock(dev);
     }).catch((e) => console.warn(`[doorbell] ${dev.deviceId}:`, (e as Error).message));
     console.log(`[doorbell] ${dev.deviceId}: chuong cua (${b.camera}${b.unlock ? ', mo cong = ' + b.unlock : ''}), ${b.timeoutS} s`);
   }
   return { ok: true, id, devices: targets.map((d) => d.deviceId) };
+}
+
+/**
+ * (14/10/2026) CHUONG CONG (ESP32-S3, src/door.ts): do chuong tren cac man (moi man co dieu khien) bang trang door.html
+ * (hinh cong qua WS, Nghe / Mo cong / Tu choi). Dung chung co che tab '__doorbell' cua postDoorbell: sang man hinh,
+ * "ding-dong" (Khong lam phien -> im), het gio quay ve ung dung truoc.
+ */
+export function ringDoorPanels(door: string, name: string, timeoutS: number, only?: string[]): { id: string; devices: string[] } {
+  const id = Date.now().toString(36);
+  const targets = [...devices.values()].filter((d) => d.cfg.devControl && broadcaster.getClientCount(d.deviceId) > 0 && (!only || only.includes(d.deviceId)));
+  for (const dev of targets) {
+    const url = `${LOCAL_ORIGIN}/door.html?door=${encodeURIComponent(door)}&name=${encodeURIComponent(name)}&id=${id}` +
+      `&dev=${encodeURIComponent(dev.deviceId)}&t=${timeoutS}` + (dev.cfg.micCall ? '&talk=1' : '');
+    const prevKey = dev.doorbell?.prevKey ?? (dev.activeTabKey === '__doorbell' ? 'home' : dev.activeTabKey);
+    if (dev.doorbell) clearTimeout(dev.doorbell.timer);
+    dev.doorbell = { id, url, prevKey, unlock: null, timer: setTimeout(() => endDoorbell(dev, id, 'het gio'), timeoutS * 1000) };
+    if (dev.cfg.devControl) broadcaster.sendDeviceControl(dev.deviceId, ControlField.Brightness, userBrightness(dev));
+    noteActivity(dev, 'chuong cong');
+    if (canPlay(dev)) playSound(dev, Sound.Doorbell);
+    dev.tabOps.run(async () => {
+      const t = dev.tabs.get('__doorbell');
+      if (t) { await activateTab(dev, '__doorbell'); await navigateTab(dev, t, url); }
+      else await openAppNow(dev, '__doorbell');
+      showBellOverLock(dev);
+    }).catch((e) => console.warn(`[door] ${dev.deviceId}:`, (e as Error).message));
+  }
+  console.log(`[door] ${door}: do chuong tren ${targets.map((d) => d.deviceId).join(', ') || '(khong man nao)'}`);
+  return { id, devices: targets.map((d) => d.deviceId) };
+}
+
+/** (14/10/2026) Man `keep` da nghe: dong chuong tren moi man khac cung lan bam; man nay giu trang (bo hen gio). */
+export function answerDoorbell(id: string, keep: string): boolean {
+  let ok = false;
+  for (const dev of devices.values()) {
+    if (dev.doorbell?.id !== id) continue;
+    if (dev.deviceId === keep) { clearTimeout(dev.doorbell.timer); ok = true; } else endDoorbell(dev, id, 'man khac da nghe');
+  }
+  return ok;
+}
+
+/**
+ * (14/10/2026) Trang chuong hien DE LEN man hinh cho / khoa (truoc day lop khoa che mat trang chuong — khong thay hinh, khong
+ * bam Nghe duoc). Giu dev.locked: het chuong, vong man hinh cho tu hien lai man khoa (screensaverTick bo qua khi co chuong).
+ */
+function showBellOverLock(dev: DeviceSession): void {
+  if (dev.saverOn) { setSaver(dev, false); console.log(`[saver] ${dev.deviceId}: an man hinh ${dev.locked ? 'khoa' : 'cho'} de hien chuong`); }
+  dev.cdp.send('Runtime.evaluate', { expression: 'window.__rwvShell && window.__rwvShell.screensaver && window.__rwvShell.screensaver(false)' }).catch(() => { });
 }
 
 /** Dong man hinh chuong (id lan bam do) tren MOT man hinh: quay ve ung dung truoc, dong tab chuong. */
@@ -2256,8 +2304,11 @@ function endDoorbell(dev: DeviceSession, id: string, why: string): void {
   if (!d || d.id !== id) return;
   clearTimeout(d.timer);
   dev.doorbell = undefined;
+  // (14/10/2026) Dang khoa truoc chuong: quay ve ung dung truoc KHONG duoc mo khoa (openAppNow -> noteActivity mo khoa).
+  const wasLocked = dev.locked;
   dev.tabOps.run(async () => {
     if (dev.activeTabKey === '__doorbell') await openAppNow(dev, dev.tabs.has(d.prevKey) || d.prevKey === 'home' || d.prevKey === '__system' ? d.prevKey : '__system');
+    if (wasLocked && !dev.locked) { dev.locked = true; console.log(`[saver] ${dev.deviceId}: khoa lai sau chuong`); }
     closeTab(dev, '__doorbell', why);
   }).catch(() => { });
 }
@@ -3591,6 +3642,9 @@ export function screensaverTick(): void {
     if (!tab || broadcaster.getClientCount(d.deviceId) === 0) continue;
     // (01/10/2026) Bao thuc / hen gio dang reo: khong che man hinh bao thuc (do that: khung anh de len, khong thay nut Tat).
     if (alarms.ringingOn(d.deviceId)) continue;
+    // (14/10/2026) Chuong cua / chuong cong dang mo: KHONG hien man hinh cho / khoa de len (trang chuong hien DE LEN man
+    // khoa nhu cuoc goi den tren dien thoai — van giu khoa; het chuong vong nay tu hien lai man khoa).
+    if (d.doorbell) continue;
     // (07/10/2026) TU LANH: server tuong dang man hinh cho / khoa ma LOP PHU khong con tren trang (trang tu nap lai, Shell
     // bo qua lenh, bao thuc / tro ly go...) -> 30 s hoi trang mot lan, mat thi ve lai. Do that P4 07/10 14:51: log
     // "hien man hinh khoa" nhung trang khong co lop khoa — ket o trang HA (sang 10%) hon 3 gio, cham chi lam sang man.

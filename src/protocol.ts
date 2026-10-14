@@ -65,7 +65,8 @@ export enum MsgType {
   MicFrame = 13,
 }
 
-export enum DeviceEventKind { Voice = 1, Presence = 2 }
+/** (14/10/2026) + Doorbell = 3: chuong cong (ESP32-S3) bao nut bam (value 1). */
+export enum DeviceEventKind { Voice = 1, Presence = 2, Doorbell = 3 }
 export enum VoiceState { Idle = 0, Listening = 1, Thinking = 2, Replying = 3, Error = 4 }
 
 /** Truong cua goi DeviceControl (khop proto::ControlField ben firmware). */
@@ -91,6 +92,10 @@ export enum ControlField {
   Dnd = 12,
   /** (14/10/2026) INTERCOM: 1 = man nay dang trong cuoc goi (bat mic len server), 0 = het. Firmware cu bo qua. */
   Call = 13,
+  /** (14/10/2026) CHUONG CONG: mo cong — dong MOSFET trong `value` giay (1..30). */
+  Gate = 14,
+  /** (14/10/2026) CHUONG CONG: trang thai cho vong LED (DoorState). */
+  DoorState = 15,
 }
 
 export interface DeviceStateInfo {
@@ -405,3 +410,6 @@ export function parseRepaintRectPacket(buf: Buffer): { x: number; y: number; w: 
   const r = { x: buf.readUInt16LE(2), y: buf.readUInt16LE(4), w: buf.readUInt16LE(6), h: buf.readUInt16LE(8) };
   return r.w > 0 && r.h > 0 && r.w <= 4096 && r.h <= 4096 ? r : null;
 }
+
+/** (14/10/2026) Trang thai chuong cong (ControlField.DoorState) — vong LED hien thi. */
+export enum DoorState { Idle = 0, Ringing = 1, Talking = 2, Missed = 3, Opening = 4 }

@@ -40,6 +40,7 @@ import { startWeatherMini } from './weatherMini.js';
 import { handleIptvApi, setIptvHooks } from './iptv.js';
 import { handleMediaApi } from './mediaLib.js';
 import { endCall, handleCallApi, handleCallUpgrade, onMicFrame } from './callBridge.js';
+import { attachDoor, handleDoorApi } from './door.js';
 import { handleFrigateApi } from './frigate.js';
 import { handleLockWidgetsApi, noteDeviceIp } from './lockWidgets.js';
 import { handleCalendarApi } from './calendarSource.js';
@@ -104,6 +105,8 @@ function routeMessage(dev: DeviceSession, buf: Buffer): void {
 wss.on("connection", async (ws, req) => {
   const url = new URL(req.url || "", `ws://localhost:${WS_PORT}`);
   const id  = url.searchParams.get("id") || "default";
+  // (14/10/2026) CHUONG CONG (ESP32-S3 CAM, khong man hinh): xu ly rieng — khong tao Chromium / phien man hinh.
+  if (url.searchParams.get("door") === "1") { attachDoor(ws, id, req.socket.remoteAddress, url.searchParams); return; }
 
   const cfg = makeConfigFromParams(url.searchParams);
   setConfigFor(id, cfg);
@@ -193,7 +196,7 @@ const STATIC_PAGES = ['no-url.html', 'cam.html', 'camera.html', 'weather.html', 
   // (01/10/2026) Thu vien / Tep (the SD cua P4), Tin nhan noi bo, bieu tuong dung chung.
   'files.html', 'chat.html', 'icons.js', 'alarm.html',
   // (07/10/2026) IPTV (src/iptv.ts). (08/10/2026) Su kien camera Frigate (src/frigate.ts).
-  'iptv.html', 'events.html', 'media.html', 'call-test.html'];
+  'iptv.html', 'events.html', 'media.html', 'call-test.html', 'door.html'];
 const staticCache = new Map<string, Buffer>();
 for (const name of STATIC_PAGES) {
   const p = path.join(__dirname, '..', 'public', name);
@@ -233,6 +236,8 @@ http.createServer((req, res) => {
   if (handleMediaApi(req, res, reqUrl)) return;
   // (14/10/2026) INTERCOM GD0: tieng giua man va trang thu / do vong lap (src/callBridge.ts).
   if (handleCallApi(req, res, reqUrl)) return;
+  // (14/10/2026) Chuong cong: Nghe / Tu choi / Ket thuc / Mo cong, anh khach (src/door.ts).
+  if (handleDoorApi(req, res, reqUrl)) return;
   // (08/10/2026) Su kien camera Frigate: danh sach, anh, clip (src/frigate.ts) — chi 127.0.0.1.
   if (handleFrigateApi(req, res, reqUrl)) return;
   const vendor = vendorCache.get(pathname);

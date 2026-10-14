@@ -19,6 +19,7 @@ import { WebSocket, WebSocketServer } from 'ws';
 
 import { callHold } from './audioCapture.js';
 import { subscribeLiveFrames } from './camProxy.js';
+import { isDoor, subscribeDoorFrames } from './door.js';
 import { broadcaster, connectedScreens } from './deviceManager.js';
 import { ControlField } from './protocol.js';
 
@@ -33,6 +34,10 @@ interface Leg {
   micFrames: number;
   lost: number;
   lastSeq: number;
+  /** (14/10/2026) Thiet bi dau kia (vd man <-> chuong cong): tieng mic cua leg nay phat ra loa cua no. */
+  link?: string;
+  /** (14/10/2026) Tat mic: khong chuyen tieng cua leg nay sang dau kia. */
+  muted?: boolean;
 }
 const calls = new Map<string, Leg>();
 
@@ -70,8 +75,20 @@ export function onMicFrame(dev: string, buf: Buffer): void {
   const pcm = buf.subarray(4);
   const at = Date.now();
   for (const p of leg.peers) if (p.readyState === WebSocket.OPEN && p.bufferedAmount < 64 * 1024) p.send(pcm);
+  if (leg.link && !leg.muted && calls.has(leg.link)) sendToDevice(leg.link, pcm);
   for (const f of leg.listeners) f(pcm, at);
 }
+
+/** (14/10/2026) Noi tieng hai chieu giua hai thiet bi DANG trong cuoc goi (man <-> chuong cong). */
+export function linkCalls(a: string, b: string): boolean {
+  const la = calls.get(a), lb = calls.get(b);
+  if (!la || !lb) return false;
+  la.link = b; lb.link = a;
+  console.log(`[call] noi tieng ${a} <-> ${b}`);
+  return true;
+}
+
+export function setMuted(dev: string, on: boolean): boolean { const l = calls.get(dev); if (!l) return false; l.muted = on; return true; }
 
 /** Tieng cua dau goi xuong loa man (chia dung khung 20 ms). */
 export function sendToDevice(dev: string, pcm: Buffer): void {
@@ -204,10 +221,11 @@ function videoUpgrade(req: http.IncomingMessage, socket: Duplex, head: Buffer, u
   if (!isLocal(req) && !isIngress(req)) { socket.destroy(); return true; }
   const dev = url.searchParams.get('dev') || '';
   wss.handleUpgrade(req, socket, head, (ws) => {
-    if (!connectedScreens().some((s) => s.id === dev && s.cam)) { ws.close(4004, 'man khong co camera'); return; }
+    const door = isDoor(dev);
+    if (!door && !connectedScreens().some((s) => s.id === dev && s.cam)) { ws.close(4004, 'man khong co camera'); return; }
     let skip = false, sent = 0, dropped = 0;
     const t0 = Date.now();
-    const unsub = subscribeLiveFrames(dev, (e) => {
+    const unsub = (door ? subscribeDoorFrames : subscribeLiveFrames)(dev, (e) => {
       if (ws.readyState !== WebSocket.OPEN) return;
       if (e.kind === 'config') { ws.send(JSON.stringify({ codec: e.codec, avcc: e.avcc.toString('base64') })); return; }
       if (ws.bufferedAmount > 1024 * 1024) skip = true;
