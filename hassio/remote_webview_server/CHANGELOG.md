@@ -1,3 +1,9 @@
+## V2.9.137
+- **Âm lượng ngay trên trình phát**: trình xem video (Thư viện / Quản lý file) và trình phát IPTV có cụm **[−] 25% [+]**
+  chỉnh âm lượng loa của màn (bước 5%, giống thanh âm lượng trên bảng điều khiển). Màn không có loa (S3) thì ẩn.
+- **IPTV: chạm màn hình hiện danh sách kênh dọc bên trái** (số, logo, tên; kênh đang xem tô màu và nằm giữa) — chạm kênh
+  để chuyển, cuộn để tìm. Danh sách theo nhóm / kết quả tìm đang chọn. Vẫn giữ nút kênh trước/sau, yêu thích, quay lại.
+
 ## V2.9.136
 - **Sửa: ứng dụng Camera trên màn kẹt "Đang mở camera…"** (từ 2.9.134) — trang gọi một hàm của `ui.js` nhưng không nạp
   `ui.js`, cả trang dừng (xem trước, thẻ SD, nút chụp/quay đều chết). Nay hiện hình ngay. Nút Thư viện trong app Camera
