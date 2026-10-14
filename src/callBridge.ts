@@ -11,11 +11,14 @@
 //   GET  /call/devices                 man goi duoc (co mic cuoc goi + loa) — ingress / 127.0.0.1
 //   WS   /call/ws?dev=<id>             trang thu: gui PCM s16le mono 16 kHz, nhan PCM mic cua man — ingress / 127.0.0.1
 //   POST /call/test/loop?dev=&aec=0|1  do vong lap: bip ra loa man -> mic thu lai (do tre khu hoi, muc vong) — 127.0.0.1
+//   WS   /call/video?dev=<id>          HINH camera man (dung chung ket noi /live voi Frigate — src/mkvLive.ts): tin text dau
+//                                      {codec, avcc(base64)}, roi khung nhi phan [co: 1 = khung khoa][ts u32le ms] + AVCC
 import http from 'node:http';
 import type { Duplex } from 'node:stream';
 import { WebSocket, WebSocketServer } from 'ws';
 
 import { callHold } from './audioCapture.js';
+import { subscribeLiveFrames } from './camProxy.js';
 import { broadcaster, connectedScreens } from './deviceManager.js';
 import { ControlField } from './protocol.js';
 
@@ -177,9 +180,10 @@ export function handleCallApi(req: http.IncomingMessage, res: http.ServerRespons
 }
 
 const wss = new WebSocketServer({ noServer: true, perMessageDeflate: false, maxPayload: 64 * 1024 });
-/** Nang cap WS /call/ws (cong HEALTH_PORT). true = da nhan. */
+/** Nang cap WS /call/ws va /call/video (cong HEALTH_PORT). true = da nhan. */
 export function handleCallUpgrade(req: http.IncomingMessage, socket: Duplex, head: Buffer): boolean {
   const url = new URL(req.url || '/', 'http://x');
+  if (url.pathname.endsWith('/call/video')) return videoUpgrade(req, socket, head, url);
   if (!url.pathname.endsWith('/call/ws')) return false;
   if (!isLocal(req) && !isIngress(req)) { socket.destroy(); return true; }
   const dev = url.searchParams.get('dev') || '';
@@ -190,6 +194,31 @@ export function handleCallUpgrade(req: http.IncomingMessage, socket: Duplex, hea
     leg.peers.add(ws);
     ws.on('message', (data, isBinary) => { if (isBinary) sendToDevice(dev, data as Buffer); });
     ws.on('close', () => { leg.peers.delete(ws); if (calls.get(dev) === leg) endCall(dev); });
+    ws.on('error', () => { /* close xu ly */ });
+  });
+  return true;
+}
+
+/** Hinh camera man qua WS. Mang cham (dem > 1 MB): bo khung thuong toi khung khoa ke tiep (khong de tre don lai). */
+function videoUpgrade(req: http.IncomingMessage, socket: Duplex, head: Buffer, url: URL): boolean {
+  if (!isLocal(req) && !isIngress(req)) { socket.destroy(); return true; }
+  const dev = url.searchParams.get('dev') || '';
+  wss.handleUpgrade(req, socket, head, (ws) => {
+    if (!connectedScreens().some((s) => s.id === dev && s.cam)) { ws.close(4004, 'man khong co camera'); return; }
+    let skip = false, sent = 0, dropped = 0;
+    const t0 = Date.now();
+    const unsub = subscribeLiveFrames(dev, (e) => {
+      if (ws.readyState !== WebSocket.OPEN) return;
+      if (e.kind === 'config') { ws.send(JSON.stringify({ codec: e.codec, avcc: e.avcc.toString('base64') })); return; }
+      if (ws.bufferedAmount > 1024 * 1024) skip = true;
+      if (skip && !e.key) { dropped++; return; }
+      skip = false;
+      const h = Buffer.alloc(5);
+      h.writeUInt8(e.key ? 1 : 0, 0); h.writeUInt32LE(e.ts >>> 0, 1);
+      ws.send(Buffer.concat([h, e.data])); sent++;
+    });
+    console.log(`[call] ${dev}: xem hinh camera`);
+    ws.on('close', () => { unsub(); console.log(`[call] ${dev}: ngung xem hinh sau ${Math.round((Date.now() - t0) / 1000)} s — gui ${sent} khung, bo ${dropped}`); });
     ws.on('error', () => { /* close xu ly */ });
   });
   return true;

@@ -23,14 +23,17 @@
   .meter i { display: block; height: 100%; width: 0; background: var(--accent); }
   .lbl { width: 92px; font-size: 14px; color: var(--muted); }
   #st { font-weight: 600; }
+  canvas { width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 14px; }
 </style>
 </head>
 <body class="rwv-app">
   <a href="./" style="color:var(--muted);text-decoration:none;font-size:14px">← Darboard</a>
   <h1>Thử gọi tới màn</h1>
-  <div class="muted">Giai đoạn 0 của Liên lạc: chỉ có tiếng hai chiều. Nên dùng tai nghe để tránh tiếng vọng từ máy bạn.</div>
+  <div class="muted">Giai đoạn 0 của Liên lạc: tiếng hai chiều + hình camera của màn. Nên dùng tai nghe để tránh tiếng vọng từ máy bạn.</div>
   <div class="row"><select id="dev" aria-label="Màn"></select><button class="rwv-btn primary" id="go" type="button">Gọi</button></div>
   <div id="st" role="status">Chưa gọi</div>
+  <canvas id="cv" width="1280" height="720" aria-label="Hình camera của màn"></canvas>
+  <div class="muted" id="vinfo"></div>
   <div class="row"><span class="lbl">Mic của bạn</span><div class="meter"><i id="mIn"></i></div></div>
   <div class="row"><span class="lbl">Tiếng từ màn</span><div class="meter"><i id="mOut"></i></div></div>
   <div class="muted" id="info"></div>
@@ -40,6 +43,30 @@
   var $ = function (id) { return document.getElementById(id); };
   var BASE = location.pathname.replace(/[^/]*$/, '');
   var ws = null, ctx = null, stream = null, node = null, playNode = null, t0 = 0, rx = 0, tx = 0, infoT = 0;
+  var vws = null, dec = null, vf = 0, vk = 0, vErr = '';
+  // Hinh camera man: WS /call/video -> WebCodecs VideoDecoder (H.264 AVCC) -> canvas.
+  function startVideo(dev) {
+    if (!('VideoDecoder' in window)) { $('vinfo').textContent = 'Trình duyệt chưa hỗ trợ WebCodecs — không hiện được hình.'; return; }
+    var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    vws = new WebSocket(proto + '//' + location.host + BASE + 'call/video?dev=' + encodeURIComponent(dev)); vws.binaryType = 'arraybuffer';
+    var cv = $('cv'), g = cv.getContext('2d');
+    vws.onmessage = function (e) {
+      if (typeof e.data === 'string') {
+        var c = JSON.parse(e.data), bin = atob(c.avcc), a = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i);
+        if (dec) { try { dec.close(); } catch (x) { /* */ } }
+        dec = new VideoDecoder({ output: function (fr) { if (cv.width !== fr.displayWidth) { cv.width = fr.displayWidth; cv.height = fr.displayHeight; } g.drawImage(fr, 0, 0); fr.close(); vf++; },
+          error: function (x) { vErr = x.message; } });
+        dec.configure({ codec: c.codec, description: a, optimizeForLatency: true });
+        return;
+      }
+      if (!dec || dec.state !== 'configured') return;
+      var d = new DataView(e.data), key = d.getUint8(0) === 1;
+      if (key) vk++;
+      dec.decode(new EncodedVideoChunk({ type: key ? 'key' : 'delta', timestamp: d.getUint32(1, true) * 1000, data: new Uint8Array(e.data, 5) }));
+    };
+  }
+  function stopVideo() { if (vws) { try { vws.close(); } catch (x) { /* */ } vws = null; } if (dec) { try { dec.close(); } catch (x) { /* */ } dec = null; } }
   function st(t) { $('st').textContent = t; }
   function loadDevs() {
     fetch(BASE + 'call/devices', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (l) {
@@ -72,7 +99,7 @@
       var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
       ws = new WebSocket(proto + '//' + location.host + BASE + 'call/ws?dev=' + encodeURIComponent(dev)); ws.binaryType = 'arraybuffer';
       st('Đang kết nối…');
-      ws.onopen = function () { t0 = Date.now(); st('Đang gọi ' + dev); $('go').textContent = 'Kết thúc'; $('go').classList.add('end'); };
+      ws.onopen = function () { t0 = Date.now(); vf = 0; vk = 0; st('Đang gọi ' + dev); $('go').textContent = 'Kết thúc'; $('go').classList.add('end'); startVideo(dev); };
       ws.onmessage = function (e) {
         if (!(e.data instanceof ArrayBuffer)) return; rx++;
         var a = new Int16Array(e.data), m = 0; for (var k = 0; k < a.length; k += 4) m = Math.max(m, Math.abs(a[k]));
@@ -84,11 +111,12 @@
         $('mIn').style.width = Math.round(e.data.lv * 100) + '%';
         if (ws && ws.readyState === 1 && ws.bufferedAmount < 32000) { ws.send(e.data.pcm); tx++; }
       };
-      infoT = setInterval(function () { var s = Math.max(1, (Date.now() - t0) / 1000); $('info').textContent = 'Gửi ' + tx + ' gói (' + Math.round(tx / s) + '/s), nhận ' + rx + ' gói (' + Math.round(rx / s) + '/s; đủ = 50/s)'; }, 1000);
+      infoT = setInterval(function () { var s = Math.max(1, (Date.now() - t0) / 1000); $('info').textContent = 'Gửi ' + tx + ' gói (' + Math.round(tx / s) + '/s), nhận ' + rx + ' gói (' + Math.round(rx / s) + '/s; đủ = 50/s)';
+        $('vinfo').textContent = 'Hình: ' + vf + ' khung (' + (vf / s).toFixed(1) + ' fps), khung khóa ' + vk + (vErr ? ' — lỗi giải mã: ' + vErr : ''); }, 1000);
     }).catch(function (e) { stop('Không bắt đầu được: ' + e.message + (location.protocol !== 'https:' ? ' (cần HTTPS)' : '')); });
   }
   function stop(msg) {
-    clearInterval(infoT);
+    clearInterval(infoT); stopVideo();
     if (ws) { try { ws.close(); } catch (e) { /* */ } ws = null; }
     if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
     if (ctx) { ctx.close(); ctx = null; }
