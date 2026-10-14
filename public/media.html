@@ -580,6 +580,8 @@
   function setOut(id, name) {
     var wasLocal = P.out === 'local';
     var t = wasLocal && au.getAttribute('src') ? au.currentTime : 0;
+    // Roi loa HA (ve man nay hoac sang loa khac): dung loa cu — khong thi no phat tiep mot minh.
+    if (!wasLocal && P.out !== id) postJson('/mlib/ctl', { player: P.out, act: 'stop' }).catch(function () { });
     P.out = id; P.outName = name; P.remote = null; lsSet(K_OUT, id === 'local' ? 'local' : id);
     if (id === 'local') { clearTimeout(pollT); if (!wasLocal && P.q.length) startCurrent(0, true); paintPlayer(); return; }
     if (P.q.length) { var it = curItem(); if (it && it.src === 'ha') castNow(it); else { toast('Tệp trên thẻ nhớ chỉ phát được trên màn này.'); P.out = 'local'; } }
