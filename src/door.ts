@@ -45,6 +45,8 @@ interface Door {
   id: string; name: string; ws: WebSocket; ip: string; mjPort: number; snapPort: number;
   /** Man do chuong (rong = moi man co dieu khien) — tham so `panels` cua thiet bi (id cach nhau dau phay). */
   panels: string[];
+  /** Co mic + loa (module I2S) -> noi chuyen duoc; khong -> man chi xem hinh / mo cong. */
+  canTalk: boolean;
   lastPress: number;
   ring: { id: string; panels: string[]; timer: NodeJS.Timeout } | null;
   talk: { panel: string; since: number; ringId: string; maxT: NodeJS.Timeout } | null;
@@ -73,10 +75,10 @@ export function attachDoor(ws: WebSocket, id: string, remote: string | undefined
   const old = doors.get(id);
   if (old) { try { old.ws.close(); } catch { /* */ } }
   const panels = (params.get('panels') || '').split(',').map((s) => s.trim()).filter((s) => /^[\w-]{1,40}$/.test(s));
-  const d: Door = { id, name, ws, ip, mjPort: port('mj'), snapPort: port('sn'), panels, lastPress: 0, ring: null, talk: null, ledT: null };
+  const d: Door = { id, name, ws, ip, mjPort: port('mj'), snapPort: port('sn'), panels, talk: null, canTalk: params.get('mic') === '1' && params.get('audio') === '1', lastPress: 0, ring: null, ledT: null };
   doors.set(id, d);
   broadcaster.addClient(id, ws);
-  console.log(`[door] ${id} (${name}) ket noi tu ${ip} — MJPEG :${d.mjPort}, anh :${d.snapPort}`);
+  console.log(`[door] ${id} (${name}) ket noi tu ${ip} — MJPEG :${d.mjPort}, anh :${d.snapPort}${d.canTalk ? '' : ' (chua co mic / loa)'}`);
   led(d, DoorState.Idle);
   ws.on('message', (msg, isBinary) => {
     if (!isBinary) return;
@@ -105,7 +107,7 @@ function press(d: Door): void {
   if (d.talk) return;                              // dang noi chuyen: bo qua
   if (d.ring) { clearTimeout(d.ring.timer); closeDoorbell(d.ring.id); }
   const only = cfg.ringPanels.length ? cfg.ringPanels : d.panels.length ? d.panels : undefined;
-  const r = ringDoorPanels(d.id, d.name, cfg.ringS, only);
+  const r = ringDoorPanels(d.id, d.name, cfg.ringS, only, d.canTalk);
   d.ring = { id: r.id, panels: r.devices, timer: setTimeout(() => missed(d, r.id), cfg.ringS * 1000) };
   led(d, DoorState.Ringing);
   haFetch('/events/darboard_doorbell', { method: 'POST', body: JSON.stringify({ door: d.id, name: d.name, panels: r.devices }) })

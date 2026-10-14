@@ -2256,12 +2256,12 @@ export function postDoorbell(body: unknown): { ok: boolean; error?: string; id?:
  * (hinh cong qua WS, Nghe / Mo cong / Tu choi). Dung chung co che tab '__doorbell' cua postDoorbell: sang man hinh,
  * "ding-dong" (Khong lam phien -> im), het gio quay ve ung dung truoc.
  */
-export function ringDoorPanels(door: string, name: string, timeoutS: number, only?: string[]): { id: string; devices: string[] } {
+export function ringDoorPanels(door: string, name: string, timeoutS: number, only?: string[], doorTalk = true): { id: string; devices: string[] } {
   const id = Date.now().toString(36);
   const targets = [...devices.values()].filter((d) => d.cfg.devControl && broadcaster.getClientCount(d.deviceId) > 0 && (!only || only.includes(d.deviceId)));
   for (const dev of targets) {
     const url = `${LOCAL_ORIGIN}/door.html?door=${encodeURIComponent(door)}&name=${encodeURIComponent(name)}&id=${id}` +
-      `&dev=${encodeURIComponent(dev.deviceId)}&t=${timeoutS}` + (dev.cfg.micCall ? '&talk=1' : '');
+      `&dev=${encodeURIComponent(dev.deviceId)}&t=${timeoutS}` + (dev.cfg.micCall && doorTalk ? '&talk=1' : '');
     openRingPage(dev, id, url, timeoutS, 'chuong cong');
   }
   console.log(`[door] ${door}: do chuong tren ${targets.map((d) => d.deviceId).join(', ') || '(khong man nao)'}`);
