@@ -17,7 +17,7 @@ import type { Duplex } from 'node:stream';
 import { WebSocket, WebSocketServer } from 'ws';
 
 import { endCall, isInCall, linkCalls, onMicListener, sendToDevice, setMuted, startCall } from './callBridge.js';
-import { closeDoorbell, connectedScreens, openRingPage, postNotify } from './deviceManager.js';
+import { answerDoorbell, closeDoorbell, connectedScreens, openRingPage, postNotify } from './deviceManager.js';
 import { LOCAL_ORIGIN } from './launcherApps.js';
 import type { FrameSink } from './mkvLive.js';
 
@@ -87,6 +87,9 @@ export function accept(callId: string, by: string): { ok: boolean; error?: strin
   const c = callOf(callId);
   if (!c || c.state !== 'ringing' || c.to.id !== by) return { ok: false, error: 'Cuộc gọi đã kết thúc.' };
   clearTimeout(c.ringT);
+  // (14/10/2026) SUA LOI: trang cuoc goi tren man nhan mo voi hen gio tu dong (het do chuong) — da nghe thi bo hen gio,
+  // truoc day dung ~32 s sau trang tu dong du cuoc goi van chay.
+  if (c.ringId) answerDoorbell(c.ringId, c.to.id);
   c.state = 'active'; c.startedAt = Date.now();
   const legs = [c.from, c.to].filter((p) => p.kind === 'panel');
   for (const p of legs) if (!startCall(p.id)) { finish(callId, 'Máy bận.'); return { ok: false, error: 'Máy bận.' }; }
