@@ -1,3 +1,11 @@
+## V2.9.134
+- **Trang hệ thống của panel dùng đường dẫn tương đối theo `location`** — `ui.css` / `ui.js` / `icons.js` / `lunar.js` và mọi
+  lời gọi máy chủ (`/api/...`, `/ha/...`, `/frigate/...`, `/alarm/...`, `/cam.html`, `/go2rtc/`, …) nay tự gắn gốc của trang
+  (`ui.js` bọc `window.fetch` + thêm hàm `window.rwvRel`; `camera.html`, `cam.html`, `doorbell.html` tự gắn gốc). Nhờ vậy mở
+  các trang này trong tab Trình duyệt từ trang Darboard (đường dẫn ingress `/api/hassio_ingress/<token>/`) không còn
+  **trắng trang / không tải được dữ liệu** — cùng họ lỗi đã sửa cho `iptv.html` ở 2.9.133. Trên panel (gốc `/`) hành vi
+  không đổi; đã kiểm chứng trên máy thật (S3 480×480: trang Tệp hiển thị đúng thẻ SD + dữ liệu).
+
 ## V2.9.133
 - **Thẻ IPTV (trang Darboard) có danh sách kênh + 2 nút cho mỗi kênh** (trước đây thẻ chỉ quản lý danh sách M3U):
   - **Phát trên màn hình** (icon *cast*): hiện danh sách màn đang kết nối để chọn **một màn** hoặc **Tất cả màn hình** →
