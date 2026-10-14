@@ -1,3 +1,18 @@
+## V2.9.141
+- **Liên lạc (cần firmware fw-2026.10.16):**
+  - **Chuông cổng ESP32-S3 CAM** (component `darboard_door`): bấm chuông → các màn đổ chuông (nhạc chuông
+    `media/audio/chuong-cua.mp3`), màn hình chuông kiểu màn chuông hình chuyên dụng: hình cổng trực tiếp, **Nói chuyện**
+    (tiếng hai chiều), **Mở khóa cổng** (chạm 2 lần), Chụp ảnh, Từ chối. Hiện đè lên màn khóa, khóa lại sau chuông.
+    Không ai nghe → thông báo "Cuộc gọi nhỡ ở cổng" kèm ảnh. Sự kiện HA `darboard_doorbell`.
+  - **Nhật ký chuông cổng** (ứng dụng "Chuông cổng" + tab trong Darboard): ảnh mỗi lần bấm chuông, Nhỡ / Đã nghe /
+    Từ chối / Ảnh chụp, giữ 30 ngày, chọn + xóa; chạm thông báo gọi nhỡ mở đúng ảnh.
+  - **Gọi video kiểu điện thoại** giữa các màn có camera + mic và tab **"Gọi"** trong Darboard (trình duyệt, HTTPS):
+    cuộc gọi đến đè lên màn khóa (nhạc chuông `media/audio/zalo.mp3`), tắt mic / camera, máy bận, gọi nhỡ.
+  - Cài đặt chuông cổng trong tab "Gọi": màn đổ chuông, thời gian đổ chuông, thời gian mở cổng.
+  - Luồng camera P4 dùng chung cho Frigate + cuộc gọi (một kết nối tới P4); mọi luồng qua WebSocket (dùng được qua
+    Cloudflare Tunnel, không cần TURN).
+- Ứng dụng Media: tên thẻ nguồn xuống dòng trên màn hẹp.
+
 ## V2.9.140
 - Sửa: màn nối lại máy chủ mở lại địa chỉ CŨ mà firmware nhớ (vd `media.html` thiếu nhận diện màn) — ứng dụng nội bộ nay
   luôn mở đúng địa chỉ hiện tại (giữ nguyên tham số khi cùng trang và cùng màn, vd Thư viện mở từ Camera).
