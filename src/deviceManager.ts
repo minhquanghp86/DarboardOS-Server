@@ -23,7 +23,7 @@ import { fileURLToPath } from "node:url";
 import { buildLauncherApps, listAllApps, GROUP_TITLES, LOCAL_ORIGIN, LAUNCHER_CAMS_URL, LAUNCHER_OS_HOME_URL, LAUNCHER_TIMER_URL, LAUNCHER_WEATHER_URL } from "./launcherApps.js";
 import { createRequire } from "node:module";
 import { getWeatherMini, onWeatherMiniUpdate } from "./weatherMini.js";
-import { SerialQueue, appKeyForUrl, nowPlaying, parseMeminfo, pickEvictions, pickIdleCloses, recentsList, tabBudget } from "./tabPolicy.js";
+import { SerialQueue, appKeyForUrl, ghostUrlFor, nowPlaying, parseMeminfo, pickEvictions, pickIdleCloses, recentsList, tabBudget } from "./tabPolicy.js";
 import { SCREENSAVER_IDLE_S, SCREENSAVER_PHOTOS, deviceHour, isNightHour, shouldShowSaver } from "./screensaver.js";
 import { listPhotos } from "./homeApi.js";
 import { panelPrefs } from "./panelPrefs.js";
@@ -2050,7 +2050,8 @@ function resolveAppSpec(dev: DeviceSession, key: string): { kind: string; label:
   // (01/10/2026) Tin nhan can biet DANG chay tren man hinh nao (src/chat.ts nhan dien bang ?dev=). (07/10/2026) + IPTV:
   // nho kenh xem cuoi rieng tung man hinh.
   // (09/10/2026) + Camera / Thu vien / Quan ly file: nha nhieu P4 — trang gui ?rwvdev de dung camera CUA man nay (camProxy).
-  if (key === 'chat' || key === 'alarm' || key === 'iptv' || key === 'camera' || key === 'gallery' || key === 'files') return { kind: app.baseKind, label: app.label, url: app.url + (app.url.includes('?') ? '&' : '?') + 'dev=' + encodeURIComponent(dev.deviceId), pinned: false };
+  // (14/10/2026) + Media: the nho CUA man nay, bai dang nghe nho theo man, an loa cua chinh man trong "Phát trên".
+  if (key === 'chat' || key === 'alarm' || key === 'iptv' || key === 'camera' || key === 'gallery' || key === 'files' || key === 'media') return { kind: app.baseKind, label: app.label, url: app.url + (app.url.includes('?') ? '&' : '?') + 'dev=' + encodeURIComponent(dev.deviceId), pinned: false };
   // baseKind, KHONG phai kind: nguoi dung doi bieu tuong o "Menu panel" thi kind thanh 'mdi' -> Radio/Nhac mat phat
   // nen, YouTube/TikTok khong tu dung khi roi tab (activateTab dua vao loai ung dung goc).
   return { kind: app.baseKind, label: app.label, url: app.url, pinned: false };
@@ -2081,7 +2082,7 @@ async function openAppNow(dev: DeviceSession, key: string): Promise<void> {
     if (devices.get(dev.deviceId) !== dev) { closeTab(dev, key, 'phien thiet bi da bi xoa'); return; }
     // Bat screencast TRUOC (tren trang trang, an toan) roi moi dieu huong cheo nguon — xem createTab().
     await activateTab(dev, key);
-    await navigateTab(dev, tab, ghost?.url && ghost.url !== 'about:blank' ? ghost.url : spec.url);
+    await navigateTab(dev, tab, ghostUrlFor(ghost?.url, spec.url) ?? spec.url);
   } else {
     await activateTab(dev, key);
   }
@@ -2566,7 +2567,8 @@ async function createTab(dev: DeviceSession, key: string, kind: string, pinned: 
     key, kind, label, url: '', targetId, session, pinned,
     screencastOn: false,
     // Radio/Nhac: duoc phep tiep tuc keu KHI KHONG active (the "Dang phat" trong thanh trang thai dung duoc).
-    backgroundAudio: kind === 'radio' || kind === 'music',
+    // (14/10/2026) + Media (nhac tu thu muc HA / the nho) — nghe tiep khi sang ung dung khac.
+    backgroundAudio: kind === 'radio' || kind === 'music' || kind === 'media',
     audioAllowed: false, mediaPlaying: false, mediaKnown: false, lastUsed: Date.now(), launcherScriptId,
   };
   dev.tabs.set(key, tab);

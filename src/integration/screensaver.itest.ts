@@ -4,7 +4,8 @@ import { FakeDevice, TestServer, sleep } from './harness.js';
 
 let srv: TestServer;
 let dev: FakeDevice | null = null;
-beforeEach(async () => { srv = await TestServer.start({ SCREENSAVER_IDLE_S: '3' }); });
+// (14/10/2026) 5 s (truoc 3 s): 3 s thi man hinh cho co luc hien TRUOC khi test kip gan bo theo doi -> bo lo.
+beforeEach(async () => { srv = await TestServer.start({ SCREENSAVER_IDLE_S: '5' }); });
 afterEach(async (ctx) => {
   dev?.close(); dev = null;
   const log = srv.log();
@@ -21,7 +22,7 @@ it('hien man hinh cho sau khi khong cham; cham thi tat; den nen tat thi khong hi
   dev.deviceState({ backlightOn: true });
   const ha = await srv.waitPage((u) => u === home);
   // Shadow DOM dong: theo doi qua API cua Shell — boc screensaver() de ghi lai lan goi.
-  await srv.evaluate(ha, `(() => { const f = window.__rwvShell.screensaver; window.__rwvShell.screensaver = (on) => { window.__itestSaver = on; return f(on); }; })()`);
+  await srv.evaluate(ha, `(() => { const f = window.__rwvShell.screensaver; window.__rwvShell.screensaver = (on) => { window.__itestSaver = !!on; return f(on); }; })()`);
   const waitSaver = async (want: boolean, ms: number) => {
     for (let t = 0; t < ms; t += 250) { if ((await srv.evaluate(ha, 'window.__itestSaver === true')) === want) return; await sleep(250); }
     throw new Error(`man hinh cho != ${want}`);
@@ -49,7 +50,7 @@ it('mo URL tu HA / trang bat dau phat video khi man hinh cho dang hien -> tat, k
   await dev.waitFor(() => dev!.currentUrls().includes(home), 20_000, 'ket noi');
   dev.deviceState({ backlightOn: true });
   const ha = await srv.waitPage((u) => u === home);
-  const spy = `(() => { const f = window.__rwvShell.screensaver; window.__rwvShell.screensaver = (on) => { window.__itestSaver = on; return f(on); }; })()`;
+  const spy = `(() => { const f = window.__rwvShell.screensaver; window.__rwvShell.screensaver = (on) => { window.__itestSaver = !!on; return f(on); }; })()`;
   await srv.evaluate(ha, spy);
   const waitOn = async (p: typeof ha, want: boolean, ms: number) => {
     for (let t = 0; t < ms; t += 250) { if ((await srv.evaluate(p, 'window.__itestSaver === true')) === want) return; await sleep(250); }

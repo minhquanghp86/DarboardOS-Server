@@ -99,7 +99,9 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   add('giai_tri', 'IPTV', 'iptv', '#c026d3', `${LOCAL}/iptv.html`, undefined, 'iptv', 'mdi:television-classic');
   add('giai_tri', 'Zing MP3', 'music', '#8b45ca', 'https://zingmp3.vn', undefined, 'zingmp3', 'mdi:music-circle-outline');
   add('giai_tri', 'NhacCuaTui', 'music', '#1f6feb', 'https://www.nhaccuatui.com', undefined, 'nhaccuatui', 'mdi:playlist-music');
-  if (haOrigin) add('giai_tri', 'Media', 'media', '#7c3aed', `${haOrigin}/media-browser/browser`);
+  // (14/10/2026) Media: ung dung rieng (public/media.html, src/mediaLib.ts) thay trang Media cua HA — nhac / video tu nguon
+  // media cua HA va the nho cua man, phat nen, hang doi, phat tren loa trong nha.
+  if (haOrigin) add('giai_tri', 'Media', 'media', '#7c3aed', `${LOCAL}/media.html`);
   add('giai_tri', 'Khung ảnh', 'photos', '#db2777', `${LOCAL}/photos.html`);
 
   add('tien_ich', 'Thời tiết', 'weather', '#0ea5e9', LAUNCHER_WEATHER_URL);

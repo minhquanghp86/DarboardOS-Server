@@ -1,10 +1,12 @@
 name: Build & Push to ghcr.io
 
+# (14/10/2026) Tiet kiem phut Actions (tai khoan het 2.000 phut / thang): CHI dung anh khi gop main (= phat hanh) hoac
+# tag / chay tay. Anh thu cua nhanh feature/** dung cuc bo (tsc tren may dev, chong dist/ + public/ len anh dang cai
+# tren HASS — docs/BAN-GIAO.md "Thu tren may that khong can Actions").
 on:
   push:
-    branches: 
+    branches:
       - main
-      - feature/**    # ← thêm dòng này
     tags:
     - "v*"
   workflow_dispatch:

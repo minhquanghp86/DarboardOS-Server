@@ -52,7 +52,7 @@ async function swipe(x0: number, x1: number) {
 
 it('ban ngay: khung anh theo cai dat man hinh, vuot trai/phai xem anh sau/truoc, album loi van dung thu muc', async () => {
   const hp = await start(12, { photoOrder: 'name', photoEffect: 'slide', photoFit: 'frame', photoIntervalS: 300 });
-  await waitCount(hp, 1);
+  await waitCount(hp, 1, 45_000);   // (14/10/2026) lan doc album Google that (404) co luc cham khi chay ca loat
   await sleep(1500);
   let l = await shown(hp);
   expect(l[0]).toMatchObject({ fx: 'slide', clock: true, dir: 1 });

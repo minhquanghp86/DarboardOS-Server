@@ -1,3 +1,18 @@
+## V2.9.139
+- **Ứng dụng Media mới** (thay trang Media tiếng Anh của Home Assistant):
+  - Nguồn: thư mục media của HA và thẻ nhớ của màn (bỏ thư mục DCIM — đã có Thư viện). Nguồn đã có ứng dụng riêng
+    (Camera, Frigate, Radio, Ảnh…) ẩn mặc định, bật lại bằng "Mọi nguồn". Lọc Tất cả / Nhạc / Video / Ảnh.
+  - Nhạc: "Phát tất cả" / "Trộn bài", hàng đợi cả thư mục, lặp lại (cả danh sách / một bài), thanh "Đang phát" thu nhỏ
+    và trình phát đầy đủ, âm lượng loa của màn. **Phát nền** khi sang ứng dụng khác (thẻ "Đang phát" trên thanh trạng
+    thái). **Nhớ bài và vị trí** đang nghe theo từng màn — mở lại là nghe tiếp.
+  - Video toàn màn hình (tua, ±10 s, nhớ vị trí từng video). Ảnh: vuốt trước / sau, chạm đúp phóng to, trình chiếu.
+  - **Phát trên loa trong nhà**: chọn loa / TV trong Home Assistant (ẩn loa của chính màn). Loa không nhận tệp
+    (vd Android TV Remote) thì báo sau 12 s. Tệp trên thẻ nhớ chỉ phát tại màn.
+- Sửa: mở lại một ứng dụng nội bộ đã bị đóng (thiếu RAM / khởi động lại) không còn quay về địa chỉ CŨ của ứng dụng
+  (vd Media cũ của HA, thiếu nhận diện màn).
+- GitHub Actions tiết kiệm phút: ảnh Docker chỉ dựng khi phát hành (main / tag); kiểm thử chỉ chạy tay. Ảnh thử dựng
+  cục bộ: `scripts/anh-thu-cuc-bo.sh`.
+
 ## V2.9.138
 - **IPTV: danh sách kênh mở bằng nút "Danh sách"** trên thanh trên — chạm màn hình chỉ hiện các nút như trước; bấm
   "Danh sách" mới hiện danh sách kênh bên trái, bấm lại để đóng (các nút tự ẩn thì danh sách đóng theo). Màn hẹp:

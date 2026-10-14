@@ -1,0 +1,781 @@
+<!doctype html>
+<!--
+  (14/10/2026) Ung dung "Media" cua panel — thay trang Media cua Home Assistant (tieng Anh, thanh ben HA, roi ung dung la
+  tat tieng). Nguon: thu muc media cua HA (src/mediaLib.ts: /mlib/browse, /mlib/f — chi doc) va THE NHO cua man (neu co:
+  /api/cam/sd/*, bo thu muc DCIM — da co ung dung Thu vien). Nguon da co ung dung rieng (Camera, Frigate, Radio, Anh...)
+  an mac dinh, bat lai bang "Mọi nguồn".
+  Nhac: hang doi ca thu muc, tron bai, lap, thanh "Đang phát" + trinh phat day du, am luong loa man (ui.js RwvUI.volume),
+  PHAT NEN (server: tab kind 'media' = backgroundAudio), nho bai + vi tri (localStorage theo man) -> "Tiếp tục nghe".
+  Video: toan man hinh, tua, +-10 s, nho vi tri tung video. Anh: xem, vuot truoc / sau.
+  "Phát trên": man nay hoac loa / TV trong HA (/mlib/cast, /mlib/ctl — chi tep tu nguon HA; tep tren the chi phat tai man).
+  Bang thong toi panel: khong hieu ung chay lien tuc; thanh tien trinh cap nhat 1 lan / giay.
+-->
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Media</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="ui.css">
+<script src="ui.js"></script>
+<script src="icons.js"></script>
+<style>
+  :root { --accent: #7c3aed; --mini-h: 0px; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  svg { display: block; }
+  .ib { flex: none; display: inline-flex; align-items: center; justify-content: center; width: clamp(36px, 8.6vmin, 52px); height: clamp(36px, 8.6vmin, 52px);
+    border: none; border-radius: 50%; background: var(--surface-2); color: var(--text); padding: 0; }
+  .ib svg { width: 56%; height: 56%; fill: currentColor; }
+  .ib.plain { background: none; }
+  .ib.on { color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, var(--surface-2)); }
+  .ib:focus-visible, .row:focus-visible, .src:focus-visible, .chip:focus-visible, .rwv-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ── Duyet ── */
+  #browse { height: 100%; display: flex; flex-direction: column; gap: var(--gap); padding: calc(var(--pad) + 14px) var(--pad) 0; }
+  .bar { flex: none; display: flex; align-items: center; gap: var(--gap); min-height: clamp(36px, 8.6vmin, 52px); }
+  .ttl { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .ttl b { font-size: clamp(16px, 4.2vmin, 26px); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ttl small { color: var(--muted); font-size: clamp(10px, 2.5vmin, 14px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chips { flex: none; display: flex; gap: 4px; padding: 3px; border-radius: 999px; background: var(--surface-2); }
+  .chip { border: none; background: none; color: var(--muted); font-weight: 600; font-size: clamp(11px, 2.7vmin, 15px);
+    height: clamp(28px, 6.6vmin, 40px); padding: 0 clamp(9px, 2.4vmin, 16px); border-radius: 999px; white-space: nowrap; }
+  .chip.on { background: var(--accent); color: #fff; }
+  .txtbtn { flex: none; border: none; background: none; color: var(--muted); font-weight: 600; font-size: clamp(11px, 2.7vmin, 15px); padding: 6px 8px; }
+  .txtbtn { display: inline-flex; align-items: center; gap: 4px; }
+  .txtbtn svg { width: 1.3em; height: 1.3em; fill: currentColor; }
+  .txtbtn.on { color: var(--accent); }
+  #main { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; gap: var(--gap);
+    padding-bottom: calc(var(--pad) + var(--mini-h)); }
+  #main::-webkit-scrollbar { display: none; }
+  /* Trang goc: the nguon */
+  .srcs { display: grid; gap: var(--gap); grid-template-columns: repeat(auto-fill, minmax(clamp(130px, 30vmin, 220px), 1fr)); }
+  .src { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: clamp(12px, 3vmin, 20px); border: none; border-radius: var(--r-lg);
+    background: var(--surface); text-align: left; min-width: 0; }
+  .src .ic { width: clamp(38px, 9.5vmin, 58px); height: clamp(38px, 9.5vmin, 58px); border-radius: 14px; display: flex; align-items: center; justify-content: center;
+    background: color-mix(in srgb, var(--c, var(--accent)) 22%, var(--surface-2)); color: color-mix(in srgb, var(--c, var(--accent)) 75%, #fff); }
+  .src .ic svg { width: 58%; height: 58%; fill: currentColor; }
+  .src b { font-size: clamp(13px, 3.3vmin, 19px); font-weight: 700; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .src small { color: var(--muted); font-size: clamp(10px, 2.4vmin, 14px); }
+  .resume { display: flex; align-items: center; gap: clamp(10px, 2.4vmin, 16px); padding: clamp(10px, 2.4vmin, 16px); border: none; border-radius: var(--r-lg);
+    background: color-mix(in srgb, var(--accent) 20%, var(--surface)); text-align: left; width: 100%; }
+  .resume .ic { flex: none; width: clamp(40px, 10vmin, 60px); height: clamp(40px, 10vmin, 60px); border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; background: var(--accent); color: #fff; }
+  .resume .ic svg { width: 55%; height: 55%; fill: currentColor; }
+  .resume .m { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .resume .k { color: var(--muted); font-size: clamp(10px, 2.4vmin, 14px); font-weight: 600; }
+  .resume b { font-size: clamp(13px, 3.3vmin, 19px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sec { color: var(--muted); font-size: clamp(11px, 2.6vmin, 14px); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; margin-top: 4px; }
+  /* Danh sach trong thu muc */
+  .acts { flex: none; display: flex; flex-wrap: wrap; gap: 8px; }
+  .rwv-btn svg { width: 1.25em; height: 1.25em; fill: currentColor; }
+  .lst { display: flex; flex-direction: column; border-radius: var(--r-md); overflow: hidden; background: var(--surface); }
+  .row { display: flex; align-items: center; gap: clamp(10px, 2.4vmin, 16px); width: 100%; padding: clamp(8px, 2vmin, 13px) clamp(10px, 2.4vmin, 16px);
+    border: none; border-bottom: 1px solid var(--line); background: none; text-align: left; min-height: clamp(46px, 11vmin, 64px); }
+  .row:last-child { border-bottom: none; }
+  .row .ic { flex: none; width: clamp(32px, 8vmin, 46px); height: clamp(32px, 8vmin, 46px); border-radius: 10px; display: flex; align-items: center;
+    justify-content: center; background: var(--surface-2); color: var(--muted); }
+  .row .ic svg { width: 58%; height: 58%; fill: currentColor; }
+  .row.dir .ic { color: color-mix(in srgb, var(--accent) 70%, #fff); background: color-mix(in srgb, var(--accent) 18%, var(--surface-2)); }
+  .row.aud .ic { color: #f472b6; } .row.vid .ic { color: #38bdf8; } .row.img .ic { color: #34d399; }
+  .row .n { flex: 1; min-width: 0; font-weight: 600; font-size: clamp(12px, 3.1vmin, 18px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row.cur { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+  .row.cur .n { color: color-mix(in srgb, var(--accent) 60%, #fff); }
+  .row .tag { flex: none; color: var(--muted); font-size: clamp(10px, 2.3vmin, 13px); }
+  .more { align-self: center; }
+
+  /* ── Thanh "Dang phat" thu nho ── */
+  #mini { position: fixed; left: var(--pad); right: var(--pad); bottom: var(--pad); z-index: 5; display: flex; align-items: center; gap: clamp(8px, 2vmin, 12px);
+    padding: 6px 8px 6px 6px; border-radius: var(--r-lg); background: color-mix(in srgb, var(--accent) 26%, var(--surface-2));
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45); overflow: hidden; }
+  #mini .art { flex: none; width: clamp(38px, 9.4vmin, 56px); height: clamp(38px, 9.4vmin, 56px); border-radius: 12px; display: flex; align-items: center;
+    justify-content: center; background: var(--accent); color: #fff; }
+  #mini .art svg { width: 55%; height: 55%; fill: currentColor; }
+  #mini .m { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; border: none; background: none; text-align: left; padding: 0; }
+  #mini .m b { font-size: clamp(12px, 3.1vmin, 17px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #mini .m small { color: var(--muted); font-size: clamp(10px, 2.4vmin, 13px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #mini .pg { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--accent); width: 0; }
+  #mini .ib { background: none; }
+
+  /* ── Trinh phat day du ── */
+  #full { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; gap: var(--gap); padding: calc(var(--pad) + 14px) calc(var(--pad) * 1.4) var(--pad);
+    background: radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--accent) 34%, var(--bg)), var(--bg) 70%); }
+  .fhead { flex: none; display: flex; align-items: center; gap: var(--gap); }
+  .fhead .k { flex: 1; text-align: center; color: var(--muted); font-weight: 600; font-size: clamp(11px, 2.7vmin, 15px); }
+  .fbody { flex: 1; min-height: 0; display: flex; align-items: center; gap: calc(var(--pad) * 1.6); }
+  .big { flex: none; height: min(100%, 46vmin); aspect-ratio: 1; border-radius: var(--r-lg); display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(140deg, var(--accent), #db2777); color: #fff; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); }
+  .big svg { width: 46%; height: 46%; fill: currentColor; opacity: 0.92; }
+  .fmeta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: clamp(8px, 2vmin, 16px); }
+  .fmeta .t { font-size: clamp(17px, 5vmin, 34px); font-weight: 700; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .fmeta .s { color: var(--muted); font-size: clamp(11px, 2.8vmin, 16px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .seek { display: flex; align-items: center; gap: 10px; font-size: clamp(11px, 2.6vmin, 14px); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .seek input { flex: 1; accent-color: var(--accent); height: 28px; }
+  .ctl { display: flex; align-items: center; justify-content: center; gap: clamp(8px, 2.6vmin, 20px); }
+  .ctl .ib { background: none; }
+  .ctl .ib.main { width: clamp(52px, 13vmin, 78px); height: clamp(52px, 13vmin, 78px); background: #fff; color: #111; }
+  .ctl .ib.on { color: var(--accent); background: none; }
+  .ffoot { flex: none; display: flex; align-items: center; gap: var(--gap); flex-wrap: wrap; }
+  .vol { display: flex; align-items: center; gap: 4px; padding: 3px; border-radius: 999px; background: rgba(255, 255, 255, 0.1); }
+  .vol .pct { min-width: 4ch; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; font-size: clamp(12px, 2.9vmin, 16px); }
+  .vol .ib { background: none; }
+  .out { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; max-width: 60%; height: clamp(36px, 8.6vmin, 50px); padding: 0 clamp(12px, 3vmin, 18px);
+    border: none; border-radius: 999px; background: rgba(255, 255, 255, 0.1); color: var(--text); font-weight: 600; font-size: clamp(11px, 2.8vmin, 15px); }
+  .out svg { flex: none; width: 1.3em; height: 1.3em; fill: currentColor; }
+  .out span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .out.remote { background: var(--accent); color: #fff; }
+  @media (max-aspect-ratio: 5/4) {
+    .fbody { flex-direction: column; justify-content: center; gap: var(--gap); }
+    .big { height: auto; width: min(52vmin, 100%); flex: 0 1 auto; min-height: 0; }
+    .fmeta { flex: none; width: 100%; }
+    .fmeta .t { text-align: center; -webkit-line-clamp: 1; }
+    .fmeta .s { text-align: center; }
+  }
+  @media (max-height: 320px) { .big { display: none; } .fmeta { gap: 6px; } }
+
+  /* ── Video / anh toan man hinh ── */
+  .viewer { position: fixed; inset: 0; z-index: 20; background: #000; touch-action: none; }
+  .viewer video, .viewer img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  .vtop { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: var(--gap); padding: calc(var(--pad) + 10px) var(--pad) clamp(24px, 8vmin, 56px);
+    background: linear-gradient(rgba(0, 0, 0, 0.75), transparent); color: #fff; }
+  .vtop b { flex: 1; min-width: 0; font-size: clamp(13px, 3.4vmin, 20px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .vbot { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 8px; padding: clamp(24px, 8vmin, 56px) var(--pad) var(--pad);
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.78)); color: #fff; font-variant-numeric: tabular-nums; font-size: clamp(11px, 2.6vmin, 14px); }
+  .vbot input { flex: 1; min-width: 40px; accent-color: var(--accent); height: 28px; }
+  .viewer .ib { background: rgba(255, 255, 255, 0.14); color: #fff; }
+  .viewer.bare .vtop, .viewer.bare .vbot { opacity: 0; pointer-events: none; }
+  /* Anh: cham dup phong to x2.5 (keo de xem), trinh chieu 5 s / anh. */
+  #img img { transform-origin: 0 0; }
+  #img .ib.on { background: var(--accent); }
+  .vmsg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 12px 18px; border-radius: var(--r-md); background: rgba(15, 17, 23, 0.85);
+    color: #fff; font-weight: 600; text-align: center; }
+  @media (max-width: 560px) { .vbot .t { display: none; } .vbot { gap: 4px; } }
+
+  /* ── Chon noi phat ── */
+  #outs { position: fixed; inset: 0; z-index: 30; display: flex; align-items: flex-end; justify-content: center; background: rgba(5, 7, 12, 0.6); }
+  #outs .box { width: min(100%, 560px); max-height: 80vh; overflow-y: auto; scrollbar-width: none; padding: var(--pad); border-radius: var(--r-lg) var(--r-lg) 0 0;
+    background: var(--surface); display: flex; flex-direction: column; gap: 4px; }
+  #outs .h { font-weight: 700; font-size: clamp(14px, 3.6vmin, 20px); padding: 4px 6px 8px; }
+  #outs .row { border-radius: 12px; border-bottom: none; }
+  #outs .row.sel { background: color-mix(in srgb, var(--accent) 24%, transparent); }
+  #outs .row small { color: var(--muted); font-size: clamp(10px, 2.3vmin, 13px); }
+  #outs .row .m { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .toast { position: fixed; left: 50%; bottom: calc(var(--pad) + var(--mini-h) + 8px); transform: translateX(-50%); z-index: 40; max-width: 90vw; padding: 10px 18px;
+    border-radius: 999px; background: var(--surface-3); color: var(--text); font-weight: 600; font-size: clamp(12px, 2.9vmin, 16px); text-align: center; }
+  @media (max-width: 560px) { .chip { padding: 0 8px; } #browse .bar .txtbtn span { display: none; } }
+</style>
+</head>
+<body class="rwv-app">
+<div id="browse">
+  <div class="bar">
+    <button class="ib" id="up" type="button" aria-label="Quay lại" title="Quay lại" hidden></button>
+    <div class="ttl"><b id="ttl">Media</b><small id="sub"></small></div>
+    <div class="chips" id="filter" role="radiogroup" aria-label="Lọc" hidden></div>
+    <button class="txtbtn" id="allSrc" type="button" hidden></button>
+  </div>
+  <main id="main" aria-live="polite"></main>
+</div>
+
+<div id="mini" hidden>
+  <div class="art" id="miniArt"></div>
+  <button class="m" id="miniOpen" type="button" aria-label="Mở trình phát"><b id="miniT"></b><small id="miniS"></small></button>
+  <button class="ib" id="miniPrev" type="button" aria-label="Bài trước"></button>
+  <button class="ib" id="miniPlay" type="button" aria-label="Phát / dừng"></button>
+  <button class="ib" id="miniNext" type="button" aria-label="Bài sau"></button>
+  <div class="pg" id="miniPg"></div>
+</div>
+
+<div id="full" hidden role="dialog" aria-label="Đang phát">
+  <div class="fhead">
+    <button class="ib" id="fClose" type="button" aria-label="Thu nhỏ" title="Thu nhỏ"></button>
+    <div class="k" id="fK">Đang phát</div>
+    <button class="ib" id="fStop" type="button" aria-label="Dừng và xoá hàng đợi" title="Dừng"></button>
+  </div>
+  <div class="fbody">
+    <div class="big" id="fArt"></div>
+    <div class="fmeta">
+      <div class="t" id="fT"></div>
+      <div class="s" id="fS"></div>
+      <div class="seek"><span id="fCur">0:00</span><input type="range" id="fSeek" min="0" max="1000" value="0" aria-label="Tua"><span id="fDur">0:00</span></div>
+      <div class="ctl">
+        <button class="ib" id="fShuf" type="button" aria-label="Trộn bài" aria-pressed="false"></button>
+        <button class="ib" id="fPrev" type="button" aria-label="Bài trước"></button>
+        <button class="ib main" id="fPlay" type="button" aria-label="Phát / dừng"></button>
+        <button class="ib" id="fNext" type="button" aria-label="Bài sau"></button>
+        <button class="ib" id="fRep" type="button" aria-label="Lặp lại"></button>
+      </div>
+    </div>
+  </div>
+  <div class="ffoot">
+    <div class="vol" id="fVol" role="group" aria-label="Âm lượng" hidden>
+      <button class="ib" id="fVolDn" type="button" aria-label="Giảm âm lượng"></button><span class="pct" id="fVolPct">--</span>
+      <button class="ib" id="fVolUp" type="button" aria-label="Tăng âm lượng"></button>
+    </div>
+    <button class="out" id="fOut" type="button" aria-haspopup="dialog"></button>
+  </div>
+</div>
+
+<div class="viewer bare" id="vid" hidden>
+  <video id="vv" playsinline preload="auto"></video>
+  <div class="vtop"><button class="ib" id="vClose" type="button" aria-label="Đóng"></button><b id="vT"></b>
+    <button class="ib" id="vPrev" type="button" aria-label="Video trước"></button><button class="ib" id="vNext" type="button" aria-label="Video sau"></button></div>
+  <div class="vbot">
+    <button class="ib" id="vPlay" type="button" aria-label="Phát / dừng"></button>
+    <button class="ib" id="vBack" type="button" aria-label="Lùi 10 giây"></button>
+    <button class="ib" id="vFwd" type="button" aria-label="Tới 10 giây"></button>
+    <span class="t" id="vCur">0:00</span><input type="range" id="vSeek" min="0" max="1000" value="0" aria-label="Tua"><span class="t" id="vDur">0:00</span>
+    <div class="vol" id="vVol" role="group" aria-label="Âm lượng" hidden>
+      <button class="ib" id="vVolDn" type="button" aria-label="Giảm âm lượng"></button><span class="pct" id="vVolPct">--</span>
+      <button class="ib" id="vVolUp" type="button" aria-label="Tăng âm lượng"></button>
+    </div>
+  </div>
+  <div class="vmsg" id="vMsg" hidden></div>
+</div>
+
+<div class="viewer" id="img" hidden>
+  <img id="ii" alt="">
+  <div class="vtop"><button class="ib" id="iClose" type="button" aria-label="Đóng"></button><b id="iT"></b>
+    <button class="ib" id="iShow" type="button" aria-label="Trình chiếu" aria-pressed="false" title="Trình chiếu"></button>
+    <button class="ib" id="iPrev" type="button" aria-label="Ảnh trước"></button><button class="ib" id="iNext" type="button" aria-label="Ảnh sau"></button></div>
+  <div class="vmsg" id="iMsg" hidden></div>
+</div>
+
+<div id="outs" hidden role="dialog" aria-modal="true" aria-labelledby="outsH"><div class="box" id="outsBox"></div></div>
+<div class="toast" id="toast" hidden role="status"></div>
+<audio id="au" preload="auto"></audio>
+
+<script>
+(function () {
+  'use strict';
+  var IC = window.RwvIcons || {};
+  var $ = function (id) { return document.getElementById(id); };
+  var enc = encodeURIComponent;
+  var DEV = new URLSearchParams(location.search).get('dev') || '';
+  function svg(n) {
+    var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true');
+    var p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', IC[n] || ''); s.appendChild(p); return s;
+  }
+  function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; }
+  function icon(id, n) { $(id).replaceChildren(svg(n)); }
+  var toastT = 0;
+  function toast(t) { var x = $('toast'); x.textContent = t; x.hidden = false; clearTimeout(toastT); toastT = setTimeout(function () { x.hidden = true; }, 3000); }
+  function fmt(s) {
+    if (!isFinite(s) || s < 0) return '0:00';
+    s = Math.floor(s); var h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60;
+    return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0');
+  }
+  function lsGet(k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* */ } }
+  var K_LAST = 'rwv-media-last:' + DEV, K_VPOS = 'rwv-media-vpos', K_ALL = 'rwv-media-all', K_OUT = 'rwv-media-out:' + DEV;
+
+  // ── Nguon ──
+  // Muc chung: { t, k: dir|aud|vid|img|other, src: 'ha'|'sd', id (ha) | p (sd), mime }
+  function withDev(u) { return window.rwvRel(DEV ? u + (u.indexOf('?') >= 0 ? '&' : '?') + 'rwvdev=' + enc(DEV) : u); }
+  function urlOf(it) { return it.src === 'sd' ? withDev('/api/cam/sd/get?p=' + enc(it.p)) : window.rwvRel('/mlib/f?id=' + enc(it.id)); }
+  var SD_KIND = [[/\.(mp3|wav|m4a|aac|ogg|oga|opus|flac)$/i, 'aud'], [/\.(mp4|m4v|webm|mkv|mov)$/i, 'vid'], [/\.(jpe?g|png|gif|webp|bmp)$/i, 'img']];
+  function sdKind(it) { if (it.d) return 'dir'; for (var i = 0; i < SD_KIND.length; i++) if (SD_KIND[i][0].test(it.n)) return SD_KIND[i][1]; return 'other'; }
+  function getJson(u) {
+    return fetch(u, { cache: 'no-store' }).then(function (r) {
+      return r.json().catch(function () { return null; }).then(function (j) { if (!r.ok) throw new Error((j && (j.error || j.err)) || ('HTTP ' + r.status)); return j; });
+    });
+  }
+  function postJson(u, body) {
+    return fetch(window.rwvRel(u), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status)); return j; }); });
+  }
+  function listFolder(f) {
+    if (f.src === 'sd') {
+      return getJson(withDev('/api/cam/sd/ls?p=' + enc(f.p))).then(function (r) {
+        if (!r || !r.sd) throw new Error('Không đọc được thẻ nhớ.');
+        return (r.items || []).filter(function (x) { return !(f.p === '/' && x.d && /^dcim$/i.test(x.n)) && !/^\./.test(x.n); })
+          .map(function (x) { return { t: x.n, k: sdKind(x), src: 'sd', p: (f.p === '/' ? '' : f.p) + '/' + x.n }; })
+          .sort(function (a, b) { return (a.k === 'dir' ? 0 : 1) - (b.k === 'dir' ? 0 : 1) || a.t.localeCompare(b.t, 'vi', { numeric: true }); });
+      });
+    }
+    return getJson(window.rwvRel('/mlib/browse?id=' + enc(f.id))).then(function (r) {
+      return r.items.map(function (x) { return { t: x.t, k: x.k, src: 'ha', id: x.id, mime: x.mime }; });
+    });
+  }
+
+  // ── Trang thai ──
+  var S = { stack: [], items: [], filter: 'all', shown: 200, all: !!lsGet(K_ALL, false), sources: null, sdOk: false, err: '' };
+  var P = { q: [], order: [], pos: 0, shuffle: false, repeat: 'off', folder: '', out: lsGet(K_OUT, 'local'), outName: '', remote: null, playing: false, errs: 0 };
+  var au = $('au');
+
+  // ── Ve trang duyet ──
+  var KIND_IC = { dir: 'folder', aud: 'music-note', vid: 'file-video-outline', img: 'image', other: 'file-outline' };
+  var FILTERS = [['all', 'Tất cả'], ['aud', 'Nhạc'], ['vid', 'Video'], ['img', 'Ảnh']];
+  function cur() { return S.stack[S.stack.length - 1] || null; }
+  function render() {
+    var f = cur(), m = $('main');
+    $('up').hidden = !f;
+    $('ttl').textContent = f ? f.t : 'Media';
+    $('filter').hidden = !f;
+    $('allSrc').hidden = !!f;
+    m.replaceChildren();
+    if (!f) return renderRoot(m);
+    var vis = visible();
+    var nAud = vis.filter(function (x) { return x.k === 'aud'; }).length;
+    $('sub').textContent = S.err ? '' : (vis.length + ' mục' + (nAud ? ' · ' + nAud + ' bài nhạc' : ''));
+    if (S.err) { RwvUI.state(m, { kind: 'err', title: 'Không mở được thư mục', text: S.err, retry: open }); return; }
+    if (S.loading) { RwvUI.state(m, { kind: 'loading', title: 'Đang tải…' }); return; }
+    if (!vis.length) { RwvUI.state(m, { kind: 'empty', title: S.items.length ? 'Không có mục nào khớp bộ lọc' : 'Thư mục trống' }); return; }
+    if (nAud) {
+      var acts = el('div', 'acts');
+      var pa = el('button', 'rwv-btn primary'); pa.type = 'button'; pa.append(svg('play'), el('span', '', 'Phát tất cả'));
+      pa.onclick = function () { playAudioList(vis, 0, false); };
+      var sh = el('button', 'rwv-btn'); sh.type = 'button'; sh.append(svg('shuffle-variant'), el('span', '', 'Trộn bài'));
+      sh.onclick = function () { playAudioList(vis, -1, true); };
+      acts.append(pa, sh); m.append(acts);
+    }
+    var lst = el('div', 'lst'), playingKey = P.q.length ? keyOf(P.q[P.pos]) : '';
+    vis.slice(0, S.shown).forEach(function (it, i) {
+      var b = el('button', 'row ' + it.k + (keyOf(it) === playingKey ? ' cur' : '')); b.type = 'button';
+      var ic = el('span', 'ic'); ic.append(svg(KIND_IC[it.k] || 'file-outline'));
+      b.append(ic, el('span', 'n', it.t));
+      if (it.k === 'other') b.append(el('span', 'tag', 'không phát được'));
+      b.onclick = function () { openItem(it, vis); };
+      lst.append(b);
+    });
+    m.append(lst);
+    if (vis.length > S.shown) {
+      var more = el('button', 'rwv-btn more', 'Xem thêm (' + (vis.length - S.shown) + ')'); more.type = 'button';
+      more.onclick = function () { S.shown += 200; render(); }; m.append(more);
+    }
+  }
+  function visible() {
+    return S.items.filter(function (x) { return x.k === 'dir' || S.filter === 'all' || x.k === S.filter; });
+  }
+  function keyOf(it) { return it ? (it.src === 'sd' ? 'sd:' + it.p : 'ha:' + it.id) : ''; }
+  var SRC_COLORS = ['#7c3aed', '#0ea5e9', '#16a34a', '#f59e0b', '#e11d48', '#14b8a6'];
+  function renderRoot(m) {
+    $('sub').textContent = 'Nhạc, video và ảnh trong nhà';
+    $('allSrc').replaceChildren(svg(S.all ? 'eye-off' : 'eye'), el('span', '', S.all ? ' Ẩn bớt nguồn' : ' Mọi nguồn'));
+    $('allSrc').classList.toggle('on', S.all);
+    var last = lsGet(K_LAST, null);
+    if (last && last.q && last.q.length && !P.q.length) {
+      var it = last.q[last.i] || last.q[0];
+      var r = el('button', 'resume'); r.type = 'button';
+      var ic = el('span', 'ic'); ic.append(svg('history'));
+      var mm = el('span', 'm'); mm.append(el('span', 'k', 'Tiếp tục nghe' + (last.pos > 5 ? ' · ' + fmt(last.pos) : '')), el('b', '', it.t),
+        el('span', 'k', (last.folder || '') + (last.q.length > 1 ? ' · ' + last.q.length + ' bài' : '')));
+      r.append(ic, mm);
+      r.onclick = function () { restore(last, true); };
+      m.append(r);
+    }
+    m.append(el('div', 'sec', 'Nguồn'));
+    if (!S.sources) { var box0 = el('div'); m.append(box0); RwvUI.state(box0, { kind: 'loading', title: 'Đang tải nguồn…' }); return; }
+    var grid = el('div', 'srcs');
+    S.sources.forEach(function (s, i) {
+      var b = el('button', 'src'); b.type = 'button'; b.style.setProperty('--c', SRC_COLORS[i % SRC_COLORS.length]);
+      var ic = el('span', 'ic'); ic.append(svg(s.src === 'sd' ? 'sd' : (s.ic || 'folder')));
+      b.append(ic, el('b', '', s.t), el('small', '', s.note || ''));
+      b.onclick = function () { go({ src: s.src, id: s.id, p: s.p, t: s.t }); };
+      grid.append(b);
+    });
+    if (!S.sources.length) { var box = el('div'); m.append(box); RwvUI.state(box, { kind: 'empty', title: 'Chưa có nguồn media', text: 'Thêm nhạc / video vào thư mục media của Home Assistant hoặc thẻ nhớ của màn.' }); return; }
+    m.append(grid);
+    if (S.srcErr) m.append(el('div', 'sec', S.srcErr));
+  }
+  function loadSources() {
+    var out = [];
+    var ha = getJson(window.rwvRel('/mlib/browse' + (S.all ? '?all=1' : ''))).then(function (r) {
+      r.items.forEach(function (x) { out.push({ src: 'ha', id: x.id, t: x.t, note: 'Home Assistant', ic: /media_source/.test(x.id) ? 'folder' : 'cast' }); });
+    }).catch(function (e) { S.srcErr = 'Không đọc được nguồn của Home Assistant: ' + e.message; });
+    var sd = getJson(withDev('/api/cam/sd/ls?p=%2F')).then(function (r) { S.sdOk = !!(r && r.sd); }).catch(function () { S.sdOk = false; });
+    return Promise.all([ha, sd]).then(function () {
+      if (S.sdOk) out.push({ src: 'sd', p: '/', t: 'Thẻ nhớ', note: 'Thẻ của màn này' });
+      S.sources = out; if (!cur()) render();
+    });
+  }
+  function go(f) { S.stack.push(f); S.filter = 'all'; history.pushState({ d: S.stack.length }, ''); open(); }
+  function open() {
+    var f = cur(); if (!f) { render(); return; }
+    S.err = ''; S.loading = true; S.shown = 200; S.items = []; render();
+    listFolder(f).then(function (a) { if (cur() === f) { S.items = a; S.loading = false; render(); $('main').scrollTop = 0; } })
+      .catch(function (e) { if (cur() === f) { S.err = e.message; S.loading = false; render(); } });
+  }
+  function up() { if (S.stack.length) { S.stack.pop(); if (cur()) open(); else render(); } }
+  function openItem(it, list) {
+    if (it.k === 'dir') { go(it); return; }
+    if (it.k === 'aud') { var a = list.filter(function (x) { return x.k === 'aud'; }); playAudioList(a, a.indexOf(it), P.shuffle); return; }
+    if (it.k === 'vid') { openVideo(list.filter(function (x) { return x.k === 'vid'; }), it); return; }
+    if (it.k === 'img') { openImage(list.filter(function (x) { return x.k === 'img'; }), it); return; }
+    toast('Loại tệp này chưa phát được.');
+  }
+
+  // ── Hang doi nhac ──
+  function strip(it) { var o = { t: it.t, k: it.k, src: it.src, mime: it.mime }; if (it.src === 'sd') o.p = it.p; else o.id = it.id; return o; }
+  function makeOrder(n, first, shuffle) {
+    var o = []; for (var i = 0; i < n; i++) o.push(i);
+    if (shuffle) {
+      for (var j = n - 1; j > 0; j--) { var r = Math.floor(Math.random() * (j + 1)), t = o[j]; o[j] = o[r]; o[r] = t; }
+      if (first >= 0) { o.splice(o.indexOf(first), 1); o.unshift(first); }
+    }
+    return o;
+  }
+  /** start: chi so bai bat dau trong list (-1 = ngau nhien khi tron). */
+  function playAudioList(list, start, shuffle) {
+    P.q = list.map(strip); P.shuffle = !!shuffle; P.errs = 0;
+    var first = start >= 0 ? start : Math.floor(Math.random() * P.q.length);
+    P.order = makeOrder(P.q.length, first, P.shuffle);
+    P.pos = P.shuffle ? 0 : first;
+    var f = cur(); P.folder = f ? f.t : '';
+    startCurrent(0, true);
+    openFull();
+  }
+  function curIdx() { return P.order[P.pos]; }
+  function curItem() { return P.q[curIdx()]; }
+  function startCurrent(at, play) {
+    var it = curItem(); if (!it) return;
+    paintPlayer();
+    if (P.out !== 'local') {
+      if (it.src === 'ha') { castNow(it); return; }
+      toast('Tệp trên thẻ nhớ chỉ phát được trên màn này.');
+      setOut('local', '');
+    }
+    au.src = urlOf(it);
+    if (at > 0) { var seekTo = at; au.addEventListener('loadedmetadata', function h() { au.removeEventListener('loadedmetadata', h); try { au.currentTime = seekTo; } catch (e) { /* */ } }); }
+    if (play) au.play().catch(function () { /* cho nguoi dung bam */ });
+    save();
+  }
+  function step(d, auto) {
+    if (!P.q.length) return;
+    if (auto && P.repeat === 'one') { startCurrent(0, true); return; }
+    var n = P.order.length, np = P.pos + d;
+    if (np >= n || np < 0) {
+      if (auto && P.repeat !== 'all') { P.playing = false; P.pos = Math.min(Math.max(np, 0), n - 1); au.pause(); paintPlayer(); save(); return; }
+      np = (np + n) % n;
+    }
+    P.pos = np; startCurrent(0, true);
+  }
+  function prev() {
+    if (P.out === 'local' && au.currentTime > 4) { au.currentTime = 0; return; }   // nhu dien thoai: bam lan dau = ve dau bai
+    step(-1, false);
+  }
+  function togglePlay() {
+    if (!P.q.length) return;
+    if (P.out !== 'local') { ctl(P.remote && P.remote.state === 'playing' ? 'pause' : 'play'); return; }
+    if (!au.getAttribute('src')) { startCurrent(P.resumeAt || 0, true); P.resumeAt = 0; return; }
+    if (au.paused) au.play().catch(function () { }); else au.pause();
+  }
+  function stopAll() {
+    au.pause(); au.removeAttribute('src'); au.load();
+    if (P.out !== 'local') ctl('stop');
+    P.q = []; P.order = []; P.pos = 0; P.playing = false;
+    lsSet(K_LAST, null); closeFull(); paintPlayer(); render();
+  }
+  au.addEventListener('play', function () { P.playing = true; paintPlay(); });
+  au.addEventListener('pause', function () { P.playing = false; paintPlay(); save(); });
+  au.addEventListener('ended', function () { P.errs = 0; step(1, true); });
+  au.addEventListener('playing', function () { P.errs = 0; });
+  au.addEventListener('error', function () {
+    if (!au.getAttribute('src') || !P.q.length) return;
+    var it = curItem();
+    toast('Không phát được “' + (it ? it.t : '') + '”');
+    if (++P.errs < P.q.length) setTimeout(function () { step(1, false); }, 1500);
+  });
+  window.rwvStop = function () { au.pause(); var v = $('vv'); if (!v.paused) v.pause(); };   // nut "Dung" cua he thong
+
+  // ── Luu / tiep tuc ──
+  var saveT = 0;
+  function save() {
+    if (!P.q.length) return;
+    lsSet(K_LAST, { q: P.q, i: curIdx(), pos: P.out === 'local' ? (au.currentTime || 0) : 0, shuffle: P.shuffle, repeat: P.repeat, folder: P.folder, at: Date.now() });
+  }
+  function restore(last, play) {
+    P.q = last.q; P.shuffle = !!last.shuffle; P.repeat = last.repeat || 'off'; P.folder = last.folder || '';
+    P.order = makeOrder(P.q.length, last.i || 0, P.shuffle); P.pos = P.shuffle ? 0 : (last.i || 0);
+    if (play) { startCurrent(last.pos || 0, true); openFull(); }
+    else { P.resumeAt = last.pos || 0; paintPlayer(); }
+    render();
+  }
+
+  // ── Ve trinh phat ──
+  function paintPlay() {
+    var on = P.out === 'local' ? P.playing : !!(P.remote && P.remote.state === 'playing');
+    $('miniPlay').replaceChildren(svg(on ? 'pause' : 'play'));
+    $('fPlay').replaceChildren(svg(on ? 'pause' : 'play'));
+  }
+  function paintPlayer() {
+    var it = curItem(), has = !!it;
+    $('mini').hidden = !has || !$('full').hidden;
+    document.documentElement.style.setProperty('--mini-h', has ? 'calc(clamp(38px, 9.4vmin, 56px) + 24px)' : '0px');
+    if (!has) return;
+    var sub = (P.folder || '') + (P.q.length > 1 ? ' · ' + (P.pos + 1) + '/' + P.q.length : '');
+    $('miniT').textContent = it.t; $('miniS').textContent = P.out !== 'local' ? 'Trên ' + P.outName : sub;
+    $('fT').textContent = it.t; $('fS').textContent = sub;
+    $('fShuf').classList.toggle('on', P.shuffle); $('fShuf').setAttribute('aria-pressed', String(P.shuffle));
+    $('fRep').classList.toggle('on', P.repeat !== 'off');
+    $('fRep').replaceChildren(svg(P.repeat === 'one' ? 'repeat-once' : 'repeat'));
+    $('fRep').setAttribute('aria-label', P.repeat === 'off' ? 'Lặp lại: tắt' : P.repeat === 'all' ? 'Lặp lại: cả danh sách' : 'Lặp lại: một bài');
+    var remote = P.out !== 'local';
+    $('fOut').classList.toggle('remote', remote);
+    $('fOut').replaceChildren(svg(remote ? 'cast-connected' : 'tablet'), el('span', '', remote ? P.outName || 'Loa' : 'Màn này'));
+    $('fSeek').disabled = remote;
+    paintPlay(); paintVol(); paintTime();
+  }
+  function paintTime() {
+    if (P.out !== 'local') { $('fCur').textContent = ''; $('fDur').textContent = P.remote ? stateVi(P.remote.state) : ''; $('miniPg').style.width = '0'; return; }
+    var d = au.duration, t = au.currentTime || P.resumeAt || 0;
+    $('fCur').textContent = fmt(t); $('fDur').textContent = isFinite(d) ? fmt(d) : '--:--';
+    var pct = isFinite(d) && d > 0 ? t / d : 0;
+    if (!seeking) $('fSeek').value = Math.round(pct * 1000);
+    $('miniPg').style.width = (pct * 100).toFixed(1) + '%';
+  }
+  function stateVi(s) { return { playing: 'Đang phát', paused: 'Tạm dừng', idle: 'Rảnh', off: 'Tắt', on: 'Bật', buffering: 'Đang tải' }[s] || s; }
+  var seeking = false;
+  $('fSeek').addEventListener('input', function () { seeking = true; if (isFinite(au.duration)) $('fCur').textContent = fmt($('fSeek').value / 1000 * au.duration); });
+  $('fSeek').addEventListener('change', function () { if (isFinite(au.duration)) au.currentTime = $('fSeek').value / 1000 * au.duration; seeking = false; });
+  // 1 lan / giay (khong theo timeupdate ~4 lan / giay): it khung hinh gui toi panel.
+  setInterval(function () { if (P.q.length && P.out === 'local' && P.playing) { paintTime(); if (++tick % 5 === 0) save(); } }, 1000);
+  var tick = 0;
+
+  function openFull() { $('full').hidden = false; $('mini').hidden = true; history.pushState({ o: 'full' }, ''); paintPlayer(); }
+  function closeFull() { if ($('full').hidden) return; $('full').hidden = true; paintPlayer(); }
+
+  // ── Am luong: loa man (local) hoac loa HA (remote) ──
+  var DV = { ok: false, v: null };
+  var devVol = window.RwvUI && RwvUI.volume ? RwvUI.volume(function (ok, v) { DV.ok = ok; DV.v = v; paintVol(); }) : null;
+  function paintVol() {
+    var remote = P.out !== 'local', ok, v;
+    if (remote) { ok = !!(P.remote && P.remote.canVol && P.remote.vol != null); v = P.remote ? P.remote.vol : null; }
+    else { ok = DV.ok; v = DV.v; }
+    [['fVol', 'fVolPct'], ['vVol', 'vVolPct']].forEach(function (p) { $(p[0]).hidden = !ok || (p[0] === 'vVol' && remote); $(p[1]).textContent = v == null ? '--' : v + '%'; });
+  }
+  function volStep(d) {
+    if (P.out === 'local') { if (devVol) devVol.step(d); return; }
+    if (!P.remote || P.remote.vol == null) return;
+    P.remote.vol = Math.max(0, Math.min(100, Math.round(P.remote.vol / 5) * 5 + d)); P.remoteHold = Date.now(); paintVol();
+    clearTimeout(P.volT); P.volT = setTimeout(function () { ctl('vol', P.remote.vol); }, 250);
+  }
+
+  // ── Phat tren loa trong nha (HA) ──
+  function castNow(it) {
+    au.pause();
+    postJson('/mlib/cast', { player: P.out, id: it.id, mime: it.mime }).then(function () {
+      P.castAt = Date.now(); P.sawPlaying = false; pollRemote();
+      // Mot so loa (vd Android TV Remote) nhan lenh nhung bo qua tep thu vien HA -> sau 12 s chua phat thi bao ro.
+      var at = P.castAt;
+      setTimeout(function () { if (P.castAt === at && P.out !== 'local' && !P.sawPlaying) toast((P.outName || 'Loa') + ' không phát tệp này — thử loa khác hoặc Màn này.'); }, 12000);
+    })
+      .catch(function (e) { toast('Loa không phát được: ' + e.message); });
+    save();
+  }
+  function ctl(act, v) {
+    if (P.out === 'local') return;
+    postJson('/mlib/ctl', { player: P.out, act: act, v: v }).then(function () { setTimeout(pollRemote, 700); }).catch(function (e) { toast(e.message); });
+  }
+  var pollT = 0;
+  function pollRemote() {
+    clearTimeout(pollT);
+    if (P.out === 'local' || !P.q.length) return;
+    getJson(window.rwvRel('/mlib/players' + (DEV ? '?dev=' + enc(DEV) : ''))).then(function (list) {
+      var p = list.filter(function (x) { return x.id === P.out; })[0] || null;
+      if (p && P.remote && P.remoteHold && Date.now() - P.remoteHold < 2000) p.vol = P.remote.vol;
+      var was = P.remote && P.remote.state;
+      P.remote = p;
+      if (p && p.state === 'playing') P.sawPlaying = true;
+      // Loa phat xong bai (dang phat -> ranh) -> bai sau theo hang doi.
+      if (p && P.sawPlaying && was === 'playing' && (p.state === 'idle' || p.state === 'off' || p.state === 'on') && Date.now() - P.castAt > 5000) { P.sawPlaying = false; step(1, true); }
+      paintPlayer();
+    }).catch(function () { }).then(function () { pollT = setTimeout(pollRemote, 3000); });
+  }
+  function setOut(id, name) {
+    var wasLocal = P.out === 'local';
+    var t = wasLocal && au.getAttribute('src') ? au.currentTime : 0;
+    // Roi loa HA (ve man nay hoac sang loa khac): dung loa cu — khong thi no phat tiep mot minh.
+    if (!wasLocal && P.out !== id) postJson('/mlib/ctl', { player: P.out, act: 'stop' }).catch(function () { });
+    P.out = id; P.outName = name; P.remote = null; lsSet(K_OUT, id === 'local' ? 'local' : id);
+    if (id === 'local') { clearTimeout(pollT); if (!wasLocal && P.q.length) startCurrent(0, true); paintPlayer(); return; }
+    if (P.q.length) { var it = curItem(); if (it && it.src === 'ha') castNow(it); else { toast('Tệp trên thẻ nhớ chỉ phát được trên màn này.'); P.out = 'local'; } }
+    void t; paintPlayer(); pollRemote();
+  }
+  function openOuts() {
+    var box = $('outsBox'); box.replaceChildren();
+    var h = el('div', 'h', 'Phát trên'); h.id = 'outsH'; box.append(h);
+    function row(id, name, sub, ic) {
+      var b = el('button', 'row' + (P.out === id ? ' sel' : '')); b.type = 'button';
+      var i = el('span', 'ic'); i.append(svg(ic));
+      var m = el('span', 'm'); m.append(el('span', 'n', name)); if (sub) m.append(el('small', '', sub));
+      b.append(i, m); b.onclick = function () { $('outs').hidden = true; setOut(id, name); };
+      box.append(b);
+    }
+    row('local', 'Màn này', 'Loa của màn hình', 'tablet');
+    var wait = el('div', 'sec', 'Đang tìm loa trong nhà…'); box.append(wait);
+    $('outs').hidden = false;
+    getJson(window.rwvRel('/mlib/players' + (DEV ? '?dev=' + enc(DEV) : ''))).then(function (list) {
+      wait.remove();
+      if (!list.length) box.append(el('div', 'sec', 'Không có loa / TV nào trong Home Assistant.'));
+      list.forEach(function (p) { row(p.id, p.name, stateVi(p.state) + (p.title ? ' · ' + p.title : ''), 'speaker'); });
+    }).catch(function (e) { wait.textContent = 'Không đọc được danh sách loa: ' + e.message; });
+  }
+  $('outs').addEventListener('click', function (e) { if (e.target === $('outs')) $('outs').hidden = true; });
+
+  // ── Video ──
+  var V = { list: [], i: 0, hideT: 0 };
+  var vv = $('vv');
+  function vChrome(on) {
+    $('vid').classList.toggle('bare', !on); clearTimeout(V.hideT);
+    if (on && !vv.paused) V.hideT = setTimeout(function () { vChrome(false); }, 3500);
+  }
+  function openVideo(list, it) {
+    au.pause();
+    V.list = list.map(strip); V.i = Math.max(0, list.indexOf(it));
+    $('vid').hidden = false; history.pushState({ o: 'vid' }, ''); loadVideo();
+  }
+  function loadVideo() {
+    var it = V.list[V.i]; if (!it) return;
+    $('vT').textContent = it.t; $('vMsg').hidden = true;
+    $('vPrev').hidden = $('vNext').hidden = V.list.length < 2;
+    vv.src = urlOf(it);
+    var pos = (lsGet(K_VPOS, {}) || {})[keyOf(it)];
+    vv.addEventListener('loadedmetadata', function h() {
+      vv.removeEventListener('loadedmetadata', h);
+      if (pos > 10 && isFinite(vv.duration) && pos < vv.duration - 10) { vv.currentTime = pos; toast('Tiếp tục từ ' + fmt(pos)); }
+    });
+    vv.play().catch(function () { });
+    vChrome(true); paintVol();
+  }
+  function saveVPos() {
+    var it = V.list[V.i]; if (!it || !isFinite(vv.duration)) return;
+    var m = lsGet(K_VPOS, {}) || {}, k = keyOf(it);
+    if (vv.currentTime > 10 && vv.currentTime < vv.duration - 10) m[k] = Math.round(vv.currentTime); else delete m[k];
+    var ks = Object.keys(m); if (ks.length > 50) delete m[ks[0]];
+    lsSet(K_VPOS, m);
+  }
+  function closeVideo() { if ($('vid').hidden) return; saveVPos(); vv.pause(); vv.removeAttribute('src'); vv.load(); $('vid').hidden = true; }
+  function vStep(d) { saveVPos(); V.i = (V.i + d + V.list.length) % V.list.length; loadVideo(); }
+  vv.addEventListener('play', function () { $('vPlay').replaceChildren(svg('pause')); vChrome(true); });
+  vv.addEventListener('pause', function () { $('vPlay').replaceChildren(svg('play')); vChrome(true); saveVPos(); });
+  vv.addEventListener('ended', function () { saveVPos(); if (V.i < V.list.length - 1) vStep(1); });
+  vv.addEventListener('error', function () { if (vv.getAttribute('src')) { $('vMsg').textContent = 'Không phát được video này.'; $('vMsg').hidden = false; } });
+  var vSeeking = false, vTick = 0;
+  setInterval(function () {
+    if ($('vid').hidden || !isFinite(vv.duration)) return;
+    $('vCur').textContent = fmt(vv.currentTime); $('vDur').textContent = fmt(vv.duration);
+    if (!vSeeking) $('vSeek').value = Math.round(vv.currentTime / vv.duration * 1000);
+    if (!vv.paused && ++vTick % 10 === 0) saveVPos();
+  }, 1000);
+  $('vSeek').addEventListener('input', function () { vSeeking = true; vChrome(true); });
+  $('vSeek').addEventListener('change', function () { if (isFinite(vv.duration)) vv.currentTime = $('vSeek').value / 1000 * vv.duration; vSeeking = false; });
+  $('vid').addEventListener('click', function (e) { if (e.target.closest('button, input')) return; vChrome($('vid').classList.contains('bare')); });
+
+  // ── Anh ── vuot truoc / sau, cham dup phong to (keo khi dang phong to), trinh chieu 5 s / anh, an / hien nut khi cham.
+  var I = { list: [], i: 0, z: 1, tx: 0, ty: 0, g: null, lastTap: 0, showT: 0, hideT: 0 };
+  var ii = $('ii');
+  function iChrome(on) {
+    $('img').classList.toggle('bare', !on); clearTimeout(I.hideT);
+    if (on && I.showT) I.hideT = setTimeout(function () { iChrome(false); }, 3000);
+  }
+  function openImage(list, it) { I.list = list.map(strip); I.i = Math.max(0, list.indexOf(it)); $('img').hidden = false; history.pushState({ o: 'img' }, ''); loadImage(); iChrome(true); }
+  function iZoom(z, cx, cy) {
+    var W = innerWidth, H = innerHeight;
+    if (z <= 1) { I.z = 1; I.tx = I.ty = 0; }
+    else { I.z = z; I.tx = cx - (cx * z); I.ty = cy - (cy * z); }
+    iClamp(); iApply();
+  }
+  function iClamp() { var W = innerWidth, H = innerHeight; I.tx = Math.min(0, Math.max(W - W * I.z, I.tx)); I.ty = Math.min(0, Math.max(H - H * I.z, I.ty)); }
+  function iApply() { ii.style.transform = I.z > 1 ? 'translate(' + I.tx + 'px,' + I.ty + 'px) scale(' + I.z + ')' : ''; }
+  function loadImage() {
+    var it = I.list[I.i];
+    $('iT').textContent = it.t + (I.list.length > 1 ? ' · ' + (I.i + 1) + '/' + I.list.length : '');
+    $('iPrev').hidden = $('iNext').hidden = $('iShow').hidden = I.list.length < 2;
+    $('iMsg').hidden = true; iZoom(1);
+    ii.onerror = function () { $('iMsg').textContent = 'Không mở được ảnh này.'; $('iMsg').hidden = false; };
+    ii.src = urlOf(it);
+    // Tai truoc anh ke tiep: vuot sang khong phai cho.
+    var nx = I.list[(I.i + 1) % I.list.length]; if (nx && I.list.length > 1) { var pre = new Image(); pre.src = urlOf(nx); }
+  }
+  function iStep(d) { I.i = (I.i + d + I.list.length) % I.list.length; loadImage(); }
+  function iSlideshow(on) {
+    clearInterval(I.showT); I.showT = 0;
+    if (on) I.showT = setInterval(function () { if (I.z === 1) iStep(1); }, 5000);
+    $('iShow').classList.toggle('on', on); $('iShow').setAttribute('aria-pressed', String(on));
+    $('iShow').replaceChildren(svg(on ? 'pause' : 'play-box-multiple-outline'));
+    iChrome(true);
+  }
+  function closeImage() { if ($('img').hidden) return; iSlideshow(false); $('img').hidden = true; ii.removeAttribute('src'); }
+  $('img').addEventListener('pointerdown', function (e) { if (e.target.closest('button')) return; I.g = { x: e.clientX, y: e.clientY, tx: I.tx, ty: I.ty, moved: false }; });
+  $('img').addEventListener('pointermove', function (e) {
+    var g = I.g; if (!g) return;
+    var dx = e.clientX - g.x, dy = e.clientY - g.y;
+    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) g.moved = true;
+    if (I.z > 1) { I.tx = g.tx + dx; I.ty = g.ty + dy; iClamp(); iApply(); }
+  });
+  $('img').addEventListener('pointerup', function (e) {
+    var g = I.g; I.g = null;
+    if (!g || e.target.closest('button')) return;
+    var dx = e.clientX - g.x;
+    if (I.z === 1 && Math.abs(dx) > 60) { iStep(dx < 0 ? 1 : -1); return; }
+    if (g.moved) return;
+    var now = Date.now();
+    if (now - I.lastTap < 320) { I.lastTap = 0; clearTimeout(I.tapT); iZoom(I.z > 1 ? 1 : 2.5, e.clientX, e.clientY); return; }
+    I.lastTap = now;
+    I.tapT = setTimeout(function () { iChrome($('img').classList.contains('bare')); }, 330);
+  });
+  addEventListener('resize', function () { if (!$('img').hidden) { iClamp(); iApply(); } });
+
+  // ── Nut quay lai he thong (history) ──
+  window.addEventListener('popstate', function () {
+    if (!$('outs').hidden) { $('outs').hidden = true; return; }
+    if (!$('vid').hidden) { closeVideo(); return; }
+    if (!$('img').hidden) { closeImage(); return; }
+    if (!$('full').hidden) { closeFull(); return; }
+    up();
+  });
+
+  // ── Gan nut ──
+  $('up').onclick = function () { history.back(); };
+  $('allSrc').onclick = function () { S.all = !S.all; lsSet(K_ALL, S.all); S.sources = null; render(); loadSources(); };
+  FILTERS.forEach(function (o) {
+    var b = el('button', 'chip', o[1]); b.type = 'button'; b.setAttribute('role', 'radio'); b.dataset.f = o[0];
+    b.onclick = function () { S.filter = o[0]; S.shown = 200; paintFilter(); render(); };
+    $('filter').append(b);
+  });
+  function paintFilter() { [].forEach.call($('filter').children, function (b) { var on = b.dataset.f === S.filter; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); }); }
+  $('miniOpen').onclick = openFull; $('miniPlay').onclick = togglePlay; $('miniNext').onclick = function () { step(1, false); }; $('miniPrev').onclick = prev;
+  $('fClose').onclick = function () { history.back(); };
+  $('fStop').onclick = function () { stopAll(); };
+  $('fPlay').onclick = togglePlay; $('fNext').onclick = function () { step(1, false); }; $('fPrev').onclick = prev;
+  $('fShuf').onclick = function () {
+    if (!P.q.length) return;
+    var i = curIdx(); P.shuffle = !P.shuffle; P.order = makeOrder(P.q.length, i, P.shuffle); P.pos = P.shuffle ? 0 : i; paintPlayer(); save();
+  };
+  $('fRep').onclick = function () { P.repeat = P.repeat === 'off' ? 'all' : P.repeat === 'all' ? 'one' : 'off'; paintPlayer(); save();
+    toast(P.repeat === 'off' ? 'Tắt lặp lại' : P.repeat === 'all' ? 'Lặp lại cả danh sách' : 'Lặp lại một bài'); };
+  $('fOut').onclick = openOuts;
+  $('fVolDn').onclick = function () { volStep(-5); }; $('fVolUp').onclick = function () { volStep(5); };
+  $('vVolDn').onclick = function () { volStep(-5); vChrome(true); }; $('vVolUp').onclick = function () { volStep(5); vChrome(true); };
+  $('vClose').onclick = function () { history.back(); };
+  $('vPlay').onclick = function () { if (vv.paused) vv.play().catch(function () { }); else vv.pause(); };
+  $('vBack').onclick = function () { vv.currentTime = Math.max(0, vv.currentTime - 10); vChrome(true); };
+  $('vFwd').onclick = function () { vv.currentTime = Math.min(vv.duration || 1e9, vv.currentTime + 10); vChrome(true); };
+  $('vPrev').onclick = function () { vStep(-1); }; $('vNext').onclick = function () { vStep(1); };
+  $('iClose').onclick = function () { history.back(); };
+  $('iPrev').onclick = function () { iStep(-1); iChrome(true); }; $('iNext').onclick = function () { iStep(1); iChrome(true); };
+  $('iShow').onclick = function () { iSlideshow(!I.showT); };
+
+  icon('up', 'arrow-left'); icon('miniPrev', 'skip-previous'); icon('miniNext', 'skip-next'); icon('miniPlay', 'play'); $('miniArt').append(svg('music-note'));
+  icon('fClose', 'chevron-down'); icon('fStop', 'stop'); $('fArt').append(svg('music-note'));
+  icon('fShuf', 'shuffle-variant'); icon('fPrev', 'skip-previous'); icon('fPlay', 'play'); icon('fNext', 'skip-next'); icon('fRep', 'repeat');
+  icon('fVolDn', 'volume-low'); icon('fVolUp', 'volume-high'); icon('vVolDn', 'volume-low'); icon('vVolUp', 'volume-high');
+  icon('vClose', 'arrow-left'); icon('vPlay', 'play'); icon('vBack', 'rewind-10'); icon('vFwd', 'fast-forward-10'); icon('vPrev', 'skip-previous'); icon('vNext', 'skip-next');
+  icon('iClose', 'arrow-left'); icon('iPrev', 'chevron-left'); icon('iNext', 'chevron-right'); icon('iShow', 'play-box-multiple-outline');
+  paintFilter();
+
+  // Noi phat da chon lan truoc la loa HA: chi nho, khong tu phat — hien ten loa khi doc duoc danh sach.
+  if (P.out !== 'local') getJson(window.rwvRel('/mlib/players' + (DEV ? '?dev=' + enc(DEV) : ''))).then(function (l) {
+    var p = l.filter(function (x) { return x.id === P.out; })[0];
+    if (p) { P.outName = p.name; P.remote = p; } else P.out = 'local';
+    paintPlayer();
+  }).catch(function () { P.out = 'local'; paintPlayer(); });
+  // Mo lai ung dung (tab moi): dua bai dang nghe do vao thanh "Dang phat" (tam dung) — bam phat la nghe tiep.
+  var last = lsGet(K_LAST, null);
+  if (last && last.q && last.q.length) restore(last, false);
+  render(); loadSources();
+})();
+</script>
+</body>
+</html>

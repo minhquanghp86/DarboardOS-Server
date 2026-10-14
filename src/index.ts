@@ -38,6 +38,7 @@ import { ensureMdiIcons } from './launcherConfig.js';
 import { startDebugProxy } from './debugProxy.js';
 import { startWeatherMini } from './weatherMini.js';
 import { handleIptvApi, setIptvHooks } from './iptv.js';
+import { handleMediaApi } from './mediaLib.js';
 import { handleFrigateApi } from './frigate.js';
 import { handleLockWidgetsApi, noteDeviceIp } from './lockWidgets.js';
 import { handleCalendarApi } from './calendarSource.js';
@@ -185,7 +186,7 @@ const STATIC_PAGES = ['no-url.html', 'cam.html', 'camera.html', 'weather.html', 
   // (01/10/2026) Thu vien / Tep (the SD cua P4), Tin nhan noi bo, bieu tuong dung chung.
   'files.html', 'chat.html', 'icons.js', 'alarm.html',
   // (07/10/2026) IPTV (src/iptv.ts). (08/10/2026) Su kien camera Frigate (src/frigate.ts).
-  'iptv.html', 'events.html'];
+  'iptv.html', 'events.html', 'media.html'];
 const staticCache = new Map<string, Buffer>();
 for (const name of STATIC_PAGES) {
   const p = path.join(__dirname, '..', 'public', name);
@@ -221,6 +222,8 @@ http.createServer((req, res) => {
   if (handleFileManager(req, res, reqUrl)) return;
   // (07/10/2026) IPTV: danh sach kenh, proxy luong, yeu thich, cau hinh tu trang Darboard (src/iptv.ts).
   if (handleIptvApi(req, res, reqUrl)) return;
+  // (14/10/2026) Ung dung Media: nguon media cua HA, phat tren man / loa HA (src/mediaLib.ts) — chi 127.0.0.1.
+  if (handleMediaApi(req, res, reqUrl)) return;
   // (08/10/2026) Su kien camera Frigate: danh sach, anh, clip (src/frigate.ts) — chi 127.0.0.1.
   if (handleFrigateApi(req, res, reqUrl)) return;
   const vendor = vendorCache.get(pathname);
