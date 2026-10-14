@@ -8,6 +8,7 @@
 // ket noi WebSocket. Khong nhan dia chi tuy y (khong thanh proxy mo); chi duong cua cam_app; chi tu 127.0.0.1.
 import http from 'node:http';
 import { go2rtcStreams, hostsOfRuntime } from './frigate.js';
+import { FrameSink, LiveHub, RawSink } from './mkvLive.js';
 
 /** (08/10/2026) auth = base64("user:pass") cho HTTP Basic Auth cua cam_app / av_stream (firmware gui ?ca=<hex(user:pass)>). */
 export type CamHost = { ip: string; port: number; auth?: string; /** (09/10/2026) chi the nho, khong camera (S3) */ sdOnly?: boolean };
@@ -208,22 +209,56 @@ const AV_PORT = Number(process.env.RWV_AV_PORT || 8080);
 const INTERNAL = /^(::ffff:)?(127\.0\.0\.1|172\.30\.3[23]\.\d{1,3})$|^::1$/;
 export function isInternalPeer(addr: string | undefined): boolean { return INTERNAL.test(addr || ''); }
 
+// (14/10/2026) Mot ket noi /live cho moi thiet bi, chia cho Frigate + cuoc goi (src/mkvLive.ts).
+const liveHubs = new Map<string, LiveHub>();
+function hubOf(dev: string): LiveHub {
+  let hub = liveHubs.get(dev);
+  if (hub) return hub;
+  hub = new LiveHub((hb) => {
+    const h = hosts.get(dev);
+    if (!h) { setTimeout(() => hb.ended('man chua ket noi'), 0); return; }
+    let finished = false;
+    const end = (why: string) => { if (!finished) { finished = true; hb.ended(why); } };
+    const up = http.request({ host: h.ip, port: AV_PORT, path: '/live', method: 'GET', headers: camAuth(h) }, (r) => {
+      if (r.statusCode !== 200) { r.resume(); end(`HTTP ${r.statusCode}`); return; }
+      r.on('data', (c: Buffer) => hb.data(c));
+      r.on('end', () => end('P4 dong'));
+      r.on('error', (e) => end(e.message));
+    });
+    up.setTimeout(20_000, () => up.destroy(new Error('het gio')));   // khong co du lieu 20 s -> dong (go2rtc tu noi lai)
+    up.on('error', (e) => end(e.message));
+    hb.closeUpstream = () => { finished = true; up.destroy(); };
+    up.end();
+    console.log(`[cam-live] ${dev}: mo ket noi /live @ ${h.ip}:${AV_PORT}`);
+  }, (m) => console.log(`[cam-live] ${dev}: ${m}`));
+  liveHubs.set(dev, hub);
+  return hub;
+}
+
+/** (14/10/2026) Cuoc goi: nhan cau hinh H.264 + tung khung cua camera man `dev` (dung chung ket noi voi Frigate). */
+export function subscribeLiveFrames(dev: string, sink: FrameSink): () => void {
+  const hub = hubOf(dev);
+  hub.addFrames(sink);
+  return () => hub.removeFrames(sink);
+}
+
 export function handleCamLive(req: http.IncomingMessage, res: http.ServerResponse, pathname: string): boolean {
   const m = /^\/cam\/live\/([A-Za-z0-9_-]{1,40})$/.exec(pathname);
   if (!m) return false;
   const txt = (code: number, msg: string) => { res.writeHead(code, { 'content-type': 'text/plain; charset=utf-8' }); res.end(msg); };
   if (!isInternalPeer(req.socket.remoteAddress)) { txt(403, 'Chi Frigate / Home Assistant noi bo.'); return true; }
-  const h = hosts.get(m[1]);
-  if (!h) { txt(503, 'Man hinh chua ket noi.'); return true; }
-  const up = http.request({ host: h.ip, port: AV_PORT, path: '/live', method: 'GET', headers: camAuth(h) }, (r) => {
-    res.writeHead(r.statusCode || 502, { 'content-type': r.headers['content-type'] || 'video/x-matroska', 'cache-control': 'no-store' });
-    r.pipe(res);
-  });
-  up.setTimeout(20_000, () => up.destroy(new Error('het gio')));   // khong co du lieu 20 s -> dong (go2rtc tu noi lai)
-  up.on('error', (e) => { if (!res.headersSent) txt(502, `Khong goi duoc camera (${e.message}).`); else res.destroy(); });
-  const stop = () => up.destroy();
+  if (!hosts.get(m[1])) { txt(503, 'Man hinh chua ket noi.'); return true; }
+  const hub = hubOf(m[1]);
+  const sink: RawSink = {
+    write: (b) => {
+      if (!res.headersSent) res.writeHead(200, { 'content-type': 'video/x-matroska', 'cache-control': 'no-store' });
+      return res.write(b);
+    },
+    destroy: () => { if (!res.headersSent) txt(502, 'Khong goi duoc camera.'); else res.destroy(); },
+  };
+  hub.addRaw(sink);
+  const stop = () => hub.removeRaw(sink);
   req.on('close', stop); res.on('close', stop);
-  up.end();
-  console.log(`[cam-live] ${req.socket.remoteAddress?.replace(/^::ffff:/, '')} -> ${m[1]} @ ${h.ip}:${AV_PORT}`);
+  console.log(`[cam-live] ${req.socket.remoteAddress?.replace(/^::ffff:/, '')} -> ${m[1]} (${hub.viewers} nguoi xem)`);
   return true;
 }

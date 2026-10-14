@@ -36,6 +36,8 @@ let captureProc: ChildProcessWithoutNullStreams | null = null;
 let stopping = false;
 let restartTimer: NodeJS.Timeout | null = null;
 const subscribers = new Set<string>();
+/** (14/10/2026) INTERCOM: man dang trong cuoc goi — KHONG gui tieng Chrome (tieng cuoc goi di rieng, src/callBridge.ts). */
+export const callHold = new Set<string>();
 
 // (23/09/2026 v8) SUA LOI THAT DA GAP: truoc day feedChunk() gui NGAY moi
 // khi ffmpeg co du lieu — nhung PulseAudio/ffmpeg khong giao du lieu deu,
@@ -100,7 +102,7 @@ function drainTick(): void {
   while (jitterBuf.length >= FRAME_BYTES) {
     const frame = jitterBuf.subarray(0, FRAME_BYTES);
     jitterBuf = jitterBuf.subarray(FRAME_BYTES);
-    for (const id of subscribers) broadcaster.sendAudioFrame(id, frame);
+    for (const id of subscribers) if (!callHold.has(id)) broadcaster.sendAudioFrame(id, frame);
     diag.framesSent++;
   }
 }

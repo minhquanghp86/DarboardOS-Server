@@ -1,0 +1,227 @@
+<!doctype html>
+<!--
+  (14/10/2026) TAB "GỌI" TRONG DARBOARD (trinh duyet, qua ingress HTTPS) — goi video toi man co camera + mic (P4), giao
+  dien kieu dien thoai chung voi man (call-ui.js / call-ui.css). Mot WS /calls/web: JSON dieu khien + nhi phan
+  0x01 = tieng PCM s16le mono 16 kHz (hai chieu), 0x02 = hinh camera minh [key u8][ts u32le] + H.264 AVCC (WebCodecs).
+  Hinh man: WS /call/video. Can HTTPS (camera / micro). Chi nhan cuoc goi den khi tab dang mo.
+-->
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gọi</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="call-ui.css">
+<script src="icons.js"></script>
+<script src="call-ui.js"></script>
+<style>
+  .back { position: fixed; z-index: 5; left: 12px; bottom: 12px; color: #9aa4b2; text-decoration: none; font: 14px "Be Vietnam Pro", sans-serif; }
+  .call[data-view="contacts"] ~ .back { display: block; }
+  /* (14/10/2026) Cai dat chuong cong */
+  .gear { position: fixed; z-index: 5; top: 16px; right: 16px; display: none; align-items: center; gap: 8px; padding: 9px 14px; border: none;
+    border-radius: 999px; background: #1c2128; color: #e6e9ee; font: 600 14px "Be Vietnam Pro", sans-serif; cursor: pointer; }
+  .gear svg { width: 18px; height: 18px; fill: currentColor; }
+  .call[data-view="contacts"] ~ .gear { display: inline-flex; }
+  .dset { position: fixed; z-index: 10; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(5, 7, 10, 0.7);
+    font-family: "Be Vietnam Pro", sans-serif; color: #eef1f5; }
+  .dset[hidden] { display: none; }
+  .dset .box { width: min(100%, 520px); max-height: 90vh; overflow-y: auto; background: #12161b; border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+  .dset h2 { margin: 0; font-size: 20px; }
+  .dset .sec { display: flex; flex-direction: column; gap: 8px; }
+  .dset .k { color: #9aa4b2; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+  .dset .dr { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: #1a1f26; font-size: 14px; }
+  .dset .dot { width: 9px; height: 9px; border-radius: 50%; background: #34c759; flex: none; }
+  .dset label.ck { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: #1a1f26; font-size: 15px; cursor: pointer; }
+  .dset input[type=checkbox] { width: 20px; height: 20px; accent-color: #34c759; }
+  .dset select { height: 42px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.12); background: #1a1f26; color: #eef1f5; font: inherit; padding: 0 10px; }
+  .dset .hint { color: #9aa4b2; font-size: 13px; line-height: 1.45; }
+  .dset .acts { display: flex; justify-content: flex-end; gap: 10px; }
+  .dset .acts button { height: 42px; padding: 0 18px; border: none; border-radius: 999px; font: 600 15px "Be Vietnam Pro", sans-serif; cursor: pointer; background: #2a3039; color: #eef1f5; }
+  .dset .acts .ok { background: #34c759; color: #04210d; }
+</style>
+</head>
+<body style="margin:0;background:#0b0d10">
+<div id="app"></div>
+<a class="back" href="./">← Darboard</a>
+<button class="gear" id="gear" type="button" aria-haspopup="dialog"></button>
+<div class="dset" id="dset" hidden role="dialog" aria-modal="true" aria-labelledby="dsetT">
+  <div class="box">
+    <h2 id="dsetT">Chuông cổng</h2>
+    <div class="sec"><span class="k">Chuông đang kết nối</span><div id="dDoors"></div></div>
+    <div class="sec"><span class="k">Màn đổ chuông</span><div id="dPanels"></div>
+      <div class="hint">Không chọn màn nào = mọi màn đều đổ chuông.</div></div>
+    <div class="sec"><span class="k">Đổ chuông trong</span><select id="dRing" aria-label="Thời gian đổ chuông"></select></div>
+    <div class="sec"><span class="k">Mở khóa cổng trong</span><select id="dGate" aria-label="Thời gian mở cổng"></select></div>
+    <div class="acts"><button type="button" id="dCancel">Đóng</button><button type="button" class="ok" id="dSave">Lưu</button></div>
+  </div>
+</div>
+<script>
+(function () {
+  'use strict';
+  var BASE = location.pathname.replace(/[^/]*$/, '');
+  var NAME = /Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'Darboard · điện thoại' : 'Darboard · máy tính';
+  var ws = null, me = '', call = '', peer = '', peerName = '', list = [], wantList = null;
+  var media = null, actx = null, capNode = null, playNode = null, enc = null, vT = 0, vts = 0, forceKey = true, muted = false, camOff = false, ringT = 0;
+
+  function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+  function connect() {
+    var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(proto + '//' + location.host + BASE + 'calls/web?name=' + encodeURIComponent(NAME)); ws.binaryType = 'arraybuffer';
+    ws.onmessage = function (e) {
+      if (typeof e.data !== 'string') {
+        var b = new Uint8Array(e.data);
+        if (b[0] === 1 && playNode) { var pcm = e.data.slice(1); playNode.port.postMessage(pcm, [pcm]); }
+        return;
+      }
+      var m = JSON.parse(e.data);
+      if (m.type === 'hello') { me = m.id; list = m.list; if (wantList) { wantList(list); wantList = null; } }
+      else if (m.type === 'contacts') { list = m.list; if (wantList) { wantList(list); wantList = null; } }
+      else if (m.type === 'started') { if (!m.ok) { ui.toast(m.error || 'Không gọi được'); ui.set({ view: 'contacts', call: '' }); stopMedia(); } else { call = m.call; } }
+      else if (m.type === 'incoming') { call = m.call; peer = m.from; peerName = m.name; ui.set({ view: 'in', call: call, peer: peer, peerName: peerName }); }
+      else if (m.type === 'active') { ring(false); peer = m.peer; startAudio(); ui.set({ view: 'active', call: call, peer: peer, peerName: peerName, since: Date.now(), peerMuted: false, peerCamOff: false }); }
+      else if (m.type === 'flags') { ui.set({ view: 'active', peerMuted: m.muted.indexOf(peer) >= 0, peerCamOff: m.camOff.indexOf(peer) >= 0 }); }
+      else if (m.type === 'keyframe') forceKey = true;
+      else if (m.type === 'ended') {
+        ring(false); stopMedia(); call = '';
+        ui.set({ view: 'ended', reason: m.reason });
+        setTimeout(function () { if (!call) ui.set({ view: 'contacts', call: '' }); }, 2500);
+      }
+    };
+    ws.onclose = function () { setTimeout(connect, 2000); };
+  }
+
+  // ── Camera + micro ──
+  function getMedia() {
+    if (media) return Promise.resolve(media);
+    if (!navigator.mediaDevices) return Promise.reject(new Error('Cần mở Darboard qua HTTPS để dùng camera / micro.'));
+    return navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 15 }, facingMode: 'user' } }).then(function (s) { media = s; return s; });
+  }
+  var WORKLET = [
+    "class Cap extends AudioWorkletProcessor{constructor(){super();this.r=sampleRate/16000;this.acc=0;this.buf=new Int16Array(320);this.n=0}",
+    "process(i){const c=i[0]&&i[0][0];if(!c)return true;for(let k=0;k<c.length;k++){this.acc+=1;if(this.acc>=this.r){this.acc-=this.r;const v=Math.max(-1,Math.min(1,c[k]));",
+    "this.buf[this.n++]=v*32767;if(this.n===320){this.port.postMessage(this.buf.buffer.slice(0));this.n=0}}}return true}}",
+    "registerProcessor('cap',Cap);",
+    "class Play extends AudioWorkletProcessor{constructor(){super();this.q=[];this.cur=null;this.pos=0;this.r=16000/sampleRate;this.f=0;",
+    "this.port.onmessage=e=>{this.q.push(new Int16Array(e.data));let t=0;for(const b of this.q)t+=b.length;while(t>4800&&this.q.length>1){t-=this.q.shift().length}}}",
+    "process(i,o){const out=o[0][0];for(let k=0;k<out.length;k++){if(!this.cur||this.pos>=this.cur.length){this.cur=this.q.shift()||null;this.pos=0}",
+    "if(!this.cur){out[k]=0;continue}out[k]=this.cur[Math.floor(this.pos)]/32768;this.f+=this.r;while(this.f>=1){this.f-=1;this.pos++}}return true}}",
+    "registerProcessor('play',Play);"].join('\n');
+  function startAudio() {
+    if (actx || !media) return;
+    actx = new AudioContext();
+    actx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: 'text/javascript' }))).then(function () {
+      capNode = new AudioWorkletNode(actx, 'cap'); playNode = new AudioWorkletNode(actx, 'play', { outputChannelCount: [1] });
+      actx.createMediaStreamSource(media).connect(capNode); playNode.connect(actx.destination);
+      capNode.port.onmessage = function (e) {
+        if (muted || !ws || ws.readyState !== 1 || ws.bufferedAmount > 256 * 1024) return;
+        var b = new Uint8Array(1 + e.data.byteLength); b[0] = 1; b.set(new Uint8Array(e.data), 1); ws.send(b);
+      };
+    });
+    startVideo();
+  }
+  // Hinh: ve <video> camera -> VideoFrame 15 hinh/giay -> VideoEncoder H.264 (AVCC) -> WS (0x02).
+  var camEl = document.createElement('video'); camEl.muted = true; camEl.playsInline = true;
+  function startVideo() {
+    if (enc || !media || !('VideoEncoder' in window)) return;
+    camEl.srcObject = media; camEl.play().catch(function () { });
+    var cfgSent = false;
+    enc = new VideoEncoder({
+      output: function (chunk, meta) {
+        if (meta && meta.decoderConfig && meta.decoderConfig.description && !cfgSent) {
+          var d = new Uint8Array(meta.decoderConfig.description), s = '';
+          for (var i = 0; i < d.length; i++) s += String.fromCharCode(d[i]);
+          send({ type: 'vconfig', codec: meta.decoderConfig.codec, avcc: btoa(s) }); cfgSent = true;
+        }
+        if (!ws || ws.readyState !== 1 || ws.bufferedAmount > 1024 * 1024) return;
+        var b = new Uint8Array(6 + chunk.byteLength); b[0] = 2; b[1] = chunk.type === 'key' ? 1 : 0;
+        new DataView(b.buffer).setUint32(2, Math.floor(chunk.timestamp / 1000) >>> 0, true);
+        chunk.copyTo(b.subarray(6)); ws.send(b);
+      },
+      error: function () { /* */ },
+    });
+    enc.configure({ codec: 'avc1.42e01f', width: 640, height: 480, bitrate: 700000, framerate: 15, latencyMode: 'realtime', avc: { format: 'avc' } });
+    var n = 0;
+    vT = setInterval(function () {
+      if (camOff || camEl.readyState < 2 || enc.state !== 'configured' || enc.encodeQueueSize > 3) return;
+      var fr = new VideoFrame(camEl, { timestamp: (vts += 66666) });
+      enc.encode(fr, { keyFrame: forceKey || n++ % 30 === 0 }); forceKey = false; fr.close();
+    }, 66);
+  }
+  function stopMedia() {
+    clearInterval(vT); vT = 0;
+    if (enc) { try { enc.close(); } catch (e) { /* */ } enc = null; }
+    if (actx) { actx.close(); actx = null; capNode = playNode = null; }
+    if (media) { media.getTracks().forEach(function (t) { t.stop(); }); media = null; }
+    muted = camOff = false;
+  }
+  // Chuong cuoc goi den (WebAudio, nhip 2 tieng / 3 s).
+  function ring(on) {
+    clearInterval(ringT); ringT = 0;
+    if (!on) return;
+    var c = new AudioContext();
+    var beep = function () { [0, 0.45].forEach(function (t) { var o = c.createOscillator(), g = c.createGain(); o.frequency.value = 880; g.gain.value = 0.12;
+      o.connect(g).connect(c.destination); o.start(c.currentTime + t); o.stop(c.currentTime + t + 0.3); }); };
+    beep(); ringT = setInterval(function () { if (!ringT) { c.close(); return; } beep(); }, 3000);
+  }
+
+  var ui = CallUI.mount(document.getElementById('app'), {
+    self: '', base: BASE, ringUrl: BASE + 'ringtone/call',
+    contacts: function () { return new Promise(function (ok) { wantList = ok; send({ type: 'contacts' }); setTimeout(function () { if (wantList) { wantList(list); wantList = null; } }, 2000); }); },
+    start: function (to, name) {
+      peer = to; peerName = name;
+      getMedia().then(function () { ui.set({ view: 'out', call: '', peer: to, peerName: name }); send({ type: 'start', to: to }); })
+        .catch(function (e) { ui.toast('Không mở được camera / micro: ' + e.message); });
+    },
+    accept: function () { getMedia().then(function () { send({ type: 'accept' }); }).catch(function (e) { ui.toast('Không mở được camera / micro: ' + e.message); }); },
+    decline: function () { send({ type: 'decline' }); },
+    hangup: function () { send({ type: 'hangup' }); },
+    mute: function (on) { muted = on; send({ type: 'mute', on: on }); },
+    cam: function (on) { camOff = on; send({ type: 'cam', on: on }); if (!on) forceKey = true; },
+    selfVideo: function (t) {
+      t.canvas.hidden = true;
+      if (!media) { t.video.hidden = true; return { close: function () { } }; }
+      t.video.srcObject = media; t.video.hidden = false; t.video.play().catch(function () { });
+      return { close: function () { t.video.srcObject = null; } };
+    },
+  });
+  // ── Cai dat chuong cong (/door/config) ──
+  (function () {
+    var $ = function (id) { return document.getElementById(id); };
+    var ic = (window.RwvIcons || {})['doorbell-video'] || '';
+    var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true');
+    var pth = document.createElementNS('http://www.w3.org/2000/svg', 'path'); pth.setAttribute('d', ic); s.appendChild(pth);
+    $('gear').append(s, document.createTextNode('Chuông cổng'));
+    function opts(sel, vals, unit, cur) {
+      sel.replaceChildren(); vals.forEach(function (v) { var o = document.createElement('option'); o.value = v; o.textContent = v + ' ' + unit; if (v === cur) o.selected = true; sel.append(o); });
+    }
+    function row(cls, txt) { var d = document.createElement('div'); d.className = cls; d.textContent = txt; return d; }
+    $('gear').onclick = function () {
+      fetch(BASE + 'door/config', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
+        var dd = $('dDoors'); dd.replaceChildren();
+        if (!j.doors.length) dd.append(row('hint', 'Chưa có chuông nào kết nối. Lắp và cấp nguồn chuông cổng ESP32-S3.'));
+        j.doors.forEach(function (d) { var r = document.createElement('div'); r.className = 'dr'; var dot = document.createElement('span'); dot.className = 'dot'; r.append(dot, document.createTextNode(d.name + (d.busy ? ' — đang nói chuyện' : ''))); dd.append(r); });
+        var pp = $('dPanels'); pp.replaceChildren();
+        j.panels.forEach(function (p) {
+          var l = document.createElement('label'); l.className = 'ck'; var c = document.createElement('input'); c.type = 'checkbox'; c.value = p.id;
+          c.checked = j.cfg.ringPanels.indexOf(p.id) >= 0; l.append(c, document.createTextNode(p.name)); pp.append(l);
+        });
+        opts($('dRing'), [20, 30, 45, 60, 90], 'giây', j.cfg.ringS); opts($('dGate'), [1, 2, 3, 5, 8, 10, 15], 'giây', j.cfg.gateS);
+        $('dset').hidden = false;
+      }).catch(function () { ui.toast('Không đọc được cài đặt chuông.'); });
+    };
+    $('dCancel').onclick = function () { $('dset').hidden = true; };
+    $('dSave').onclick = function () {
+      var panels = [].slice.call($('dPanels').querySelectorAll('input:checked')).map(function (c) { return c.value; });
+      fetch(BASE + 'door/config', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ringPanels: panels, ringS: Number($('dRing').value), gateS: Number($('dGate').value) }) })
+        .then(function (r) { if (!r.ok) throw new Error(); $('dset').hidden = true; ui.toast('Đã lưu cài đặt chuông'); })
+        .catch(function () { ui.toast('Không lưu được.'); });
+    };
+  })();
+  connect();
+  ui.set({ view: 'contacts' });
+})();
+</script>
+</body>
+</html>

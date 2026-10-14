@@ -1,0 +1,248 @@
+<!doctype html>
+<!--
+  (14/10/2026) UNG DUNG "CHUÔNG CỔNG" — nhat ky anh moi lan bam chuong (Nho / Da nghe / Tu choi) + anh tu chup, giu 30 ngay
+  (src/door.ts). Chay o hai noi: tren man (launcher, ?dev=<man>) va trong Darboard (ingress) — moi duong dan TUONG DOI.
+  Cham thong bao "Cuoc goi nho o cong" -> server ghi yeu cau mo anh; trang hoi /door/log?dev= (moi 5 s khi dang hien) va mo.
+  Bang thong toi panel: anh tai cham (loading=lazy), khong hoat anh.
+-->
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chuông cổng</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="ui.css">
+<script src="ui.js"></script>
+<script src="icons.js"></script>
+<style>
+  :root { --accent: #ea580c; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  svg { display: block; }
+  .view { height: 100%; display: flex; flex-direction: column; gap: var(--gap); padding: calc(var(--pad) + 14px) var(--pad) 0; }
+  .bar { flex: none; display: flex; align-items: center; gap: var(--gap); flex-wrap: wrap; }
+  .ttl { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .ttl b { font-size: clamp(16px, 4.2vmin, 26px); font-weight: 700; }
+  .ttl small { color: var(--muted); font-size: clamp(10px, 2.5vmin, 14px); }
+  .chips { display: flex; gap: 4px; padding: 3px; border-radius: 999px; background: var(--surface-2); overflow-x: auto; scrollbar-width: none; }
+  .chip { border: none; background: none; color: var(--muted); font-weight: 600; font-size: clamp(11px, 2.7vmin, 15px); height: clamp(28px, 6.6vmin, 40px);
+    padding: 0 clamp(9px, 2.4vmin, 16px); border-radius: 999px; white-space: nowrap; }
+  .chip.on { background: var(--accent); color: #fff; }
+  .chip:focus-visible, .tile:focus-visible, .ib:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #main { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; padding-bottom: var(--pad); display: flex; flex-direction: column; gap: var(--gap); }
+  #main::-webkit-scrollbar { display: none; }
+  .day { color: var(--muted); font-size: clamp(11px, 2.6vmin, 14px); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; margin-top: 6px; }
+  .grid { display: grid; gap: var(--gap); grid-template-columns: repeat(auto-fill, minmax(clamp(130px, 28vmin, 230px), 1fr)); }
+  .tile { position: relative; aspect-ratio: 4 / 3; border: none; padding: 0; border-radius: var(--r-md); overflow: hidden; background: var(--surface-2); }
+  .tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .tile .meta { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 6px; padding: 18px 8px 6px;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.75)); color: #fff; font-size: clamp(11px, 2.6vmin, 14px); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .badge { margin-left: auto; padding: 1px 7px; border-radius: 6px; font-size: 0.85em; font-weight: 700; color: #fff; }
+  .k-missed { background: #dc2626; } .k-answered { background: #16a34a; } .k-declined { background: #6b7280; }
+  .k-shot { background: #2563eb; } .k-ring { background: #d97706; }
+  /* Xem anh */
+  .viewer { position: fixed; inset: 0; z-index: 20; background: #000; touch-action: none; }
+  .viewer img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  .vtop { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: var(--gap); padding: calc(var(--pad) + 10px) var(--pad) 40px;
+    background: linear-gradient(rgba(0, 0, 0, 0.75), transparent); color: #fff; }
+  .vtop .t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .vtop b { font-size: clamp(14px, 3.6vmin, 20px); }
+  .vtop small { color: rgba(255, 255, 255, 0.75); font-size: clamp(11px, 2.7vmin, 15px); }
+  .ib { flex: none; width: clamp(38px, 9vmin, 52px); height: clamp(38px, 9vmin, 52px); border: none; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; background: rgba(255, 255, 255, 0.16); color: #fff; padding: 0; }
+  .ib svg { width: 56%; height: 56%; fill: currentColor; }
+  .nav { position: absolute; top: 50%; transform: translateY(-50%); }
+  #prev { left: var(--pad); } #next { right: var(--pad); }
+  /* (14/10/2026) Chon + xoa */
+  .tbtn { flex: none; border: none; border-radius: 999px; height: clamp(32px, 7.4vmin, 44px); padding: 0 clamp(12px, 3vmin, 18px); font-weight: 600;
+    font-size: clamp(12px, 2.9vmin, 16px); background: var(--surface-2); color: var(--text); }
+  .tbtn.danger { background: var(--err); color: #fff; }
+  .tbtn:disabled { opacity: 0.45; }
+  .tbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .selbar { flex: none; display: flex; align-items: center; gap: var(--gap); flex-wrap: wrap; }
+  .selbar b { flex: 1; min-width: 0; font-size: clamp(15px, 3.8vmin, 22px); }
+  .tile .ck { position: absolute; top: 6px; right: 6px; width: clamp(24px, 6vmin, 32px); height: clamp(24px, 6vmin, 32px); border-radius: 50%;
+    border: 2px solid #fff; background: rgba(0, 0, 0, 0.35); display: none; }
+  .sel .tile .ck { display: flex; align-items: center; justify-content: center; }
+  .tile.on .ck { background: var(--accent); border-color: var(--accent); }
+  .tile .ck svg { width: 70%; height: 70%; fill: #fff; visibility: hidden; }
+  .tile.on .ck svg { visibility: visible; }
+  .tile.on img { opacity: 0.6; }
+  .modal { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(5, 7, 12, 0.66); }
+  .modal[hidden] { display: none; }
+  .modal .box { width: min(92vw, 420px); padding: calc(var(--pad) * 1.2); border-radius: var(--r-lg); background: var(--surface); display: flex; flex-direction: column; gap: 10px; }
+  .modal .t { font-weight: 700; font-size: clamp(15px, 3.8vmin, 22px); }
+  .modal .s { color: var(--muted); font-size: clamp(12px, 2.9vmin, 16px); }
+  .modal .acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+  .toast { position: fixed; left: 50%; bottom: calc(var(--pad) + 6px); transform: translateX(-50%); z-index: 50; padding: 10px 18px; border-radius: 999px;
+    background: var(--surface-3); font-weight: 600; font-size: clamp(12px, 2.9vmin, 16px); }
+</style>
+</head>
+<body class="rwv-app">
+<div class="view">
+  <div class="bar" id="bar">
+    <div class="ttl"><b>Chuông cổng</b><small id="sub">Lưu 30 ngày</small></div>
+    <div class="chips" id="chips" role="radiogroup" aria-label="Lọc"></div>
+    <button class="tbtn" id="selBtn" type="button">Chọn</button>
+  </div>
+  <div class="selbar" id="selbar" hidden>
+    <b id="selN" role="status">Đã chọn 0</b>
+    <button class="tbtn" id="selAll" type="button">Chọn tất cả</button>
+    <button class="tbtn danger" id="selDel" type="button" disabled>Xóa</button>
+    <button class="tbtn" id="selCancel" type="button">Hủy</button>
+  </div>
+  <main id="main" aria-live="polite"></main>
+</div>
+<div class="viewer" id="vw" hidden role="dialog" aria-label="Ảnh ở cổng">
+  <img id="vimg" alt="">
+  <div class="vtop"><button class="ib" id="vclose" type="button" aria-label="Đóng"></button>
+    <div class="t"><b id="vt"></b><small id="vs"></small></div>
+    <button class="ib" id="vdel" type="button" aria-label="Xóa ảnh này"></button></div>
+  <button class="ib nav" id="prev" type="button" aria-label="Ảnh trước"></button>
+  <button class="ib nav" id="next" type="button" aria-label="Ảnh sau"></button>
+</div>
+<div class="modal" id="ask" hidden role="dialog" aria-modal="true" aria-labelledby="askT">
+  <div class="box"><div class="t" id="askT"></div><div class="s">Ảnh sẽ bị xóa khỏi mọi màn hình. Không hoàn tác được.</div>
+    <div class="acts"><button class="tbtn" id="askNo" type="button">Hủy</button><button class="tbtn danger" id="askYes" type="button">Xóa</button></div></div>
+</div>
+<div class="toast" id="toast" hidden role="status"></div>
+<script>
+(function () {
+  'use strict';
+  var IC = window.RwvIcons || {};
+  var $ = function (id) { return document.getElementById(id); };
+  var DEV = new URLSearchParams(location.search).get('dev') || '';
+  function svg(n) {
+    var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true');
+    var p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', IC[n] || ''); s.appendChild(p); return s;
+  }
+  function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; }
+  var KIND = { missed: 'Nhỡ', answered: 'Đã nghe', declined: 'Từ chối', shot: 'Ảnh chụp', ring: 'Bấm chuông' };
+  var FILTERS = [['all', 'Tất cả'], ['missed', 'Nhỡ'], ['answered', 'Đã nghe'], ['declined', 'Từ chối'], ['shot', 'Ảnh chụp']];
+  var p2 = function (n) { return String(n).padStart(2, '0'); };
+  var hm = function (d) { return p2(d.getHours()) + ':' + p2(d.getMinutes()); };
+  var WD = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'];
+  function dayLabel(d) {
+    var a = new Date(d.getFullYear(), d.getMonth(), d.getDate()), n = new Date(), t = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+    var diff = Math.round((t - a) / 86400000);
+    if (diff === 0) return 'Hôm nay';
+    if (diff === 1) return 'Hôm qua';
+    return WD[d.getDay()] + ', ' + p2(d.getDate()) + '/' + p2(d.getMonth() + 1);
+  }
+  var S = { items: [], filter: 'all', sig: '', vis: [], i: 0, err: false, sel: null };   // sel: Set ten tep dang chon (che do chon) hoac null
+  function src(f) { return 'door/snap/' + encodeURIComponent(f); }
+  function visible() { return S.items.filter(function (x) { return S.filter === 'all' || x.kind === S.filter || (S.filter === 'missed' && x.kind === 'ring'); }); }
+
+  function render() {
+    var m = $('main'); m.replaceChildren();
+    $('sub').textContent = 'Lưu 30 ngày · ' + S.items.length + ' ảnh';
+    [].forEach.call($('chips').children, function (b) { var on = b.dataset.f === S.filter; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); });
+    if (S.err) { RwvUI.state(m, { kind: 'err', title: 'Không tải được nhật ký', retry: load }); return; }
+    var vis = S.vis = visible();
+    if (!vis.length) { RwvUI.state(m, { kind: 'empty', title: S.items.length ? 'Không có ảnh nào khớp bộ lọc' : 'Chưa có ai bấm chuông', text: 'Ảnh mỗi lần có người bấm chuông cổng được lưu ở đây 30 ngày.' }); return; }
+    var lastDay = '', grid = null;
+    vis.forEach(function (x, i) {
+      var d = new Date(x.ts), dl = dayLabel(d);
+      if (dl !== lastDay) { lastDay = dl; m.append(el('div', 'day', dl)); grid = el('div', 'grid'); m.append(grid); }
+      var b = el('button', 'tile'); b.type = 'button'; b.setAttribute('aria-label', (KIND[x.kind] || '') + ' lúc ' + hm(d));
+      var img = el('img'); img.alt = ''; img.loading = 'lazy'; img.decoding = 'async'; img.src = src(x.f);
+      var meta = el('div', 'meta'); meta.append(el('span', '', hm(d)), el('span', 'badge k-' + x.kind, KIND[x.kind] || x.kind));
+      var ck = el('span', 'ck'); ck.append(svg('check-circle'));
+      if (S.sel && S.sel.has(x.f)) b.classList.add('on');
+      b.setAttribute('aria-pressed', String(!!(S.sel && S.sel.has(x.f))));
+      b.append(img, meta, ck);
+      b.onclick = function () {
+        if (!S.sel) { openView(i); return; }
+        if (S.sel.has(x.f)) S.sel.delete(x.f); else S.sel.add(x.f);
+        b.classList.toggle('on', S.sel.has(x.f)); b.setAttribute('aria-pressed', String(S.sel.has(x.f))); paintSel();
+      };
+      grid.append(b);
+    });
+  }
+  // ── Chon + xoa ──
+  function paintSel() {
+    var on = !!S.sel;
+    document.querySelector('.view').classList.toggle('sel', on);
+    $('bar').hidden = on; $('selbar').hidden = !on;
+    if (!on) return;
+    $('selN').textContent = S.sel.size ? 'Đã chọn ' + S.sel.size + ' ảnh' : 'Chạm ảnh để chọn';
+    $('selDel').disabled = !S.sel.size;
+    $('selAll').textContent = S.sel.size === S.vis.length && S.vis.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả';
+  }
+  var toastT = 0;
+  function toast(t) { $('toast').textContent = t; $('toast').hidden = false; clearTimeout(toastT); toastT = setTimeout(function () { $('toast').hidden = true; }, 2500); }
+  var askFn = null;
+  function ask(title, fn) { $('askT').textContent = title; askFn = fn; $('ask').hidden = false; }
+  $('askNo').onclick = function () { $('ask').hidden = true; askFn = null; };
+  $('askYes').onclick = function () { $('ask').hidden = true; var f = askFn; askFn = null; if (f) f(); };
+  function del(files, done) {
+    fetch('door/delete', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ files: files }) })
+      .then(function (r) { return r.json(); }).then(function (j) {
+        if (!j.ok) throw new Error();
+        S.items = S.items.filter(function (x) { return files.indexOf(x.f) < 0; });
+        S.sig = '';
+        toast('Đã xóa ' + j.deleted + ' ảnh'); if (done) done(); render(); paintSel();
+      }).catch(function () { toast('Không xóa được, thử lại sau.'); });
+  }
+  $('selBtn').onclick = function () { S.sel = new Set(); render(); paintSel(); };
+  $('selCancel').onclick = function () { S.sel = null; render(); paintSel(); };
+  $('selAll').onclick = function () {
+    if (S.sel.size === S.vis.length) S.sel.clear(); else S.vis.forEach(function (x) { S.sel.add(x.f); });
+    render(); paintSel();
+  };
+  $('selDel').onclick = function () {
+    var files = Array.from(S.sel);
+    ask('Xóa ' + files.length + ' ảnh?', function () { del(files, function () { S.sel = null; }); });
+  };
+  $('vdel').onclick = function () {
+    var x = S.vis[S.i]; if (!x) return;
+    ask('Xóa ảnh này?', function () {
+      del([x.f], function () { $('vw').hidden = true; $('vimg').removeAttribute('src'); });
+    });
+  };
+
+  function openView(i) {
+    var vis = S.vis; if (!vis.length) return;
+    S.i = (i + vis.length) % vis.length;
+    var x = vis[S.i], d = new Date(x.ts);
+    $('vimg').src = src(x.f);
+    $('vt').textContent = (KIND[x.kind] || '') + ' · ' + hm(d) + ' ' + dayLabel(d).toLowerCase();
+    $('vs').textContent = x.name + ' · ' + (S.i + 1) + '/' + vis.length;
+    $('prev').hidden = $('next').hidden = vis.length < 2;
+    $('vw').hidden = false;
+  }
+  function openFile(f) {
+    S.filter = 'all'; render();
+    var i = S.vis.findIndex(function (x) { return x.f === f; });
+    if (i >= 0) openView(i);
+  }
+  function load() {
+    return fetch('door/log' + (DEV ? '?dev=' + encodeURIComponent(DEV) : ''), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
+      S.err = false;
+      var sig = j.items.map(function (x) { return x.f + x.kind; }).join(',');
+      if (sig !== S.sig) { S.sig = sig; S.items = j.items; if (S.sel) S.sel.forEach(function (f) { if (!j.items.some(function (x) { return x.f === f; })) S.sel.delete(f); }); render(); paintSel(); }
+      if (j.open) openFile(j.open);
+    }).catch(function () { if (!S.items.length) { S.err = true; render(); } });
+  }
+  FILTERS.forEach(function (o) {
+    var b = el('button', 'chip', o[1]); b.type = 'button'; b.setAttribute('role', 'radio'); b.dataset.f = o[0];
+    b.onclick = function () { S.filter = o[0]; render(); $('main').scrollTop = 0; };
+    $('chips').append(b);
+  });
+  $('vclose').onclick = function () { $('vw').hidden = true; $('vimg').removeAttribute('src'); };
+  $('prev').onclick = function () { openView(S.i - 1); };
+  $('next').onclick = function () { openView(S.i + 1); };
+  var x0 = null;
+  $('vw').addEventListener('pointerdown', function (e) { x0 = e.clientX; });
+  $('vw').addEventListener('pointerup', function (e) { if (x0 == null || e.target.closest('button')) return; var dx = e.clientX - x0; x0 = null; if (Math.abs(dx) > 60) openView(S.i + (dx < 0 ? 1 : -1)); });
+  document.addEventListener('keydown', function (e) { if ($('vw').hidden) return; if (e.key === 'Escape') $('vclose').click(); if (e.key === 'ArrowLeft') openView(S.i - 1); if (e.key === 'ArrowRight') openView(S.i + 1); });
+  $('vdel').append(svg('delete-outline'));
+  $('vclose').append(svg('arrow-left')); $('prev').append(svg('chevron-left')); $('next').append(svg('chevron-right'));
+  render(); load();
+  // Lam moi + nhan yeu cau "mo anh" (cham thong bao) khi trang dang hien.
+  setInterval(function () { if (!document.hidden) load(); }, 5000);
+})();
+</script>
+</body>
+</html>

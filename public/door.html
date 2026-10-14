@@ -1,0 +1,208 @@
+<!doctype html>
+<!--
+  (14/10/2026) MAN HINH CHUONG CONG (INTERCOM GD1) — kieu MAN HINH CHUONG HINH TRONG NHA chuyen dung (Hikvision / Akuvox /
+  2N): hinh cong 4:3 lon ben trai (nhan TRUC TIEP, gio), cot dieu khien ben phai voi nut lon theo thu tu thao tac.
+  Man vuong / doc (S3 480x480): hinh tren, hang nut tron duoi. Server mo trang khi khach bam nut chuong ESP32-S3
+  (src/door.ts, deviceManager.ringDoorPanels). Hinh: MJPEG qua WS /call/video.
+  Mo khoa: cham HAI lan (lan 1 -> "Cham lan nua de mo" 3 s) tranh mo nham. Chup anh -> luu vao Thong bao.
+  Tham so: door, name, id (lan do chuong), dev (man nay), t (giay do chuong), talk (1 = man co mic cuoc goi), da (1 = chuong co
+  mic + loa). Nut "Noi chuyen" LUON hien (nhu man chuong hinh chuyen dung); thieu mic / loa -> mo, bam thi bao ly do.
+  Bang thong toi panel: chi hinh cong (chuyen dong that) va dong ho / dem giay (1 lan / giay); khong hoat anh.
+-->
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chuông cổng</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="ui.css">
+<script src="icons.js"></script>
+<style>
+  :root {
+    --panel: #111418; --panel-2: #1a1f26; --line: rgba(255, 255, 255, 0.08); --txt: #eef1f5; --dim: #9aa4b2;
+    --green: #22c55e; --amber: #f59e0b; --red: #ef4444; --live: #ef4444;
+    --ctl-w: clamp(200px, 24vw, 300px); --r: clamp(12px, 2.6vmin, 18px);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; overflow: hidden; background: #000; color: var(--txt); font-family: "Be Vietnam Pro", Roboto, sans-serif; }
+  .app { height: 100%; display: grid; grid-template-columns: 1fr var(--ctl-w); }
+  /* ── Hinh ── */
+  .view { position: relative; background: #000; min-width: 0; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  .wait { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--dim);
+    font-size: clamp(12px, 3vmin, 17px); }
+  .wait svg { width: clamp(40px, 10vmin, 64px); height: clamp(40px, 10vmin, 64px); fill: #374151; }
+  .ov { position: absolute; left: 0; right: 0; display: flex; align-items: center; gap: 10px; padding: clamp(10px, 2.4vmin, 18px); pointer-events: none; }
+  .ov.t { top: 0; background: linear-gradient(rgba(0, 0, 0, 0.6), transparent); padding-bottom: clamp(22px, 5vmin, 40px); }
+  .live { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 6px; background: rgba(0, 0, 0, 0.55);
+    font-size: clamp(10px, 2.4vmin, 13px); font-weight: 700; letter-spacing: 0.08em; }
+  .live i { width: 8px; height: 8px; border-radius: 50%; background: var(--live); }
+  .cam { font-weight: 600; font-size: clamp(12px, 3vmin, 17px); text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7); }
+  .clock { margin-left: auto; font-variant-numeric: tabular-nums; font-size: clamp(12px, 3vmin, 17px); font-weight: 600; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7); }
+  .done { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: clamp(16px, 4vmin, 26px) clamp(22px, 6vmin, 40px); border-radius: var(--r); background: rgba(10, 12, 15, 0.86); font-weight: 700;
+    font-size: clamp(15px, 4vmin, 24px); }
+  .done svg { width: clamp(40px, 11vmin, 64px); height: clamp(40px, 11vmin, 64px); fill: var(--green); }
+  .done[hidden] { display: none; }
+  /* ── Cot dieu khien ── */
+  .ctl { background: var(--panel); border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: clamp(8px, 2vmin, 14px);
+    padding: clamp(16px, 4vmin, 30px) clamp(12px, 2.4vmin, 18px) clamp(12px, 2.6vmin, 20px); min-width: 0; }
+  .who { display: flex; flex-direction: column; gap: 4px; padding-bottom: clamp(8px, 2vmin, 14px); border-bottom: 1px solid var(--line); }
+  .who .k { color: var(--dim); font-size: clamp(10px, 2.3vmin, 13px); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+  .who .n { font-size: clamp(16px, 4.2vmin, 26px); font-weight: 700; line-height: 1.15; overflow-wrap: anywhere; }
+  .state { display: inline-flex; align-self: flex-start; align-items: center; gap: 6px; margin-top: 4px; padding: 4px 10px; border-radius: 999px;
+    font-size: clamp(11px, 2.6vmin, 14px); font-weight: 600; background: color-mix(in srgb, var(--amber) 20%, transparent); color: #fcd34d; font-variant-numeric: tabular-nums; }
+  .state.talk { background: color-mix(in srgb, var(--green) 20%, transparent); color: #86efac; }
+  .btns { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: clamp(8px, 2vmin, 12px); }
+  .b { display: flex; align-items: center; gap: 12px; width: 100%; height: clamp(48px, 11.5vmin, 68px); padding: 0 clamp(14px, 3vmin, 20px); border: none;
+    border-radius: var(--r); font: inherit; font-weight: 700; font-size: clamp(14px, 3.6vmin, 20px); color: #fff; background: var(--panel-2); cursor: pointer; text-align: left; }
+  .b svg { flex: none; width: 1.4em; height: 1.4em; fill: currentColor; }
+  .b[hidden] { display: none; }
+  .b:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+  .b.answer { background: var(--green); color: #05230f; }
+  .b.answer.off { opacity: 0.45; }
+  .b.unlock { background: var(--amber); color: #2a1700; }
+  .b.unlock.arm { background: #fde68a; }
+  .b.end { background: var(--red); }
+  .b.decline { background: transparent; box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--red) 70%, transparent); color: #fca5a5; }
+  .b.on { background: #e5e7eb; color: #111; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(8px, 2vmin, 12px); }
+  .row2 .b { justify-content: center; padding: 0; font-size: clamp(11px, 2.8vmin, 15px); flex-direction: column; gap: 2px; height: clamp(54px, 13vmin, 76px); }
+  .toast { position: fixed; left: 50%; bottom: clamp(14px, 4vmin, 28px); transform: translateX(-50%); padding: 10px 18px; border-radius: 999px;
+    background: rgba(17, 20, 24, 0.94); color: var(--txt); font-weight: 600; font-size: clamp(12px, 3vmin, 16px); max-width: 90vw; text-align: center; }
+  /* ── Man vuong / doc (S3): hinh tren, hang nut tron duoi ── */
+  @media (max-aspect-ratio: 5/4) {
+    .app { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+    .ctl { border-left: none; border-top: 1px solid var(--line); padding: 10px 10px 12px; gap: 8px; }
+    .who { flex-direction: row; align-items: center; justify-content: space-between; border: none; padding: 0; }
+    .who .k { display: none; }
+    .who .n { font-size: 16px; }
+    .state { margin: 0; }
+    .btns { flex-direction: row; justify-content: center; gap: 10px; }
+    .row2 { display: contents; }
+    .b, .row2 .b { flex-direction: column; justify-content: center; gap: 2px; width: 64px; height: 64px; padding: 0; border-radius: 50%; font-size: 0; }
+    .b svg { width: 28px; height: 28px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="view">
+    <canvas id="cv" aria-label="Hình camera cổng"></canvas>
+    <div class="wait" id="wait"></div>
+    <div class="ov t"><span class="live"><i></i>TRỰC TIẾP</span><span class="cam" id="cam"></span><span class="clock" id="clock"></span></div>
+    <div class="done" id="done" hidden role="status"></div>
+  </div>
+  <aside class="ctl" aria-label="Điều khiển chuông cổng">
+    <div class="who"><span class="k" id="kind">Chuông cổng</span><span class="n" id="name"></span><span class="state" id="state" role="status"></span></div>
+    <div class="btns">
+      <div class="row2">
+        <button class="b" id="mute" type="button" hidden aria-pressed="false"></button>
+        <button class="b" id="shot" type="button"></button>
+      </div>
+      <button class="b unlock" id="unlock" type="button"></button>
+      <button class="b answer" id="answer" type="button"></button>
+      <button class="b decline" id="decline" type="button"></button>
+      <button class="b end" id="hangup" type="button" hidden></button>
+    </div>
+  </aside>
+</div>
+<div class="toast" id="toast" hidden></div>
+<!-- (14/10/2026) Nhac chuong cong: tep trong media HA (/ringtone/door — vd audio/chuong-cua.mp3), lap toi khi Noi chuyen / Tu choi. -->
+<audio id="rt" src="/ringtone/door" loop preload="auto"></audio>
+<script>
+(function () {
+  'use strict';
+  var IC = window.RwvIcons || {};
+  var $ = function (id) { return document.getElementById(id); };
+  var q = new URLSearchParams(location.search);
+  var DOOR = q.get('door') || '', RING = q.get('id') || '', DEV = q.get('dev') || '', NAME = q.get('name') || 'Cổng';
+  var RING_S = Number(q.get('t') || 45), TALK = q.get('talk') === '1', DOOR_AUDIO = q.get('da') !== '0';
+  var CAN_TALK = TALK && DOOR_AUDIO;
+  function svg(n) {
+    var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true');
+    var p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', IC[n] || ''); s.appendChild(p); return s;
+  }
+  function label(id, ic, t) { var sp = document.createElement('span'); sp.textContent = t; $(id).replaceChildren(svg(ic), sp); $(id).setAttribute('aria-label', t); }
+  var toastT = 0;
+  function toast(t) { $('toast').textContent = t; $('toast').hidden = false; clearTimeout(toastT); toastT = setTimeout(function () { $('toast').hidden = true; }, 2600); }
+  function post(p) {
+    return fetch(p, { method: 'POST' }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok || j.ok === false) throw new Error(j.error || 'Lỗi ' + r.status); return j; }); });
+  }
+  var p2 = function (n) { return String(n).padStart(2, '0'); };
+  function fmt(s) { s = Math.max(0, Math.floor(s)); return Math.floor(s / 60) + ':' + p2(s % 60); }
+
+  // ── Hinh cong (MJPEG qua WS) ──
+  var cv = $('cv'), g = cv.getContext('2d'), busy = false;
+  function video() {
+    var ws = new WebSocket('ws://' + location.host + '/call/video?dev=' + encodeURIComponent(DOOR)); ws.binaryType = 'arraybuffer';
+    ws.onmessage = function (e) {
+      if (typeof e.data === 'string' || busy) return;           // dang ve khung truoc -> bo khung nay (khong de tre)
+      busy = true;
+      createImageBitmap(new Blob([new Uint8Array(e.data, 5)], { type: 'image/jpeg' })).then(function (bm) {
+        if (cv.width !== bm.width) { cv.width = bm.width; cv.height = bm.height; }
+        g.drawImage(bm, 0, 0); bm.close(); $('wait').hidden = true; busy = false;
+      }).catch(function () { busy = false; });
+    };
+    ws.onclose = function () { setTimeout(video, 2000); };
+  }
+  video();
+
+  // ── Trang thai ──
+  var t0 = Date.now(), talking = false, talkAt = 0;
+  function render() {
+    if (talking) $('rt').pause();
+    $('kind').textContent = talking ? 'Đang nói chuyện' : 'Có người bấm chuông';
+    $('state').classList.toggle('talk', talking);
+    $('answer').hidden = talking; $('answer').classList.toggle('off', !CAN_TALK); $('decline').hidden = talking;
+    $('mute').hidden = !talking; $('hangup').hidden = !talking;
+  }
+  function tick() {
+    var d = new Date();
+    $('clock').textContent = p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds());
+    $('state').textContent = talking ? '● ' + fmt((Date.now() - talkAt) / 1000) : 'Tự tắt sau ' + fmt(RING_S - (Date.now() - t0) / 1000);
+  }
+  setInterval(tick, 1000);
+
+  $('answer').onclick = function () {
+    if (!CAN_TALK) { toast(!DOOR_AUDIO ? 'Chuông cổng chưa gắn micro / loa' : 'Màn này chưa có micro cho cuộc gọi'); return; }
+    $('answer').disabled = true;
+    post('/door/answer?ring=' + encodeURIComponent(RING) + '&dev=' + encodeURIComponent(DEV))
+      .then(function () { talking = true; talkAt = Date.now(); render(); tick(); })
+      .catch(function (e) { toast(e.message); $('answer').disabled = false; });
+  };
+  $('decline').onclick = function () { $('rt').pause(); post('/door/decline?ring=' + encodeURIComponent(RING)).catch(function () { }); };
+  $('hangup').onclick = function () { post('/door/hangup?door=' + encodeURIComponent(DOOR)).catch(function () { }); };
+  var muted = false;
+  $('mute').onclick = function () {
+    muted = !muted;
+    post('/door/mute?dev=' + encodeURIComponent(DEV) + '&on=' + (muted ? 1 : 0)).catch(function () { });
+    $('mute').classList.toggle('on', muted); $('mute').setAttribute('aria-pressed', String(muted));
+    label('mute', muted ? 'microphone-off' : 'microphone', muted ? 'Bật mic' : 'Tắt mic');
+  };
+  $('shot').onclick = function () {
+    post('/door/shot?door=' + encodeURIComponent(DOOR) + '&dev=' + encodeURIComponent(DEV)).then(function () { toast('Đã lưu ảnh vào Thông báo'); })
+      .catch(function (e) { toast(e.message); });
+  };
+  // Mo khoa: cham hai lan (tranh mo nham).
+  var armT = 0;
+  function disarm() { clearTimeout(armT); armT = 0; $('unlock').classList.remove('arm'); label('unlock', 'lock-open-variant', 'Mở khóa cổng'); }
+  $('unlock').onclick = function () {
+    if (!armT) { $('unlock').classList.add('arm'); label('unlock', 'lock-open-variant', 'Chạm lần nữa để mở'); armT = setTimeout(disarm, 3000); return; }
+    disarm();
+    post('/door/gate?door=' + encodeURIComponent(DOOR)).then(function () {
+      $('done').replaceChildren(svg('check-circle'), document.createTextNode('Đã mở khóa cổng')); $('done').hidden = false;
+      setTimeout(function () { $('done').hidden = true; }, 2500);
+    }).catch(function (e) { toast(e.message); });
+  };
+
+  $('cam').textContent = NAME; $('name').textContent = NAME;
+  $('wait').append(svg('doorbell-video'), document.createTextNode('Đang mở camera cổng…'));
+  label('answer', 'phone', 'Nói chuyện'); label('mute', 'microphone', 'Tắt mic'); label('shot', 'camera', 'Chụp ảnh');
+  label('decline', 'phone-hangup', 'Từ chối'); label('hangup', 'phone-hangup', 'Kết thúc'); disarm();
+  render(); tick();
+  $('rt').play().catch(function () { /* khong co tep / bi chan: firmware da keu ding-dong */ });
+})();
+</script>
+</body>
+</html>

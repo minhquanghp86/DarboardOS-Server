@@ -39,6 +39,10 @@ import { startDebugProxy } from './debugProxy.js';
 import { startWeatherMini } from './weatherMini.js';
 import { handleIptvApi, setIptvHooks } from './iptv.js';
 import { handleMediaApi } from './mediaLib.js';
+import { endCall, handleCallApi, handleCallUpgrade, onMicFrame } from './callBridge.js';
+import { attachDoor, handleDoorApi, requestOpenLog, setDoorHooks } from './door.js';
+import { handleRingtone } from './ringtone.js';
+import { handleCallsApi, handleCallsUpgrade, setCallHooks } from './calls.js';
 import { handleFrigateApi } from './frigate.js';
 import { handleLockWidgetsApi, noteDeviceIp } from './lockWidgets.js';
 import { handleCalendarApi } from './calendarSource.js';
@@ -87,6 +91,10 @@ function routeMessage(dev: DeviceSession, buf: Buffer): void {
     case MsgType.DeviceState:
       onDeviceStatePacket(dev, buf);
       break;
+    // (14/10/2026) INTERCOM: tieng mic cua man trong cuoc goi (src/callBridge.ts).
+    case MsgType.MicFrame:
+      onMicFrame(dev.deviceId, buf);
+      break;
     case MsgType.OpenURL:
       metrics.onNavigate(dev.deviceId, '(open_url)');
       inputRouter.handleOpenURLPacketAsync(dev, buf)
@@ -99,10 +107,13 @@ function routeMessage(dev: DeviceSession, buf: Buffer): void {
 wss.on("connection", async (ws, req) => {
   const url = new URL(req.url || "", `ws://localhost:${WS_PORT}`);
   const id  = url.searchParams.get("id") || "default";
+  // (14/10/2026) CHUONG CONG (ESP32-S3 CAM, khong man hinh): xu ly rieng — khong tao Chromium / phien man hinh.
+  if (url.searchParams.get("door") === "1") { attachDoor(ws, id, req.socket.remoteAddress, url.searchParams); return; }
 
   const cfg = makeConfigFromParams(url.searchParams);
   setConfigFor(id, cfg);
   logDeviceConfig(id, cfg);
+  if (cfg.friendlyName) fwNames.set(id, cfg.friendlyName);
 
   broadcaster.addClient(id, ws);
   // (08/10/2026) ca = base64(user:pass) HTTP cua P4 (firmware co bat mat khau) — khong nam trong cfg (cfg in ra /metrics).
@@ -148,6 +159,8 @@ wss.on("connection", async (ws, req) => {
     if (cfg.audioEnabled && broadcaster.getClientCount(id) === 0) {
       unsubscribeDeviceAudio(id);
     }
+    // (14/10/2026) Man mat ket noi giua cuoc goi -> ket thuc (firmware cung tu dung mic khi mat WS).
+    if (broadcaster.getClientCount(id) === 0) endCall(id);
   });
 
   // ── Tạo/lấy device session (có thể mất vài giây lần đầu) ─────────────────
@@ -186,7 +199,7 @@ const STATIC_PAGES = ['no-url.html', 'cam.html', 'camera.html', 'weather.html', 
   // (01/10/2026) Thu vien / Tep (the SD cua P4), Tin nhan noi bo, bieu tuong dung chung.
   'files.html', 'chat.html', 'icons.js', 'alarm.html',
   // (07/10/2026) IPTV (src/iptv.ts). (08/10/2026) Su kien camera Frigate (src/frigate.ts).
-  'iptv.html', 'events.html', 'media.html'];
+  'iptv.html', 'events.html', 'media.html', 'call-test.html', 'door.html', 'call.html', 'call-web.html', 'call-ui.js', 'call-ui.css', 'door-log.html'];
 const staticCache = new Map<string, Buffer>();
 for (const name of STATIC_PAGES) {
   const p = path.join(__dirname, '..', 'public', name);
@@ -224,6 +237,14 @@ http.createServer((req, res) => {
   if (handleIptvApi(req, res, reqUrl)) return;
   // (14/10/2026) Ung dung Media: nguon media cua HA, phat tren man / loa HA (src/mediaLib.ts) — chi 127.0.0.1.
   if (handleMediaApi(req, res, reqUrl)) return;
+  // (14/10/2026) INTERCOM GD0: tieng giua man va trang thu / do vong lap (src/callBridge.ts).
+  if (handleCallApi(req, res, reqUrl)) return;
+  // (14/10/2026) Chuong cong: Nghe / Tu choi / Ket thuc / Mo cong, anh khach (src/door.ts).
+  if (handleDoorApi(req, res, reqUrl)) return;
+  // (14/10/2026) Nhac chuong tu thu muc media HA (src/ringtone.ts).
+  if (handleRingtone(req, res, pathname)) return;
+  // (14/10/2026) Cuoc goi video man <-> man / trinh duyet (src/calls.ts).
+  if (handleCallsApi(req, res, reqUrl)) return;
   // (08/10/2026) Su kien camera Frigate: danh sach, anh, clip (src/frigate.ts) — chi 127.0.0.1.
   if (handleFrigateApi(req, res, reqUrl)) return;
   const vendor = vendorCache.get(pathname);
@@ -340,12 +361,14 @@ http.createServer((req, res) => {
   }
 
   res.writeHead(200); res.end('ok');
-}).on('upgrade', (req, socket, head) => { if (!handleGo2rtcUpgrade(req, socket, head)) socket.destroy(); }).listen(HEALTH_PORT);
+}).on('upgrade', (req, socket, head) => { if (!handleCallUpgrade(req, socket, head) && !handleCallsUpgrade(req, socket, head) && !handleGo2rtcUpgrade(req, socket, head)) socket.destroy(); }).listen(HEALTH_PORT);
 
 setInterval(() => cleanupIdleAsync(), 60_000);
 
 // (01/10/2026) Tin nhan noi bo (src/chat.ts): ten man hinh lay tu so dang ky thiet bi HA (ten nguoi dung dat), 5 phut/lan.
 const screenNames = new Map<string, string>();
+// (14/10/2026) Ten than thien firmware gui kem (?fn=) — du phong khi so dang ky HA khong tim ra (MAC cong mang khac).
+const fwNames = new Map<string, string>();
 async function refreshScreenNames(): Promise<void> {
   try {
     const reg = await getRegistry();
@@ -362,10 +385,13 @@ setInterval(refreshScreenNames, 5 * 60_000);
 // Gap man chua co ten -> nap lai ngay (toi da 30 s / lan).
 let namesAt = 0;
 function screenNameOf(id: string): string | undefined {
-  const n = screenNames.get(id);
+  const n = screenNames.get(id) || fwNames.get(id);
   if (!n && Date.now() - namesAt > 30_000) { namesAt = Date.now(); void refreshScreenNames(); }
   return n;
 }
+// (14/10/2026) Cuoc goi video: ten man trong danh ba / man hinh cuoc goi.
+setCallHooks({ name: (id) => screenNameOf(id) });
+setDoorHooks({ name: (id) => screenNameOf(id) });
 setChatHooks({
   screens: () => connectedScreens().map((s) => {
     if (!screenNames.has(s.id)) refreshScreenNames();
@@ -386,7 +412,7 @@ setChatHooks({
   haEvent: (data) => { haFetch('/events/darboard_chat_message', { method: 'POST', body: JSON.stringify(data) }).catch(() => { }); },
   camFetch,
 });
-setNoticeArgHook((device, app, arg) => { if (app === 'chat') requestOpenConv(device, arg); });
+setNoticeArgHook((device, app, arg) => { if (app === 'chat') requestOpenConv(device, arg); else if (app === 'doorlog') requestOpenLog(device, arg); });
 setChatUnreadProvider(unreadForScreen);
 setFileManagerHooks({ mediaBusy: (device) => isMediaPlaying(device), screenName: (id) => screenNameOf(id) || id });
 // (13/10/2026) The IPTV (trang Darboard): nut "phat tren man" — o chon man + gui lenh phat kenh (xem src/iptv.ts).

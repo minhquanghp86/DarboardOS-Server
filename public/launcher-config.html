@@ -379,6 +379,9 @@
     <a href="#quan-ly-file" id="tabFiles" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="tabFilesPath" d=""/></svg>Quản lý file</a>
     <a href="#iptv" id="tabIptv" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="tabIptvPath" d=""/></svg>IPTV</a>
     <a href="#man-khoa" id="tabLock" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="tabLockPath" d=""/></svg>Màn khóa</a>
+    <!-- (14/10/2026) Goi video toi man (call-web.html — giao dien chung voi man, call-ui.js). -->
+    <a href="door-log.html" id="tabDoorLog"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="tabDoorLogPath" d=""/></svg>Chuông cổng</a>
+    <a href="call-web.html" id="tabCall"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="tabCallPath" d=""/></svg>Gọi</a>
     <a href="#menu" id="tabApps" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="tabAppsPath" d=""/></svg>Menu ứng dụng</a>
   </div>
 </div></nav>
@@ -904,6 +907,8 @@
   $('tabAppsPath').setAttribute('d', IC['view-grid-plus-outline'] || '');
   $('tabFilesPath').setAttribute('d', IC['folder-outline'] || '');
   $('tabIptvPath').setAttribute('d', IC['television-classic'] || '');
+  $('tabCallPath').setAttribute('d', IC['video'] || IC['phone'] || '');
+  $('tabDoorLogPath').setAttribute('d', IC['doorbell-video'] || '');
   $('tabLockPath').setAttribute('d', IC['cellphone-lock'] || '');
   $('attach').append(svg('paperclip')); $('sendBtn').append(svg('send'));
 
