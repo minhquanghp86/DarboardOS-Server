@@ -9,7 +9,7 @@ Dự án gồm hai repo dùng cùng nhau:
 
 | Repo | Vai trò | Phiên bản hiện tại (13/10/2026) |
 |---|---|---|
-| **HA-Darboard-Server** (repo này) | Máy chủ — addon Home Assistant (hoặc container Docker) | **2.9.134** |
+| **HA-Darboard-Server** (repo này) | Máy chủ — addon Home Assistant (hoặc container Docker) | **2.9.135** |
 | [HA-Darboard-Client](https://github.com/minhquanghp86/HA-Darboard-Client) | Firmware màn hình (ESPHome) + cấu hình mẫu đang chạy thật | tag **`fw-2026.10.13b`** |
 
 > Bàn giao phiên gần nhất (trạng thái đang chạy, việc còn treo): [`docs/BAN-GIAO.md`](docs/BAN-GIAO.md).

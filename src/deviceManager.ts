@@ -2454,10 +2454,14 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return Promise.race([p, new Promise<never>((_, rej) => setTimeout(() => rej(new Error(`Chrome khong tra loi sau ${ms} ms`)), ms))]);
 }
 
-const PAUSE_ALL_MEDIA_JS = "document.querySelectorAll('video,audio').forEach(function(m){try{m.pause();}catch(e){}});";
+// (14/10/2026) Danh dau media DANG PHAT bi dung boi dong bang (data-rwv-fz) de phat lai neu tab duoc dua len hien GIUA chuoi.
+const PAUSE_ALL_MEDIA_JS = "document.querySelectorAll('video,audio').forEach(function(m){try{if(!m.paused)m.setAttribute('data-rwv-fz','1');m.pause();}catch(e){}});";
+const RESUME_FROZEN_MEDIA_JS = "document.querySelectorAll('[data-rwv-fz]').forEach(function(m){try{m.removeAttribute('data-rwv-fz');var p=m.play();if(p&&p.catch)p.catch(function(){});}catch(e){}});";
 
 function freezeTab(dev: DeviceSession, tab: Tab): void {
-  if (!FREEZE_BG_TABS || tab.frozen || dev.activeTabKey === tab.key || !dev.tabs.has(tab.key)) return;
+  if (!FREEZE_BG_TABS || dev.activeTabKey === tab.key || !dev.tabs.has(tab.key)) return;
+  // (14/10/2026) Ghi ly do BO QUA (truoc day im lang) — do that: tab IPTV roi di khong bao gio bi dong bang, video phat ngam.
+  if (tab.frozen) { console.log(`[app] ${dev.deviceId}: bo qua dong bang "${tab.key}": co frozen dang bat`); return; }
   if (tab.kind === 'yttv' || (tab.backgroundAudio && tab.mediaPlaying)) return;
   tab.frozen = true;
   // (01/10/2026) Debugger.pause chi dung JAVASCRIPT — bo giai ma <video>/<audio> cua Chrome VAN CHAY (truoc day chi
@@ -2465,12 +2469,30 @@ function freezeTab(dev: DeviceSession, tab: Tab): void {
   // bang. Tab radio/nhac dang phat nen khong bao gio toi day (dieu kien o tren).
   // (01/10/2026) Moi buoc co han 3 s: Chrome khong tra loi -> truoc day ca chuoi treo IM LANG, tab o lai "frozen" nhung
   // JS + video van chay ngam (do that: tab YouTube P4 phat nen toi khi bi dong sau 5 phut, khong mot dong log).
+  // (14/10/2026) KIEM LAI o MOI buoc: tab co the duoc dua len HIEN giua chuoi (do that 14/10: phat IPTV len S3 -> "chuyen sang
+  // tab iptv" roi "dong bang tab nen iptv" -> video IPTV bi dung, man khoa). Khi do huy dong bang + phat lai media vua dung.
+  const stillBg = () => tab.frozen && dev.activeTabKey !== tab.key && dev.tabs.get(tab.key) === tab;
   withTimeout(tab.session.send('Runtime.evaluate', { expression: PAUSE_ALL_MEDIA_JS }), 3000).catch(() => { })
     // Debugger.enable ngay truoc khi dung (khong de bat thuong truc: moi script trang nap se ban su kien ve server).
-    .then(() => tab.frozen ? withTimeout(tab.session.send('Debugger.enable', {}), 3000) : undefined)
-    .then(() => tab.frozen ? withTimeout(tab.session.send('Debugger.pause'), 3000) : undefined)
-    .then(() => console.log(`[app] ${dev.deviceId}: dong bang tab nen "${tab.key}"`))
-    .catch((e: unknown) => { tab.frozen = false; console.warn(`[app] ${dev.deviceId}: khong dong bang duoc "${tab.key}":`, e); });
+    .then(() => stillBg() ? withTimeout(tab.session.send('Debugger.enable', {}), 3000) : undefined)
+    .then(() => stillBg() ? withTimeout(tab.session.send('Debugger.pause'), 3000) : undefined)
+    .then(async () => {
+      if (stillBg()) { console.log(`[app] ${dev.deviceId}: dong bang tab nen "${tab.key}"`); return; }
+      if (dev.tabs.get(tab.key) !== tab) return;   // tab da dong
+      tab.frozen = false;
+      await tab.session.send('Debugger.resume').catch(() => { });
+      await tab.session.send('Debugger.disable').catch(() => { });
+      if (dev.activeTabKey === tab.key) {
+        await withTimeout(tab.session.send('Runtime.evaluate', { expression: RESUME_FROZEN_MEDIA_JS }), 3000).catch(() => { });
+        console.log(`[app] ${dev.deviceId}: huy dong bang "${tab.key}" (tab vua duoc dua len hien)`);
+      }
+    })
+    .catch((e: unknown) => {
+      tab.frozen = false;
+      // (14/10/2026) Tab vua bi dong (qua so tab / don nen) trong luc dong bang -> "Session with given id not found": vo hai, khong log.
+      if (dev.tabs.get(tab.key) !== tab || /Session with given id not found/.test(String((e as Error)?.message ?? e))) return;
+      console.warn(`[app] ${dev.deviceId}: khong dong bang duoc "${tab.key}":`, e);
+    });
 }
 
 /** Bo dong bang TRUOC moi thao tac can trang chay (hien, dieu huong, nap lai Shell). Runtime.evaluate tren trang dang
@@ -3705,6 +3727,7 @@ export function runAdaptiveTick(): void {
       ...(tun.maxBacklogBytes !== undefined ? { maxBacklogBytes: tun.maxBacklogBytes } : {}),
       ...(tun.decodeBudgetRatio !== undefined ? { decodeBudgetRatio: tun.decodeBudgetRatio } : {}),
       ...(tun.intervalBackoffFactor !== undefined ? { intervalBackoffFactor: tun.intervalBackoffFactor } : {}),
+      ...(tun.probeFloorTtlMs !== undefined ? { probeFloorTtlMs: tun.probeFloorTtlMs } : {}),
     };
     const bytesPerSec = m.uptimeSec > 0 ? m.bytesSent / m.uptimeSec : 0;
     const counters = broadcaster.linkCounters(m.id);
@@ -3778,7 +3801,17 @@ if(${guest}&&location.pathname.indexOf('/tv')===0){const g=[...document.querySel
 if(g){const r=g.getBoundingClientRect();o.guest=[Math.round(r.x+r.width/2),Math.round(r.y+r.height/2)]}}return o})()`;
 }
 const ytLast = new Map<string, number>();
+// (14/10/2026) Chong chong luot + gioi han thoi gian: tab YouTube treo thi Runtime.evaluate khong tra loi -> truoc day moi
+// 1,5 s lai them mot loi goi cho mai (ro bo nho, che khuat loi khac).
+let ytBusy = false;
+const ytTimeout = <T>(p: Promise<T>, ms: number): Promise<T> =>
+  Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error('het gio')), ms))]);
 async function ytHelperTick(): Promise<void> {
+  if (ytBusy) return;
+  ytBusy = true;
+  try { await ytHelperTickInner(); } finally { ytBusy = false; }
+}
+async function ytHelperTickInner(): Promise<void> {
   for (const dev of devices.values()) {
     const tab = dev.tabs.get(dev.activeTabKey);
     if (!tab) continue;
@@ -3786,9 +3819,9 @@ async function ytHelperTick(): Promise<void> {
     const skip = panelPrefs.ytSkipAds(dev.deviceId), guest = panelPrefs.ytTvGuest(dev.deviceId);
     if (!skip && !guest) continue;
     try {
-      const r = await tab.session.send('Runtime.evaluate', {
+      const r = await ytTimeout(tab.session.send('Runtime.evaluate', {
         expression: ytHelperJs(skip, guest), returnByValue: true,
-      }) as { result?: { value?: { seek?: number; skip?: number; guest?: [number, number] } } };
+      }), 3000) as { result?: { value?: { seek?: number; skip?: number; guest?: [number, number] } } };
       const o = r?.result?.value ?? {};
       if (o.guest) {
         const [x, y] = o.guest;
