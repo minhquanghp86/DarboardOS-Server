@@ -7,10 +7,12 @@ chính, dock, thanh trạng thái kéo xuống, thông báo, tin nhắn nội b�
 
 Dự án gồm hai repo dùng cùng nhau:
 
-| Repo | Vai trò | Phiên bản hiện tại (02/10/2026) |
+| Repo | Vai trò | Phiên bản hiện tại (13/10/2026) |
 |---|---|---|
 | **HA-Darboard-Server** (repo này) | Máy chủ — addon Home Assistant (hoặc container Docker) | **2.9.134** |
-| [HA-Darboard-Client](https://github.com/minhquanghp86/HA-Darboard-Client) | Firmware màn hình (ESPHome) + cấu hình mẫu đang chạy thật | tag **`fw-2026.10.02`** |
+| [HA-Darboard-Client](https://github.com/minhquanghp86/HA-Darboard-Client) | Firmware màn hình (ESPHome) + cấu hình mẫu đang chạy thật | tag **`fw-2026.10.13b`** |
+
+> Bàn giao phiên gần nhất (trạng thái đang chạy, việc còn treo): [`docs/BAN-GIAO.md`](docs/BAN-GIAO.md).
 
 Đã chạy thật hằng ngày trên ba màn hình: **ESP32-P4 1024×600** (Guition JC1060P470C — có camera, micro, loa),
 **ESP32-S3 480×480** (Guition 4848S040) và **ESP32-S3 480×272** (Guition JC4827W543C) — hai màn S3 không có loa/camera.
@@ -39,6 +41,9 @@ Vấn đề còn mở / cần điều tra: [`docs/VAN-DE-CAN-DIEU-TRA.md`](docs/
 - **ESP32-S3**: khung video nửa độ phân giải + phóng ×2 trên chip — YouTube 480×480 ~14 hình/giây (trước 1,9).
 - **Mỗi ứng dụng một tab Chromium riêng**: chuyển ứng dụng không tải lại; tab nền vẫn chạy (nhạc/radio phát nền), tab
   rảnh lâu tự đóng và còn trong *Gần đây*. Renderer Chrome bị hệ điều hành giết (hết RAM) thì tab tự nạp lại.
+- **YouTube không quảng cáo** (2.9.132, mặc định BẬT — tắt riêng từng màn ở *Cài đặt → YouTube*): trên tab YouTube /
+  YouTube TV đang hiện, máy chủ kiểm mỗi 1,5 s và tự **bỏ qua quảng cáo** (bấm “Bỏ qua” nếu có, tua hết quảng cáo không có
+  nút) và tự chọn **“Xem ở chế độ khách”** trên YouTube TV (chạm thật qua CDP).
 
 ### Giao diện kiểu điện thoại
 
@@ -61,11 +66,12 @@ Vấn đề còn mở / cần điều tra: [`docs/VAN-DE-CAN-DIEU-TRA.md`](docs/
 
 | Nhóm | Ứng dụng |
 |---|---|
-| Nhà | Home Assistant, **Camera** (chụp/quay của chính P4), **Frigate** (lưới camera go2rtc), **Thư viện** + **Quản lý file** (thẻ SD của P4), Phòng, Điều khiển, Solar |
-| Giải trí | YouTube, YouTube TV, YouTube Music, TikTok, Radio VOV, Tin tức, VTVgo, Zing MP3, NhacCuaTui, Media, Khung ảnh |
+| Nhà | Home Assistant, **Camera** (chụp/quay của chính P4), **Frigate** (lưới camera go2rtc), **Thư viện** + **Quản lý file** (thẻ SD), Phòng, Điều khiển, Solar |
+| Giải trí | **IPTV**, YouTube, YouTube TV, YouTube Music, TikTok, Radio VOV, Tin tức, VTVgo, Zing MP3, NhacCuaTui, Media, Khung ảnh |
 | Tiện ích | **Tin nhắn**, **Báo thức**, Hẹn giờ, Thời tiết, Lịch âm dương, Việc cần làm, Hôm nay, Bảng tin, Báo Mới, Giá vàng, Xổ số, Google Maps, Trình duyệt, **Cài đặt** |
 
-Ứng dụng Camera/Thư viện/Quản lý file chỉ hiện trên màn có camera (P4). Thêm/ẩn/sắp xếp/đổi biểu tượng ở trang **Darboard**
+Ứng dụng **Camera** chỉ có trên màn có camera (**P4**). **Thư viện** + **Quản lý file** có trên màn có thẻ nhớ — **P4**
+(SDMMC) và **S3 4848S040** (thẻ SPI, component `sd_files`, từ 2.9.129). Thêm/ẩn/sắp xếp/đổi biểu tượng ở trang **Darboard**
 trên thanh bên Home Assistant.
 
 ### Tin nhắn nội bộ
@@ -77,12 +83,24 @@ trên thanh bên Home Assistant.
   vẫn có chuông + thẻ thông báo.
 - Tin từ màn hình bắn sự kiện HA `darboard_chat_message` (dùng cho tự động hoá).
 
-### Quản lý file (thẻ SD của P4) trên trang Darboard
+### Quản lý file (thẻ SD) trên trang Darboard
 
 - Thẻ **Quản lý file** trên trang Darboard (thanh bên HA, qua đăng nhập HA — dùng được cả ngoài nhà): duyệt thẻ, xem ảnh /
   phát video, **tải về** (tệp gốc hoặc **MP4** — máy chủ đổi .mkv sang MP4 trong vài giây, không nén lại hình), **tải lên**
   từ điện thoại / máy tính (tuỳ chọn **tối ưu video 720p** cho màn hình, nhận cả HEVC của điện thoại), đổi tên, tạo thư mục,
-  xoá nhiều. Chép vào thẻ ~0,7–0,85 MB/s, **tạm dừng khi màn hình đang phát video**.
+  xoá nhiều. Chép vào thẻ ~0,7–0,85 MB/s, **tạm dừng khi màn hình đang phát video**. Nhà có nhiều màn có thẻ thì có ô chọn màn.
+
+### IPTV + phát từ trang Darboard (2.9.133)
+
+- Thẻ **IPTV** trên trang Darboard: thêm **danh sách kênh M3U** (đường link, `.m3u` trong `/media` của HA, hoặc tệp trên thẻ
+  nhớ của màn — `sd:/…`). Kênh hiện trong ứng dụng **IPTV** của mọi panel; danh sách tự cập nhật 6 giờ/lần (mất mạng dùng
+  bản đã lưu). Kênh yêu thích dùng chung mọi màn.
+- **Danh sách kênh có 2 nút mỗi kênh**: **Phát trên màn hình** (chọn **một màn** hoặc **Tất cả màn hình** đang kết nối →
+  máy chủ tự mở ứng dụng IPTV của màn đó) và **Phát trong trình duyệt** (mở trang phát ở tab mới để xem trên máy tính).
+  Ô chọn danh sách + ô tìm kênh (gõ không dấu vẫn ra). API: `GET /iptv/screens`, `POST /iptv/cast {dev, ch}`
+  (`dev` = id màn hoặc `all`).
+- Phát được HLS / MPEG-TS / FLV qua HTTP / `.mp4` / DASH + ClearKey; **không** phát DRM Widevine/PlayReady, `udp://`,
+  `rtmp://`, H.265/MPEG-2. Máy chủ làm proxy luồng (`/iptv/p`) để gắn `Referer`/`User-Agent` riêng từng kênh và tránh CORS.
 
 ### Âm thanh kiểu điện thoại
 
@@ -197,18 +215,21 @@ màn hình (loa, framebuffer P4, khung nửa, camera, phát âm trên chip…).
 npm ci
 npm run build        # TypeScript -> dist/ (+ bundle Shell bằng esbuild)
 npm run typecheck    # kiểm kiểu toàn bộ, kể cả file test
-npm run test:run     # unit test (157 test: giao thức, điều tiết, màn hình chờ, chat, báo thức, cử chỉ, menu…)
+npm run test:run     # unit test (244 test: giao thức, điều tiết, màn hình chờ, chat, báo thức, cử chỉ, menu, IPTV…)
 npm run test:integration   # server thật + Chromium thật + panel giả qua WebSocket (~1 phút)
 ```
 
 - `src/` — máy chủ (Node/TypeScript): `deviceManager.ts` (phiên thiết bị, tab ứng dụng, màn hình chờ, thông báo),
   `frameProcessor.ts` (chia ô, JPEG), `adaptive.ts` (điều tiết), `broadcaster.ts`, `audioCapture.ts`, `inputRouter.ts` +
-  `gestures.ts` (cử chỉ), `chat.ts`, `alarms.ts`, `sound.ts`, `notifications.ts`, `screensaver.ts`, `dial.ts` (truyền
-  YouTube), `settingsModel.ts` (Cài đặt ↔ thực thể ESPHome), `weatherMini.ts`, `launcher*.ts`.
+  `gestures.ts` (cử chỉ), `tabPolicy.ts` (URL → tab ứng dụng), `chat.ts`, `alarms.ts`, `sound.ts`, `notifications.ts`,
+  `screensaver.ts`, `dial.ts` (truyền YouTube), `iptv.ts` (danh sách kênh M3U + proxy luồng + cast lên màn),
+  `fileManager.ts` (thẻ SD), `frigate.ts`, `camProxy.ts` + `go2rtcProxy.ts` (camera), `settingsModel.ts` (Cài đặt ↔ thực thể
+  ESPHome), `weatherMini.ts`, `panelPrefs.ts`, `launcher*.ts`.
 - `src/shell/` — "hệ điều hành" tiêm vào mọi trang (màn hình chính, thanh trạng thái, màn hình chờ, Gần đây, thông
   báo, báo thức); đóng gói thành `dist/shell.bundle.js`.
-- `public/` — trang ứng dụng (`chat`, `alarm`, `camera`, `files`, `settings`, `weather`, `calendar`…) và trang Darboard
-  (`launcher-config.html`), phục vụ ở `health_port`.
+- `public/` — trang ứng dụng (`chat`, `alarm`, `camera`, `files`, `iptv`, `settings`, `weather`, `calendar`…) và trang
+  Darboard (`launcher-config.html`), phục vụ ở `health_port`. **Mọi trang dùng đường dẫn tương đối theo `location`**
+  (`ui.js` bọc `window.fetch` + `window.rwvRel`) để chạy đúng cả khi mở qua ingress (`/api/hassio_ingress/<token>/`).
 - `hassio/remote_webview_server/` — addon: `config.yaml`, `run.sh`, `DOCS.md`, `CHANGELOG.md`, `translations/`.
 
 ### Quy trình phát hành
@@ -232,6 +253,9 @@ npm run test:integration   # server thật + Chromium thật + panel giả qua W
 - Addon dùng token Supervisor (quyền `homeassistant_api`) để đọc vị trí nhà, người dùng/ảnh đại diện, thực thể của
   màn hình — không cần thông tin đăng nhập của người dùng.
 - Proxy DevTools (`expose_debug_proxy`) cho phép điều khiển trình duyệt, kể cả phiên HA — chỉ bật khi cần.
+- **Proxy luồng IPTV `/iptv/p` + `/iptv/probe`** (2.9.133) nhận cả **trang Darboard qua ingress** (đã đăng nhập HA), vẫn
+  **bắt buộc mã phiên** — cần cho nút “Phát trong trình duyệt”. Đây là điểm cần rà lại (người đã đăng nhập HA có thể dùng
+  máy chủ để tải URL bất kỳ): xem **P0-6** trong [`docs/VIEC-CAN-SUA-REMOTE-WEBVIEW-2026-10-03-commandcode.md`](docs/VIEC-CAN-SUA-REMOTE-WEBVIEW-2026-10-03-commandcode.md).
 
 ## Ghi công và giấy phép
 

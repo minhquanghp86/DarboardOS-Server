@@ -232,6 +232,15 @@ rest_command:
 - Không thấy màn hình trong nút truyền: mở ứng dụng **YouTube TV** trên màn hình → Cài đặt → *Liên kết với mã TV*,
   rồi trên điện thoại: YouTube → Cài đặt → *Xem trên TV* → *Nhập mã TV*.
 
+### Tự bỏ qua quảng cáo YouTube (2.9.132)
+
+- Trên tab **YouTube** / **YouTube TV** đang hiện, máy chủ kiểm mỗi 1,5 giây và **tự bỏ qua quảng cáo**: bấm nút “Bỏ qua”
+  nếu có, và **tua tới hết quảng cáo** với loại không có nút (nhiều quảng cáo dài vẫn qua được). Trên YouTube TV, khi hỏi
+  tài khoản thì tự chọn **“Xem ở chế độ khách”** (chạm thật qua CDP — nút TV không nhận `.click()`).
+- Hai tuỳ chọn riêng từng màn hình ở **Cài đặt → YouTube**, **mặc định BẬT**: *Tự bỏ qua quảng cáo YouTube*,
+  *YouTube TV: chế độ khách*. Muốn đo hiệu năng thì để nguyên (số đo mới phản ánh video thật, không phải đoạn quảng cáo).
+- Nhật ký: `[youtube] <màn>: bo qua quang cao` / `chon che do khach` (tối đa 1 dòng / 20 giây / màn).
+
 ### Bàn phím ảo
 
 Tự hiện khi chạm vào ô nhập chữ trên bất kỳ trang nào; có chế độ tiếng Việt (Telex), số và ký hiệu. Phím ▼ để ẩn.
