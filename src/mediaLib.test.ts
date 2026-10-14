@@ -35,3 +35,19 @@ describe("mediaLib (14/10/2026: ung dung Media)", () => {
     expect(p).toEqual([{ id: "media_player.tv", name: "TV", state: "idle", vol: 30, title: "", canVol: true }]);
   });
 });
+
+import http from "node:http";
+import { handleMediaApi } from "./mediaLib.js";
+describe("mediaLib id (14/10/2026: ten tep co dau cach)", () => {
+  it("chap nhan dau cach, tu choi xuong dong", () => {
+    const run = (id: string) => {
+      let code = 0;
+      const res = { headersSent: false, writeHead: (c: number) => { code = c; }, end: () => { }, on: () => { } } as unknown as http.ServerResponse;
+      const req = { method: "GET", socket: { remoteAddress: "127.0.0.1" }, headers: {} } as unknown as http.IncomingMessage;
+      handleMediaApi(req, res, new URL("http://x/mlib/f?id=" + encodeURIComponent(id)));
+      return code;
+    };
+    expect(run("media-source://media_source/local/audio/Nhac\nx.mp3")).toBe(400);
+    expect(run("media-source://media_source/local/audio/Nhac 1.m4a")).not.toBe(400);
+  });
+});

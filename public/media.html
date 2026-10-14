@@ -43,6 +43,8 @@
     height: clamp(28px, 6.6vmin, 40px); padding: 0 clamp(9px, 2.4vmin, 16px); border-radius: 999px; white-space: nowrap; }
   .chip.on { background: var(--accent); color: #fff; }
   .txtbtn { flex: none; border: none; background: none; color: var(--muted); font-weight: 600; font-size: clamp(11px, 2.7vmin, 15px); padding: 6px 8px; }
+  .txtbtn { display: inline-flex; align-items: center; gap: 4px; }
+  .txtbtn svg { width: 1.3em; height: 1.3em; fill: currentColor; }
   .txtbtn.on { color: var(--accent); }
   #main { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; gap: var(--gap);
     padding-bottom: calc(var(--pad) + var(--mini-h)); }

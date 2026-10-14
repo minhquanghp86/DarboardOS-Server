@@ -79,7 +79,8 @@ export function toPlayers(states: Array<{ entity_id: string; state: string; attr
     .sort((a, b) => a.name.localeCompare(b.name, 'vi'));
 }
 
-const ID_RE = /^media-source:\/\/[^\s]{1,1000}$/;
+// Ten tep co dau cach ("Nhac 1.mp3") la binh thuong — chi chan ky tu xuong dong / dieu khien.
+const ID_RE = /^media-source:\/\/[^\x00-\x1f]{1,1000}$/;
 const PLAYER_RE = /^media_player\.[a-z0-9_]{1,100}$/;
 const HA_HTTP = () => process.env.HA_HTTP_URL || 'http://homeassistant:8123';
 
