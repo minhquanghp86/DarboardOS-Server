@@ -160,6 +160,13 @@ export function appKeyForUrl(url: string, apps: { id: string; url?: string }[]):
  */
 export function ghostUrlFor(ghost: string | undefined, appUrl: string): string | null {
   if (!ghost || ghost === 'about:blank') return null;
-  if (/^http:\/\/127\.0\.0\.1:\d+\//.test(appUrl) && !ghost.startsWith(appUrl)) return null;
-  return ghost;
+  if (!/^http:\/\/127\.0\.0\.1:\d+\//.test(appUrl)) return ghost;
+  // Noi bo: cung trang (pathname) va cung man (?dev= neu ung dung can) -> giu (vd Thu vien mo tu Camera: &from=camera).
+  try {
+    const g = new URL(ghost), a = new URL(appUrl);
+    if (g.origin !== a.origin || g.pathname !== a.pathname) return null;
+    const dev = a.searchParams.get('dev');
+    if (dev && g.searchParams.get('dev') !== dev) return null;
+    return ghost;
+  } catch { return null; }
 }

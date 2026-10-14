@@ -142,5 +142,8 @@ describe("ghostUrlFor (14/10/2026: mo lai ung dung da dong)", () => {
     expect(ghostUrlFor("http://192.168.1.2:8123/media-browser/browser", app)).toBeNull();
     expect(ghostUrlFor("http://127.0.0.1:18080/media.html", app)).toBeNull();
     expect(ghostUrlFor(app + "&x=1", app)).toBe(app + "&x=1");
+    const gal = "http://127.0.0.1:18080/files.html?view=gallery&dev=esp32-1";
+    expect(ghostUrlFor("http://127.0.0.1:18080/files.html?view=gallery&from=camera&dev=esp32-1", gal)).toMatch(/from=camera/);
+    expect(ghostUrlFor("http://127.0.0.1:18080/files.html?view=gallery&dev=esp32-2", gal)).toBeNull();
   });
 });
