@@ -42,5 +42,32 @@
     box.replaceChildren(wrap);
     return wrap;
   }
-  window.RwvUI = { state: state };
+  /**
+   * (14/10/2026) AM LUONG THIET BI (loa cua man hinh) cho trinh phat video / IPTV. Am thanh trang KHONG ra loa truc tiep
+   * (server tat tieng Chromium, phat PCM qua WebSocket) nen video.volume vo tac dung — chinh nhu thanh truot am luong
+   * cua Shell: __rwvControl({f:'v', v}). Muc hien tai: su kien 'rwv-state' (s.v; null = man khong loa, vd S3).
+   * render(ok, v): ok = dieu khien duoc (an nut khi false: man khong loa, hoac trang mo trong tab trinh duyet).
+   */
+  function volume(render) {
+    var cur = null, ok = false, holdAt = 0, sendT = 0;
+    function apply(s) {
+      if (!s) return;
+      ok = !!s.ctl && s.v != null && typeof window.__rwvControl === 'function';
+      // Vua bam: bo qua gia tri cu dang tren duong ve (thiet bi bao lai sau ~1 s) de con so khong nhay lui.
+      if (s.v != null && Date.now() - holdAt > 1500) cur = s.v;
+      render(ok, cur);
+    }
+    window.addEventListener('rwv-state', function (e) { apply(e.detail); });
+    if (window.__rwvLastState) apply(window.__rwvLastState); else render(false, null);
+    return {
+      step: function (d) {
+        if (!ok || cur == null) return;
+        cur = Math.max(0, Math.min(100, Math.round(cur / 5) * 5 + d)); holdAt = Date.now();
+        render(ok, cur);
+        clearTimeout(sendT);
+        sendT = setTimeout(function () { try { window.__rwvControl(JSON.stringify({ f: 'v', v: cur })); } catch (e) { /* */ } }, 120);
+      }
+    };
+  }
+  window.RwvUI = { state: state, volume: volume };
 })();

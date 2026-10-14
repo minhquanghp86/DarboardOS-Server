@@ -165,6 +165,31 @@
   .osd .ib.fav.on { color: var(--gold); }
   .osd-side { position: absolute; right: var(--pad); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: var(--gap); }
   .osd-side .ib { width: clamp(42px, 12vmin, 72px); height: clamp(42px, 12vmin, 72px); }
+  /* (14/10/2026) Cham man hinh: them DANH SACH KENH doc ben trai (logo + ten, cuon duoc) va AM LUONG loa man hinh.
+     Thanh tren lui sang phai nhuong cho danh sach. Anh logo chi tai khi OSD hien (khoi an = display:none). */
+  #player { --lw: clamp(150px, 30vw, 290px); }
+  .osd-top { left: var(--lw); }
+  .osd-list { position: absolute; left: 0; top: 0; bottom: 0; width: var(--lw); overflow-y: auto; scrollbar-width: none; touch-action: pan-y;
+    overscroll-behavior: contain; display: flex; flex-direction: column; gap: 2px; padding: calc(var(--pad) + 10px) 6px var(--pad);
+    background: rgba(8, 9, 14, 0.86); }
+  .osd-list::-webkit-scrollbar { display: none; }
+  .ol { flex: none; display: flex; align-items: center; gap: clamp(6px, 1.6vmin, 10px); width: 100%; padding: clamp(4px, 1vmin, 7px) 6px;
+    border: none; border-radius: 10px; background: none; color: #fff; text-align: left; touch-action: pan-y; }
+  .ol .no { flex: none; min-width: 2.2ch; color: rgba(255, 255, 255, 0.5); font-size: clamp(9px, 2.2vmin, 13px); font-weight: 600;
+    font-variant-numeric: tabular-nums; text-align: right; }
+  .ol .lg { flex: none; width: clamp(36px, 9.5vmin, 60px); aspect-ratio: 16 / 10; display: flex; align-items: center; justify-content: center;
+    padding: 3px; border-radius: 6px; background: rgba(255, 255, 255, 0.1); }
+  .ol .lg img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .ol .lg .ini { font-size: clamp(9px, 2.4vmin, 14px); }
+  .ol .nm { flex: 1; min-width: 0; font-weight: 600; font-size: clamp(11px, 2.8vmin, 16px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ol.on { background: var(--accent); }
+  .ol.on .no { color: rgba(255, 255, 255, 0.85); }
+  .ol.off { opacity: 0.4; }
+  .ol:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+  .osd-vol { position: absolute; right: var(--pad); bottom: var(--pad); display: flex; align-items: center; gap: 6px; padding: 4px;
+    border-radius: 999px; background: rgba(0, 0, 0, 0.6); }
+  .osd-vol[hidden] { display: none; }
+  .osd-vol .pct { min-width: 4ch; text-align: center; color: #fff; font-weight: 700; font-size: clamp(12px, 3vmin, 18px); font-variant-numeric: tabular-nums; }
   .msg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: max-content; max-width: min(84vw, 540px); display: flex;
     flex-direction: column; align-items: center; gap: clamp(4px, 1.4vmin, 10px); padding: var(--pad) calc(var(--pad) * 1.4); border-radius: var(--r-lg);
     background: rgba(15, 17, 23, 0.88); text-align: center; }
@@ -230,6 +255,7 @@
 <div id="player" hidden>
   <video id="v" playsinline preload="none"></video>
   <div class="osd">
+    <div class="osd-list" id="osdList" role="list" aria-label="Kênh"></div>
     <div class="osd-top">
       <button class="ib" id="back" type="button" aria-label="Danh sách kênh" title="Danh sách kênh"></button>
       <div class="osd-logo" id="osdLogo"></div>
@@ -242,6 +268,11 @@
     <div class="osd-side">
       <button class="ib" id="chUp" type="button" aria-label="Kênh trước" title="Kênh trước"></button>
       <button class="ib" id="chDown" type="button" aria-label="Kênh sau" title="Kênh sau"></button>
+    </div>
+    <div class="osd-vol" id="osdVol" role="group" aria-label="Âm lượng loa" hidden>
+      <button class="ib" id="volDn" type="button" aria-label="Giảm âm lượng" title="Giảm âm lượng"></button>
+      <span class="pct" id="volPct">--</span>
+      <button class="ib" id="volUp" type="button" aria-label="Tăng âm lượng" title="Tăng âm lượng"></button>
     </div>
   </div>
   <div class="msg" id="msg" hidden>
@@ -657,7 +688,9 @@
   // ── Trinh phat ──
   function osd(on, hideMs) {
     clearTimeout(S.osdTimer);
+    var was = $('player').classList.contains('osd-on');
     $('player').classList.toggle('osd-on', on);
+    if (on && !was) listScroll();
     if (on && hideMs) S.osdTimer = setTimeout(function () { if (S.playingSeq === S.seq) $('player').classList.remove('osd-on'); }, hideMs);
   }
   function renderOsd() {
@@ -672,6 +705,38 @@
     $('fav').classList.toggle('on', f);
     $('fav').setAttribute('aria-pressed', String(f));
     icon('fav', f ? 'star' : 'star-outline');
+    renderList();
+  }
+  // (14/10/2026) Danh sach kenh doc ben trai: cung danh sach dang luot (S.nav — nhom / ket qua tim dang chon). Danh sach
+  // rat dai chi dung mot cua so quanh kenh dang xem (DOM nhe cho panel); dung lai khi doi danh sach hoac ra khoi cua so.
+  var LIST_WIN = 150;
+  var LS = { nav: null, from: 0, to: 0 };
+  function renderList() {
+    var box = $('osdList'), n = S.nav.length, i = Math.max(0, S.nav.indexOf(S.cur));
+    if (LS.nav !== S.nav || i < LS.from || i >= LS.to) {
+      LS.nav = S.nav;
+      LS.from = n <= LIST_WIN * 2 ? 0 : Math.max(0, Math.min(i - LIST_WIN, n - LIST_WIN * 2));
+      LS.to = Math.min(n, LS.from + LIST_WIN * 2);
+      var frag = document.createDocumentFragment();
+      for (var k = LS.from; k < LS.to; k++) {
+        var c = S.nav[k], b = el('button', 'ol' + (playable(c) ? '' : ' off'));
+        b.type = 'button'; b.setAttribute('role', 'listitem'); b.dataset.k = String(k); b.setAttribute('aria-label', c.name);
+        var lg = el('span', 'lg'); logoBox(c, lg);
+        b.append(el('span', 'no', String(k + 1)), lg, el('span', 'nm', c.name));
+        frag.appendChild(b);
+      }
+      box.replaceChildren(frag);
+    }
+    var on = box.querySelector('.ol.on'); if (on) on.classList.remove('on');
+    var me = box.querySelector('[data-k="' + i + '"]');
+    if (me) { me.classList.add('on'); listScroll(me); }
+  }
+  /** Dua kenh dang xem vao giua danh sach — chi khi OSD dang hien (khoi an khong co kich thuoc). */
+  function listScroll(me) {
+    var box = $('osdList');
+    me = me || box.querySelector('.ol.on');
+    if (!me || !$('player').classList.contains('osd-on')) return;
+    box.scrollTop = me.offsetTop - (box.clientHeight - me.offsetHeight) / 2;
   }
   function live(playing) { var l = $('osdLive'); l.classList.toggle('wait', !playing); l.textContent = playing ? 'TRỰC TIẾP' : 'ĐANG TẢI'; }
   function msg(kind, t, s) {
@@ -961,7 +1026,7 @@
   $('player').addEventListener('pointercancel', function () { g0 = null; });
   $('player').addEventListener('pointerup', function (e) {
     var g = g0; g0 = null;
-    if (!g || (e.target.closest && e.target.closest('button'))) return;
+    if (!g || (e.target.closest && e.target.closest('button, .osd-list, .osd-vol'))) return;
     var dx = e.clientX - g.x, dy = e.clientY - g.y;
     if (Math.abs(dy) > 60 && Math.abs(dy) > Math.abs(dx) * 1.4) { step(dy < 0 ? 1 : -1); return; }
     if (Math.abs(dx) > 14 || Math.abs(dy) > 14) return;
@@ -975,6 +1040,22 @@
   $('chDown').addEventListener('click', function () { step(1); });
   $('msgGo').addEventListener('click', function () { if (S.cur) { S.retries = 0; start(S.cur); } });
   $('msgNext').addEventListener('click', function () { step(1); });
+  // (14/10/2026) Cham kenh trong danh sach trai -> chuyen kenh (giu nguyen danh sach dang luot); cuon -> giu OSD.
+  $('osdList').addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('.ol');
+    if (!b) return;
+    var c = S.nav[Number(b.dataset.k)];
+    if (!c || c === S.cur) { osd(true, 4000); return; }
+    if (!playable(c)) { toast('Kênh này dùng DRM nên không phát được'); osd(true, 4000); return; }
+    S.retries = 0; c.keyRetried = false; start(c);
+  });
+  $('osdList').addEventListener('scroll', function () { if ($('player').classList.contains('osd-on')) osd(true, 5000); }, { passive: true });
+  // (14/10/2026) Am luong loa man hinh (ui.js RwvUI.volume): an khi man khong loa / mo trong tab trinh duyet.
+  var devVol = window.RwvUI && RwvUI.volume ? RwvUI.volume(function (ok, val) {
+    $('osdVol').hidden = !ok; $('volPct').textContent = val == null ? '--' : val + '%';
+  }) : null;
+  $('volDn').addEventListener('click', function () { if (devVol) devVol.step(-5); osd(true, 4000); });
+  $('volUp').addEventListener('click', function () { if (devVol) devVol.step(5); osd(true, 4000); });
   $('findBtn').addEventListener('click', function () { $('find').hidden = false; $('q').focus(); });
   $('findClose').addEventListener('click', function () { $('find').hidden = true; $('q').value = ''; S.q = ''; S.shown = PAGE; renderGrid(); });
   $('q').addEventListener('input', function () { S.q = $('q').value.trim(); S.shown = PAGE; renderGrid(); $('grid').scrollTop = 0; });
@@ -982,6 +1063,7 @@
   $('ttlIc').setAttribute('d', IC['television-classic'] || '');
   icon('findBtn', 'magnify'); icon('findClose', 'close'); icon('back', 'arrow-left'); icon('listsBtn', 'playlist-edit');
   icon('chUp', 'chevron-up'); icon('chDown', 'chevron-down'); icon('fav', 'star-outline');
+  icon('volDn', 'volume-low'); icon('volUp', 'volume-high');
   icon('lsBack', 'arrow-left'); icon('edBack', 'arrow-left');
   label('lsRefresh', 'refresh', 'Cập nhật'); label('lsAdd', 'playlist-plus', 'Thêm danh sách');
   var segs = $('edSeg').children;
