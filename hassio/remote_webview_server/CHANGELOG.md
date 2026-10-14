@@ -1,3 +1,8 @@
+## V2.9.142
+- Hướng dẫn (trang Tài liệu của addon): mục **"Liên lạc: chuông cổng và gọi video"** — chuông cổng, nhật ký, gọi video,
+  nhạc chuông, sự kiện `darboard_doorbell`, tự đổ chuông từ automation (`rest_command` → `/door/ring`).
+- `/door/ring` nhận thêm yêu cầu từ mạng nội bộ Home Assistant (addon khác, vd Node-RED).
+
 ## V2.9.141
 - **Liên lạc (cần firmware fw-2026.10.16):**
   - **Chuông cổng ESP32-S3 CAM** (component `darboard_door`): bấm chuông → các màn đổ chuông (nhạc chuông

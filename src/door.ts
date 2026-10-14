@@ -17,6 +17,7 @@ import path from 'node:path';
 import type { WebSocket } from 'ws';
 
 import { endCall, linkCalls, onMicFrame, setMuted, startCall } from './callBridge.js';
+import { isInternalPeer } from './camProxy.js';
 import { answerDoorbell, broadcaster, closeDoorbell, connectedScreens, postNotify, ringDoorPanels } from './deviceManager.js';
 import { haFetch } from './haSettings.js';
 import { LOCAL_ORIGIN } from './launcherApps.js';
@@ -352,6 +353,13 @@ export function handleDoorApi(req: http.IncomingMessage, res: http.ServerRespons
     req.on('data', (c) => { body += c; if (body.length > 64 * 1024) req.destroy(); });
     req.on('end', () => { try { json(res, 200, { ok: true, deleted: deleteLog(JSON.parse(body || '{}').files) }); } catch { json(res, 400, { ok: false, error: 'JSON sai' }); } });
     return true;
+  }
+  // (14/10/2026) POST /door/ring cho ca Home Assistant (mang noi bo 172.30.32.0/23 — automation rest_command).
+  if (p === '/door/ring' && req.method === 'POST' && isInternalPeer(req.socket.remoteAddress) && !isLocal(req)) {
+    const d = doors.get(q('door')) ?? [...doors.values()][0];
+    if (!d) { json(res, 404, { ok: false, error: 'Không có chuông.' }); return true; }
+    d.lastPress = 0; press(d, q('panels') ? q('panels').split(',') : undefined);
+    json(res, 200, { ok: true, ring: d.ring?.id, panels: d.ring?.panels }); return true;
   }
   if (!isLocal(req) && !(ingress && /^\/door\/snap\//.test(p))) { json(res, 403, { error: 'Chỉ dùng từ màn hình.' }); return true; }
   const m = /^\/door\/snap\/([\w.-]+\.jpg)$/.exec(p);

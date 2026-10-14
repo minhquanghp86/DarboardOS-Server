@@ -361,6 +361,41 @@ báo lại 5–30 phút, **reo trên** màn này / mọi màn hình / màn chọ
 tắt. **Tắt** / **Báo lại** trên một màn → mọi màn cùng ngừng; 5 phút không ai tắt → thông báo "bị lỡ". Báo thức kế tiếp
 hiện trên thanh kéo xuống và màn hình chờ. Màn không loa: chỉ hiện màn hình báo thức.
 
+## Liên lạc: chuông cổng và gọi video
+
+Cần firmware **fw-2026.10.16** trở lên. Mọi luồng tiếng / hình đi qua addon bằng WebSocket — dùng được cả khi truy cập
+Home Assistant từ xa qua Cloudflare Tunnel (không cần mở cổng, không cần máy chủ TURN).
+
+**Chuông cổng (ESP32-S3 CAM)** — YAML mẫu `examples/Doorbell-ESP32-S3-CAM.yaml` ở repo firmware (camera, mic INMP441,
+khuếch đại MAX98357A, vòng LED WS2812, nút chuông, MOSFET mở khóa). Khi khách bấm nút:
+
+- Các màn có điều khiển **đổ chuông** (hiện đè lên màn khóa, khóa lại sau khi xong) với hình cổng trực tiếp và các nút
+  **Nói chuyện** (tiếng hai chiều), **Mở khóa cổng** (chạm 2 lần để tránh mở nhầm), **Chụp ảnh**, **Từ chối**.
+- Không ai nghe → thông báo **"Cuộc gọi nhỡ ở cổng"** kèm ảnh khách; chạm thông báo mở đúng ảnh.
+- Mỗi lần bấm chuông đều được lưu ảnh vào **nhật ký 30 ngày** — ứng dụng **"Chuông cổng"** trên màn và tab
+  **"Chuông cổng"** trong trang Darboard (lọc Nhỡ / Đã nghe / Từ chối / Ảnh chụp, chọn + xóa).
+- Home Assistant nhận sự kiện `darboard_doorbell` (dữ liệu: `door`, `name`, `panels`) — dùng cho automation, ví dụ
+  gửi thông báo về điện thoại. Trong HA, chuông có sẵn switch **Mở cổng**, nút, camera, vòng LED.
+- Cài đặt (tab **"Gọi"** trong Darboard → **Chuông cổng**): màn nào đổ chuông, thời gian đổ chuông, thời gian mở khóa.
+- Tự đổ chuông từ automation (vd cảm biến khác) — `rest_command` trong `configuration.yaml`:
+  ```yaml
+  rest_command:
+    darboard_ring:
+      url: "http://127.0.0.1:18080/door/ring"   # tùy chọn: ?panels=esp32-xxxx,esp32-yyyy
+      method: post
+  ```
+
+**Gọi video** giữa các màn có camera + mic (ứng dụng **"Gọi"**) và tab **"Gọi"** trong trang Darboard (trình duyệt máy
+tính / điện thoại — cần mở Home Assistant qua **HTTPS** để dùng camera, micro). Giao diện như điện thoại: cuộc gọi đến
+hiện đè lên màn khóa, tắt mic / tắt camera, máy bận, gọi nhỡ vào Thông báo. Camera màn tự lên 10 hình/giây khi đang gọi.
+
+**Nhạc chuông** lấy từ thư mục media của Home Assistant (bạn tự chép tệp vào, giữ đúng tên):
+
+| Tệp | Dùng cho |
+|---|---|
+| `media/audio/chuong-cua.mp3` | Chuông cổng (không có tệp → tiếng "ding-dong" có sẵn của màn) |
+| `media/audio/zalo.mp3` | Cuộc gọi video đến (không có tệp → tiếng chuông có sẵn) |
+
 ## Điều khiển màn hình từ Home Assistant
 
 Mỗi màn hình là một thiết bị ESPHome với các thực thể (tên theo cấu hình mẫu):
