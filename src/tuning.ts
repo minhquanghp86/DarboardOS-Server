@@ -24,6 +24,8 @@ export type Tuning = {
   decodeBudgetRatio?: number;
   intervalBackoffFactor?: number;
   wsHighWaterBytes?: number;
+  /** (14/10/2026) Nguong tranh nghen do MANG het han sau chung nay ms (0 / thieu = tat). Xem adaptive.ts. */
+  probeFloorTtlMs?: number;
   fullFrameAreaThreshold?: number;
   passthroughFit?: boolean;
   videoLowQ?: boolean;
@@ -55,6 +57,7 @@ export function sanitizeTuning(j: unknown): Tuning {
   const r = num(o.decodeBudgetRatio, 0.1, 1.5); if (r !== undefined) t.decodeBudgetRatio = r;
   const k = num(o.intervalBackoffFactor, 1.05, 4); if (k !== undefined) t.intervalBackoffFactor = k;
   const w = num(o.wsHighWaterBytes, 16384, 8_388_608); if (w !== undefined) t.wsHighWaterBytes = Math.round(w);
+  const pf = num(o.probeFloorTtlMs, 0, 600_000); if (pf !== undefined) t.probeFloorTtlMs = Math.round(pf);
   const a = num(o.fullFrameAreaThreshold, 0.05, 1); if (a !== undefined) t.fullFrameAreaThreshold = a;
   return t;
 }

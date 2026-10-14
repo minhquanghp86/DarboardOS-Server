@@ -2470,7 +2470,12 @@ function freezeTab(dev: DeviceSession, tab: Tab): void {
     .then(() => tab.frozen ? withTimeout(tab.session.send('Debugger.enable', {}), 3000) : undefined)
     .then(() => tab.frozen ? withTimeout(tab.session.send('Debugger.pause'), 3000) : undefined)
     .then(() => console.log(`[app] ${dev.deviceId}: dong bang tab nen "${tab.key}"`))
-    .catch((e: unknown) => { tab.frozen = false; console.warn(`[app] ${dev.deviceId}: khong dong bang duoc "${tab.key}":`, e); });
+    .catch((e: unknown) => {
+      tab.frozen = false;
+      // (14/10/2026) Tab vua bi dong (qua so tab / don nen) trong luc dong bang -> "Session with given id not found": vo hai, khong log.
+      if (dev.tabs.get(tab.key) !== tab || /Session with given id not found/.test(String((e as Error)?.message ?? e))) return;
+      console.warn(`[app] ${dev.deviceId}: khong dong bang duoc "${tab.key}":`, e);
+    });
 }
 
 /** Bo dong bang TRUOC moi thao tac can trang chay (hien, dieu huong, nap lai Shell). Runtime.evaluate tren trang dang
@@ -3705,6 +3710,7 @@ export function runAdaptiveTick(): void {
       ...(tun.maxBacklogBytes !== undefined ? { maxBacklogBytes: tun.maxBacklogBytes } : {}),
       ...(tun.decodeBudgetRatio !== undefined ? { decodeBudgetRatio: tun.decodeBudgetRatio } : {}),
       ...(tun.intervalBackoffFactor !== undefined ? { intervalBackoffFactor: tun.intervalBackoffFactor } : {}),
+      ...(tun.probeFloorTtlMs !== undefined ? { probeFloorTtlMs: tun.probeFloorTtlMs } : {}),
     };
     const bytesPerSec = m.uptimeSec > 0 ? m.bytesSent / m.uptimeSec : 0;
     const counters = broadcaster.linkCounters(m.id);
@@ -3778,7 +3784,17 @@ if(${guest}&&location.pathname.indexOf('/tv')===0){const g=[...document.querySel
 if(g){const r=g.getBoundingClientRect();o.guest=[Math.round(r.x+r.width/2),Math.round(r.y+r.height/2)]}}return o})()`;
 }
 const ytLast = new Map<string, number>();
+// (14/10/2026) Chong chong luot + gioi han thoi gian: tab YouTube treo thi Runtime.evaluate khong tra loi -> truoc day moi
+// 1,5 s lai them mot loi goi cho mai (ro bo nho, che khuat loi khac).
+let ytBusy = false;
+const ytTimeout = <T>(p: Promise<T>, ms: number): Promise<T> =>
+  Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error('het gio')), ms))]);
 async function ytHelperTick(): Promise<void> {
+  if (ytBusy) return;
+  ytBusy = true;
+  try { await ytHelperTickInner(); } finally { ytBusy = false; }
+}
+async function ytHelperTickInner(): Promise<void> {
   for (const dev of devices.values()) {
     const tab = dev.tabs.get(dev.activeTabKey);
     if (!tab) continue;
@@ -3786,9 +3802,9 @@ async function ytHelperTick(): Promise<void> {
     const skip = panelPrefs.ytSkipAds(dev.deviceId), guest = panelPrefs.ytTvGuest(dev.deviceId);
     if (!skip && !guest) continue;
     try {
-      const r = await tab.session.send('Runtime.evaluate', {
+      const r = await ytTimeout(tab.session.send('Runtime.evaluate', {
         expression: ytHelperJs(skip, guest), returnByValue: true,
-      }) as { result?: { value?: { seek?: number; skip?: number; guest?: [number, number] } } };
+      }), 3000) as { result?: { value?: { seek?: number; skip?: number; guest?: [number, number] } } };
       const o = r?.result?.value ?? {};
       if (o.guest) {
         const [x, y] = o.guest;
