@@ -1,3 +1,12 @@
+## V2.9.135
+- **Sửa: phát IPTV lên màn (thẻ IPTV trang Darboard) có lúc đứng hình rồi màn tự khoá** — server đang "đóng băng" tab IPTV
+  ở nền đúng lúc tab được đưa lên hiển thị, nên video bị dừng. Nay mỗi bước đóng băng kiểm lại; tab vừa hiện thì huỷ
+  đóng băng và phát lại. Đo S3: 4/4 lần phát lại đều chạy (trước: 2/3 lượt đứng hình).
+- Trợ giúp YouTube có giới hạn thời gian + không chồng lượt (tab YouTube treo không còn dồn lời gọi).
+- Bớt log nhiễu khi đóng băng tab vừa bị đóng.
+- (Thử nghiệm, mặc định TẮT) bộ điều tiết Wi-Fi: `probeFloorTtlMs` trong `/data/rwv-tuning.json` cho ngưỡng tránh nghẽn do
+  mạng tự hết hạn — chưa đủ số đo để bật mặc định.
+
 ## V2.9.134
 - **Trang hệ thống của panel dùng đường dẫn tương đối theo `location`** — `ui.css` / `ui.js` / `icons.js` / `lunar.js` và mọi
   lời gọi máy chủ (`/api/...`, `/ha/...`, `/frigate/...`, `/alarm/...`, `/cam.html`, `/go2rtc/`, …) nay tự gắn gốc của trang
