@@ -112,6 +112,11 @@
     background: linear-gradient(to top, rgba(0,0,0,.75), transparent); color: #fff; transition: opacity .2s; font-variant-numeric: tabular-nums; }
   .vctl .t { font-size: 13px; font-weight: 600; min-width: 44px; text-align: center; }
   .vctl input[type=range] { flex: 1; accent-color: var(--accent); height: 28px; }
+  /* (14/10/2026) Am luong loa man hinh ngay tren trinh phat: [-] 45% [+] (thay nut tat tieng khi man co loa). */
+  .vctl .vol { flex: none; display: flex; align-items: center; gap: 4px; padding: 2px; border-radius: 999px; background: rgba(255,255,255,.12); }
+  .vctl .vol[hidden] { display: none; }
+  .vctl .vol .pct { min-width: 4ch; text-align: center; font-size: 13px; font-weight: 700; }
+  @media (max-width: 560px) { .vctl { gap: 6px; padding-inline: 8px; } .vctl .t { min-width: 0; } }
   #bigplay { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 84px; height: 84px; border-radius: 50%;
     border: none; background: rgba(0,0,0,.5); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; }
   #bigplay svg { width: 48px; height: 48px; }
@@ -469,6 +474,14 @@
 
   // ---- Trinh xem anh / video / van ban ----
   var V = { open: false, list: [], i: 0, zoom: 1, tx: 0, ty: 0, hideT: 0, video: null };
+  // (14/10/2026) Am luong THIET BI (ui.js): cum [-] % [+] cua video dang mo (VOL.box) — null khi khong mo video.
+  var VOL = { ok: false, v: null, box: null, mute: null };
+  function volPaint() {
+    if (!VOL.box) return;
+    VOL.box.hidden = !VOL.ok; VOL.mute.hidden = VOL.ok;
+    VOL.box.querySelector('.pct').textContent = VOL.v == null ? '--' : VOL.v + '%';
+  }
+  var devVol = window.RwvUI && RwvUI.volume ? RwvUI.volume(function (ok, v) { VOL.ok = ok; VOL.v = v; volPaint(); }) : null;
   function openViewer(list, i) {
     V.list = list; V.i = i; V.open = true;
     history.pushState({ dir: S.dir, viewer: 1 }, '');
@@ -490,7 +503,7 @@
   function show() {
     var it = V.list[V.i], st = $('stage');
     if (V.video) { V.video.pause(); V.video.removeAttribute('src'); V.video.load(); V.video = null; }
-    st.replaceChildren(); $('vctl').hidden = true; $('vctl').replaceChildren();
+    st.replaceChildren(); $('vctl').hidden = true; $('vctl').replaceChildren(); VOL.box = VOL.mute = null;
     V.zoom = 1; V.tx = V.ty = 0;
     // Thanh tren
     var top = $('vtop'); top.replaceChildren();
@@ -537,7 +550,11 @@
     var cur = el('span', 't', '00:00'), dur = el('span', 't', '--:--');
     var bar = el('input'); bar.type = 'range'; bar.min = 0; bar.max = 1000; bar.value = 0; bar.id = 'seek'; bar.setAttribute('aria-label', 'Tua');
     var vol = ib('volume-high', 'Tắt / bật tiếng', function () { v.muted = !v.muted; vol.replaceChildren(svg(v.muted ? 'volume-off' : 'volume-high')); });
-    ctl.append(pp, back, fwd, cur, bar, dur, vol);
+    var vbox = el('div', 'vol'); vbox.setAttribute('role', 'group'); vbox.setAttribute('aria-label', 'Âm lượng loa');
+    vbox.append(ib('volume-low', 'Giảm âm lượng', function () { if (devVol) devVol.step(-5); chrome(true); }), el('span', 'pct', '--'),
+      ib('volume-high', 'Tăng âm lượng', function () { if (devVol) devVol.step(5); chrome(true); }));
+    VOL.box = vbox; VOL.mute = vol; volPaint();
+    ctl.append(pp, back, fwd, cur, bar, dur, vol, vbox);
     var seeking = false;
     bar.addEventListener('input', function () { seeking = true; if (isFinite(v.duration)) cur.textContent = fmt(bar.value / 1000 * v.duration); chrome(true); });
     bar.addEventListener('change', function () { if (isFinite(v.duration)) v.currentTime = bar.value / 1000 * v.duration; seeking = false; });
