@@ -2566,7 +2566,8 @@ async function createTab(dev: DeviceSession, key: string, kind: string, pinned: 
     key, kind, label, url: '', targetId, session, pinned,
     screencastOn: false,
     // Radio/Nhac: duoc phep tiep tuc keu KHI KHONG active (the "Dang phat" trong thanh trang thai dung duoc).
-    backgroundAudio: kind === 'radio' || kind === 'music',
+    // (14/10/2026) + Media (nhac tu thu muc HA / the nho) — nghe tiep khi sang ung dung khac.
+    backgroundAudio: kind === 'radio' || kind === 'music' || kind === 'media',
     audioAllowed: false, mediaPlaying: false, mediaKnown: false, lastUsed: Date.now(), launcherScriptId,
   };
   dev.tabs.set(key, tab);
