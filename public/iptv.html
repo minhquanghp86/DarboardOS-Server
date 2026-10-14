@@ -167,7 +167,7 @@
   .osd-side .ib { width: clamp(42px, 12vmin, 72px); height: clamp(42px, 12vmin, 72px); }
   /* (14/10/2026) Cham man hinh: them DANH SACH KENH doc ben trai (logo + ten, cuon duoc) va AM LUONG loa man hinh.
      Thanh tren lui sang phai nhuong cho danh sach. Anh logo chi tai khi OSD hien (khoi an = display:none). */
-  #player { --lw: clamp(150px, 30vw, 290px); }
+  #player { --lw: clamp(170px, 30vw, 290px); }
   .osd-top { left: var(--lw); }
   .osd-list { position: absolute; left: 0; top: 0; bottom: 0; width: var(--lw); overflow-y: auto; scrollbar-width: none; touch-action: pan-y;
     overscroll-behavior: contain; display: flex; flex-direction: column; gap: 2px; padding: calc(var(--pad) + 10px) 6px var(--pad);
@@ -189,6 +189,8 @@
   .osd-vol { position: absolute; right: var(--pad); bottom: var(--pad); display: flex; align-items: center; gap: 6px; padding: 4px;
     border-radius: 999px; background: rgba(0, 0, 0, 0.6); }
   .osd-vol[hidden] { display: none; }
+  /* Man hep (S3 480 px): bo cot so, logo nho -> ten kenh du cho. */
+  @media (max-width: 600px) { .ol .no { display: none; } .ol .lg { width: 36px; } .ol { padding-inline: 4px; } }
   .osd-vol .pct { min-width: 4ch; text-align: center; color: #fff; font-weight: 700; font-size: clamp(12px, 3vmin, 18px); font-variant-numeric: tabular-nums; }
   .msg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: max-content; max-width: min(84vw, 540px); display: flex;
     flex-direction: column; align-items: center; gap: clamp(4px, 1.4vmin, 10px); padding: var(--pad) calc(var(--pad) * 1.4); border-radius: var(--r-lg);
