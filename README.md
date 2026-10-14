@@ -12,7 +12,7 @@ Dự án gồm hai repo dùng cùng nhau:
 | **HA-Darboard-Server** (repo này) | Máy chủ — addon Home Assistant (hoặc container Docker) | **2.9.140** |
 | [HA-Darboard-Client](https://github.com/minhquanghp86/HA-Darboard-Client) | Firmware màn hình (ESPHome) + cấu hình mẫu đang chạy thật | tag **`fw-2026.10.13b`** |
 
-> Bàn giao phiên gần nhất (trạng thái đang chạy, việc còn treo): [`docs/BAN-GIAO.md`](docs/BAN-GIAO.md).
+> Tài liệu bàn giao / báo cáo nội bộ được giữ riêng (không công khai).
 
 Đã chạy thật hằng ngày trên ba màn hình: **ESP32-P4 1024×600** (Guition JC1060P470C — có camera, micro, loa),
 **ESP32-S3 480×480** (Guition 4848S040) và **ESP32-S3 480×272** (Guition JC4827W543C) — hai màn S3 không có loa/camera.
@@ -20,7 +20,7 @@ Dự án gồm hai repo dùng cùng nhau:
 📖 **Hướng dẫn sử dụng đầy đủ** (cài từ đầu, dùng hằng ngày, tự động hoá, xử lý sự cố):
 [`hassio/remote_webview_server/DOCS.md`](hassio/remote_webview_server/DOCS.md) — cũng ở tab *Tài liệu* của addon.
 Nhật ký thay đổi từng phiên bản: [`CHANGELOG.md`](hassio/remote_webview_server/CHANGELOG.md).
-Vấn đề còn mở / cần điều tra: [`docs/VAN-DE-CAN-DIEU-TRA.md`](docs/VAN-DE-CAN-DIEU-TRA.md).
+
 
 <p align="center">
   <img src="images/menu.png" width="49%" alt="Menu ứng dụng trên màn hình ESP32-P4">
@@ -255,7 +255,7 @@ npm run test:integration   # server thật + Chromium thật + panel giả qua W
 - Proxy DevTools (`expose_debug_proxy`) cho phép điều khiển trình duyệt, kể cả phiên HA — chỉ bật khi cần.
 - **Proxy luồng IPTV `/iptv/p` + `/iptv/probe`** (2.9.133) nhận cả **trang Darboard qua ingress** (đã đăng nhập HA), vẫn
   **bắt buộc mã phiên** — cần cho nút “Phát trong trình duyệt”. Đây là điểm cần rà lại (người đã đăng nhập HA có thể dùng
-  máy chủ để tải URL bất kỳ): xem **P0-6** trong [`docs/VIEC-CAN-SUA-REMOTE-WEBVIEW-2026-10-03-commandcode.md`](docs/VIEC-CAN-SUA-REMOTE-WEBVIEW-2026-10-03-commandcode.md).
+  máy chủ để tải URL bất kỳ): xem ghi chú bảo mật nội bộ (P0-6).
 
 ## Ghi công và giấy phép
 

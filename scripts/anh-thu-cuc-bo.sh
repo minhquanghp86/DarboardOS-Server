@@ -3,10 +3,10 @@
 # sang HASS, chong len anh addon DA PHAT HANH cua phien ban dang cai, gan lai dung tag do roi khoi dong lai addon.
 # Chi dung khi KHONG doi thu vien npm (node_modules lay tu anh goc). Quay ve ban phat hanh:
 #   docker pull ghcr.io/minhquanghp86/ha-darboard-server:<phien ban> && ha apps restart 5e50eaa0_remote_webview_server
-# Dung: scripts/anh-thu-cuc-bo.sh   (bien moi truong tuy chon: HASS=root@192.168.1.2 KEY=~/.ssh/...)
+# Dung: HASS=root@<IP may Home Assistant> KEY=<khoa SSH> scripts/anh-thu-cuc-bo.sh
 set -eu
-HASS=${HASS:-root@192.168.1.2}
-KEY=${KEY:-$HOME/.ssh/hass_key}
+HASS=${HASS:?dat HASS=root@<IP may Home Assistant>}
+KEY=${KEY:?dat KEY=<duong dan khoa SSH>}
 IMG=ghcr.io/minhquanghp86/ha-darboard-server
 SLUG=5e50eaa0_remote_webview_server
 cd "$(dirname "$0")/.."
