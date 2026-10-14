@@ -28,7 +28,7 @@
   }
   var enc = encodeURIComponent;
   var ui = CallUI.mount(document.getElementById('app'), {
-    self: DEV, base: '/',
+    self: DEV, base: '/', ringUrl: '/ringtone/call',
     contacts: function () { return fetch('/calls/contacts?self=' + enc(DEV), { cache: 'no-store' }).then(function (r) { return r.json(); }); },
     start: function (to, name) {
       post('/calls/start?from=' + enc(DEV) + '&to=' + enc(to)).then(function (j) {

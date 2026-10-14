@@ -41,6 +41,7 @@ import { handleIptvApi, setIptvHooks } from './iptv.js';
 import { handleMediaApi } from './mediaLib.js';
 import { endCall, handleCallApi, handleCallUpgrade, onMicFrame } from './callBridge.js';
 import { attachDoor, handleDoorApi, setDoorHooks } from './door.js';
+import { handleRingtone } from './ringtone.js';
 import { handleCallsApi, handleCallsUpgrade, setCallHooks } from './calls.js';
 import { handleFrigateApi } from './frigate.js';
 import { handleLockWidgetsApi, noteDeviceIp } from './lockWidgets.js';
@@ -240,6 +241,8 @@ http.createServer((req, res) => {
   if (handleCallApi(req, res, reqUrl)) return;
   // (14/10/2026) Chuong cong: Nghe / Tu choi / Ket thuc / Mo cong, anh khach (src/door.ts).
   if (handleDoorApi(req, res, reqUrl)) return;
+  // (14/10/2026) Nhac chuong tu thu muc media HA (src/ringtone.ts).
+  if (handleRingtone(req, res, pathname)) return;
   // (14/10/2026) Cuoc goi video man <-> man / trinh duyet (src/calls.ts).
   if (handleCallsApi(req, res, reqUrl)) return;
   // (08/10/2026) Su kien camera Frigate: danh sach, anh, clip (src/frigate.ts) — chi 127.0.0.1.

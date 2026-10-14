@@ -66,6 +66,27 @@
     return { close: function () { closed = true; try { ws.close(); } catch (x) { /* */ } if (dec) { try { dec.close(); } catch (x) { /* */ } } } };
   }
 
+  // (14/10/2026) NHAC CHUONG: cuoc goi den = tep nhac chuong (A.ringUrl — /ringtone/call, tep trong media HA, vd zalo.mp3);
+  // goi di = tieng tut cho 425 Hz (1 s keu / 3 s nghi, nhu tong dai Viet Nam). Doi trang thai -> tat.
+  var tones = { audio: null, ctx: null, t: 0 };
+  function stopTones() {
+    if (tones.audio) { tones.audio.pause(); tones.audio = null; }
+    clearInterval(tones.t); tones.t = 0;
+    if (tones.ctx) { tones.ctx.close(); tones.ctx = null; }
+  }
+  function ringTone(url) {
+    stopTones();
+    var a = new Audio(url); a.loop = true; tones.audio = a; window.__rwvRingAudio = a;
+    a.play().catch(function () { /* trinh duyet chan tu phat: khong sao */ });
+  }
+  function ringback() {
+    stopTones();
+    try { tones.ctx = new AudioContext(); } catch (e) { return; }
+    var c = tones.ctx;
+    var beep = function () { var o = c.createOscillator(), g = c.createGain(); o.frequency.value = 425; g.gain.value = 0.08; o.connect(g).connect(c.destination); o.start(); o.stop(c.currentTime + 1); };
+    beep(); tones.t = setInterval(beep, 4000);
+  }
+
   function mount(root, A) {
     root.replaceChildren();
     root.className = 'call';
@@ -122,6 +143,7 @@
 
     function render() {
       clearInterval(tickT);
+      if (S.view === 'in' && A.ringUrl) ringTone(A.ringUrl); else if (S.view === 'out') ringback(); else stopTones();
       root.dataset.view = S.view;
       list.hidden = S.view !== 'contacts';
       top.hidden = center.hidden = bar.hidden = S.view === 'contacts';

@@ -99,15 +99,15 @@ export function attachDoor(ws: WebSocket, id: string, remote: string | undefined
   });
 }
 
-/** Khach bam nut. */
-function press(d: Door): void {
+/** Khach bam nut (hoac POST /door/ring — thu / automation HA). only: chi do chuong cac man nay. */
+function press(d: Door, only?: string[]): void {
   const now = Date.now();
   if (now - d.lastPress < 5000) return;          // chong bam lien tiep
   d.lastPress = now;
   if (d.talk) return;                              // dang noi chuyen: bo qua
   if (d.ring) { clearTimeout(d.ring.timer); closeDoorbell(d.ring.id); }
-  const only = cfg.ringPanels.length ? cfg.ringPanels : d.panels.length ? d.panels : undefined;
-  const r = ringDoorPanels(d.id, d.name, cfg.ringS, only, d.canTalk);
+  const sel = only?.length ? only : cfg.ringPanels.length ? cfg.ringPanels : d.panels.length ? d.panels : undefined;
+  const r = ringDoorPanels(d.id, d.name, cfg.ringS, sel, d.canTalk);
   d.ring = { id: r.id, panels: r.devices, timer: setTimeout(() => missed(d, r.id), cfg.ringS * 1000) };
   led(d, DoorState.Ringing);
   haFetch('/events/darboard_doorbell', { method: 'POST', body: JSON.stringify({ door: d.id, name: d.name, panels: r.devices }) })
@@ -287,6 +287,12 @@ export function handleDoorApi(req: http.IncomingMessage, res: http.ServerRespons
   if (p === '/door/answer') { const r = answer(q('ring'), q('dev')); json(res, r.ok ? 200 : 409, r); return true; }
   if (p === '/door/decline') { json(res, 200, { ok: decline(q('ring')) }); return true; }
   if (p === '/door/hangup') { json(res, 200, { ok: hangup(q('door')) }); return true; }
+  if (p === '/door/ring') {
+    const d = doors.get(q('door')) ?? [...doors.values()][0];
+    if (!d) { json(res, 404, { ok: false, error: 'Không có chuông.' }); return true; }
+    d.lastPress = 0; press(d, q('panels') ? q('panels').split(',') : undefined);
+    json(res, 200, { ok: true, ring: d.ring?.id, panels: d.ring?.panels }); return true;
+  }
   if (p === '/door/gate') { json(res, 200, { ok: openGate(q('door')) }); return true; }
   if (p === '/door/shot') {
     const d = doors.get(q('door'));

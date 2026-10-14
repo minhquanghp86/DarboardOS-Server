@@ -33,6 +33,7 @@ const GPHOTOS_ALBUM = process.env.GPHOTOS_ALBUM || '';
 import { deviceClock, parseWindow, shouldGreet } from "./today.js";
 import { getToday, speakOnPanel } from "./todayData.js";
 import { parseDoorbell, unlockCall } from "./doorbell.js";
+import { ringtoneExists } from "./ringtone.js";
 import type { DialHooks } from "./dial.js";
 import { Notice, NoticeStore, NotifyRequest, noticeKind, parseNotify, shouldPopup, shouldWake } from "./notifications.js";
 import { Sound, soundForNotice, soundPrefs } from "./sound.js";
@@ -2261,8 +2262,9 @@ export function ringDoorPanels(door: string, name: string, timeoutS: number, onl
   const targets = [...devices.values()].filter((d) => d.cfg.devControl && broadcaster.getClientCount(d.deviceId) > 0 && (!only || only.includes(d.deviceId)));
   for (const dev of targets) {
     const url = `${LOCAL_ORIGIN}/door.html?door=${encodeURIComponent(door)}&name=${encodeURIComponent(name)}&id=${id}` +
-      `&dev=${encodeURIComponent(dev.deviceId)}&t=${timeoutS}` + (dev.cfg.micCall && doorTalk ? '&talk=1' : '');
-    openRingPage(dev, id, url, timeoutS, 'chuong cong');
+      `&dev=${encodeURIComponent(dev.deviceId)}&t=${timeoutS}&talk=${dev.cfg.micCall ? 1 : 0}&da=${doorTalk ? 1 : 0}`;
+    // (14/10/2026) Trang tu phat nhac chuong (/ringtone/door — tep trong media HA); khong co tep thi dung "ding-dong" firmware.
+    openRingPage(dev, id, url, timeoutS, 'chuong cong', !ringtoneExists('door'));
   }
   console.log(`[door] ${door}: do chuong tren ${targets.map((d) => d.deviceId).join(', ') || '(khong man nao)'}`);
   return { id, devices: targets.map((d) => d.deviceId) };
@@ -2273,7 +2275,7 @@ export function ringDoorPanels(door: string, name: string, timeoutS: number, onl
  * hien DE LEN man khoa (giu khoa), het `timeoutS` (0 = khong tu dong) tu dong lai va quay ve ung dung truoc.
  * Dung chung o '__doorbell' (moi man mot trang do chuong). Tra false neu man khong ton tai / khong ket noi.
  */
-export function openRingPage(devOrId: DeviceSession | string, id: string, url: string, timeoutS: number, why: string): boolean {
+export function openRingPage(devOrId: DeviceSession | string, id: string, url: string, timeoutS: number, why: string, chime = true): boolean {
   const dev = typeof devOrId === 'string' ? devices.get(devOrId) : devOrId;
   if (!dev || broadcaster.getClientCount(dev.deviceId) === 0) return false;
   const prevKey = dev.doorbell?.prevKey ?? (dev.activeTabKey === '__doorbell' ? 'home' : dev.activeTabKey);
@@ -2282,7 +2284,7 @@ export function openRingPage(devOrId: DeviceSession | string, id: string, url: s
   dev.doorbell = { id, url, prevKey, unlock: null, timer };
   if (dev.cfg.devControl) broadcaster.sendDeviceControl(dev.deviceId, ControlField.Brightness, userBrightness(dev));
   noteActivity(dev, why);
-  if (canPlay(dev)) playSound(dev, Sound.Doorbell);
+  if (chime && canPlay(dev)) playSound(dev, Sound.Doorbell);
   dev.tabOps.run(async () => {
     const t = dev.tabs.get('__doorbell');
     if (t) { await activateTab(dev, '__doorbell'); await navigateTab(dev, t, url); }

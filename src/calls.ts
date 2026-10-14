@@ -20,6 +20,7 @@ import { endCall, isInCall, linkCalls, onMicListener, sendToDevice, setMuted, st
 import { answerDoorbell, closeDoorbell, connectedScreens, openRingPage, postNotify } from './deviceManager.js';
 import { LOCAL_ORIGIN } from './launcherApps.js';
 import type { FrameSink } from './mkvLive.js';
+import { ringtoneExists } from './ringtone.js';
 
 const RING_S = 30;
 export interface Party { kind: 'panel' | 'web'; id: string }
@@ -73,7 +74,7 @@ export function start(fromId: string, toId: string): { ok: boolean; call?: strin
     const url = `${LOCAL_ORIGIN}/call.html?mode=in&call=${id}&dev=${encodeURIComponent(to.id)}&peer=${encodeURIComponent(from.id)}` +
       `&name=${encodeURIComponent(partyName(from))}`;
     c.ringId = 'c' + id;
-    if (!openRingPage(to.id, c.ringId, url, RING_S + 2, 'cuoc goi den')) { finish(id, 'Không liên lạc được.'); return { ok: false, error: 'Không liên lạc được.' }; }
+    if (!openRingPage(to.id, c.ringId, url, RING_S + 2, 'cuoc goi den', !ringtoneExists('call'))) { finish(id, 'Không liên lạc được.'); return { ok: false, error: 'Không liên lạc được.' }; }
   } else {
     webs.get(to.id)!.call = id;
     sendWeb(to.id, { type: 'incoming', call: id, from: from.id, name: partyName(from) });

@@ -77,7 +77,7 @@
       if (m.type === 'hello') { me = m.id; list = m.list; if (wantList) { wantList(list); wantList = null; } }
       else if (m.type === 'contacts') { list = m.list; if (wantList) { wantList(list); wantList = null; } }
       else if (m.type === 'started') { if (!m.ok) { ui.toast(m.error || 'Không gọi được'); ui.set({ view: 'contacts', call: '' }); stopMedia(); } else { call = m.call; } }
-      else if (m.type === 'incoming') { call = m.call; peer = m.from; peerName = m.name; ring(true); ui.set({ view: 'in', call: call, peer: peer, peerName: peerName }); }
+      else if (m.type === 'incoming') { call = m.call; peer = m.from; peerName = m.name; ui.set({ view: 'in', call: call, peer: peer, peerName: peerName }); }
       else if (m.type === 'active') { ring(false); peer = m.peer; startAudio(); ui.set({ view: 'active', call: call, peer: peer, peerName: peerName, since: Date.now(), peerMuted: false, peerCamOff: false }); }
       else if (m.type === 'flags') { ui.set({ view: 'active', peerMuted: m.muted.indexOf(peer) >= 0, peerCamOff: m.camOff.indexOf(peer) >= 0 }); }
       else if (m.type === 'keyframe') forceKey = true;
@@ -166,7 +166,7 @@
   }
 
   var ui = CallUI.mount(document.getElementById('app'), {
-    self: '', base: BASE,
+    self: '', base: BASE, ringUrl: BASE + 'ringtone/call',
     contacts: function () { return new Promise(function (ok) { wantList = ok; send({ type: 'contacts' }); setTimeout(function () { if (wantList) { wantList(list); wantList = null; } }, 2000); }); },
     start: function (to, name) {
       peer = to; peerName = name;
