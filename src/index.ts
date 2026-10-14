@@ -186,7 +186,7 @@ const STATIC_PAGES = ['no-url.html', 'cam.html', 'camera.html', 'weather.html', 
   // (01/10/2026) Thu vien / Tep (the SD cua P4), Tin nhan noi bo, bieu tuong dung chung.
   'files.html', 'chat.html', 'icons.js', 'alarm.html',
   // (07/10/2026) IPTV (src/iptv.ts). (08/10/2026) Su kien camera Frigate (src/frigate.ts).
-  'iptv.html', 'events.html'];
+  'iptv.html', 'events.html', 'media.html'];
 const staticCache = new Map<string, Buffer>();
 for (const name of STATIC_PAGES) {
   const p = path.join(__dirname, '..', 'public', name);
