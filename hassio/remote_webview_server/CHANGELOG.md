@@ -1,3 +1,9 @@
+## V2.9.136
+- **Sửa: ứng dụng Camera trên màn kẹt "Đang mở camera…"** (từ 2.9.134) — trang gọi một hàm của `ui.js` nhưng không nạp
+  `ui.js`, cả trang dừng (xem trước, thẻ SD, nút chụp/quay đều chết). Nay hiện hình ngay. Nút Thư viện trong app Camera
+  mở đúng thẻ của màn đó.
+- Đi kèm firmware fw-2026.10.15: **quay video 10 fps** (trước 5 fps) — cảm biến chỉ tăng nhịp khi đang quay.
+
 ## V2.9.135
 - **Sửa: phát IPTV lên màn (thẻ IPTV trang Darboard) có lúc đứng hình rồi màn tự khoá** — server đang "đóng băng" tab IPTV
   ở nền đúng lúc tab được đưa lên hiển thị, nên video bị dừng. Nay mỗi bước đóng băng kiểm lại; tab vừa hiện thì huỷ
