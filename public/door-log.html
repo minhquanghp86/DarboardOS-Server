@@ -54,23 +54,59 @@
   .ib svg { width: 56%; height: 56%; fill: currentColor; }
   .nav { position: absolute; top: 50%; transform: translateY(-50%); }
   #prev { left: var(--pad); } #next { right: var(--pad); }
+  /* (14/10/2026) Chon + xoa */
+  .tbtn { flex: none; border: none; border-radius: 999px; height: clamp(32px, 7.4vmin, 44px); padding: 0 clamp(12px, 3vmin, 18px); font-weight: 600;
+    font-size: clamp(12px, 2.9vmin, 16px); background: var(--surface-2); color: var(--text); }
+  .tbtn.danger { background: var(--err); color: #fff; }
+  .tbtn:disabled { opacity: 0.45; }
+  .tbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .selbar { flex: none; display: flex; align-items: center; gap: var(--gap); flex-wrap: wrap; }
+  .selbar b { flex: 1; min-width: 0; font-size: clamp(15px, 3.8vmin, 22px); }
+  .tile .ck { position: absolute; top: 6px; right: 6px; width: clamp(24px, 6vmin, 32px); height: clamp(24px, 6vmin, 32px); border-radius: 50%;
+    border: 2px solid #fff; background: rgba(0, 0, 0, 0.35); display: none; }
+  .sel .tile .ck { display: flex; align-items: center; justify-content: center; }
+  .tile.on .ck { background: var(--accent); border-color: var(--accent); }
+  .tile .ck svg { width: 70%; height: 70%; fill: #fff; visibility: hidden; }
+  .tile.on .ck svg { visibility: visible; }
+  .tile.on img { opacity: 0.6; }
+  .modal { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(5, 7, 12, 0.66); }
+  .modal[hidden] { display: none; }
+  .modal .box { width: min(92vw, 420px); padding: calc(var(--pad) * 1.2); border-radius: var(--r-lg); background: var(--surface); display: flex; flex-direction: column; gap: 10px; }
+  .modal .t { font-weight: 700; font-size: clamp(15px, 3.8vmin, 22px); }
+  .modal .s { color: var(--muted); font-size: clamp(12px, 2.9vmin, 16px); }
+  .modal .acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+  .toast { position: fixed; left: 50%; bottom: calc(var(--pad) + 6px); transform: translateX(-50%); z-index: 50; padding: 10px 18px; border-radius: 999px;
+    background: var(--surface-3); font-weight: 600; font-size: clamp(12px, 2.9vmin, 16px); }
 </style>
 </head>
 <body class="rwv-app">
 <div class="view">
-  <div class="bar">
+  <div class="bar" id="bar">
     <div class="ttl"><b>Chuông cổng</b><small id="sub">Lưu 30 ngày</small></div>
     <div class="chips" id="chips" role="radiogroup" aria-label="Lọc"></div>
+    <button class="tbtn" id="selBtn" type="button">Chọn</button>
+  </div>
+  <div class="selbar" id="selbar" hidden>
+    <b id="selN" role="status">Đã chọn 0</b>
+    <button class="tbtn" id="selAll" type="button">Chọn tất cả</button>
+    <button class="tbtn danger" id="selDel" type="button" disabled>Xóa</button>
+    <button class="tbtn" id="selCancel" type="button">Hủy</button>
   </div>
   <main id="main" aria-live="polite"></main>
 </div>
 <div class="viewer" id="vw" hidden role="dialog" aria-label="Ảnh ở cổng">
   <img id="vimg" alt="">
   <div class="vtop"><button class="ib" id="vclose" type="button" aria-label="Đóng"></button>
-    <div class="t"><b id="vt"></b><small id="vs"></small></div></div>
+    <div class="t"><b id="vt"></b><small id="vs"></small></div>
+    <button class="ib" id="vdel" type="button" aria-label="Xóa ảnh này"></button></div>
   <button class="ib nav" id="prev" type="button" aria-label="Ảnh trước"></button>
   <button class="ib nav" id="next" type="button" aria-label="Ảnh sau"></button>
 </div>
+<div class="modal" id="ask" hidden role="dialog" aria-modal="true" aria-labelledby="askT">
+  <div class="box"><div class="t" id="askT"></div><div class="s">Ảnh sẽ bị xóa khỏi mọi màn hình. Không hoàn tác được.</div>
+    <div class="acts"><button class="tbtn" id="askNo" type="button">Hủy</button><button class="tbtn danger" id="askYes" type="button">Xóa</button></div></div>
+</div>
+<div class="toast" id="toast" hidden role="status"></div>
 <script>
 (function () {
   'use strict';
@@ -94,7 +130,7 @@
     if (diff === 1) return 'Hôm qua';
     return WD[d.getDay()] + ', ' + p2(d.getDate()) + '/' + p2(d.getMonth() + 1);
   }
-  var S = { items: [], filter: 'all', sig: '', vis: [], i: 0, err: false };
+  var S = { items: [], filter: 'all', sig: '', vis: [], i: 0, err: false, sel: null };   // sel: Set ten tep dang chon (che do chon) hoac null
   function src(f) { return 'door/snap/' + encodeURIComponent(f); }
   function visible() { return S.items.filter(function (x) { return S.filter === 'all' || x.kind === S.filter || (S.filter === 'missed' && x.kind === 'ring'); }); }
 
@@ -112,10 +148,60 @@
       var b = el('button', 'tile'); b.type = 'button'; b.setAttribute('aria-label', (KIND[x.kind] || '') + ' lúc ' + hm(d));
       var img = el('img'); img.alt = ''; img.loading = 'lazy'; img.decoding = 'async'; img.src = src(x.f);
       var meta = el('div', 'meta'); meta.append(el('span', '', hm(d)), el('span', 'badge k-' + x.kind, KIND[x.kind] || x.kind));
-      b.append(img, meta); b.onclick = function () { openView(i); };
+      var ck = el('span', 'ck'); ck.append(svg('check-circle'));
+      if (S.sel && S.sel.has(x.f)) b.classList.add('on');
+      b.setAttribute('aria-pressed', String(!!(S.sel && S.sel.has(x.f))));
+      b.append(img, meta, ck);
+      b.onclick = function () {
+        if (!S.sel) { openView(i); return; }
+        if (S.sel.has(x.f)) S.sel.delete(x.f); else S.sel.add(x.f);
+        b.classList.toggle('on', S.sel.has(x.f)); b.setAttribute('aria-pressed', String(S.sel.has(x.f))); paintSel();
+      };
       grid.append(b);
     });
   }
+  // ── Chon + xoa ──
+  function paintSel() {
+    var on = !!S.sel;
+    document.querySelector('.view').classList.toggle('sel', on);
+    $('bar').hidden = on; $('selbar').hidden = !on;
+    if (!on) return;
+    $('selN').textContent = S.sel.size ? 'Đã chọn ' + S.sel.size + ' ảnh' : 'Chạm ảnh để chọn';
+    $('selDel').disabled = !S.sel.size;
+    $('selAll').textContent = S.sel.size === S.vis.length && S.vis.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả';
+  }
+  var toastT = 0;
+  function toast(t) { $('toast').textContent = t; $('toast').hidden = false; clearTimeout(toastT); toastT = setTimeout(function () { $('toast').hidden = true; }, 2500); }
+  var askFn = null;
+  function ask(title, fn) { $('askT').textContent = title; askFn = fn; $('ask').hidden = false; }
+  $('askNo').onclick = function () { $('ask').hidden = true; askFn = null; };
+  $('askYes').onclick = function () { $('ask').hidden = true; var f = askFn; askFn = null; if (f) f(); };
+  function del(files, done) {
+    fetch('door/delete', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ files: files }) })
+      .then(function (r) { return r.json(); }).then(function (j) {
+        if (!j.ok) throw new Error();
+        S.items = S.items.filter(function (x) { return files.indexOf(x.f) < 0; });
+        S.sig = '';
+        toast('Đã xóa ' + j.deleted + ' ảnh'); if (done) done(); render(); paintSel();
+      }).catch(function () { toast('Không xóa được, thử lại sau.'); });
+  }
+  $('selBtn').onclick = function () { S.sel = new Set(); render(); paintSel(); };
+  $('selCancel').onclick = function () { S.sel = null; render(); paintSel(); };
+  $('selAll').onclick = function () {
+    if (S.sel.size === S.vis.length) S.sel.clear(); else S.vis.forEach(function (x) { S.sel.add(x.f); });
+    render(); paintSel();
+  };
+  $('selDel').onclick = function () {
+    var files = Array.from(S.sel);
+    ask('Xóa ' + files.length + ' ảnh?', function () { del(files, function () { S.sel = null; }); });
+  };
+  $('vdel').onclick = function () {
+    var x = S.vis[S.i]; if (!x) return;
+    ask('Xóa ảnh này?', function () {
+      del([x.f], function () { $('vw').hidden = true; $('vimg').removeAttribute('src'); });
+    });
+  };
+
   function openView(i) {
     var vis = S.vis; if (!vis.length) return;
     S.i = (i + vis.length) % vis.length;
@@ -135,7 +221,7 @@
     return fetch('door/log' + (DEV ? '?dev=' + encodeURIComponent(DEV) : ''), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
       S.err = false;
       var sig = j.items.map(function (x) { return x.f + x.kind; }).join(',');
-      if (sig !== S.sig) { S.sig = sig; S.items = j.items; render(); }
+      if (sig !== S.sig) { S.sig = sig; S.items = j.items; if (S.sel) S.sel.forEach(function (f) { if (!j.items.some(function (x) { return x.f === f; })) S.sel.delete(f); }); render(); paintSel(); }
       if (j.open) openFile(j.open);
     }).catch(function () { if (!S.items.length) { S.err = true; render(); } });
   }
@@ -151,6 +237,7 @@
   $('vw').addEventListener('pointerdown', function (e) { x0 = e.clientX; });
   $('vw').addEventListener('pointerup', function (e) { if (x0 == null || e.target.closest('button')) return; var dx = e.clientX - x0; x0 = null; if (Math.abs(dx) > 60) openView(S.i + (dx < 0 ? 1 : -1)); });
   document.addEventListener('keydown', function (e) { if ($('vw').hidden) return; if (e.key === 'Escape') $('vclose').click(); if (e.key === 'ArrowLeft') openView(S.i - 1); if (e.key === 'ArrowRight') openView(S.i + 1); });
+  $('vdel').append(svg('delete-outline'));
   $('vclose').append(svg('arrow-left')); $('prev').append(svg('chevron-left')); $('next').append(svg('chevron-right'));
   render(); load();
   // Lam moi + nhan yeu cau "mo anh" (cham thong bao) khi trang dang hien.

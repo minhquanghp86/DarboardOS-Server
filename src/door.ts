@@ -72,6 +72,18 @@ function setLogKind(f: string | null | undefined, kind: LogKind, by?: string): v
   if (!it) return;
   it.kind = kind; if (by) it.by = by; saveLog();
 }
+/** (14/10/2026) Xoa anh trong nhat ky (chon nhieu tren ung dung / Darboard). Tra so anh da xoa. */
+export function deleteLog(files: unknown): number {
+  if (!Array.isArray(files)) return 0;
+  const del = new Set(files.filter((f): f is string => typeof f === 'string' && /^[\w.-]+\.jpg$/.test(f)).slice(0, 500));
+  const before = log.length;
+  log = log.filter((x) => !del.has(x.f));
+  for (const f of del) { try { fs.rmSync(path.join(SNAP_DIR, f), { force: true }); } catch { /* */ } }
+  saveLog();
+  console.log(`[door] nhat ky: xoa ${before - log.length} anh (nguoi dung)`);
+  return before - log.length;
+}
+
 /** Cham thong bao "Cuoc goi nho" -> mo ung dung Chuong cong dung anh nay (trang hoi /door/log?dev=). */
 const openReq = new Map<string, string>();
 export function requestOpenLog(dev: string, f: string): void { if (/^[\w.-]+\.jpg$/.test(f)) openReq.set(dev, f); }
@@ -333,6 +345,12 @@ export function handleDoorApi(req: http.IncomingMessage, res: http.ServerRespons
     const dev = q('dev'), open = dev ? openReq.get(dev) : undefined;
     if (dev) openReq.delete(dev);
     json(res, 200, { items: [...log].reverse(), keepDays: 30, open: open || null });
+    return true;
+  }
+  if (p === '/door/delete' && req.method === 'POST' && (isLocal(req) || ingress)) {
+    let body = '';
+    req.on('data', (c) => { body += c; if (body.length > 64 * 1024) req.destroy(); });
+    req.on('end', () => { try { json(res, 200, { ok: true, deleted: deleteLog(JSON.parse(body || '{}').files) }); } catch { json(res, 400, { ok: false, error: 'JSON sai' }); } });
     return true;
   }
   if (!isLocal(req) && !(ingress && /^\/door\/snap\//.test(p))) { json(res, 403, { error: 'Chỉ dùng từ màn hình.' }); return true; }
