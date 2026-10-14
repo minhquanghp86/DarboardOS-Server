@@ -17,11 +17,44 @@
 <style>
   .back { position: fixed; z-index: 5; left: 12px; bottom: 12px; color: #9aa4b2; text-decoration: none; font: 14px "Be Vietnam Pro", sans-serif; }
   .call[data-view="contacts"] ~ .back { display: block; }
+  /* (14/10/2026) Cai dat chuong cong */
+  .gear { position: fixed; z-index: 5; top: 16px; right: 16px; display: none; align-items: center; gap: 8px; padding: 9px 14px; border: none;
+    border-radius: 999px; background: #1c2128; color: #e6e9ee; font: 600 14px "Be Vietnam Pro", sans-serif; cursor: pointer; }
+  .gear svg { width: 18px; height: 18px; fill: currentColor; }
+  .call[data-view="contacts"] ~ .gear { display: inline-flex; }
+  .dset { position: fixed; z-index: 10; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(5, 7, 10, 0.7);
+    font-family: "Be Vietnam Pro", sans-serif; color: #eef1f5; }
+  .dset[hidden] { display: none; }
+  .dset .box { width: min(100%, 520px); max-height: 90vh; overflow-y: auto; background: #12161b; border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+  .dset h2 { margin: 0; font-size: 20px; }
+  .dset .sec { display: flex; flex-direction: column; gap: 8px; }
+  .dset .k { color: #9aa4b2; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+  .dset .dr { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: #1a1f26; font-size: 14px; }
+  .dset .dot { width: 9px; height: 9px; border-radius: 50%; background: #34c759; flex: none; }
+  .dset label.ck { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: #1a1f26; font-size: 15px; cursor: pointer; }
+  .dset input[type=checkbox] { width: 20px; height: 20px; accent-color: #34c759; }
+  .dset select { height: 42px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.12); background: #1a1f26; color: #eef1f5; font: inherit; padding: 0 10px; }
+  .dset .hint { color: #9aa4b2; font-size: 13px; line-height: 1.45; }
+  .dset .acts { display: flex; justify-content: flex-end; gap: 10px; }
+  .dset .acts button { height: 42px; padding: 0 18px; border: none; border-radius: 999px; font: 600 15px "Be Vietnam Pro", sans-serif; cursor: pointer; background: #2a3039; color: #eef1f5; }
+  .dset .acts .ok { background: #34c759; color: #04210d; }
 </style>
 </head>
 <body style="margin:0;background:#0b0d10">
 <div id="app"></div>
 <a class="back" href="./">← Darboard</a>
+<button class="gear" id="gear" type="button" aria-haspopup="dialog"></button>
+<div class="dset" id="dset" hidden role="dialog" aria-modal="true" aria-labelledby="dsetT">
+  <div class="box">
+    <h2 id="dsetT">Chuông cổng</h2>
+    <div class="sec"><span class="k">Chuông đang kết nối</span><div id="dDoors"></div></div>
+    <div class="sec"><span class="k">Màn đổ chuông</span><div id="dPanels"></div>
+      <div class="hint">Không chọn màn nào = mọi màn đều đổ chuông.</div></div>
+    <div class="sec"><span class="k">Đổ chuông trong</span><select id="dRing" aria-label="Thời gian đổ chuông"></select></div>
+    <div class="sec"><span class="k">Mở khóa cổng trong</span><select id="dGate" aria-label="Thời gian mở cổng"></select></div>
+    <div class="acts"><button type="button" id="dCancel">Đóng</button><button type="button" class="ok" id="dSave">Lưu</button></div>
+  </div>
+</div>
 <script>
 (function () {
   'use strict';
@@ -152,6 +185,40 @@
       return { close: function () { t.video.srcObject = null; } };
     },
   });
+  // ── Cai dat chuong cong (/door/config) ──
+  (function () {
+    var $ = function (id) { return document.getElementById(id); };
+    var ic = (window.RwvIcons || {})['doorbell-video'] || '';
+    var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true');
+    var pth = document.createElementNS('http://www.w3.org/2000/svg', 'path'); pth.setAttribute('d', ic); s.appendChild(pth);
+    $('gear').append(s, document.createTextNode('Chuông cổng'));
+    function opts(sel, vals, unit, cur) {
+      sel.replaceChildren(); vals.forEach(function (v) { var o = document.createElement('option'); o.value = v; o.textContent = v + ' ' + unit; if (v === cur) o.selected = true; sel.append(o); });
+    }
+    function row(cls, txt) { var d = document.createElement('div'); d.className = cls; d.textContent = txt; return d; }
+    $('gear').onclick = function () {
+      fetch(BASE + 'door/config', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
+        var dd = $('dDoors'); dd.replaceChildren();
+        if (!j.doors.length) dd.append(row('hint', 'Chưa có chuông nào kết nối. Lắp và cấp nguồn chuông cổng ESP32-S3.'));
+        j.doors.forEach(function (d) { var r = document.createElement('div'); r.className = 'dr'; var dot = document.createElement('span'); dot.className = 'dot'; r.append(dot, document.createTextNode(d.name + (d.busy ? ' — đang nói chuyện' : ''))); dd.append(r); });
+        var pp = $('dPanels'); pp.replaceChildren();
+        j.panels.forEach(function (p) {
+          var l = document.createElement('label'); l.className = 'ck'; var c = document.createElement('input'); c.type = 'checkbox'; c.value = p.id;
+          c.checked = j.cfg.ringPanels.indexOf(p.id) >= 0; l.append(c, document.createTextNode(p.name)); pp.append(l);
+        });
+        opts($('dRing'), [20, 30, 45, 60, 90], 'giây', j.cfg.ringS); opts($('dGate'), [1, 2, 3, 5, 8, 10, 15], 'giây', j.cfg.gateS);
+        $('dset').hidden = false;
+      }).catch(function () { ui.toast('Không đọc được cài đặt chuông.'); });
+    };
+    $('dCancel').onclick = function () { $('dset').hidden = true; };
+    $('dSave').onclick = function () {
+      var panels = [].slice.call($('dPanels').querySelectorAll('input:checked')).map(function (c) { return c.value; });
+      fetch(BASE + 'door/config', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ringPanels: panels, ringS: Number($('dRing').value), gateS: Number($('dGate').value) }) })
+        .then(function (r) { if (!r.ok) throw new Error(); $('dset').hidden = true; ui.toast('Đã lưu cài đặt chuông'); })
+        .catch(function () { ui.toast('Không lưu được.'); });
+    };
+  })();
   connect();
   ui.set({ view: 'contacts' });
 })();

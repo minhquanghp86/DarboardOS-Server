@@ -17,16 +17,29 @@ import path from 'node:path';
 import type { WebSocket } from 'ws';
 
 import { endCall, linkCalls, onMicFrame, setMuted, startCall } from './callBridge.js';
-import { answerDoorbell, broadcaster, closeDoorbell, postNotify, ringDoorPanels } from './deviceManager.js';
+import { answerDoorbell, broadcaster, closeDoorbell, connectedScreens, postNotify, ringDoorPanels } from './deviceManager.js';
 import { haFetch } from './haSettings.js';
 import { LOCAL_ORIGIN } from './launcherApps.js';
 import type { FrameSink } from './mkvLive.js';
 import { ControlField, DeviceEventKind, DoorState, MsgType, parseDeviceEventPacket } from './protocol.js';
 
-const RING_S = Number(process.env.DOOR_RING_S || 45);
-const GATE_S = Number(process.env.DOOR_GATE_S || 3);
 const DATA_DIR = fs.existsSync('/data') ? '/data' : path.join(process.cwd(), 'data');
 const SNAP_DIR = path.join(DATA_DIR, 'rwv-door');
+// (14/10/2026) Cai dat chuong (tab "Gọi" trong Darboard -> Chuong cong): man do chuong (rong = theo firmware / moi man),
+// thoi gian do chuong, thoi gian mo cong. Luu /data/rwv-door.json.
+const CFG_FILE = path.join(DATA_DIR, 'rwv-door.json');
+export interface DoorConfig { ringPanels: string[]; ringS: number; gateS: number }
+let cfg: DoorConfig = { ringPanels: [], ringS: 45, gateS: 3 };
+try { cfg = { ...cfg, ...JSON.parse(fs.readFileSync(CFG_FILE, 'utf8')) }; } catch { /* chua co */ }
+export function doorConfig(): DoorConfig { return cfg; }
+export function setDoorConfig(b: any): DoorConfig {
+  const panels = Array.isArray(b?.ringPanels) ? b.ringPanels.filter((x: unknown) => typeof x === 'string' && /^[\w-]{1,40}$/.test(x)).slice(0, 20) : cfg.ringPanels;
+  const num = (v: unknown, lo: number, hi: number, d: number) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
+  cfg = { ringPanels: panels, ringS: num(b?.ringS, 10, 120, cfg.ringS), gateS: num(b?.gateS, 1, 30, cfg.gateS) };
+  try { fs.mkdirSync(DATA_DIR, { recursive: true }); fs.writeFileSync(CFG_FILE, JSON.stringify(cfg)); } catch { /* */ }
+  console.log(`[door] cai dat: do chuong ${cfg.ringPanels.length ? cfg.ringPanels.join(', ') : '(theo chuong / moi man)'}, ${cfg.ringS} s, mo cong ${cfg.gateS} s`);
+  return cfg;
+}
 
 interface Door {
   id: string; name: string; ws: WebSocket; ip: string; mjPort: number; snapPort: number;
@@ -38,6 +51,8 @@ interface Door {
   ledT: NodeJS.Timeout | null;
 }
 const doors = new Map<string, Door>();
+let nameOf: (id: string) => string | undefined = () => undefined;
+export function setDoorHooks(h: { name: (id: string) => string | undefined }): void { nameOf = h.name; }
 
 export function isDoor(id: string): boolean { return doors.has(id); }
 export function doorList(): { id: string; name: string; busy: boolean }[] {
@@ -89,8 +104,9 @@ function press(d: Door): void {
   d.lastPress = now;
   if (d.talk) return;                              // dang noi chuyen: bo qua
   if (d.ring) { clearTimeout(d.ring.timer); closeDoorbell(d.ring.id); }
-  const r = ringDoorPanels(d.id, d.name, RING_S, d.panels.length ? d.panels : undefined);
-  d.ring = { id: r.id, panels: r.devices, timer: setTimeout(() => missed(d, r.id), RING_S * 1000) };
+  const only = cfg.ringPanels.length ? cfg.ringPanels : d.panels.length ? d.panels : undefined;
+  const r = ringDoorPanels(d.id, d.name, cfg.ringS, only);
+  d.ring = { id: r.id, panels: r.devices, timer: setTimeout(() => missed(d, r.id), cfg.ringS * 1000) };
   led(d, DoorState.Ringing);
   haFetch('/events/darboard_doorbell', { method: 'POST', body: JSON.stringify({ door: d.id, name: d.name, panels: r.devices }) })
     .then((x) => { if (!x.ok) console.warn(`[door] su kien HA: ${x.status}`); }).catch(() => { });
@@ -175,7 +191,7 @@ export function hangup(doorId: string, why = 'ket thuc'): boolean {
   return true;
 }
 
-export function openGate(doorId: string, secs = GATE_S): boolean {
+export function openGate(doorId: string, secs = cfg.gateS): boolean {
   const d = doors.get(doorId);
   if (!d) return false;
   const n = Math.max(1, Math.min(30, Math.round(secs)));
@@ -247,6 +263,14 @@ function json(res: http.ServerResponse, code: number, body: unknown): void {
 export function handleDoorApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL): boolean {
   const p = url.pathname;
   if (!p.startsWith('/door/')) return false;
+  // Cai dat chuong: tu trang Darboard (ingress, HA da buoc dang nhap).
+  if (p === '/door/config' && (isLocal(req) || (req.socket.remoteAddress || '').replace(/^::ffff:/, '') === '172.30.32.2')) {
+    if (req.method === 'GET') { json(res, 200, { cfg, doors: doorList(), panels: connectedScreens().filter((s) => s.spk || s.cam).map((s) => ({ id: s.id, name: nameOf(s.id) || s.id })) }); return true; }
+    let body = '';
+    req.on('data', (c) => { body += c; if (body.length > 4096) req.destroy(); });
+    req.on('end', () => { try { json(res, 200, { ok: true, cfg: setDoorConfig(JSON.parse(body || '{}')) }); } catch { json(res, 400, { ok: false, error: 'JSON sai' }); } });
+    return true;
+  }
   if (!isLocal(req)) { json(res, 403, { error: 'Chỉ dùng từ màn hình.' }); return true; }
   const q = (k: string) => url.searchParams.get(k) || '';
   const m = /^\/door\/snap\/([\w.-]+\.jpg)$/.exec(p);

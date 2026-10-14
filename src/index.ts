@@ -40,7 +40,7 @@ import { startWeatherMini } from './weatherMini.js';
 import { handleIptvApi, setIptvHooks } from './iptv.js';
 import { handleMediaApi } from './mediaLib.js';
 import { endCall, handleCallApi, handleCallUpgrade, onMicFrame } from './callBridge.js';
-import { attachDoor, handleDoorApi } from './door.js';
+import { attachDoor, handleDoorApi, setDoorHooks } from './door.js';
 import { handleCallsApi, handleCallsUpgrade, setCallHooks } from './calls.js';
 import { handleFrigateApi } from './frigate.js';
 import { handleLockWidgetsApi, noteDeviceIp } from './lockWidgets.js';
@@ -388,6 +388,7 @@ function screenNameOf(id: string): string | undefined {
 }
 // (14/10/2026) Cuoc goi video: ten man trong danh ba / man hinh cuoc goi.
 setCallHooks({ name: (id) => screenNameOf(id) });
+setDoorHooks({ name: (id) => screenNameOf(id) });
 setChatHooks({
   screens: () => connectedScreens().map((s) => {
     if (!screenNames.has(s.id)) refreshScreenNames();
