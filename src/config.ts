@@ -60,6 +60,8 @@ export type DeviceConfig = {
   voice: boolean;
   /** (14/10/2026) INTERCOM: firmware co mic cuoc goi (?mic=1, YAML call_microphone) -> goi duoc toi man nay. */
   micCall: boolean;
+  /** (14/10/2026) Ten than thien ESPHome (?fn=) — dung khi khong tra duoc ten trong so dang ky HA (vd P4 di cap: MAC khac). */
+  friendlyName: string;
   /** (14/10/2026) Chuong cong (?door=1): khong man hinh; mj = cong MJPEG, sn = cong anh chup (esp32_camera_web_server). */
   door: boolean;
   mjPort: number;
@@ -173,6 +175,7 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
   const devControl = params.get("ctl") === "1";
   const voice = params.get("va") === "1";
   const micCall = params.get("mic") === "1";
+  const friendlyName = (params.get("fn") || "").slice(0, 60);
   const door = params.get("door") === "1";
   const mjPort = Math.max(0, Math.min(65535, parseInt(params.get("mj") || "0", 10) || 0));
   const snapPort = Math.max(0, Math.min(65535, parseInt(params.get("sn") || "0", 10) || 0));
@@ -203,6 +206,7 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
     devControl,
     voice,
     micCall,
+    friendlyName,
     door,
     mjPort,
     snapPort,

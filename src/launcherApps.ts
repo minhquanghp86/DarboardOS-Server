@@ -73,6 +73,8 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   // (08/10/2026) Su kien Frigate (nguoi / xe) theo ngay: anh, clip — src/frigate.ts, public/events.html.
   add('nha', 'Sự kiện camera', 'events', '#0e7490', `${LOCAL}/events.html`, undefined, 'events', 'mdi:cctv');
   // (01/10/2026) The SD cua panel co camera: Thu vien (anh/video da chup, trinh phat) va Tep (duyet / xoa ca the).
+  // (14/10/2026) Goi video giua cac man co camera + mic va tab "Gọi" trong Darboard (src/calls.ts, public/call.html).
+  add('nha', 'Gọi', 'call', '#16a34a', `${LOCAL}/call.html`, undefined, 'call', 'mdi:video');
   add('nha', 'Thư viện', 'gallery', '#0d9488', `${LOCAL}/files.html?view=gallery`, undefined, 'gallery', 'mdi:image-album');
   add('tien_ich', 'Quản lý file', 'files', '#64748b', `${LOCAL}/files.html`, undefined, 'files', 'mdi:folder-outline');
   // (27/09/2026) Ung dung Nha: dieu khien theo khu vuc, TV/loa (src/homeApi.ts).
@@ -165,7 +167,7 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
 }
 
 /** (01/10/2026) Ung dung chi co tren man hinh co camera + the SD (firmware bao ?cam=, hien chi P4). */
-export const CAMERA_ONLY_APPS = new Set(['camera']);
+export const CAMERA_ONLY_APPS = new Set(['camera', 'call']);
 /** (09/10/2026) Can THE NHO (man co camera hoac man chi co the — S3 sd_files). */
 export const SD_APPS = new Set(['gallery', 'files']);
 

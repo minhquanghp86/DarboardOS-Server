@@ -2053,7 +2053,7 @@ function resolveAppSpec(dev: DeviceSession, key: string): { kind: string; label:
   // nho kenh xem cuoi rieng tung man hinh.
   // (09/10/2026) + Camera / Thu vien / Quan ly file: nha nhieu P4 — trang gui ?rwvdev de dung camera CUA man nay (camProxy).
   // (14/10/2026) + Media: the nho CUA man nay, bai dang nghe nho theo man, an loa cua chinh man trong "Phát trên".
-  if (key === 'chat' || key === 'alarm' || key === 'iptv' || key === 'camera' || key === 'gallery' || key === 'files' || key === 'media') return { kind: app.baseKind, label: app.label, url: app.url + (app.url.includes('?') ? '&' : '?') + 'dev=' + encodeURIComponent(dev.deviceId), pinned: false };
+  if (key === 'chat' || key === 'alarm' || key === 'iptv' || key === 'camera' || key === 'gallery' || key === 'files' || key === 'media' || key === 'call') return { kind: app.baseKind, label: app.label, url: app.url + (app.url.includes('?') ? '&' : '?') + 'dev=' + encodeURIComponent(dev.deviceId), pinned: false };
   // baseKind, KHONG phai kind: nguoi dung doi bieu tuong o "Menu panel" thi kind thanh 'mdi' -> Radio/Nhac mat phat
   // nen, YouTube/TikTok khong tu dung khi roi tab (activateTab dua vao loai ung dung goc).
   return { kind: app.baseKind, label: app.label, url: app.url, pinned: false };
@@ -2262,21 +2262,34 @@ export function ringDoorPanels(door: string, name: string, timeoutS: number, onl
   for (const dev of targets) {
     const url = `${LOCAL_ORIGIN}/door.html?door=${encodeURIComponent(door)}&name=${encodeURIComponent(name)}&id=${id}` +
       `&dev=${encodeURIComponent(dev.deviceId)}&t=${timeoutS}` + (dev.cfg.micCall ? '&talk=1' : '');
-    const prevKey = dev.doorbell?.prevKey ?? (dev.activeTabKey === '__doorbell' ? 'home' : dev.activeTabKey);
-    if (dev.doorbell) clearTimeout(dev.doorbell.timer);
-    dev.doorbell = { id, url, prevKey, unlock: null, timer: setTimeout(() => endDoorbell(dev, id, 'het gio'), timeoutS * 1000) };
-    if (dev.cfg.devControl) broadcaster.sendDeviceControl(dev.deviceId, ControlField.Brightness, userBrightness(dev));
-    noteActivity(dev, 'chuong cong');
-    if (canPlay(dev)) playSound(dev, Sound.Doorbell);
-    dev.tabOps.run(async () => {
-      const t = dev.tabs.get('__doorbell');
-      if (t) { await activateTab(dev, '__doorbell'); await navigateTab(dev, t, url); }
-      else await openAppNow(dev, '__doorbell');
-      showBellOverLock(dev);
-    }).catch((e) => console.warn(`[door] ${dev.deviceId}:`, (e as Error).message));
+    openRingPage(dev, id, url, timeoutS, 'chuong cong');
   }
   console.log(`[door] ${door}: do chuong tren ${targets.map((d) => d.deviceId).join(', ') || '(khong man nao)'}`);
   return { id, devices: targets.map((d) => d.deviceId) };
+}
+
+/**
+ * (14/10/2026) Mo mot trang "do chuong" (chuong cong, cuoc goi video den) tren man `dev`: sang man hinh, am chuong, trang
+ * hien DE LEN man khoa (giu khoa), het `timeoutS` (0 = khong tu dong) tu dong lai va quay ve ung dung truoc.
+ * Dung chung o '__doorbell' (moi man mot trang do chuong). Tra false neu man khong ton tai / khong ket noi.
+ */
+export function openRingPage(devOrId: DeviceSession | string, id: string, url: string, timeoutS: number, why: string): boolean {
+  const dev = typeof devOrId === 'string' ? devices.get(devOrId) : devOrId;
+  if (!dev || broadcaster.getClientCount(dev.deviceId) === 0) return false;
+  const prevKey = dev.doorbell?.prevKey ?? (dev.activeTabKey === '__doorbell' ? 'home' : dev.activeTabKey);
+  if (dev.doorbell) clearTimeout(dev.doorbell.timer);
+  const timer = timeoutS > 0 ? setTimeout(() => endDoorbell(dev, id, 'het gio'), timeoutS * 1000) : setTimeout(() => { }, 0);
+  dev.doorbell = { id, url, prevKey, unlock: null, timer };
+  if (dev.cfg.devControl) broadcaster.sendDeviceControl(dev.deviceId, ControlField.Brightness, userBrightness(dev));
+  noteActivity(dev, why);
+  if (canPlay(dev)) playSound(dev, Sound.Doorbell);
+  dev.tabOps.run(async () => {
+    const t = dev.tabs.get('__doorbell');
+    if (t) { await activateTab(dev, '__doorbell'); await navigateTab(dev, t, url); }
+    else await openAppNow(dev, '__doorbell');
+    showBellOverLock(dev);
+  }).catch((e) => console.warn(`[ring] ${dev.deviceId}:`, (e as Error).message));
+  return true;
 }
 
 /** (14/10/2026) Man `keep` da nghe: dong chuong tren moi man khac cung lan bam; man nay giu trang (bo hen gio). */
@@ -3534,7 +3547,7 @@ function setSaver(dev: DeviceSession, on: boolean): void {
 }
 
 // ── (07/10/2026) MAN HINH KHOA / CHO: do sang rieng ──────────────────────────────────────────────────────────────────
-const LOCK_KEEP = new Set(['den nen vua bat', 'trang dieu huong', 'bat dau phat video/am thanh', 'chuong cua']);
+const LOCK_KEEP = new Set(['den nen vua bat', 'trang dieu huong', 'bat dau phat video/am thanh', 'chuong cua', 'chuong cong', 'cuoc goi den']);
 const LOCK_BRIGHT_FILE = process.env.LOCK_BRIGHT_FILE ||
   path.join(fs.existsSync('/data') ? '/data' : path.join(process.cwd(), 'data'), 'rwv-lock-bright.json');
 function lockBrightAll(): Record<string, number> {

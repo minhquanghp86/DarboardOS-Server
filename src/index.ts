@@ -41,6 +41,7 @@ import { handleIptvApi, setIptvHooks } from './iptv.js';
 import { handleMediaApi } from './mediaLib.js';
 import { endCall, handleCallApi, handleCallUpgrade, onMicFrame } from './callBridge.js';
 import { attachDoor, handleDoorApi } from './door.js';
+import { handleCallsApi, handleCallsUpgrade, setCallHooks } from './calls.js';
 import { handleFrigateApi } from './frigate.js';
 import { handleLockWidgetsApi, noteDeviceIp } from './lockWidgets.js';
 import { handleCalendarApi } from './calendarSource.js';
@@ -111,6 +112,7 @@ wss.on("connection", async (ws, req) => {
   const cfg = makeConfigFromParams(url.searchParams);
   setConfigFor(id, cfg);
   logDeviceConfig(id, cfg);
+  if (cfg.friendlyName) fwNames.set(id, cfg.friendlyName);
 
   broadcaster.addClient(id, ws);
   // (08/10/2026) ca = base64(user:pass) HTTP cua P4 (firmware co bat mat khau) — khong nam trong cfg (cfg in ra /metrics).
@@ -196,7 +198,7 @@ const STATIC_PAGES = ['no-url.html', 'cam.html', 'camera.html', 'weather.html', 
   // (01/10/2026) Thu vien / Tep (the SD cua P4), Tin nhan noi bo, bieu tuong dung chung.
   'files.html', 'chat.html', 'icons.js', 'alarm.html',
   // (07/10/2026) IPTV (src/iptv.ts). (08/10/2026) Su kien camera Frigate (src/frigate.ts).
-  'iptv.html', 'events.html', 'media.html', 'call-test.html', 'door.html'];
+  'iptv.html', 'events.html', 'media.html', 'call-test.html', 'door.html', 'call.html', 'call-web.html', 'call-ui.js', 'call-ui.css'];
 const staticCache = new Map<string, Buffer>();
 for (const name of STATIC_PAGES) {
   const p = path.join(__dirname, '..', 'public', name);
@@ -238,6 +240,8 @@ http.createServer((req, res) => {
   if (handleCallApi(req, res, reqUrl)) return;
   // (14/10/2026) Chuong cong: Nghe / Tu choi / Ket thuc / Mo cong, anh khach (src/door.ts).
   if (handleDoorApi(req, res, reqUrl)) return;
+  // (14/10/2026) Cuoc goi video man <-> man / trinh duyet (src/calls.ts).
+  if (handleCallsApi(req, res, reqUrl)) return;
   // (08/10/2026) Su kien camera Frigate: danh sach, anh, clip (src/frigate.ts) — chi 127.0.0.1.
   if (handleFrigateApi(req, res, reqUrl)) return;
   const vendor = vendorCache.get(pathname);
@@ -354,12 +358,14 @@ http.createServer((req, res) => {
   }
 
   res.writeHead(200); res.end('ok');
-}).on('upgrade', (req, socket, head) => { if (!handleCallUpgrade(req, socket, head) && !handleGo2rtcUpgrade(req, socket, head)) socket.destroy(); }).listen(HEALTH_PORT);
+}).on('upgrade', (req, socket, head) => { if (!handleCallUpgrade(req, socket, head) && !handleCallsUpgrade(req, socket, head) && !handleGo2rtcUpgrade(req, socket, head)) socket.destroy(); }).listen(HEALTH_PORT);
 
 setInterval(() => cleanupIdleAsync(), 60_000);
 
 // (01/10/2026) Tin nhan noi bo (src/chat.ts): ten man hinh lay tu so dang ky thiet bi HA (ten nguoi dung dat), 5 phut/lan.
 const screenNames = new Map<string, string>();
+// (14/10/2026) Ten than thien firmware gui kem (?fn=) — du phong khi so dang ky HA khong tim ra (MAC cong mang khac).
+const fwNames = new Map<string, string>();
 async function refreshScreenNames(): Promise<void> {
   try {
     const reg = await getRegistry();
@@ -376,10 +382,12 @@ setInterval(refreshScreenNames, 5 * 60_000);
 // Gap man chua co ten -> nap lai ngay (toi da 30 s / lan).
 let namesAt = 0;
 function screenNameOf(id: string): string | undefined {
-  const n = screenNames.get(id);
+  const n = screenNames.get(id) || fwNames.get(id);
   if (!n && Date.now() - namesAt > 30_000) { namesAt = Date.now(); void refreshScreenNames(); }
   return n;
 }
+// (14/10/2026) Cuoc goi video: ten man trong danh ba / man hinh cuoc goi.
+setCallHooks({ name: (id) => screenNameOf(id) });
 setChatHooks({
   screens: () => connectedScreens().map((s) => {
     if (!screenNames.has(s.id)) refreshScreenNames();

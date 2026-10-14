@@ -1,0 +1,69 @@
+<!doctype html>
+<!--
+  (14/10/2026) UNG DUNG "GỌI" tren man (P4) — cuoc goi video kieu dien thoai (giao dien chung: call-ui.js / call-ui.css).
+  ?mode=contacts (mo tu launcher): danh ba -> goi di. ?mode=in&call=&peer=&name= : server mo DE LEN man khoa khi co cuoc goi
+  den (src/calls.ts, deviceManager.openRingPage). ?dev= : man nay (server them). Lenh: POST /calls/*; trang thai: hoi
+  /calls/state moi 0,7 s. Tieng do server noi truc tiep (mic / loa man); hinh: WS /call/video.
+-->
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gọi</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="call-ui.css">
+<script src="icons.js"></script>
+<script src="call-ui.js"></script>
+</head>
+<body style="margin:0;background:#0b0d10">
+<div id="app"></div>
+<script>
+(function () {
+  'use strict';
+  var q = new URLSearchParams(location.search);
+  var DEV = q.get('dev') || '', MODE = q.get('mode') || 'contacts';
+  var call = q.get('call') || '', peer = q.get('peer') || '', peerName = q.get('name') || '';
+  function post(p) {
+    return fetch(p, { method: 'POST' }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok || j.ok === false) throw new Error(j.error || 'Lỗi ' + r.status); return j; }); });
+  }
+  var enc = encodeURIComponent;
+  var ui = CallUI.mount(document.getElementById('app'), {
+    self: DEV, base: '/',
+    contacts: function () { return fetch('/calls/contacts?self=' + enc(DEV), { cache: 'no-store' }).then(function (r) { return r.json(); }); },
+    start: function (to, name) {
+      post('/calls/start?from=' + enc(DEV) + '&to=' + enc(to)).then(function (j) {
+        call = j.call; peer = to; peerName = name;
+        ui.set({ view: 'out', call: call, peer: to, peerName: name });
+      }).catch(function (e) { ui.toast(e.message); });
+    },
+    accept: function () { post('/calls/accept?call=' + enc(call) + '&dev=' + enc(DEV)).catch(function (e) { ui.toast(e.message); }); },
+    decline: function () { post('/calls/decline?call=' + enc(call)).catch(function () { }); },
+    hangup: function () { post('/calls/hangup?call=' + enc(call)).catch(function () { }); },
+    mute: function (on) { post('/calls/mute?call=' + enc(call) + '&dev=' + enc(DEV) + '&on=' + (on ? 1 : 0)).catch(function () { }); },
+    cam: function (on) { post('/calls/cam?call=' + enc(call) + '&dev=' + enc(DEV) + '&on=' + (on ? 1 : 0)).catch(function () { }); },
+    // Hinh cua minh: camera man nay (luong /live chia — khong ton them ket noi toi P4).
+    selfVideo: function (t) { t.video.hidden = true; t.canvas.hidden = false; return CallUI.videoInto(t.canvas, '/call/video?dev=' + enc(DEV)); },
+  });
+  // Hoi trang thai khi co cuoc goi.
+  setInterval(function () {
+    if (!call) return;
+    fetch('/calls/state?call=' + enc(call), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (s) {
+      if (s.state === 'ended') {
+        var c = call; call = '';
+        ui.set({ view: 'ended', reason: s.reason });
+        setTimeout(function () { if (!call && MODE === 'contacts') ui.set({ view: 'contacts', call: '' }); }, 2500);
+        return void c;
+      }
+      if (s.state === 'active') {
+        var p = s.from === DEV ? s.to : s.from;
+        ui.set({ view: 'active', call: call, peer: p, peerName: s.from === DEV ? s.toName : s.fromName, since: s.since,
+          peerMuted: s.muted.indexOf(p) >= 0, peerCamOff: s.camOff.indexOf(p) >= 0 });
+      }
+    }).catch(function () { });
+  }, 700);
+  if (MODE === 'in' && call) ui.set({ view: 'in', call: call, peer: peer, peerName: peerName });
+  else ui.set({ view: 'contacts' });
+})();
+</script>
+</body>
+</html>

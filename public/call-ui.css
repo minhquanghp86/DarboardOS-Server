@@ -1,0 +1,58 @@
+/* (14/10/2026) Giao dien cuoc goi video kieu dien thoai — call.html (man) + call-web.html (trinh duyet). Xem call-ui.js. */
+.call { position: fixed; inset: 0; overflow: hidden; background: #0b0d10; color: #fff; font-family: "Be Vietnam Pro", Roboto, sans-serif;
+  -webkit-user-select: none; user-select: none; }
+.call [hidden] { display: none !important; }
+.call .big-v { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #0b0d10; }
+.call .shade { position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(rgba(0, 0, 0, 0.55), transparent 22%, transparent 62%, rgba(0, 0, 0, 0.7)); }
+/* Cuoc goi di / den: hinh cua minh lam nen, mo + toi (kieu man hinh khoa dien thoai) */
+.call[data-view="in"] .big-v, .call[data-view="out"] .big-v { filter: blur(22px) brightness(0.55) saturate(1.2); transform: scale(1.12); }
+.call[data-view="in"] .shade, .call[data-view="out"] .shade, .call[data-view="ended"] .shade { background: rgba(8, 10, 14, 0.35); }
+.call .center { position: absolute; left: 0; right: 0; top: 14%; display: flex; flex-direction: column; align-items: center; gap: clamp(8px, 2vmin, 14px);
+  text-align: center; padding: 0 16px; }
+.call .av { flex: none; width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 18px; color: #fff; letter-spacing: 0.02em; }
+.call .av.big { width: clamp(88px, 22vmin, 140px); height: clamp(88px, 22vmin, 140px); font-size: clamp(30px, 8vmin, 50px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45); }
+.call .cname { font-size: clamp(24px, 6.6vmin, 42px); font-weight: 700; line-height: 1.15; text-wrap: balance; }
+.call .csub { color: rgba(255, 255, 255, 0.75); font-size: clamp(13px, 3.4vmin, 19px); }
+.call .bar { position: absolute; left: 0; right: 0; bottom: clamp(18px, 6vmin, 48px); display: flex; justify-content: center;
+  gap: clamp(28px, 9vmin, 72px); transition: opacity 0.2s; }
+.call[data-view="in"] .bar { gap: clamp(60px, 26vmin, 200px); }
+.call .rb { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: clamp(11px, 2.8vmin, 15px); color: rgba(255, 255, 255, 0.9); }
+.call .rb button { width: clamp(58px, 14vmin, 82px); height: clamp(58px, 14vmin, 82px); border: none; border-radius: 50%; display: flex;
+  align-items: center; justify-content: center; cursor: pointer; color: #fff; background: rgba(255, 255, 255, 0.2);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+.call .rb button svg { width: 46%; height: 46%; fill: currentColor; }
+.call .rb button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.call .rb button:disabled { opacity: 0.6; }
+.call .rb.red button { background: #ff3b30; }
+.call .rb.green button { background: #34c759; }
+.call .rb.on button { background: #fff; color: #111; }
+.call .top { position: absolute; left: 0; right: 0; top: 0; padding: clamp(18px, 4.6vmin, 34px) clamp(16px, 4vmin, 28px); transition: opacity 0.2s; }
+.call .tname { font-size: clamp(17px, 4.4vmin, 26px); font-weight: 700; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5); }
+.call .tsub { color: rgba(255, 255, 255, 0.82); font-size: clamp(12px, 3vmin, 16px); font-variant-numeric: tabular-nums; margin-top: 2px; }
+.call .pip { position: absolute; top: clamp(14px, 3.6vmin, 26px); right: clamp(14px, 3.6vmin, 26px); width: clamp(120px, 24vw, 280px);
+  aspect-ratio: 16 / 9; border-radius: clamp(12px, 2.6vmin, 18px); overflow: hidden; background: #1c2026;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.18); }
+.call .pip canvas, .call .pip video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.call .camoff { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  background: radial-gradient(circle at 50% 40%, #232a33, #0b0d10 70%); }
+.call.bare .top, .call.bare .bar { opacity: 0; pointer-events: none; }
+/* Danh ba */
+.call .contacts { position: absolute; inset: 0; overflow-y: auto; padding: clamp(22px, 5vmin, 40px) clamp(16px, 4vw, 48px); background: #0b0d10; }
+.call .lt { font-size: clamp(24px, 6vmin, 36px); font-weight: 700; margin-bottom: clamp(12px, 3vmin, 22px); }
+.call .cl { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); }
+.call .ct { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border: none; border-radius: 16px; background: #171b21; color: #fff;
+  font: inherit; text-align: left; cursor: pointer; }
+.call .ct:disabled { opacity: 0.5; cursor: default; }
+.call .ct:focus-visible { outline: 2px solid #34c759; outline-offset: 2px; }
+.call .cm { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.call .cm b { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.call .cm small { color: #9aa4b2; font-size: 13px; }
+.call .cb { flex: none; width: 44px; height: 44px; border-radius: 50%; background: #34c759; display: flex; align-items: center; justify-content: center; }
+.call .cb svg { width: 22px; height: 22px; fill: #fff; }
+.call .empty { color: #9aa4b2; padding: 24px 0; line-height: 1.5; }
+.call .toast { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 12px 20px; border-radius: 999px;
+  background: rgba(20, 23, 28, 0.92); font-weight: 600; max-width: 86vw; text-align: center; }
+@media (prefers-reduced-motion: reduce) { .call .bar, .call .top { transition: none; } }

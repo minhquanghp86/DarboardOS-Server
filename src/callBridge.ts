@@ -20,6 +20,7 @@ import { WebSocket, WebSocketServer } from 'ws';
 import { callHold } from './audioCapture.js';
 import { subscribeLiveFrames } from './camProxy.js';
 import { isDoor, subscribeDoorFrames } from './door.js';
+import { isWebSource, subscribeWebFrames, videoAllowed } from './calls.js';
 import { broadcaster, connectedScreens } from './deviceManager.js';
 import { ControlField } from './protocol.js';
 
@@ -86,6 +87,15 @@ export function linkCalls(a: string, b: string): boolean {
   la.link = b; lb.link = a;
   console.log(`[call] noi tieng ${a} <-> ${b}`);
   return true;
+}
+
+/** (14/10/2026) Nghe tieng mic cua man trong cuoc goi (tong dai cuoc goi video gui sang trinh duyet). Tra ham huy. */
+export function onMicListener(dev: string, fn: (pcm: Buffer) => void): () => void {
+  const l = calls.get(dev);
+  if (!l) return () => { };
+  const f = (pcm: Buffer) => fn(pcm);
+  l.listeners.add(f);
+  return () => { l.listeners.delete(f); };
 }
 
 export function setMuted(dev: string, on: boolean): boolean { const l = calls.get(dev); if (!l) return false; l.muted = on; return true; }
@@ -221,12 +231,15 @@ function videoUpgrade(req: http.IncomingMessage, socket: Duplex, head: Buffer, u
   if (!isLocal(req) && !isIngress(req)) { socket.destroy(); return true; }
   const dev = url.searchParams.get('dev') || '';
   wss.handleUpgrade(req, socket, head, (ws) => {
-    const door = isDoor(dev);
-    if (!door && !connectedScreens().some((s) => s.id === dev && s.cam)) { ws.close(4004, 'man khong co camera'); return; }
+    const door = isDoor(dev), web = isWebSource(dev);
+    if (!door && !web && !connectedScreens().some((s) => s.id === dev && s.cam)) { ws.close(4004, 'man khong co camera'); return; }
+    // (14/10/2026) ?call=<id>: hinh trong cuoc goi video — chi gui khi cuoc goi dang chay va nguon khong tat camera.
+    const callId = url.searchParams.get('call');
     let skip = false, sent = 0, dropped = 0;
     const t0 = Date.now();
-    const unsub = (door ? subscribeDoorFrames : subscribeLiveFrames)(dev, (e) => {
+    const unsub = (door ? subscribeDoorFrames : web ? subscribeWebFrames : subscribeLiveFrames)(dev, (e) => {
       if (ws.readyState !== WebSocket.OPEN) return;
+      if (callId && e.kind === 'frame' && !videoAllowed(callId, dev)) { skip = true; return; }
       if (e.kind === 'config') { ws.send(JSON.stringify({ codec: e.codec, avcc: e.avcc.toString('base64') })); return; }
       if (ws.bufferedAmount > 1024 * 1024) skip = true;
       if (skip && !e.key) { dropped++; return; }
