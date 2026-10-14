@@ -554,7 +554,12 @@
   // ── Phat tren loa trong nha (HA) ──
   function castNow(it) {
     au.pause();
-    postJson('/mlib/cast', { player: P.out, id: it.id, mime: it.mime }).then(function () { P.castAt = Date.now(); P.sawPlaying = false; pollRemote(); })
+    postJson('/mlib/cast', { player: P.out, id: it.id, mime: it.mime }).then(function () {
+      P.castAt = Date.now(); P.sawPlaying = false; pollRemote();
+      // Mot so loa (vd Android TV Remote) nhan lenh nhung bo qua tep thu vien HA -> sau 12 s chua phat thi bao ro.
+      var at = P.castAt;
+      setTimeout(function () { if (P.castAt === at && P.out !== 'local' && !P.sawPlaying) toast((P.outName || 'Loa') + ' không phát tệp này — thử loa khác hoặc Màn này.'); }, 12000);
+    })
       .catch(function (e) { toast('Loa không phát được: ' + e.message); });
     save();
   }
