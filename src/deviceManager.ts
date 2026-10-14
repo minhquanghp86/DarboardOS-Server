@@ -2454,7 +2454,9 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return Promise.race([p, new Promise<never>((_, rej) => setTimeout(() => rej(new Error(`Chrome khong tra loi sau ${ms} ms`)), ms))]);
 }
 
-const PAUSE_ALL_MEDIA_JS = "document.querySelectorAll('video,audio').forEach(function(m){try{m.pause();}catch(e){}});";
+// (14/10/2026) Danh dau media DANG PHAT bi dung boi dong bang (data-rwv-fz) de phat lai neu tab duoc dua len hien GIUA chuoi.
+const PAUSE_ALL_MEDIA_JS = "document.querySelectorAll('video,audio').forEach(function(m){try{if(!m.paused)m.setAttribute('data-rwv-fz','1');m.pause();}catch(e){}});";
+const RESUME_FROZEN_MEDIA_JS = "document.querySelectorAll('[data-rwv-fz]').forEach(function(m){try{m.removeAttribute('data-rwv-fz');var p=m.play();if(p&&p.catch)p.catch(function(){});}catch(e){}});";
 
 function freezeTab(dev: DeviceSession, tab: Tab): void {
   if (!FREEZE_BG_TABS || tab.frozen || dev.activeTabKey === tab.key || !dev.tabs.has(tab.key)) return;
@@ -2465,11 +2467,24 @@ function freezeTab(dev: DeviceSession, tab: Tab): void {
   // bang. Tab radio/nhac dang phat nen khong bao gio toi day (dieu kien o tren).
   // (01/10/2026) Moi buoc co han 3 s: Chrome khong tra loi -> truoc day ca chuoi treo IM LANG, tab o lai "frozen" nhung
   // JS + video van chay ngam (do that: tab YouTube P4 phat nen toi khi bi dong sau 5 phut, khong mot dong log).
+  // (14/10/2026) KIEM LAI o MOI buoc: tab co the duoc dua len HIEN giua chuoi (do that 14/10: phat IPTV len S3 -> "chuyen sang
+  // tab iptv" roi "dong bang tab nen iptv" -> video IPTV bi dung, man khoa). Khi do huy dong bang + phat lai media vua dung.
+  const stillBg = () => tab.frozen && dev.activeTabKey !== tab.key && dev.tabs.get(tab.key) === tab;
   withTimeout(tab.session.send('Runtime.evaluate', { expression: PAUSE_ALL_MEDIA_JS }), 3000).catch(() => { })
     // Debugger.enable ngay truoc khi dung (khong de bat thuong truc: moi script trang nap se ban su kien ve server).
-    .then(() => tab.frozen ? withTimeout(tab.session.send('Debugger.enable', {}), 3000) : undefined)
-    .then(() => tab.frozen ? withTimeout(tab.session.send('Debugger.pause'), 3000) : undefined)
-    .then(() => console.log(`[app] ${dev.deviceId}: dong bang tab nen "${tab.key}"`))
+    .then(() => stillBg() ? withTimeout(tab.session.send('Debugger.enable', {}), 3000) : undefined)
+    .then(() => stillBg() ? withTimeout(tab.session.send('Debugger.pause'), 3000) : undefined)
+    .then(async () => {
+      if (stillBg()) { console.log(`[app] ${dev.deviceId}: dong bang tab nen "${tab.key}"`); return; }
+      if (dev.tabs.get(tab.key) !== tab) return;   // tab da dong
+      tab.frozen = false;
+      await tab.session.send('Debugger.resume').catch(() => { });
+      await tab.session.send('Debugger.disable').catch(() => { });
+      if (dev.activeTabKey === tab.key) {
+        await withTimeout(tab.session.send('Runtime.evaluate', { expression: RESUME_FROZEN_MEDIA_JS }), 3000).catch(() => { });
+        console.log(`[app] ${dev.deviceId}: huy dong bang "${tab.key}" (tab vua duoc dua len hien)`);
+      }
+    })
     .catch((e: unknown) => {
       tab.frozen = false;
       // (14/10/2026) Tab vua bi dong (qua so tab / don nen) trong luc dong bang -> "Session with given id not found": vo hai, khong log.
