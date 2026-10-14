@@ -2486,6 +2486,9 @@ function freezeTab(dev: DeviceSession, tab: Tab): void {
         await withTimeout(tab.session.send('Runtime.evaluate', { expression: RESUME_FROZEN_MEDIA_JS }), 3000).catch(() => { });
         console.log(`[app] ${dev.deviceId}: huy dong bang "${tab.key}" (tab vua duoc dua len hien)`);
       }
+      // (14/10/2026) Bi go giua chung boi duong khac (cap nhat bo cuc / Shell) — ghi lai de do (lan dau roi tab IPTV vua tao
+      // khong bi dong bang, chua ro duong nao).
+      else console.log(`[app] ${dev.deviceId}: dong bang "${tab.key}" bi go giua chung (tab van o nen)`);
     })
     .catch((e: unknown) => {
       tab.frozen = false;
