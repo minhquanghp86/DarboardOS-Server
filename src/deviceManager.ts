@@ -2050,7 +2050,8 @@ function resolveAppSpec(dev: DeviceSession, key: string): { kind: string; label:
   // (01/10/2026) Tin nhan can biet DANG chay tren man hinh nao (src/chat.ts nhan dien bang ?dev=). (07/10/2026) + IPTV:
   // nho kenh xem cuoi rieng tung man hinh.
   // (09/10/2026) + Camera / Thu vien / Quan ly file: nha nhieu P4 — trang gui ?rwvdev de dung camera CUA man nay (camProxy).
-  if (key === 'chat' || key === 'alarm' || key === 'iptv' || key === 'camera' || key === 'gallery' || key === 'files') return { kind: app.baseKind, label: app.label, url: app.url + (app.url.includes('?') ? '&' : '?') + 'dev=' + encodeURIComponent(dev.deviceId), pinned: false };
+  // (14/10/2026) + Media: the nho CUA man nay, bai dang nghe nho theo man, an loa cua chinh man trong "Phát trên".
+  if (key === 'chat' || key === 'alarm' || key === 'iptv' || key === 'camera' || key === 'gallery' || key === 'files' || key === 'media') return { kind: app.baseKind, label: app.label, url: app.url + (app.url.includes('?') ? '&' : '?') + 'dev=' + encodeURIComponent(dev.deviceId), pinned: false };
   // baseKind, KHONG phai kind: nguoi dung doi bieu tuong o "Menu panel" thi kind thanh 'mdi' -> Radio/Nhac mat phat
   // nen, YouTube/TikTok khong tu dung khi roi tab (activateTab dua vao loai ung dung goc).
   return { kind: app.baseKind, label: app.label, url: app.url, pinned: false };
