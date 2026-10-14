@@ -39,6 +39,7 @@ import { startDebugProxy } from './debugProxy.js';
 import { startWeatherMini } from './weatherMini.js';
 import { handleIptvApi, setIptvHooks } from './iptv.js';
 import { handleMediaApi } from './mediaLib.js';
+import { endCall, handleCallApi, handleCallUpgrade, onMicFrame } from './callBridge.js';
 import { handleFrigateApi } from './frigate.js';
 import { handleLockWidgetsApi, noteDeviceIp } from './lockWidgets.js';
 import { handleCalendarApi } from './calendarSource.js';
@@ -86,6 +87,10 @@ function routeMessage(dev: DeviceSession, buf: Buffer): void {
     }
     case MsgType.DeviceState:
       onDeviceStatePacket(dev, buf);
+      break;
+    // (14/10/2026) INTERCOM: tieng mic cua man trong cuoc goi (src/callBridge.ts).
+    case MsgType.MicFrame:
+      onMicFrame(dev.deviceId, buf);
       break;
     case MsgType.OpenURL:
       metrics.onNavigate(dev.deviceId, '(open_url)');
@@ -148,6 +153,8 @@ wss.on("connection", async (ws, req) => {
     if (cfg.audioEnabled && broadcaster.getClientCount(id) === 0) {
       unsubscribeDeviceAudio(id);
     }
+    // (14/10/2026) Man mat ket noi giua cuoc goi -> ket thuc (firmware cung tu dung mic khi mat WS).
+    if (broadcaster.getClientCount(id) === 0) endCall(id);
   });
 
   // ── Tạo/lấy device session (có thể mất vài giây lần đầu) ─────────────────
@@ -186,7 +193,7 @@ const STATIC_PAGES = ['no-url.html', 'cam.html', 'camera.html', 'weather.html', 
   // (01/10/2026) Thu vien / Tep (the SD cua P4), Tin nhan noi bo, bieu tuong dung chung.
   'files.html', 'chat.html', 'icons.js', 'alarm.html',
   // (07/10/2026) IPTV (src/iptv.ts). (08/10/2026) Su kien camera Frigate (src/frigate.ts).
-  'iptv.html', 'events.html', 'media.html'];
+  'iptv.html', 'events.html', 'media.html', 'call-test.html'];
 const staticCache = new Map<string, Buffer>();
 for (const name of STATIC_PAGES) {
   const p = path.join(__dirname, '..', 'public', name);
@@ -224,6 +231,8 @@ http.createServer((req, res) => {
   if (handleIptvApi(req, res, reqUrl)) return;
   // (14/10/2026) Ung dung Media: nguon media cua HA, phat tren man / loa HA (src/mediaLib.ts) — chi 127.0.0.1.
   if (handleMediaApi(req, res, reqUrl)) return;
+  // (14/10/2026) INTERCOM GD0: tieng giua man va trang thu / do vong lap (src/callBridge.ts).
+  if (handleCallApi(req, res, reqUrl)) return;
   // (08/10/2026) Su kien camera Frigate: danh sach, anh, clip (src/frigate.ts) — chi 127.0.0.1.
   if (handleFrigateApi(req, res, reqUrl)) return;
   const vendor = vendorCache.get(pathname);
@@ -340,7 +349,7 @@ http.createServer((req, res) => {
   }
 
   res.writeHead(200); res.end('ok');
-}).on('upgrade', (req, socket, head) => { if (!handleGo2rtcUpgrade(req, socket, head)) socket.destroy(); }).listen(HEALTH_PORT);
+}).on('upgrade', (req, socket, head) => { if (!handleCallUpgrade(req, socket, head) && !handleGo2rtcUpgrade(req, socket, head)) socket.destroy(); }).listen(HEALTH_PORT);
 
 setInterval(() => cleanupIdleAsync(), 60_000);
 

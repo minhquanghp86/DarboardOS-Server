@@ -1744,9 +1744,9 @@ let noticeArgHook: ((deviceId: string, app: string, arg: string) => void) | null
 export function setNoticeArgHook(fn: (deviceId: string, app: string, arg: string) => void): void { noticeArgHook = fn; }
 
 /** (01/10/2026) Man hinh dang ket noi — cho Tin nhan (ten lay tu HA o index.ts). */
-export function connectedScreens(): { id: string; w: number; h: number; cam: boolean; sd: boolean; spk: boolean }[] {
+export function connectedScreens(): { id: string; w: number; h: number; cam: boolean; sd: boolean; spk: boolean; mic: boolean }[] {
   return [...devices.values()].filter((d) => broadcaster.getClientCount(d.deviceId) > 0)
-    .map((d) => ({ id: d.deviceId, w: d.cfg.width, h: d.cfg.height, cam: d.cfg.camPort > 0, sd: d.cfg.camPort > 0 || d.cfg.sdPort > 0, spk: !!d.cfg.audioEnabled }));
+    .map((d) => ({ id: d.deviceId, w: d.cfg.width, h: d.cfg.height, cam: d.cfg.camPort > 0, sd: d.cfg.camPort > 0 || d.cfg.sdPort > 0, spk: !!d.cfg.audioEnabled, mic: !!d.cfg.micCall }));
 }
 
 /**
@@ -2931,11 +2931,11 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
       // gi (khong script/target nao phu thuoc) nen chi can gan lai.
       if (device.cfg.halfScale !== cfg.halfScale || device.cfg.halfVideo !== cfg.halfVideo || device.cfg.camPort !== cfg.camPort || device.cfg.sdPort !== cfg.sdPort || device.cfg.audioEnabled !== cfg.audioEnabled || device.cfg.sound !== cfg.sound ||
           device.cfg.urlSet !== cfg.urlSet || device.cfg.fbBands !== cfg.fbBands ||
-          device.cfg.devControl !== cfg.devControl || device.cfg.voice !== cfg.voice) {
+          device.cfg.devControl !== cfg.devControl || device.cfg.voice !== cfg.voice || device.cfg.micCall !== cfg.micCall) {
         console.log(`[device] ${id}: cap nhat co firmware half=${cfg.halfScale}${cfg.halfVideo ? "(video)" : ""} cam=${cfg.camPort} audio=${cfg.audioEnabled} urlset=${cfg.urlSet} fb=${cfg.fbBands}`);
         const camChanged = device.cfg.camPort !== cfg.camPort || device.cfg.sdPort !== cfg.sdPort;
         device.cfg = { ...device.cfg, halfScale: cfg.halfScale, halfVideo: cfg.halfVideo, camPort: cfg.camPort, sdPort: cfg.sdPort, sound: cfg.sound, audioEnabled: cfg.audioEnabled, urlSet: cfg.urlSet,
-                       fbBands: cfg.fbBands, devControl: cfg.devControl, voice: cfg.voice };
+                       fbBands: cfg.fbBands, devControl: cfg.devControl, voice: cfg.voice, micCall: cfg.micCall };
         device.processor.setBandSplit(cfg.fbBands);
         // (01/10/2026) Firmware moi co / het ung dung Camera: dung lai launcher (hien / an bieu tuong Camera).
         if (camChanged) reloadAllLaunchers().catch(() => { });

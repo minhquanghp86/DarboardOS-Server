@@ -61,6 +61,8 @@ export enum MsgType {
   // (27/09/2026) Thiet bi -> server: su kien de Shell hien [12][1][kind][value][text utf8...]. kind 1 = tro ly giong
   // noi (value = VoiceState), 2 = co nguoi truoc man hinh (value 0/1, tu camera cua panel).
   DeviceEvent = 12,
+  /** (14/10/2026) INTERCOM: thiet bi -> server, [type][ver][seq u16le] + PCM s16le mono 16 kHz (mic da khu vong, khi dang goi). */
+  MicFrame = 13,
 }
 
 export enum DeviceEventKind { Voice = 1, Presence = 2 }
@@ -87,6 +89,8 @@ export enum ControlField {
   AlertVolume = 10,
   AlarmVolume = 11,
   Dnd = 12,
+  /** (14/10/2026) INTERCOM: 1 = man nay dang trong cuoc goi (bat mic len server), 0 = het. Firmware cu bo qua. */
+  Call = 13,
 }
 
 export interface DeviceStateInfo {

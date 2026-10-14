@@ -58,6 +58,8 @@ export type DeviceConfig = {
   devControl: boolean;
   // (27/09/2026) ?va=1: firmware co tro ly giong noi (on_assist) -> Shell hien nut "Tro ly". Co dinh theo firmware.
   voice: boolean;
+  /** (14/10/2026) INTERCOM: firmware co mic cuoc goi (?mic=1, YAML call_microphone) -> goi duoc toi man nay. */
+  micCall: boolean;
 };
 
 const DEFAULTS = {
@@ -166,6 +168,7 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
   const fbBands = params.get("fb") === "1";
   const devControl = params.get("ctl") === "1";
   const voice = params.get("va") === "1";
+  const micCall = params.get("mic") === "1";
 
   const dimensions = getRotatedDimensions(width, height, rotation);
 
@@ -192,6 +195,7 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
     fbBands,
     devControl,
     voice,
+    micCall,
   };
 }
 
