@@ -14,7 +14,8 @@
 import http from 'node:http';
 import { Readable } from 'node:stream';
 
-import { callService, getStates, wsCalls } from './haSettings.js';
+import { callService, getRegistry, getStates, wsCalls } from './haSettings.js';
+import { findDeviceByMac, macFromDeviceId } from './settingsModel.js';
 
 /** Nguon da co ung dung rieng tren panel (Camera, Su kien, Anh, Radio...) -> an o goc, tru khi ?all=1. */
 export const HIDDEN_SOURCES = new Set(['ai_task', 'camera', 'frigate', 'image', 'image_upload', 'radio_browser', 'tts']);
@@ -135,7 +136,14 @@ export function handleMediaApi(req: http.IncomingMessage, res: http.ServerRespon
     return true;
   }
   if (p === '/mlib/players' && req.method === 'GET') {
-    getStates().then((s) => json(res, 200, toPlayers(s as any))).catch(fail);
+    // ?dev=esp32-<mac>: bo loa cua CHINH man nay (trung voi "Man nay" — phat ca hai thi tranh loa).
+    const mac = macFromDeviceId(url.searchParams.get('dev') || '');
+    Promise.all([getStates(), mac ? getRegistry().catch(() => null) : null]).then(([s, reg]) => {
+      let own = new Set<string>();
+      const d = mac && reg ? findDeviceByMac(reg.devices, mac) : undefined;
+      if (d && reg) own = new Set(reg.entities.filter((e) => e.device_id === d.id).map((e) => e.entity_id));
+      json(res, 200, toPlayers(s as any).filter((x) => !own.has(x.id)));
+    }).catch(fail);
     return true;
   }
   if ((p === '/mlib/cast' || p === '/mlib/ctl') && req.method === 'POST') {

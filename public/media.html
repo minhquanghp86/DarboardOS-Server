@@ -566,7 +566,7 @@
   function pollRemote() {
     clearTimeout(pollT);
     if (P.out === 'local' || !P.q.length) return;
-    getJson(window.rwvRel('/mlib/players')).then(function (list) {
+    getJson(window.rwvRel('/mlib/players' + (DEV ? '?dev=' + enc(DEV) : ''))).then(function (list) {
       var p = list.filter(function (x) { return x.id === P.out; })[0] || null;
       if (p && P.remote && P.remoteHold && Date.now() - P.remoteHold < 2000) p.vol = P.remote.vol;
       var was = P.remote && P.remote.state;
@@ -600,7 +600,7 @@
     row('local', 'Màn này', 'Loa của màn hình', 'tablet');
     var wait = el('div', 'sec', 'Đang tìm loa trong nhà…'); box.append(wait);
     $('outs').hidden = false;
-    getJson(window.rwvRel('/mlib/players')).then(function (list) {
+    getJson(window.rwvRel('/mlib/players' + (DEV ? '?dev=' + enc(DEV) : ''))).then(function (list) {
       wait.remove();
       if (!list.length) box.append(el('div', 'sec', 'Không có loa / TV nào trong Home Assistant.'));
       list.forEach(function (p) { row(p.id, p.name, stateVi(p.state) + (p.title ? ' · ' + p.title : ''), 'speaker'); });
@@ -761,7 +761,7 @@
   paintFilter();
 
   // Noi phat da chon lan truoc la loa HA: chi nho, khong tu phat — hien ten loa khi doc duoc danh sach.
-  if (P.out !== 'local') getJson(window.rwvRel('/mlib/players')).then(function (l) {
+  if (P.out !== 'local') getJson(window.rwvRel('/mlib/players' + (DEV ? '?dev=' + enc(DEV) : ''))).then(function (l) {
     var p = l.filter(function (x) { return x.id === P.out; })[0];
     if (p) { P.outName = p.name; P.remote = p; } else P.out = 'local';
     paintPlayer();
