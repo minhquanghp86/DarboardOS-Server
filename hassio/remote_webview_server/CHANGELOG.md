@@ -1,3 +1,8 @@
+## V2.9.138
+- **IPTV: danh sách kênh mở bằng nút "Danh sách"** trên thanh trên — chạm màn hình chỉ hiện các nút như trước; bấm
+  "Danh sách" mới hiện danh sách kênh bên trái, bấm lại để đóng (các nút tự ẩn thì danh sách đóng theo). Màn hẹp:
+  nút chỉ có biểu tượng.
+
 ## V2.9.137
 - **Âm lượng ngay trên trình phát**: trình xem video (Thư viện / Quản lý file) và trình phát IPTV có cụm **[−] 25% [+]**
   chỉnh âm lượng loa của màn (bước 5%, giống thanh âm lượng trên bảng điều khiển). Màn không có loa (S3) thì ẩn.
