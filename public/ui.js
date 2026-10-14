@@ -1,3 +1,22 @@
+// (13/10/2026) BO SUNG cho trang he thong: cac trang nay con duoc mo trong TAB TRINH DUYET qua duong dan ingress
+// (/api/hassio_ingress/<token>/<ten trang>). Khi do MOI duong dan tuyet doi ('/api/...', '/frigate/...', '/ui.css'...)
+// deu tro SAI GOC -> trang trang hoac khong tai duoc du lieu. Ho tro:
+//   - window.rwvRel(u): gan goc cua trang vao duong dan bat dau bang '/'
+//   - boc window.fetch: tu dong gan goc cho moi loi goi fetch('...')
+// Tren PANEL (goc '/') ket qua KHONG DOI. Khong lap lai neu duong dan da co tien to trang (rel() cua iptv.html).
+(function () {
+  var B = location.pathname.replace(/[^/]*$/, '');
+  function rwvRel(u) {
+    if (typeof u !== 'string' || u.charAt(0) !== '/' || u.charAt(1) === '/') return u;
+    if (B !== '/' && u.indexOf(B) === 0) return u;
+    return B + u.slice(1);
+  }
+  window.rwvRel = rwvRel;
+  var of = window.fetch;
+  if (typeof of === 'function') {
+    window.fetch = function (u, o) { try { return of.call(this, rwvRel(u), o); } catch (e) { return of.call(this, u, o); } };
+  }
+})();
 // (26/09/2026) Tien ich dung chung cho trang he thong (xem ui.css). Chi DOM API (mot so trang co Trusted Types).
 (function () {
   var ICONS = {

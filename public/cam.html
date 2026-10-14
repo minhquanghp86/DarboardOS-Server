@@ -156,7 +156,8 @@
   const q      = new URLSearchParams(location.search);
   const src    = q.get('src')    || 'ezviz';
   // (09/10/2026) Mac dinh go2rtc qua server (/go2rtc/), khong gan IP may HA. ?host= van ghi de.
-  const G2     = q.get('host') ? `http://${q.get('host')}/` : new URL('/go2rtc/', location.origin).href;
+  // (13/10/2026) Trang nay khong nap ui.js -> tu gan goc cua trang (chay dung ca khi mo qua ingress).
+  const G2     = q.get('host') ? `http://${q.get('host')}/` : new URL(location.pathname.replace(/[^/]*$/, '') + 'go2rtc/', location.origin).href;
   const fit    = q.get('fit')    || 'contain';
   const mode   = q.get('mode')   || 'mse';
   const poster = q.get('poster') || '';

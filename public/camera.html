@@ -11,7 +11,7 @@
   /api/cam/* cua server -> firmware cam_app (src/camProxy.ts). Khong co the SD: van chup duoc, anh chi xem tam.
   Tham so: src (luong go2rtc; mac dinh hoi server luong cua chinh panel), host (go2rtc; mac dinh qua server /go2rtc/).
 -->
-<link rel="stylesheet" href="/ui.css">
+<link rel="stylesheet" href="ui.css">
 <style>
   :root { --accent: #22c55e; --rec: #ef4444; }
   html, body { height: 100%; overflow: hidden; background: #000; }
@@ -80,12 +80,13 @@
   const q = new URLSearchParams(location.search);
   // (09/10/2026) Khong gan cung: go2rtc qua server (/go2rtc/ — src/go2rtcProxy.ts, tu tim go2rtc cua Frigate); ten luong
   // cua chinh panel hoi server (/api/cam/stream: luong go2rtc tro toi camera nay). ?host= / ?src= van ghi de duoc.
-  const G2 = q.get('host') ? `http://${q.get('host')}/` : new URL('/go2rtc/', location.origin).href;
+  // (13/10/2026) Trang nay khong nap ui.js -> tu gan goc cua trang (chay dung ca khi mo qua ingress).
+  const G2 = q.get('host') ? `http://${q.get('host')}/` : new URL(location.pathname.replace(/[^/]*$/, '') + 'go2rtc/', location.origin).href;
   let src = q.get('src');
   const $ = (id) => document.getElementById(id);
   // (09/10/2026) Nha nhieu P4: gui kem man hinh nay (?dev= do server them) -> server dung camera cua dung man.
   const DEV = q.get('dev');
-  const withDev = (u) => DEV ? u + (u.includes('?') ? '&' : '?') + 'rwvdev=' + encodeURIComponent(DEV) : u;
+  const withDev = (u) => window.rwvRel(DEV ? u + (u.includes('?') ? '&' : '?') + 'rwvdev=' + encodeURIComponent(DEV) : u);
   const api = (p, method = 'GET') => fetch(withDev('/api/cam' + p), { method, cache: 'no-store' }).then(async (r) => {
     let j = null; try { j = await r.json(); } catch { /* */ }
     if (!r.ok) throw new Error((j && (j.err || j.error)) || ('HTTP ' + r.status));
