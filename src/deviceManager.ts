@@ -2459,7 +2459,9 @@ const PAUSE_ALL_MEDIA_JS = "document.querySelectorAll('video,audio').forEach(fun
 const RESUME_FROZEN_MEDIA_JS = "document.querySelectorAll('[data-rwv-fz]').forEach(function(m){try{m.removeAttribute('data-rwv-fz');var p=m.play();if(p&&p.catch)p.catch(function(){});}catch(e){}});";
 
 function freezeTab(dev: DeviceSession, tab: Tab): void {
-  if (!FREEZE_BG_TABS || tab.frozen || dev.activeTabKey === tab.key || !dev.tabs.has(tab.key)) return;
+  if (!FREEZE_BG_TABS || dev.activeTabKey === tab.key || !dev.tabs.has(tab.key)) return;
+  // (14/10/2026) Ghi ly do BO QUA (truoc day im lang) — do that: tab IPTV roi di khong bao gio bi dong bang, video phat ngam.
+  if (tab.frozen) { console.log(`[app] ${dev.deviceId}: bo qua dong bang "${tab.key}": co frozen dang bat`); return; }
   if (tab.kind === 'yttv' || (tab.backgroundAudio && tab.mediaPlaying)) return;
   tab.frozen = true;
   // (01/10/2026) Debugger.pause chi dung JAVASCRIPT — bo giai ma <video>/<audio> cua Chrome VAN CHAY (truoc day chi
