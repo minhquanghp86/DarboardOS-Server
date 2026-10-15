@@ -1,3 +1,8 @@
+## V2.9.144
+- Xoá thư mục trên thẻ nhớ (Quản lý file trên trang Darboard, ứng dụng Tệp trên màn): gửi xác nhận `dir=1` sau khi người
+  dùng đã đồng ý — firmware **fw-2026.10.17** trở lên từ chối xoá thư mục nếu thiếu xác nhận (chốt an toàn chống xoá nhầm
+  cả thư mục). Firmware cũ bỏ qua tham số này.
+
 ## V2.9.143
 - Màn hình khoá / màn hình chờ: tạm dừng hoạt ảnh của trang bên dưới (SVG kể cả `<svg>` lồng, CSS / Web Animations),
   mở khoá thì chạy lại. Trước đây trang có hoạt ảnh (vd thẻ dòng điện mặt trời) khiến màn KHOÁ vẫn nhận ~29 khung/giây
