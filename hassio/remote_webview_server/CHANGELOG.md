@@ -1,3 +1,8 @@
+## V2.9.145
+- Sửa: rời một ứng dụng đang phát video (vd IPTV) để sang ứng dụng khác đôi khi KHÔNG đóng băng tab cũ — video tiếp tục
+  phát ngầm trong máy chủ (tốn CPU). Nguyên nhân: tab cũ được đóng băng trước khi chuyển tab xong. Đo trên S3: 3/3 lần
+  đóng băng đúng (trước: video vẫn chạy).
+
 ## V2.9.144
 - Xoá thư mục trên thẻ nhớ (Quản lý file trên trang Darboard, ứng dụng Tệp trên màn): gửi xác nhận `dir=1` sau khi người
   dùng đã đồng ý — firmware **fw-2026.10.17** trở lên từ chối xoá thư mục nếu thiếu xác nhận (chốt an toàn chống xoá nhầm

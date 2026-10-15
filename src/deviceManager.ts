@@ -2804,6 +2804,7 @@ async function activateTab(dev: DeviceSession, key: string): Promise<void> {
   if (dev.activeTabKey === key) { next.lastUsed = Date.now(); return; }
 
   const prev = dev.tabs.get(dev.activeTabKey);
+  let thumbThenFreeze: Promise<void> | null = null;
   if (prev) {
     prev.lastUsed = Date.now();  // "dung lan cuoi" = luc ROI tab (don tab / dong tab nhan roi tinh tu day)
     // YouTube/TikTok: DUNG video khi roi tab, tranh tieng ngam tiep tuc chay ngam voi tab khac.
@@ -2818,8 +2819,9 @@ async function activateTab(dev: DeviceSession, key: string): Promise<void> {
       closeTab(dev, prev.key, 'roi tab camera');
     } else {
       // anh cho "Gan day" — truoc khi tat screencast, khong cho; XONG moi dong bang (trang dong bang khong chup duoc).
-      const p = prev;
-      void captureThumb(dev, p).finally(() => freezeTab(dev, p));
+      // (15/10/2026) Dong bang SAU khi da doi activeTabKey (cuoi ham): truoc day chup anh xong truoc khi tab moi mo bang xong
+      // -> freezeTab thay tab cu "van dang hien" va thoat IM LANG -> video IPTV phat ngam mai (do 15/10 tren S3).
+      thumbThenFreeze = captureThumb(dev, prev);
     }
     if (prev.screencastOn) {
       prev.session.send('Page.stopScreencast').catch(() => { });
@@ -2830,6 +2832,7 @@ async function activateTab(dev: DeviceSession, key: string): Promise<void> {
   await thawTab(next);
   dev.activeTabKey = key;
   dev.cdp = next.session;
+  if (thumbThenFreeze && prev) { const p = prev; void thumbThenFreeze.finally(() => freezeTab(dev, p)); }
   setSaver(dev, false);  // man hinh cho nam trong Shell cua tab CU
   next.lastUsed = Math.max(Date.now(), (prev?.lastUsed ?? 0) + 1);  // luon moi hon tab vua roi (cung mili-giay)
   setTabAudioAllowed(next, true);
