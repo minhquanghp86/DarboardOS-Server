@@ -187,7 +187,11 @@
   // Ten do camera dat (IMG_20261001_101500) = gio dia phuong chinh xac; tep khac dung gio sua doi.
   function timeOf(it) {
     var m = /^(?:IMG|VID)_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/.exec(it.n);
-    return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) : new Date(it.t * 1000);
+    if (m) return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
+    // (15/10/2026) Firmware (FAT) tra `t` = GIO DIA PHUONG ghi nhu UTC (tep tao 17:50 gio VN -> t = 17:50 UTC): dung lai
+    // dung gio do o mui gio cua trang — truoc day lech +7 h (tep khong co ngay gio trong ten, vd anh chep vao the).
+    var u = new Date(it.t * 1000);
+    return new Date(u.getUTCFullYear(), u.getUTCMonth(), u.getUTCDate(), u.getUTCHours(), u.getUTCMinutes(), u.getUTCSeconds());
   }
   var p2 = function (n) { return String(n).padStart(2, '0'); };
   var hm = function (d) { return p2(d.getHours()) + ':' + p2(d.getMinutes()); };

@@ -1387,8 +1387,10 @@
   }
   function fdate(t) {
     if (!t) return '';
+    // (15/10/2026) Firmware (FAT) tra `t` = GIO DIA PHUONG ghi nhu UTC (tep tao 17:50 gio VN -> t = 17:50 UTC) -> doc
+    // bang getUTC*, khong doi mui gio lan nua (truoc day lech +7 h).
     var d = new Date(t * 1000), p = function (n) { return String(n).padStart(2, '0'); };
-    return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+    return p(d.getUTCDate()) + '/' + p(d.getUTCMonth() + 1) + '/' + d.getUTCFullYear() + ' ' + p(d.getUTCHours()) + ':' + p(d.getUTCMinutes());
   }
   function kind(n) { return IMG.test(n) ? 'img' : VID.test(n) ? 'vid' : AUD.test(n) ? 'aud' : 'file'; }
   function visible() { return !$('filesView').hidden; }

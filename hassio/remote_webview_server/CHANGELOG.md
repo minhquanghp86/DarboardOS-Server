@@ -1,3 +1,8 @@
+## V2.9.149
+- Sửa: giờ của tệp trên thẻ nhớ lệch +7 giờ (vd tệp chép lúc 18:02 hiện "Thứ sáu 16/10 01:02") ở Thư viện / Tệp trên màn
+  và Quản lý file trên trang Darboard. Firmware trả giờ của tệp theo giờ địa phương; trang trước đây đổi múi giờ thêm một
+  lần. Ảnh/video quay bằng Camera P4 không bị (giờ lấy từ tên tệp). Đã thử với thẻ nhớ trên S3 480×480.
+
 ## V2.9.148
 - YouTube toàn màn hình trên P4 bớt tụt fps: khi đường truyền nghẽn, máy chủ giữ khung nửa độ phân giải 60 s (trước 15 s)
   và KHÔNG giãn nhịp trong 8 s đầu (khung nửa đã giảm 4 lần dung lượng, tự xả được tồn đọng; giãn nhịp thì mất ~50 s
