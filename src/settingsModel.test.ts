@@ -3,7 +3,7 @@ import { HaEntity, HaState, SettingItem, buildSettingsView, findDeviceByMac, fin
 import { REAL_P4, REAL_S3 } from "./settingsModel.fixture.js";
 
 const dev = { id: "d1", name: "7.0 Guition JC1060P470C", model: "esp32-p4-evboard", sw_version: "2026.9.0",
-  connections: [["mac", "28:37:2F:8A:02:18"]] as [string, string][] };
+  connections: [["mac", "0a:0b:0c:0d:00:02"]] as [string, string][] };
 const ents: HaEntity[] = [
   { entity_id: "light.p4_lcd_backlight", device_id: "d1" },
   { entity_id: "switch.p4_man_hinh_cho", device_id: "d1" },

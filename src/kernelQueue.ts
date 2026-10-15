@@ -7,7 +7,7 @@ import fs from "node:fs";
 const ESTABLISHED = "01";
 const CACHE_MS = 150;
 
-/** "B30AA8C0" (IPv4, tung byte dao nguoc) hoac 32 ky tu hex IPv6 (4 tu 32 bit dao byte) -> dia chi dang Node bao. */
+/** "B301A8C0" (IPv4, tung byte dao nguoc) hoac 32 ky tu hex IPv6 (4 tu 32 bit dao byte) -> dia chi dang Node bao. */
 function hexToIp(hex: string): string | null {
   const v4 = (w: string) => [6, 4, 2, 0].map((i) => parseInt(w.slice(i, i + 2), 16)).join(".");
   if (hex.length === 8) return v4(hex);

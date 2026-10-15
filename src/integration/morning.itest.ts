@@ -17,7 +17,7 @@ const tzFor = (h: number) => { const u = new Date().getUTCHours(); return (((h -
 beforeEach(async () => {
   boardFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'rwv-board-')), 'board.json');
   ha = await startFakeHa({
-    devices: [{ id: 'dP4', name: 'P4', connections: [['mac', '28:37:2f:8a:02:18']] }],
+    devices: [{ id: 'dP4', name: 'P4', connections: [['mac', '0a:0b:0c:0d:00:02']] }],
     entities: [{ entity_id: 'media_player.p4_speaker', device_id: 'dP4' }, { entity_id: 'todo.mua_sam' }],
     states: {
       'media_player.p4_speaker': { state: 'idle', attributes: {} },

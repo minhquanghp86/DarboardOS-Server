@@ -55,7 +55,7 @@ async function startFakeHa(): Promise<FakeHa> {
       const m = JSON.parse(String(raw));
       if (m.type === 'auth') { ws.send(JSON.stringify({ type: m.access_token === 'test' ? 'auth_ok' : 'auth_invalid' })); return; }
       const result = m.type === 'config/device_registry/list'
-        ? [{ id: 'dP4', name: 'P4', model: 'esp32-p4-evboard', sw_version: '2026.9.0', connections: [['mac', '28:37:2f:8a:02:18']] },
+        ? [{ id: 'dP4', name: 'P4', model: 'esp32-p4-evboard', sw_version: '2026.9.0', connections: [['mac', '0a:0b:0c:0d:00:02']] },
            { id: 'dS3', name: 'S3', connections: [['mac', '11:22:33:44:55:66']] }]
         : m.type === 'config/entity_registry/list'
           ? [...Object.keys(st).map((entity_id) => ({ entity_id, device_id: 'dP4',
