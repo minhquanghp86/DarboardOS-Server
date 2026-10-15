@@ -642,7 +642,38 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   function saverSignal(on: boolean): void {
     if (!!window.__rwvSaverOn === on) return;
     window.__rwvSaverOn = on;
+    freezeUnder(on);
     try { window.dispatchEvent(new CustomEvent('rwv-saver', { detail: on })); } catch { /* */ }
+  }
+  // (15/10/2026) Lop khoa / man hinh cho CHE KIN trang nhung hoat anh cua trang ben duoi van chay -> Chrome ve lai lien tuc
+  // -> man nhan khung mai. Do P4 15/10: trang chu HA co the dong dien mat troi (8 <animate*> SVG) -> man KHOA van 29 khung/s,
+  // ~670 KB/s; tam dung SMIL -> 0. Tam dung SMIL (svg.pauseAnimations) + CSS/Web Animations cua TRANG (khong dung hieu ung
+  // cua chinh lop khoa, nam trong shadow cua Shell); lap lai moi 20 s de bat phan tu trang moi ve; go lop -> chay lai.
+  let frzSvg: SVGSVGElement[] = [], frzAnim: Animation[] = [], frzTimer = 0;
+  function freezePass(): void {
+    const walk = (r: Document | ShadowRoot) => {
+      for (const e of r.querySelectorAll('*')) {
+        // Ca <svg> LONG ben trong: Chrome cho moi <svg> mot dong ho SMIL rieng (do 15/10: chi dung svg ngoai cung -> van 29 khung/s).
+        if (e instanceof SVGSVGElement && !e.animationsPaused()) { e.pauseAnimations(); frzSvg.push(e); }
+        const sr = (e as Element).shadowRoot;
+        if (sr && sr !== shadow) walk(sr);
+      }
+    };
+    try { walk(document); } catch { /* */ }
+    try {
+      for (const a of document.getAnimations()) {
+        const t = (a.effect as KeyframeEffect | null)?.target;
+        if (a.playState !== 'running' || (t && t.getRootNode() === shadow)) continue;
+        a.pause(); frzAnim.push(a);
+      }
+    } catch { /* */ }
+  }
+  function freezeUnder(on: boolean): void {
+    clearInterval(frzTimer); frzTimer = 0;
+    if (on) { freezePass(); frzTimer = window.setInterval(freezePass, 20_000); return; }
+    for (const s of frzSvg) try { s.unpauseAnimations(); } catch { /* */ }
+    for (const a of frzAnim) try { if (a.playState === 'paused') a.play(); } catch { /* */ }
+    frzSvg = []; frzAnim = [];
   }
   function screensaver(on: boolean | SaverOpts): void {
     if (!on) { saverEl?.remove(); saverEl = null; svHint = null; svPending = null; saverSignal(false); return; }

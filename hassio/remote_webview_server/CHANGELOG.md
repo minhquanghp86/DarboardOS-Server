@@ -1,3 +1,8 @@
+## V2.9.143
+- Màn hình khoá / màn hình chờ: tạm dừng hoạt ảnh của trang bên dưới (SVG kể cả `<svg>` lồng, CSS / Web Animations),
+  mở khoá thì chạy lại. Trước đây trang có hoạt ảnh (vd thẻ dòng điện mặt trời) khiến màn KHOÁ vẫn nhận ~29 khung/giây
+  (~670 KB/s, màn liên tục giải mã); nay 0 khung/giây khi khoá (đo trên P4).
+
 ## V2.9.142
 - Hướng dẫn (trang Tài liệu của addon): mục **"Liên lạc: chuông cổng và gọi video"** — chuông cổng, nhật ký, gọi video,
   nhạc chuông, sự kiện `darboard_doorbell`, tự đổ chuông từ automation (`rest_command` → `/door/ring`).
