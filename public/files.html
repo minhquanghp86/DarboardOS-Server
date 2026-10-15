@@ -629,7 +629,17 @@
   render();
   load().then(render);
   // Quay lai ung dung (tab hien lai): doc lai — vua chup anh moi o Camera.
-  document.addEventListener('visibilitychange', function () { if (!document.hidden && !V.open && !S.sel) refresh(); });
+  // (15/10/2026) Trinh xem dang mo ma tep da bi xoa (o noi khac / tu Cai dat): dong trinh xem, ve lai luoi — truoc day
+  // trinh xem giu nguyen va video bao "Format error" mai.
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden || S.sel) return;
+    if (!V.open) { refresh(); return; }
+    var cur = V.list[V.i];
+    load().then(function () {
+      if (!V.open || V.list[V.i] !== cur || S.err) return;
+      if (!S.items.some(function (it) { return it.p === cur.p; })) { closeViewer(false); render(); toast('Tệp đã bị xoá'); }
+    });
+  });
   // Main cuon gan cuoi: ve them o luoi
   $('main').addEventListener('scroll', function () {
     var m = $('main');

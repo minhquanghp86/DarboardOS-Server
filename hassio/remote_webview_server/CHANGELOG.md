@@ -1,3 +1,9 @@
+## V2.9.146
+- Sửa: Thư viện để trình xem video mở, rồi tệp bị xoá (ở trang Darboard hoặc nơi khác) — mở lại ứng dụng thấy video báo
+  lỗi "Format error" và đứng im. Nay khi mở lại, Thư viện đọc lại thẻ: tệp không còn thì đóng trình xem, về lưới và báo
+  "Tệp đã bị xoá".
+- Firmware mới nhất: **fw-2026.10.19** (P4: thêm ~18 KB RAM trong, đáy RAM khi quay 14–22 KB → 36 KB).
+
 ## V2.9.145
 - Sửa: rời một ứng dụng đang phát video (vd IPTV) để sang ứng dụng khác đôi khi KHÔNG đóng băng tab cũ — video tiếp tục
   phát ngầm trong máy chủ (tốn CPU). Nguyên nhân: tab cũ được đóng băng trước khi chuyển tab xong. Đo trên S3: 3/3 lần
