@@ -14,7 +14,9 @@
 //     "fullFrameAreaThreshold": 0.5, // ghi de nguong khung day du cua thiet bi (mac dinh: theo thiet bi)
 //     "passthroughFit": false,   // tat "nen lai cho vua mot goi" o duong tat video (mac dinh bat — 2.9.71)
 //     "videoLowQ": false,       // tat "ha chat luong screencast khi phat video" (mac dinh bat — 2.9.72)
-//     "kernelBacklog": false }  // khong cong hang doi gui cua kernel vao "ton dong" (mac dinh bat — 2.9.108)
+//     "kernelBacklog": false,   // khong cong hang doi gui cua kernel vao "ton dong" (mac dinh bat — 2.9.108)
+//     "netHalfHoldMs": 60000,   // giu khung nua bao lau sau lan nghen cuoi (mac dinh 60000)
+//     "halfGraceMs": 8000 }     // vua bat khung nua vi nghen: bao lau khong gian nhip vi ton dong (mac dinh 8000; 0 = tat)
 import fs from 'node:fs';
 
 export type Tuning = {
@@ -33,6 +35,11 @@ export type Tuning = {
   /** (07/10/2026) false = tab IPTV KHONG dung chinh sach khung nua do phan giai cua YouTube TV (gui khung day du tru khi
    *  duong truyen nghen). Mac dinh (khong dat) = co, nhu YouTube TV. */
   iptvHalf?: boolean;
+  /** (15/10/2026) Giu khung nua do phan giai bao lau sau lan nghen cuoi (mac dinh NET_HALF_HOLD_MS = 60 s). */
+  netHalfHoldMs?: number;
+  /** (15/10/2026) Bao lau sau khi VUA bat khung nua vi nghen, bo dieu tiet KHONG gian nhip vi ton dong (khung nua da giam
+   *  4x byte, tu xa duoc; gian nhip thi ~50 s moi hoi). Mac dinh HALF_GRACE_MS = 8 s; 0 = tat. */
+  halfGraceMs?: number;
 };
 
 const FILE = process.env.TUNING_FILE || '/data/rwv-tuning.json';
@@ -58,6 +65,8 @@ export function sanitizeTuning(j: unknown): Tuning {
   const k = num(o.intervalBackoffFactor, 1.05, 4); if (k !== undefined) t.intervalBackoffFactor = k;
   const w = num(o.wsHighWaterBytes, 16384, 8_388_608); if (w !== undefined) t.wsHighWaterBytes = Math.round(w);
   const pf = num(o.probeFloorTtlMs, 0, 600_000); if (pf !== undefined) t.probeFloorTtlMs = Math.round(pf);
+  const nh = num(o.netHalfHoldMs, 0, 600_000); if (nh !== undefined) t.netHalfHoldMs = Math.round(nh);
+  const hg = num(o.halfGraceMs, 0, 60_000); if (hg !== undefined) t.halfGraceMs = Math.round(hg);
   const a = num(o.fullFrameAreaThreshold, 0.05, 1); if (a !== undefined) t.fullFrameAreaThreshold = a;
   return t;
 }

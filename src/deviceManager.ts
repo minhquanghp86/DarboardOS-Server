@@ -215,6 +215,8 @@ export type DeviceSession = {
   tvBigMs?: number;
   /** (01/10/2026) P4 (half=1): duong truyen nghen -> khung video nua do phan giai toi moc nay. */
   netHalfUntilMs?: number;
+  /** (15/10/2026) Luc bat dau dot khung nua vi nghen hien tai — xem tuning halfGraceMs. */
+  netHalfStartMs?: number;
   /** (30/09/2026) Gia tri 'dang phat media' da gui thiet bi gan nhat (ControlField.Media) — undefined = chua gui. */
   mediaSent?: boolean;
   /** (07/10/2026) Lan cuoi hoi trang "lop man hinh cho con khong" (xem screensaverTick — tu lanh). */
@@ -414,7 +416,10 @@ const YT_TV_HALF_MAX_H = Math.max(0, parseInt(process.env.YT_TV_HALF_MAX_H ?? '3
 // thiet bi bao ?half=1 (firmware P4 van bat half_scale_video vi ly do khac — xem YAML). Bat lai: HALF_SCALE_VIDEO=1.
 const HALF_SCALE_VIDEO = process.env.HALF_SCALE_VIDEO === '1';
 // (01/10/2026) Giu khung nua bao lau sau lan nghen cuoi (P4). 0 = tat tinh nang.
-const NET_HALF_HOLD_MS = Math.max(0, parseInt(process.env.NET_HALF_HOLD_MS ?? '15000', 10) || 0);
+// (15/10/2026) 15 -> 60 s + an han 8 s (HALF_GRACE_MS): A/B xen ke 3+3 luot YouTube toan man 150 s tren P4 cap — A (15 s,
+// khong an han) 8/3/0 mau < 22 fps, thap nhat 16-19 fps; B 0/0/0, thap nhat 28-30 fps (ngoai quang cao).
+const NET_HALF_HOLD_MS = Math.max(0, parseInt(process.env.NET_HALF_HOLD_MS ?? '60000', 10) || 0);
+const HALF_GRACE_MS = Math.max(0, parseInt(process.env.HALF_GRACE_MS ?? '8000', 10) || 0);
 const HALF_HOLD_MS = Math.max(0, parseInt(process.env.HALF_HOLD_MS ?? '3000', 10) || 3000);
 // Thay doi lon phai keo dai lien tuc bao lau moi coi la video (loai hieu ung chuyen tab).
 const HALF_SUSTAIN_MS = Math.max(0, parseInt(process.env.HALF_SUSTAIN_MS ?? '1000', 10) || 1000);
@@ -3138,10 +3143,12 @@ async function flushPending(dev: DeviceSession): Promise<void> {
       // khi dang co video (dieu kien <video>/dien tich ben duoi). S3 (half=2) da luon nua khi phat video: khong doi.
       if (NET_HALF_HOLD_MS > 0 && dev.cfg.halfScale && !dev.cfg.halfVideo && backlog > highWater / 2) {
         const nowNet = Date.now();
+        const hold = tuning().netHalfHoldMs ?? NET_HALF_HOLD_MS;
         if (dev.netHalfUntilMs === undefined || nowNet >= dev.netHalfUntilMs) {
-          console.log(`[half] ${dev.deviceId}: duong truyen nghen (ton dong ${backlog}B) -> cho phep khung nua ${NET_HALF_HOLD_MS / 1000} s`);
+          dev.netHalfStartMs = nowNet;
+          console.log(`[half] ${dev.deviceId}: duong truyen nghen (ton dong ${backlog}B) -> cho phep khung nua ${hold / 1000} s`);
         }
-        dev.netHalfUntilMs = nowNet + NET_HALF_HOLD_MS;
+        dev.netHalfUntilMs = nowNet + hold;
       }
       if (backlog > highWater) {
         metrics.onFrameSkipped(dev.deviceId);
@@ -3849,7 +3856,9 @@ export function runAdaptiveTick(): void {
         frameErrors: m.frameErrors,
         heapFree: m.deviceHeapFree ?? null,
         // Ton dong hien tai HOAC dinh ton dong luc phai bo khung giua hai tick (lay gia tri lon hon), roi dat lai.
-        backlogBytes: Math.max(broadcaster.backlogBytes(m.id), device.backlogSkipPeak ?? 0),
+        // (15/10/2026) Vua bat khung nua vi nghen (tuning halfGraceMs): khong gian nhip vi ton dong — khung nua tu xa.
+        backlogBytes: ((tun.halfGraceMs ?? HALF_GRACE_MS) && device.netHalfStartMs !== undefined && now - device.netHalfStartMs < (tun.halfGraceMs ?? HALF_GRACE_MS))
+          ? 0 : Math.max(broadcaster.backlogBytes(m.id), device.backlogSkipPeak ?? 0),
         capacityBytesPerSec: link?.capacityBytesPerSec ?? null,
         recentBytesPerSec: link?.recentBytesPerSec ?? null,
         recentFrameBytes: link?.recentFrameBytes ?? null,

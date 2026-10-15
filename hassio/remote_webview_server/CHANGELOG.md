@@ -1,3 +1,10 @@
+## V2.9.148
+- YouTube toàn màn hình trên P4 bớt tụt fps: khi đường truyền nghẽn, máy chủ giữ khung nửa độ phân giải 60 s (trước 15 s)
+  và KHÔNG giãn nhịp trong 8 s đầu (khung nửa đã giảm 4 lần dung lượng, tự xả được tồn đọng; giãn nhịp thì mất ~50 s
+  mới hồi). Đo A/B xen kẽ 3+3 lượt 150 s trên P4 cáp: trước 8/3/0 mẫu dưới 22 fps, thấp nhất 16–19 fps; sau 0/0/0, thấp
+  nhất 28–30 fps (ngoài quảng cáo). Chỉ màn có khung nửa khi nghẽn (P4); S3 không đổi. Chỉnh nóng: `netHalfHoldMs`,
+  `halfGraceMs` trong `/data/rwv-tuning.json`.
+
 ## V2.9.147
 - Sửa tiếp 2.9.146: Chrome trên máy chủ không báo "trang hiện lại" khi đổi ứng dụng, nên Thư viện không biết để đọc lại
   thẻ. Nay máy chủ báo trang mỗi lần ứng dụng được mở lại: Thư viện đọc lại thẻ (thấy ngay ảnh/video vừa chụp ở Camera),
