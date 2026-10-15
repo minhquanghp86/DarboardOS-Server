@@ -1,3 +1,8 @@
+## V2.9.147
+- Sửa tiếp 2.9.146: Chrome trên máy chủ không báo "trang hiện lại" khi đổi ứng dụng, nên Thư viện không biết để đọc lại
+  thẻ. Nay máy chủ báo trang mỗi lần ứng dụng được mở lại: Thư viện đọc lại thẻ (thấy ngay ảnh/video vừa chụp ở Camera),
+  tệp đang xem đã bị xoá thì đóng trình xem. Đã thử trên P4.
+
 ## V2.9.146
 - Sửa: Thư viện để trình xem video mở, rồi tệp bị xoá (ở trang Darboard hoặc nơi khác) — mở lại ứng dụng thấy video báo
   lỗi "Format error" và đứng im. Nay khi mở lại, Thư viện đọc lại thẻ: tệp không còn thì đóng trình xem, về lưới và báo

@@ -2834,6 +2834,10 @@ async function activateTab(dev: DeviceSession, key: string): Promise<void> {
   dev.cdp = next.session;
   if (thumbThenFreeze && prev) { const p = prev; void thumbThenFreeze.finally(() => freezeTab(dev, p)); }
   setSaver(dev, false);  // man hinh cho nam trong Shell cua tab CU
+  // (15/10/2026) Chrome headless KHONG phat visibilitychange khi doi tab -> bao trang biet minh vua duoc dua len lai
+  // (vd Thu vien doc lai the: anh/video moi, tep da bi xoa). Khong cho — trang khong nghe thi vo hai.
+  if (prev && prev !== next)
+    next.session.send('Runtime.evaluate', { expression: "document.dispatchEvent(new Event('rwv-show'))" }).catch(() => { });
   next.lastUsed = Math.max(Date.now(), (prev?.lastUsed ?? 0) + 1);  // luon moi hon tab vua roi (cung mili-giay)
   setTabAudioAllowed(next, true);
 
