@@ -462,7 +462,7 @@
     var ok = 0, fail = '';
     var chain = Promise.resolve();
     items.forEach(function (it) {
-      chain = chain.then(function () { return api('/sd/rm?p=' + enc(it.p), 'POST').then(function () { ok++; }, function (e) { fail = e.message; }); });
+      chain = chain.then(function () { return api('/sd/rm?p=' + enc(it.p) + (it.d ? '&dir=1' : ''), 'POST').then(function () { ok++; }, function (e) { fail = e.message; }); });
     });
     toast('Đang xoá…', 20000);
     return chain.then(function () {

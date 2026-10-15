@@ -450,7 +450,9 @@ export function handleFileManager(req: http.IncomingMessage, res: http.ServerRes
       if (!list.length) return json(res, 400, { error: 'Chưa chọn tệp' });
       const failed: { p: string; err: string }[] = [];
       for (const p of list) {
-        const r = await cam('/sd/rm?p=' + enc(p), 'POST', undefined, BDEV).catch((e) => ({ code: 502, j: { err: (e as Error).message } }));
+        // (15/10/2026) dir=1: nguoi dung da xac nhan tren trang (thu muc xoa ca ben trong) — firmware moi tu choi xoa thu
+        // muc khi thieu (chot sau su co xoa nham ca /DCIM); firmware cu bo qua tham so.
+        const r = await cam('/sd/rm?p=' + enc(p) + '&dir=1', 'POST', undefined, BDEV).catch((e) => ({ code: 502, j: { err: (e as Error).message } }));
         if (r.code !== 200 || !r.j.ok) failed.push({ p, err: r.j.err || `HTTP ${r.code}` });
       }
       console.log(`[fm] xoa ${list.length - failed.length}/${list.length} muc`);
