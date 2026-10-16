@@ -12,7 +12,8 @@ import { afterEach, beforeEach, expect, it } from 'vitest';
 import WebSocket from 'ws';
 import { TestServer, sleep } from './harness.js';
 
-const TOKEN = '123456789:AAFakeTokenFakeTokenFakeTokenFake12';
+// Token GIA ghep luc chay (khong de nguyen chuoi dung dang token bot trong ma nguon — GitHub secret scanning bao nham).
+const TOKEN = ['123456789', 'AA' + 'x'.repeat(33)].join(':');
 interface Hit { method: string; body: string; ct: string }
 let srv: TestServer;
 let tg: http.Server;

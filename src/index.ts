@@ -353,12 +353,15 @@ http.createServer((req, res) => {
     return;
   }
 
-  if (STATIC_PAGES.includes(pathname.slice(1)) || pathname === '/os/home') {
-    const page = staticCache.get(pathname === '/os/home' ? '/os-home.html' : pathname);
+  // (16/10/2026) Goc ingress ("/") = trang chu Darboard. Truoc day tra "ok" 2 byte khong co content-type -> nut "‹ Trang chu" (href="./")
+  // o Man hinh / Chuong cong / Goi lam trinh duyet TAI VE tep "Tai xuong". Van giu "ok" cho kiem tra suc khoe (127.0.0.1 / Docker).
+  const ingressRoot = pathname === '/' && (req.socket.remoteAddress || '').replace(/^::ffff:/, '') === '172.30.32.2';
+  if (ingressRoot || STATIC_PAGES.includes(pathname.slice(1)) || pathname === '/os/home') {
+    const page = staticCache.get(ingressRoot ? '/launcher-config.html' : pathname === '/os/home' ? '/os-home.html' : pathname);
     if (!page) { res.writeHead(500); res.end(`${pathname.slice(1)} khong tai duoc`); return; }
     // no-store: file co the duoc cap nhat qua rebuild addon, khong muon
     // Chromium cache lau nhu HA tung lam voi /local/ (31 ngay).
-    const type = pathname.endsWith('.js') ? 'text/javascript; charset=utf-8'
+    const type = !ingressRoot && pathname.endsWith('.js') ? 'text/javascript; charset=utf-8'
       : pathname.endsWith('.css') ? 'text/css; charset=utf-8' : 'text/html; charset=utf-8';
     res.writeHead(200, { 'content-type': type, 'cache-control': 'no-store' });
     res.end(page);

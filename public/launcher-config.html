@@ -152,8 +152,11 @@
   .bub { max-width: min(72%, 560px); align-self: flex-start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
     padding: 8px 13px; line-height: 1.4; white-space: pre-wrap; word-break: break-word; position: relative; }
   .bub.mine { align-self: flex-end; background: var(--primary); border-color: var(--primary); color: #fff; }
-  .bub.med { padding: 0; overflow: hidden; background: var(--surface); width: min(380px, 72%); }
-  .bub.med img, .bub.med video { display: block; width: 100%; height: auto; max-height: 320px; background: #000; }
+  /* (16/10/2026) Chieu rong XAC DINH (khong phan tram): .grp / .gcol co chieu rong theo noi dung, anh tai cham (lazy) chua co kich
+     thuoc -> phan tram quy ve 0 va ca khung anh / video co lai (140-300 px). */
+  .bub.med { padding: 0; overflow: hidden; background: var(--surface); width: min(380px, calc(100vw - 110px)); max-width: none; }
+  .gcol .bub.med { max-width: none; }
+  .bub.med img, .bub.med video { display: block; width: 100%; height: auto; min-height: 140px; max-height: 360px; background: #000; }
   .bub.med img { object-fit: cover; } .bub.med video { object-fit: contain; }
   .bub.med img { cursor: zoom-in; }
   .bub .cap { padding: 7px 12px; }

@@ -283,7 +283,7 @@
 </head>
 <body class="t-ov">
 <header class="topbar"><div class="top-in">
-  <a class="nav-back" id="back" href="./"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="backPath" d=""></path></svg><span id="backTxt">Trang chủ</span></a>
+  <a class="nav-back" id="back" href="launcher-config.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="backPath" d=""></path></svg><span id="backTxt">Trang chủ</span></a>
   <div class="nav-ttl"><span class="ai" id="ttlIc"></span><span id="ttl">Màn hình</span></div>
   <div class="top-act"><button class="btn sm" id="refresh" type="button" title="Làm mới" aria-label="Làm mới"></button></div>
 </div></header>
@@ -414,7 +414,7 @@
     S.id = decodeURIComponent(location.hash.slice(1));
     var detail = !!S.id;
     $('listView').hidden = detail; $('detailView').hidden = !detail;
-    $('back').href = detail ? 'screens.html' : './';
+    $('back').href = detail ? 'screens.html' : 'launcher-config.html';
     $('backTxt').textContent = detail ? 'Màn hình' : 'Trang chủ';
     S.d = null; S.set = null; S.media = []; lastSig = {}; S.shotAt = 0;
     $('pane').replaceChildren(); $('pvWrap').replaceChildren();

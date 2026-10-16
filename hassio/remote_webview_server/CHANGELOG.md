@@ -1,3 +1,11 @@
+## V2.9.170
+- Sửa: nút **‹ Trang chủ** ở Màn hình / Chuông cổng / Gọi làm trình duyệt **tải về tệp "Tải xuống" 2 byte** và không về được trang chủ
+  (liên kết `./` trỏ vào gốc ingress, nơi chỉ trả "ok"). Nay trỏ `launcher-config.html`; gốc ingress cũng trả trang chủ.
+- Sửa: ảnh / video trong cuộc trò chuyện **Tin nhắn** bị co nhỏ (140–300 px) — khung dùng chiều rộng theo phần trăm của khung co theo nội
+  dung, ảnh tải chậm chưa có kích thước → về 0. Nay chiều rộng xác định (tối đa 380 px) và có chiều cao tối thiểu.
+- Bảo mật: chuỗi token Telegram giả trong bài kiểm tích hợp ghép lúc chạy (GitHub secret scanning báo nhầm). Token thật trong lịch sử cũ
+  (Telegram, Google) đã được thu hồi và xác minh vô hiệu.
+
 ## V2.9.169
 - Mới: **thông báo Telegram** — chuông cổng nhỡ, chuông cổng bị từ chối, mỗi lần bấm chuông (kèm ảnh khách) và cuộc gọi video nhỡ, có
   thời gian + tên chuông / người gọi. Add-on gửi thẳng Telegram Bot API (không cần tích hợp Telegram của HA). Cài trong Darboard → Gọi → ⚙:
