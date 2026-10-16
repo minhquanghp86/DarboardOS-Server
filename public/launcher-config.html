@@ -1136,7 +1136,7 @@
       var item = function (ic, t, cls) { var x = mk('span', cls || ''); x.append(svg(ic), document.createTextNode(t)); return x; };
       $('hmScr').replaceChildren.apply($('hmScr'), list.map(function (s) {
         var a = mk('a', 's'); a.href = 'screens.html#' + encodeURIComponent(s.id);
-        var st = !s.online ? 'Mất kết nối' : s.ring ? 'Đang đổ chuông' : s.on === false ? 'Tắt đèn nền' : s.saver ? (s.locked ? 'Đã khóa' : 'Màn hình chờ') : 'Đang dùng';
+        var st = !s.online ? 'Mất kết nối' : s.ring ? 'Đang đổ chuông' : s.on === false ? 'Tắt đèn nền' : s.saver ? (s.locked ? 'Màn hình chờ · có khóa' : 'Màn hình chờ') : 'Đang dùng';
         var n = mk('div', 'sn'); n.append(mk('span', 'sd' + (s.online ? '' : ' off')), mk('span', '', s.name || s.id));
         var si = mk('div', 'si');
         if (s.online) si.append(item(!s.nw || s.nw.k === 'eth' ? 'ethernet' : ['wifi-strength-1', 'wifi-strength-2', 'wifi-strength-3', 'wifi-strength-4'][s.nw.q], !s.nw ? 'Mạng' : s.nw.k === 'eth' ? 'Cáp' : 'Wi-Fi'));

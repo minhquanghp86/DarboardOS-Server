@@ -1,3 +1,8 @@
+## V2.9.165
+- Màn hình / trang chủ Darboard: mọi màn đang hiện màn hình chờ đều ghi **"Màn hình chờ"**; việc có khóa hay không là thông tin
+  phụ riêng ("Có khóa · vuốt lên để mở" / "Không khóa · chạm để mở"). Trước đây màn bật "Khóa màn hình" hiện "Đã khóa" còn màn tắt
+  hiện "Màn hình chờ" dù cả hai đang ở cùng một màn hình chờ.
+
 ## V2.9.164
 - Giấy phép (không đổi chức năng): giữ Apache-2.0 + MIT nhưng siết chặt — mọi file mã nguồn có tiêu đề SPDX (kiểm bằng
   `npm run check:spdx`); ảnh Docker kèm `LICENSE`, `NOTICE`, `THIRD-PARTY-NOTICES.md` trong `/licenses` và nhãn giấy phép;

@@ -388,7 +388,9 @@
     if (!s.online) return { t: 'Mất kết nối', c: 'red', ic: 'lan' };
     if (s.ring) return { t: 'Đang đổ chuông', c: 'amber', ic: 'bell-ring' };
     if (s.on === false) return { t: 'Tắt đèn nền', c: '', ic: 'monitor-off' };
-    if (s.saver) return s.locked ? { t: 'Đã khóa', c: 'blue', ic: 'lock-outline' } : { t: 'Màn hình chờ', c: 'blue', ic: 'power-sleep' };
+    // (16/10/2026) Cung MOT ten "Màn hình chờ" cho moi man dang hien man hinh cho; co khoa hay khong la thong tin phu (cai dat
+    // "Khóa màn hình" tung man: bat -> vuot len de mo, tat -> cham de mo).
+    if (s.saver) return { t: 'Màn hình chờ', c: 'blue', ic: 'power-sleep', lk: s.locked ? 'Có khóa · vuốt lên để mở' : 'Không khóa · chạm để mở' };
     return { t: 'Đang dùng', c: 'green', ic: 'gesture-tap' };
   }
 
@@ -456,6 +458,7 @@
   function chipsFor(s, short) {
     var c = el('div', 'chips'), st = screenState(s);
     c.append(chip(st.t, st.ic, st.c));
+    if (st.lk) c.append(chip(short ? (s.locked ? 'Có khóa' : 'Không khóa') : st.lk, s.locked ? 'lock-outline' : 'lock-open-variant-outline'));
     if (s.online) c.append(chip(netText(s), netIcon(s)));
     if (hasBattery(s)) c.append(chip((s.bt != null ? s.bt + '%' : '') + (s.ch && !short ? (s.bt != null ? ' · ' : '') + PW[s.ch] : (s.bt == null ? PW[s.ch] : '')), batIcon(s), s.bt != null && s.bt < 20 && s.ch === 'bat' ? 'red' : ''));
     // (16/10/2026) Man khong lap pin (P4): van bao dang chay bang nguon cam ngoai.
@@ -684,7 +687,7 @@
     var rs = rssiItem();
     tiles.append(tile('Kết nối', netIcon(d), d.online ? netText(d) : 'Mất kết nối', d.online ? (rs ? fmtVal(rs) : 'Trực tuyến') : 'Kiểm tra nguồn / mạng của màn', d.online ? 'good' : 'bad'));
     var br = brightCtl();
-    tiles.append(tile('Màn hình', st.ic, st.t, br ? 'Độ sáng ' + br.v + '%' + (br.dim ? ' · đang giảm khi khóa' : '') : '', '', br ? br.v : null));
+    tiles.append(tile('Màn hình', st.ic, st.t, [st.lk || '', br ? 'Độ sáng ' + br.v + '%' + (br.dim ? ' · đang giảm' : '') : ''].filter(Boolean).join(' · '), '', br ? br.v : null));
     if (hasBattery(d)) tiles.append(tile('Pin', batIcon(d), d.bt != null ? d.bt + '%' : '—', d.ch ? PW[d.ch] : '', d.bt != null && d.bt < 20 && d.ch === 'bat' ? 'bad' : '', d.bt));
     else if (d.ch === 'none') tiles.append(tile('Pin & nguồn', 'power-plug', 'Cắm nguồn', 'Không lắp pin · chạy bằng điện ngoài', 'good'));
     var vc = volumeCtl();
