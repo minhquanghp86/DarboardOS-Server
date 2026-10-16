@@ -86,9 +86,9 @@ export function lwRows(lw: LwData, now: number, tz: number, maxEv = 2): LwRow[] 
 }
 
 /** null = khong co gi de hien. key = CAU TRUC (doi thi ve ngay); con lai (so lieu) doi thi cho luc doi phut. */
-export function lwModel(lw: LwData | null | undefined, now: number, tz: number): LwModel | null {
+export function lwModel(lw: LwData | null | undefined, now: number, tz: number, maxEv = 2): LwModel | null {
   if (!lw) return null;
-  const stats = lw.en ? energyStats(lw.en) : [], rows = lwRows(lw, now, tz);
+  const stats = lw.en ? energyStats(lw.en) : [], rows = lwRows(lw, now, tz, maxEv);
   if (!stats.length && !rows.length) return null;
   return { stats, rows, key: stats.map((s) => s.k).join() + '|' + rows.map((r) => r.k).join() };
 }

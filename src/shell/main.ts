@@ -692,7 +692,11 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     svLw = el('div', 'sv-lw'); svLwSig = ''; svLwKey = '';
     const main = el('div', 'sv-main');
     main.append(svClock, svDate, svWx, svBadges, svLw, svCap);
-    svBox.append(main, svCard);
+    // (16/10/2026) Cot phai: the thoi tiet + dong camera / lich (man ngang — truoc day cac dong nay chen duoi dai nang luong ben
+    // trai, cot trai qua cao, cot phai trong). Man vuong / thap: .sv-side { display: contents } -> thu tu nhu cu.
+    svRows = el('div', 'sv-rows');
+    const side = el('div', 'sv-side'); side.append(svCard, svRows);
+    svBox.append(main, side);
     svPh = [el('div', 'sv-ph'), el('div', 'sv-ph')]; svTop = 0;
     saverEl.append(svPh[0], svPh[1], svBox);
     if (CFG.motion === 'full') saverEl.classList.add('anim');
@@ -790,15 +794,18 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   }
   // (08/10/2026) WIDGET man hinh khoa (lockWidgets.ts): ve lai NGAY khi cau truc doi (camera moi thay nguoi, su kien moi);
   // chi so lieu doi (cong suat, "x phut truoc") thi cho luc doi phut — cung khung voi dong ho, khong ton them khung.
-  let svLw: HTMLElement, svLwSig = '', svLwKey = '';
+  let svLw: HTMLElement, svRows: HTMLElement, svLwSig = '', svLwKey = '';
   function renderLockWidgets(minuteTick: boolean): void {
     if (!saverEl) return;
     const tz = st && st.tv ? st.tz : -new Date().getTimezoneOffset(), now = Date.now() + (st && st.tv ? st.skewMs : 0);
-    const m = lwModel(st?.lw, now, tz);
+    // Man ngang du cao (P4): cot phai con cho -> toi da 4 su kien lich (con lai 2).
+    const m = lwModel(st?.lw, now, tz, innerWidth >= innerHeight * 4 / 3 && innerHeight > 320 ? 4 : 2);
     const sig = m ? JSON.stringify([m.stats, m.rows]) : '';
     if (sig === svLwSig || (svLwSig && m && m.key === svLwKey && !minuteTick)) return;
     svLwSig = sig; svLwKey = m ? m.key : '';
-    svLw.replaceChildren(...(m ? buildLockWidgets(m) : []));
+    const parts = m ? buildLockWidgets(m) : [];
+    svLw.replaceChildren(...parts.filter((e) => !e.classList.contains('lw-r')));
+    svRows.replaceChildren(...parts.filter((e) => e.classList.contains('lw-r')));
     saverEl.classList.toggle('haslw', !!m);
   }
   function updateSaver(): void {

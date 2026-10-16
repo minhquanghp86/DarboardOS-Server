@@ -1,3 +1,8 @@
+## V2.9.152
+- Màn hình chờ / khoá trên màn NGANG (P4): dòng camera / lịch chuyển sang cột phải, ngay dưới thẻ thời tiết (trước chen dưới
+  dải năng lượng bên trái — cột trái quá cao, cột phải trống); có chỗ nên hiện tối đa 4 sự kiện lịch. Màn vuông (S3 480×480)
+  giữ thứ tự cũ; S3 480×272 không đổi.
+
 ## V2.9.151
 - Màn hình chờ / khoá: dải năng lượng nay có 6 chỉ số, xếp lưới 3 × 2 — PV hôm nay · Công suất PV · Tải hôm nay · Tiêu thụ
   lưới · Tiêu thụ tải · Pin % (đang sạc / xả bao nhiêu). Thiếu cảm biến nào thì bỏ ô đó.

@@ -300,6 +300,12 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .saver.photo.ck-xl .sv-clock { font-size: min(32vmin, 25vw); }
 .saver.hascard .sv-wx { display: none; }
 .sv-card:empty { display: none; }
+/* (16/10/2026) Cot phai (man ngang): the thoi tiet + dong camera / lich ngay duoi. Man vuong: tan vao sv-box (thu tu cu). */
+.sv-side { display: flex; flex-direction: column; align-items: stretch; gap: clamp(10px, 2.4vmin, 18px); min-width: 0; }
+.sv-rows { display: flex; flex-direction: column; align-items: flex-start; gap: clamp(8px, 1.8vmin, 14px); padding: 0 clamp(4px, 1vmin, 8px); min-width: 0; }
+.sv-rows:empty { display: none; }
+.saver:not(.hascard) .sv-rows { align-items: center; }
+@media (max-aspect-ratio: 4/3) { .sv-side { display: contents; } .sv-rows { align-items: inherit; } }
 .sv-card { display: flex; flex-direction: column; gap: clamp(8px, 2vmin, 16px); color: #dfe6f2; box-sizing: border-box;
   padding: clamp(10px, 2.4vmin, 20px) clamp(12px, 3vmin, 24px); border-radius: clamp(14px, 3vmin, 24px); background: rgba(255,255,255,0.06); }
 .wc-now { display: flex; align-items: center; gap: clamp(8px, 2vmin, 16px); }
@@ -321,7 +327,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   /* Dong ho + the cung hang: thang co rieng de tong be rong <= 94vw (do that P4: xl 44vmin + the tran mep phai). */
   .saver.hascard .sv-box { flex-direction: row; align-items: center; gap: clamp(16px, 4vw, 48px); max-width: 92vw; }
   .saver.hascard .sv-main { align-items: flex-start; flex: 0 1 auto; min-width: 0; }
-  .saver.hascard .sv-card { flex: 0 1 auto; max-width: 40vw; }
+  .saver.hascard .sv-side { flex: 0 1 auto; max-width: 40vw; }
   .saver.hascard.ck-m .sv-clock { font-size: min(32vmin, 21vw); }
   .saver.hascard.ck-l .sv-clock { font-size: min(40vmin, 25vw); }
   .saver.hascard.ck-xl .sv-clock { font-size: min(46vmin, 28vw); }
@@ -352,7 +358,11 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .saver.lock.photo { padding-bottom: clamp(40px, 9vmin, 70px); }
 /* Chua cho dong goi y vuot o day (do that S3: goi y de len the thoi tiet). */
 .saver.lock:not(.photo) { padding-bottom: clamp(34px, 10vmin, 64px); box-sizing: border-box; }
-.saver.photo .sv-card { background: rgba(0,0,0,0.45); color: #fff; text-shadow: 0 1px 6px rgba(0,0,0,0.6); zoom: 0.82; }
+.saver.photo .sv-card { background: rgba(0,0,0,0.45); color: #fff; text-shadow: 0 1px 6px rgba(0,0,0,0.6); }
+/* (16/10/2026) zoom dat tren CA cot phai (the trong .sv-side: zoom rieng the khong con thu nho be rong cot -> S3 480x272 the
+   rong them ~30 px, nhan nang luong bi cat). Man vuong: .sv-side la display: contents -> zoom lai tren the. */
+@media (min-aspect-ratio: 4/3) { .saver.photo .sv-side { zoom: 0.82; } }
+@media (max-aspect-ratio: 4/3) { .saver.photo .sv-card { zoom: 0.82; } }
 .saver.photo .wc-sub, .saver.photo .wc-h { color: #e5e7eb; }
 @media (min-aspect-ratio: 4/3) {
   .saver.photo.hascard .sv-box { flex-direction: row; align-items: flex-end; justify-content: space-between; width: 100%; }
@@ -400,7 +410,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .saver.photo .lw-ri { background: rgba(0,0,0,0.45); }
 @media (min-aspect-ratio: 4/3) {
   .saver.hascard .lw-en { justify-content: flex-start; }
-  .saver.hascard .lw-r { max-width: 46vw; }
+  .saver.hascard .lw-r { max-width: 100%; }
 }
 /* Man vuong (S3 480x480): dong ho + ngay + nang luong + the thoi tiet da gan het chieu cao (do that ban xem truoc: tran ca
    mep tren lan goi y vuot) -> co widget thi the bo hang du bao theo gio; toi da 2 dong lich / camera. */
@@ -418,7 +428,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 @media (min-aspect-ratio: 4/3) and (max-height: 320px) {
   .saver.hascard .sv-box { width: 100%; gap: 12px; }
   .saver.hascard .sv-main { flex: 1 1 0; min-width: 0; }
-  .saver.hascard .sv-card { flex: none; }
+  .saver.hascard .sv-side { flex: none; }
   .saver.hascard .lw-en { width: 100%; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px 6px; }
   .saver.hascard .lw-s { gap: 3px; }
   .saver.hascard .lw-s > .ic { width: 16px; height: 16px; }
