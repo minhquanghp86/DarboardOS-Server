@@ -825,13 +825,18 @@
     });
     out.push(oc);
 
-    var lc = card('Mở ứng dụng', 'apps', '#818cf8', el('span', 'x', 'Chạm để mở trên màn'));
+    var lc = card('Mở ứng dụng', 'apps', '#818cf8', el('span', 'x', 'Chọn ứng dụng rồi xác nhận'));
     var g = el('div', 'lgrid'), cur = d.app ? d.app.k : '';
     var sys = { id: '__system', l: 'Màn hình chính', c: '#475569', kind: 'system' };
     [sys].concat(d.apps).forEach(function (a) {
       var b = el('button', 'lapp' + (a.id === cur ? ' cur' : '')); b.type = 'button'; b.disabled = off;
       b.append(appIco(a), el('span', 'n', a.l));
-      b.onclick = function () { act({ act: 'app', app: a.id }, 'Đã mở ' + a.l); };
+      // (16/10/2026, nguoi dung yeu cau) Cham nham de mo ung dung tren man nguoi khac dang dung -> hoi lai truoc.
+      b.onclick = function () {
+        if (a.id === cur) { toast(a.l + ' đang hiển thị trên ' + d.name); return; }
+        confirmBox('Mở ' + a.l + '?', 'Ứng dụng sẽ mở ngay trên màn ' + d.name + ', thay cho ' + (d.app ? d.app.l : 'màn đang hiển thị') + '.', 'Mở',
+          function () { act({ act: 'app', app: a.id }, 'Đã mở ' + a.l); });
+      };
       g.append(b);
     });
     lc.append(g); out.push(lc);

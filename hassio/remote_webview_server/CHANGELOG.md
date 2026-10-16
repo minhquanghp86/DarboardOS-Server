@@ -1,3 +1,7 @@
+## V2.9.162
+- Màn hình → Ứng dụng: chạm biểu tượng trong "Mở ứng dụng" giờ hỏi xác nhận ("Mở … ?") trước khi mở trên màn — tránh chạm
+  nhầm làm đổi màn người khác đang dùng.
+
 ## V2.9.161
 - Mới: ứng dụng **Màn hình** trên trang Darboard — điều khiển và cài đặt từng màn từ xa, không cần chạm vào màn. Ảnh màn
   đang hiển thị; 5 nhóm Tổng quan / Điều khiển / Ứng dụng / Thông báo / Cài đặt: trạng thái (mạng, pin, độ sáng, âm lượng,

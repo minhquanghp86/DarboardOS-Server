@@ -275,7 +275,7 @@ mạng, pin, cuộc gọi nhỡ, thông báo; chạm để mở chi tiết). Tro
 - **Điều khiển**: độ sáng, bật/tắt đèn nền, luôn sáng, thời gian tắt màn, xoay màn; âm lượng phát / thông báo / báo thức,
   tắt tiếng, loa, khử vọng; Không làm phiền; khởi động lại thiết bị; **trình phát** của ứng dụng đang hiển thị hoặc đang
   phát nền (YouTube, YouTube TV, Radio, IPTV, nhạc…): phát / tạm dừng, lùi / tới 10 s, bài (kênh) trước / sau, dừng.
-- **Ứng dụng**: các ứng dụng đang mở trên màn (mở, tải lại, đóng), mở bất kỳ ứng dụng nào của màn, mở một trang web.
+- **Ứng dụng**: các ứng dụng đang mở trên màn (mở, tải lại, đóng), mở bất kỳ ứng dụng nào của màn (hỏi xác nhận trước khi mở), mở một trang web.
 - **Thông báo**: danh sách thông báo của màn (đánh dấu đã xem, xoá từng cái / tất cả); **gửi thông báo** tới màn (tùy chọn
   *Quan trọng* để bật sáng màn); **Đọc to** bằng giọng nói (màn có loa, cần TTS trong HA, vd Piper); hẹn giờ, báo thức.
 - **Cài đặt**: mọi cài đặt của màn như ứng dụng Cài đặt trên màn (thực thể ESPHome của thiết bị + cài đặt của Darboard), xếp
