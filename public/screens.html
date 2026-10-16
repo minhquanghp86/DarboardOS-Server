@@ -452,6 +452,8 @@
     c.append(chip(st.t, st.ic, st.c));
     if (s.online) c.append(chip(netText(s), netIcon(s)));
     if (hasBattery(s)) c.append(chip((s.bt != null ? s.bt + '%' : '') + (s.ch && !short ? (s.bt != null ? ' · ' : '') + PW[s.ch] : (s.bt == null ? PW[s.ch] : '')), batIcon(s), s.bt != null && s.bt < 20 && s.ch === 'bat' ? 'red' : ''));
+    // (16/10/2026) Man khong lap pin (P4): van bao dang chay bang nguon cam ngoai.
+    else if (s.ch === 'none') c.append(chip(short ? 'Cắm nguồn' : 'Cắm nguồn · không lắp pin', 'power-plug'));
     if (s.np && s.np.length) c.append(chip('Đang phát', 'play', 'blue'));
     if (s.mc) c.append(chip(s.mc + ' cuộc gọi nhỡ', 'phone-missed', 'red'));
     if (s.nu) c.append(chip(s.nu + ' thông báo', 'bell-badge-outline'));
@@ -678,7 +680,7 @@
     var br = brightCtl();
     tiles.append(tile('Màn hình', st.ic, st.t, br ? 'Độ sáng ' + br.v + '%' + (br.dim ? ' · đang giảm khi khóa' : '') : '', '', br ? br.v : null));
     if (hasBattery(d)) tiles.append(tile('Pin', batIcon(d), d.bt != null ? d.bt + '%' : '—', d.ch ? PW[d.ch] : '', d.bt != null && d.bt < 20 && d.ch === 'bat' ? 'bad' : '', d.bt));
-    else if (d.ch === 'none') tiles.append(tile('Nguồn', 'power-plug', 'Điện ngoài', 'Không lắp pin'));
+    else if (d.ch === 'none') tiles.append(tile('Pin & nguồn', 'power-plug', 'Cắm nguồn', 'Không lắp pin · chạy bằng điện ngoài', 'good'));
     var vc = volumeCtl();
     if (d.cap.spk) tiles.append(tile('Âm thanh', d.tg && d.tg.muted ? 'volume-off' : 'volume-high', d.tg && d.tg.muted ? 'Tắt tiếng' : vc ? 'Âm lượng ' + Math.round(vc.v) + (vc.max === 100 ? '%' : '') : 'Có loa', d.dnd ? 'Không làm phiền' : ''));
     tiles.append(tile('Đang hiển thị', 'monitor', d.app ? d.app.l : '—', d.tabs.length + ' ứng dụng đang mở'));

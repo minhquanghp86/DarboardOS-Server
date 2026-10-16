@@ -1134,7 +1134,8 @@
         var n = mk('div', 'sn'); n.append(mk('span', 'sd' + (s.online ? '' : ' off')), mk('span', '', s.name || s.id));
         var si = mk('div', 'si');
         if (s.online) si.append(item(!s.nw || s.nw.k === 'eth' ? 'ethernet' : ['wifi-strength-1', 'wifi-strength-2', 'wifi-strength-3', 'wifi-strength-4'][s.nw.q], !s.nw ? 'Mạng' : s.nw.k === 'eth' ? 'Cáp' : 'Wi-Fi'));
-        if (s.bt != null) si.append(item(s.ch === 'chg' ? 'battery-charging' : 'battery-high', s.bt + '%', s.bt < 20 && s.ch === 'bat' ? 'red' : ''));
+        if (s.bt != null) si.append(item(s.ch === 'chg' ? 'battery-charging' : s.ch === 'full' ? 'power-plug' : 'battery-high', s.bt + '%' + (s.ch === 'chg' ? ' · sạc' : s.ch === 'full' ? ' · cắm nguồn' : ''), s.bt < 20 && s.ch === 'bat' ? 'red' : ''));
+        else if (s.ch === 'none') si.append(item('power-plug', 'Cắm nguồn'));
         if (s.np && s.np.length) si.append(item('play', 'Đang phát'));
         if (s.mc) si.append(item('phone-missed', s.mc + ' nhỡ', 'red'));
         if (s.nu) si.append(item('bell-badge-outline', String(s.nu)));

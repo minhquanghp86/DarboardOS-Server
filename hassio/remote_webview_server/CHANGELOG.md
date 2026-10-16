@@ -1,3 +1,7 @@
+## V2.9.163
+- Màn hình / trang chủ Darboard: màn không lắp pin (P4) hiện **Cắm nguồn · không lắp pin** (trước đây không hiện gì về
+  nguồn); màn có pin hiện thêm trạng thái "sạc" / "cắm nguồn" cạnh %.
+
 ## V2.9.162
 - Màn hình → Ứng dụng: chạm biểu tượng trong "Mở ứng dụng" giờ hỏi xác nhận ("Mở … ?") trước khi mở trên màn — tránh chạm
   nhầm làm đổi màn người khác đang dùng.
