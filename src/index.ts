@@ -39,6 +39,7 @@ import { startDebugProxy } from './debugProxy.js';
 import { startWeatherMini } from './weatherMini.js';
 import { handleIptvApi, setIptvHooks } from './iptv.js';
 import { handleScreenCtlApi, setScreenCtlHooks } from './screenCtl.js';
+import { handleTelegramApi } from './telegram.js';
 import { handleMediaApi } from './mediaLib.js';
 import { endCall, handleCallApi, handleCallUpgrade, onMicFrame } from './callBridge.js';
 import { attachDoor, handleDoorApi, requestOpenLog, setDoorHooks } from './door.js';
@@ -238,6 +239,7 @@ http.createServer((req, res) => {
   // (07/10/2026) IPTV: danh sach kenh, proxy luong, yeu thich, cau hinh tu trang Darboard (src/iptv.ts).
   if (handleIptvApi(req, res, reqUrl)) return;
   if (handleScreenCtlApi(req, res, reqUrl)) return;   // (16/10/2026) Darboard → Màn hình
+  if (handleTelegramApi(req, res, reqUrl)) return;   // (16/10/2026) thong bao Telegram
   // (14/10/2026) Ung dung Media: nguon media cua HA, phat tren man / loa HA (src/mediaLib.ts) — chi 127.0.0.1.
   if (handleMediaApi(req, res, reqUrl)) return;
   // (14/10/2026) INTERCOM GD0: tieng giua man va trang thu / do vong lap (src/callBridge.ts).

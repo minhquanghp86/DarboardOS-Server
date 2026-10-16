@@ -9,7 +9,7 @@ Dự án gồm hai repo dùng cùng nhau:
 
 | Repo | Vai trò | Phiên bản hiện tại (16/10/2026) |
 |---|---|---|
-| **HA-Darboard-Server** (repo này) | Máy chủ — addon Home Assistant (hoặc container Docker) | **2.9.168** |
+| **HA-Darboard-Server** (repo này) | Máy chủ — addon Home Assistant (hoặc container Docker) | **2.9.169** |
 | [HA-Darboard-Client](https://github.com/minhquanghp86/HA-Darboard-Client) | Firmware màn hình (ESPHome) + YAML mẫu chung (một file, nhiều thiết bị) | tag **`fw-2026.10.22`** |
 
 > Tài liệu bàn giao / báo cáo nội bộ được giữ riêng (không công khai).
@@ -135,6 +135,8 @@ trên thanh bên Home Assistant.
 
 - `POST /notify` (từ `rest_command` của HA): `normal` / `high` (bật sáng + chuông) / `critical` (hiện cả khi Không làm
   phiền), kèm ảnh camera go2rtc, chạm để mở ứng dụng/URL; lưu qua khởi động lại addon.
+- **Thông báo Telegram** (2.9.169): chuông cổng nhỡ / bị từ chối / mỗi lần bấm (kèm ảnh khách), cuộc gọi video nhỡ — add-on gửi thẳng
+  bằng bot Telegram của bạn (Darboard → Gọi → ⚙).
 - **Chuông cổng Darboard** (ESP32-S3 CAM, firmware `fw-2026.10.16`): bấm nút → các màn đổ chuông (đè lên màn khóa) với
   hình cổng trực tiếp, **Nói chuyện** hai chiều, **Mở khóa cổng**, Chụp ảnh; không ai nghe → thông báo "Cuộc gọi nhỡ" kèm
   ảnh; nhật ký ảnh 30 ngày (ứng dụng + tab trên trang Darboard); sự kiện HA `darboard_doorbell`; nhạc chuông từ

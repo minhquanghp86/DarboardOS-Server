@@ -62,6 +62,14 @@
   .dset select { height: 42px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.12); background: #1a1f26; color: #eef1f5; font: inherit; padding: 0 10px; }
   .dset .hint { color: #9aa4b2; font-size: 13px; line-height: 1.45; }
   .dset .acts { display: flex; justify-content: flex-end; gap: 10px; }
+  .dset .tin { height: 40px; min-width: 0; flex: 1; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.14); background: #1a1f26; color: #eef1f5;
+    font: 14px "Be Vietnam Pro", sans-serif; padding: 0 12px; }
+  .dset .tin:focus { outline: 2px solid #34c759; outline-offset: 0; }
+  .dset .sec > .tin { flex: none; }
+  .dset .tln { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .dset button.sm { height: 36px; padding: 0 14px; border: none; border-radius: 999px; background: #2a3039; color: #eef1f5;
+    font: 600 13px "Be Vietnam Pro", sans-serif; cursor: pointer; }
+  .dset #tgFound button { margin: 0 6px 6px 0; }
   .dset .acts button { height: 42px; padding: 0 18px; border: none; border-radius: 999px; font: 600 15px "Be Vietnam Pro", sans-serif; cursor: pointer; background: #2a3039; color: #eef1f5; }
   .dset .acts .ok { background: #34c759; color: #04210d; }
 </style>
@@ -80,6 +88,19 @@
       <div class="hint">Chọn nhanh hoặc nhập số giây (5–300).</div></div>
     <div class="sec"><span class="k">Mở khóa cổng trong</span><div class="dur" id="dGate" data-min="1" data-max="120"></div>
       <div class="hint">Chọn nhanh hoặc nhập số giây (1–120).</div></div>
+    <div class="sec" id="tgSec"><span class="k">Thông báo Telegram</span>
+      <label class="ck"><input type="checkbox" id="tgOn">Gửi thông báo tới Telegram</label>
+      <input class="tin" id="tgToken" type="password" autocomplete="off" spellcheck="false" placeholder="Token bot (từ @BotFather)" aria-label="Token bot Telegram">
+      <div class="hint" id="tgTokHint"></div>
+      <div class="tln"><input class="tin" id="tgChats" autocomplete="off" spellcheck="false" placeholder="Chat ID (nhiều: cách nhau dấu phẩy)" aria-label="Chat ID Telegram"><button type="button" class="sm" id="tgFind">Tìm chat ID</button></div>
+      <div id="tgFound"></div>
+      <label class="ck"><input type="checkbox" id="tgEvRing">Mỗi lần bấm chuông (kèm ảnh)</label>
+      <label class="ck"><input type="checkbox" id="tgEvMissed">Chuông cổng nhỡ (kèm ảnh)</label>
+      <label class="ck"><input type="checkbox" id="tgEvDeclined">Chuông cổng bị từ chối (kèm ảnh)</label>
+      <label class="ck"><input type="checkbox" id="tgEvCall">Cuộc gọi video nhỡ</label>
+      <div class="tln"><button type="button" class="sm" id="tgTest">Gửi thử</button><span class="hint" id="tgRes"></span></div>
+      <div class="hint">Cách lấy: Telegram → <b>@BotFather</b> → /newbot → chép token. Nhắn một tin bất kỳ cho bot (hoặc thêm bot vào nhóm
+        gia đình) → bấm <b>Tìm chat ID</b> → chọn. Lưu rồi bấm <b>Gửi thử</b>.</div></div>
     <div class="acts"><button type="button" id="dCancel">Đóng</button><button type="button" class="ok" id="dSave">Lưu</button></div>
   </div>
 </div>
@@ -250,7 +271,44 @@
       return v;
     }
     function row(cls, txt) { var d = document.createElement('div'); d.className = cls; d.textContent = txt; return d; }
+    // (16/10/2026) Thong bao Telegram (src/telegram.ts): token khong bao gio tra ve trang — chi 4 ky tu cuoi.
+    function tgJson(path, body) {
+      return fetch(BASE + 'telegram/' + path, body === undefined ? { cache: 'no-store' } : { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+        .then(function (r) { return r.json().then(function (j) { if (!r.ok || j.ok === false) throw new Error(j.error || ('Lỗi ' + r.status)); return j; }); });
+    }
+    var TG_EV = { ring: 'tgEvRing', missed: 'tgEvMissed', declined: 'tgEvDeclined', call: 'tgEvCall' };
+    function tgLoad() {
+      tgJson('config').then(function (j) {
+        $('tgOn').checked = !!j.enabled; $('tgToken').value = ''; $('tgChats').value = (j.chatIds || []).join(', ');
+        $('tgTokHint').textContent = j.hasToken ? 'Đã lưu token …' + j.tokenTail + ' — để trống để giữ nguyên.' : 'Chưa có token.';
+        Object.keys(TG_EV).forEach(function (k) { $(TG_EV[k]).checked = !!(j.events && j.events[k]); });
+        $('tgFound').replaceChildren(); $('tgRes').textContent = '';
+      }).catch(function () { $('tgSec').hidden = true; });
+    }
+    function tgBody() {
+      var ev = {}; Object.keys(TG_EV).forEach(function (k) { ev[k] = $(TG_EV[k]).checked; });
+      return { enabled: $('tgOn').checked, token: $('tgToken').value.trim(), chatIds: $('tgChats').value, events: ev };
+    }
+    $('tgFind').onclick = function () {
+      $('tgFound').textContent = 'Đang tìm…';
+      tgJson('chats', { token: $('tgToken').value.trim() }).then(function (j) {
+        var f = $('tgFound'); f.replaceChildren();
+        if (!j.chats.length) { f.append(row('hint', 'Chưa thấy tin nào. Nhắn một tin cho bot (hoặc trong nhóm có bot) rồi bấm lại.')); return; }
+        j.chats.forEach(function (c) {
+          var b = document.createElement('button'); b.type = 'button'; b.className = 'sm'; b.textContent = c.name + ' (' + c.id + ')';
+          b.onclick = function () { var cur = $('tgChats').value.split(/[,\s]+/).filter(Boolean); if (cur.indexOf(c.id) < 0) cur.push(c.id); $('tgChats').value = cur.join(', '); };
+          f.append(b);
+        });
+      }).catch(function (e) { $('tgFound').replaceChildren(row('hint', 'Không tìm được: ' + e.message)); });
+    };
+    $('tgTest').onclick = function () {
+      $('tgRes').textContent = 'Đang lưu và gửi…';
+      tgJson('config', tgBody()).then(function () { return tgJson('test', {}); }).then(function (j) {
+        $('tgRes').textContent = '✓ Đã gửi tới ' + j.results.length + ' chat.'; tgLoad();
+      }).catch(function (e) { $('tgRes').textContent = '✗ ' + e.message; });
+    };
     $('gear').onclick = function () {
+      tgLoad();
       fetch(BASE + 'door/config', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
         var dd = $('dDoors'); dd.replaceChildren();
         if (!j.doors.length) dd.append(row('hint', 'Chưa có chuông nào kết nối. Lắp và cấp nguồn chuông cổng ESP32-S3.'));
@@ -271,8 +329,9 @@
       if (!(ringS > 0) || !(gateS > 0)) { ui.toast('Số giây nằm ngoài khoảng cho phép.'); return; }
       fetch(BASE + 'door/config', { method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ ringPanels: panels, ringS: ringS, gateS: gateS }) })
-        .then(function (r) { if (!r.ok) throw new Error(); $('dset').hidden = true; ui.toast('Đã lưu cài đặt chuông'); })
-        .catch(function () { ui.toast('Không lưu được.'); });
+        .then(function (r) { if (!r.ok) throw new Error('Không lưu được cài đặt chuông.'); return $('tgSec').hidden ? null : tgJson('config', tgBody()); })
+        .then(function () { $('dset').hidden = true; ui.toast('Đã lưu cài đặt'); })
+        .catch(function (e) { ui.toast(e.message || 'Không lưu được.'); });
     };
   })();
   connect();

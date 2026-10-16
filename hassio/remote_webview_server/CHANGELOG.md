@@ -1,3 +1,8 @@
+## V2.9.169
+- Mới: **thông báo Telegram** — chuông cổng nhỡ, chuông cổng bị từ chối, mỗi lần bấm chuông (kèm ảnh khách) và cuộc gọi video nhỡ, có
+  thời gian + tên chuông / người gọi. Add-on gửi thẳng Telegram Bot API (không cần tích hợp Telegram của HA). Cài trong Darboard → Gọi → ⚙:
+  token bot, chat ID (nút **Tìm chat ID**), chọn sự kiện, **Gửi thử**. Token không trả về trang, không ghi log; lỗi tạm thời thử lại.
+
 ## V2.9.168
 - Nút giữa (Home) giữ ≥ 2 s: vào thẳng Frigate, **đóng bàn phím ảo / bỏ chọn ô nhập** của trang đang mở trước khi chuyển (không còn
   bàn phím nằm lại).

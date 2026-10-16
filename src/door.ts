@@ -23,6 +23,7 @@ import { haFetch } from './haSettings.js';
 import { LOCAL_ORIGIN } from './launcherApps.js';
 import type { FrameSink } from './mkvLive.js';
 import { ControlField, DeviceEventKind, DoorState, MsgType, parseDeviceEventPacket } from './protocol.js';
+import { telegramNotify, tgText } from './telegram.js';
 
 const DATA_DIR = fs.existsSync('/data') ? '/data' : path.join(process.cwd(), 'data');
 const SNAP_DIR = path.join(DATA_DIR, 'rwv-door');
@@ -104,7 +105,7 @@ interface Door {
   /** Co mic + loa (module I2S) -> noi chuyen duoc; khong -> man chi xem hinh / mo cong. */
   canTalk: boolean;
   lastPress: number;
-  ring: { id: string; panels: string[]; timer: NodeJS.Timeout; snap: string | null; result?: LogKind; by?: string } | null;
+  ring: { id: string; panels: string[]; timer: NodeJS.Timeout; snap: string | null; result?: LogKind; by?: string; snapFailed?: boolean } | null;
   talk: { panel: string; since: number; ringId: string; maxT: NodeJS.Timeout } | null;
   ledT: NodeJS.Timeout | null;
 }
@@ -168,7 +169,12 @@ function press(d: Door, only?: string[]): void {
   // Anh khach NGAY khi bam (nhat ky moi lan bam chuong); ket qua cap nhat sau.
   const ring = d.ring;
   // Nghe / tu choi TRUOC khi anh xong -> ghi dung ket qua (ring.result).
-  snapshot(d).then((f) => { ring.snap = f; addLog(d, f, ring.result || 'ring', ring.by); }).catch(() => { });
+  // (16/10/2026) Telegram "co nguoi bam chuong": gui khi co anh (khong chup duoc thi gui chu).
+  const tsPress = Date.now();
+  snapshot(d).then((f) => {
+    ring.snap = f; addLog(d, f, ring.result || 'ring', ring.by);
+    telegramNotify('ring', tgText('ring', { door: d.name, ts: tsPress }), path.join(SNAP_DIR, f));
+  }).catch(() => { ring.snapFailed = true; telegramNotify('ring', tgText('ring', { door: d.name, ts: tsPress })); });
   led(d, DoorState.Ringing);
   haFetch('/events/darboard_doorbell', { method: 'POST', body: JSON.stringify({ door: d.id, name: d.name, panels: r.devices }) })
     .then((x) => { if (!x.ok) console.warn(`[door] su kien HA: ${x.status}`); }).catch(() => { });
@@ -186,6 +192,7 @@ async function missed(d: Door, ringId: string): Promise<void> {
   postNotify({ title: 'Cuộc gọi nhỡ ở cổng', message: `${d.name}: không ai nghe lúc ${new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`,
     priority: 'high', device: 'all', app: 'doorlog', missed: true, ...(img ? { arg: img, image: `${LOCAL_ORIGIN}/door/snap/${img}` } : {}) });
   console.log(`[door] ${d.id}: cuoc goi nho${img ? ' (co anh)' : ''}`);
+  telegramNotify('missed', tgText('missed', { door: d.name, ringS: cfg.ringS }), img ? path.join(SNAP_DIR, img) : null);
 }
 
 /** Anh khach (cong anh chup) -> /data/rwv-door/<ten>.jpg; giu 30 anh moi nhat. */
@@ -235,7 +242,14 @@ export function decline(ringId: string): boolean {
   clearTimeout(d.ring.timer);
   d.ring.result = 'declined';
   setLogKind(d.ring.snap, 'declined');
+  const ring = d.ring;
   d.ring = null;
+  // Telegram: tu choi NGAY sau khi bam thi anh co the chua xong — doi toi 6 s.
+  const ts = Date.now();
+  (async () => {
+    for (let i = 0; i < 30 && !ring.snap && !ring.snapFailed; i++) await new Promise((r) => setTimeout(r, 200));
+    telegramNotify('declined', tgText('declined', { door: d.name, ts }), ring.snap ? path.join(SNAP_DIR, ring.snap) : null);
+  })().catch(() => { });
   closeDoorbell(ringId);
   led(d, DoorState.Idle);
   console.log(`[door] ${d.id}: tu choi`);

@@ -15,6 +15,7 @@
 import http from 'node:http';
 import type { Duplex } from 'node:stream';
 import { WebSocket, WebSocketServer } from 'ws';
+import { telegramNotify, tgText } from './telegram.js';
 
 import { endCall, isInCall, linkCalls, onMicListener, sendToDevice, setMuted, startCall } from './callBridge.js';
 import { answerDoorbell, closeDoorbell, connectedScreens, openRingPage, postNotify } from './deviceManager.js';
@@ -126,6 +127,8 @@ export function finish(callId: string, reason: string, missed = false): boolean 
     postNotify({ title: 'Cuộc gọi nhỡ', message: `${partyName(c.from)} đã gọi lúc ${new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`,
       priority: 'high', device: c.to.id, app: 'call', missed: true });
   }
+  // (16/10/2026) Telegram: cuoc goi video nho (khong ai nghe) — ca goi toi man lan toi trinh duyet.
+  if (missed) telegramNotify('call', tgText('call', { from: partyName(c.from), to: partyName(c.to) }));
   const s = c.startedAt ? Math.round((Date.now() - c.startedAt) / 1000) : 0;
   console.log(`[calls] ${callId}: ket thuc (${reason})${s ? ` sau ${s} s` : ''}`);
   return true;

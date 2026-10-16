@@ -443,6 +443,11 @@ khuếch đại MAX98357A, vòng LED WS2812, nút chuông, MOSFET mở khóa). K
   gửi thông báo về điện thoại. Trong HA, chuông có sẵn switch **Mở cổng**, nút, camera, vòng LED.
 - Cài đặt (mục **"Gọi"** trong Darboard → nút ⚙ góc trên phải): màn nào đổ chuông, thời gian đổ chuông (chọn nhanh 5–100 s
   hoặc nhập số giây 5–300), thời gian mở khóa cổng (chọn nhanh 1–30 s hoặc nhập 1–120).
+- **Thông báo Telegram** (2.9.169, cùng hộp ⚙): add-on gửi thẳng qua Telegram Bot API — **chuông cổng nhỡ**, **chuông cổng bị từ chối**,
+  **mỗi lần bấm chuông** (cả ba kèm ảnh khách) và **cuộc gọi video nhỡ**; mỗi tin có thời gian (giờ Home Assistant), tên chuông / người gọi.
+  Cài: Telegram → `@BotFather` → `/newbot` → chép token; nhắn một tin cho bot (hoặc thêm bot vào nhóm gia đình) → **Tìm chat ID** → chọn
+  → **Lưu** → **Gửi thử**. Chọn từng loại sự kiện. Token chỉ lưu trong add-on (`/data/rwv-telegram.json`), trang chỉ hiện 4 ký tự cuối,
+  không ghi vào nhật ký. Telegram tạm lỗi / mất mạng: thử lại tới 4 lần. Docker riêng: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
 - Tự đổ chuông từ automation (vd cảm biến khác) — `rest_command` trong `configuration.yaml`:
   ```yaml
   rest_command:
