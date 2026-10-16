@@ -1,3 +1,10 @@
+## V2.9.153
+- Màn hình chờ / khoá (cả 3 màn): góc trên bên phải có thanh trạng thái kiểu điện thoại — tin nhắn / thông báo / báo thức
+  (biểu tượng + số, chạm để mở), mạng (Wi-Fi theo vạch hoặc cáp), pin của màn (nếu có). Chip "N thông báo" giữa màn bỏ đi.
+- Sự kiện camera Frigate trên màn hình chờ: hỏi Frigate mỗi 4 s khi có màn đang chờ / khoá (trước 20 s) — hiện trong ~5 s.
+- S3 480×272: thẻ thời tiết lên sát dưới thanh trạng thái, bên dưới hiện dòng camera / lịch (trước bị ẩn).
+- Thẻ "Cuộc gọi nhỡ" giãn hết bề ngang cột (màn vuông).
+
 ## V2.9.152
 - Màn hình chờ / khoá trên màn NGANG (P4): dòng camera / lịch chuyển sang cột phải, ngay dưới thẻ thời tiết (trước chen dưới
   dải năng lượng bên trái — cột trái quá cao, cột phải trống); có chỗ nên hiện tối đa 4 sự kiện lịch. Màn vuông (S3 480×480)

@@ -698,7 +698,9 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     const side = el('div', 'sv-side'); side.append(svCard, svRows);
     svBox.append(main, side);
     svPh = [el('div', 'sv-ph'), el('div', 'sv-ph')]; svTop = 0;
-    saverEl.append(svPh[0], svPh[1], svBox);
+    // (16/10/2026) Goc tren phai kieu dien thoai: tin nhan / thong bao / bao thuc (bieu tuong + so), mang, pin cua man.
+    svStat = el('div', 'sv-top');
+    saverEl.append(svPh[0], svPh[1], svBox, svStat);
     if (CFG.motion === 'full') saverEl.classList.add('anim');
     applySaverOpts();
     // Tat o 'click' (khong phai pointerdown): neu go lop phu ngay luc cham xuong thi 'click' sau do roi xuong trang.
@@ -735,19 +737,19 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   }
   // (01/10/2026) Man hinh cho: "2 tin nhắn · 1 thông báo" CHUA XEM tren chinh man hinh nay. Cham tin nhan -> mo Tin nhan,
   // cham thong bao -> mo thanh keo xuong. Chi doi DOM khi so dem doi (moi khung ve lai la bang thong WiFi).
-  let svBadges: HTMLElement, svBdgSig = '';
+  let svBadges: HTMLElement, svStat: HTMLElement, svBdgSig = '';
   function renderSaverBadges(): void {
     if (!saverEl) return;
     const u = unseenCounts();
     const al = st?.al && st.al.at - Date.now() < 24 * 3600_000 ? st.al : null;
     // (16/10/2026) CUOC GOI NHO chua xem (12 gio gan day): the do LON rieng, khong gop vao chip "N thông báo".
     const miss = (st?.nt || []).filter((n) => n.mc && !n.s && Date.now() - n.ts < 12 * 3600_000);
-    const sig = u.chat + '|' + u.nt + '|' + (al ? al.t : '') + '|' + miss.map((n) => n.id).join(',');
+    const sig = u.chat + '|' + u.nt + '|' + (al ? al.t : '') + '|' + miss.map((n) => n.id).join(',') + '|' + sbKey(st?.sb);
     if (sig === svBdgSig) return;
     svBdgSig = sig;
     saverEl.classList.toggle('hasmiss', miss.length > 0);
     const chip = (icon: string, text: string, go: () => void) => {
-      const c = el('button', 'sv-b'); c.append(mdi(icon), el('span', '', text));
+      const c = el('button', 'sv-tb'); c.append(mdi(icon), el('span', '', text));
       c.addEventListener('pointerdown', (e) => e.stopPropagation());
       c.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -775,9 +777,14 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
       out.push(c);
     }
     const ntN = Math.max(0, u.nt - miss.length);
-    if (u.chat) out.push(chip('message', u.chat + ' tin nhắn', () => { if (hasApp('chat')) openApp('chat'); else openShade(true); }));
-    if (ntN) out.push(chip('bell', ntN + ' thông báo', () => openShade(true)));
-    if (al) { const c = chip('alarm', al.t, () => openApp('alarm')); c.classList.add('al'); out.push(c); }
+    const top: Element[] = [];
+    if (u.chat) top.push(chip('message', String(u.chat), () => { if (hasApp('chat')) openApp('chat'); else openShade(true); }));
+    if (ntN) top.push(chip('bell', String(ntN), () => openShade(true)));
+    if (al) { const c = chip('alarm', al.t, () => openApp('alarm')); c.classList.add('al'); top.push(c); }
+    const sb = st?.sb;
+    if (sb?.nw) top.push(netIcon(sb.nw));
+    if (sb?.bt != null) { const b = el('span', 'sv-bt'); b.append(batteryIcon(sb.bt), el('span', '', Math.round(sb.bt) + '%')); top.push(b); }
+    svStat.replaceChildren(...top);
     svBadges.replaceChildren(...out);
   }
   // Bieu tuong Tin nhan o man hinh chinh / dock: huy hieu so tin chua doc (style dong trong shadow — song qua moi lan ve lai).

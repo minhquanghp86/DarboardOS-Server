@@ -262,8 +262,27 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .sv-b .ic, .sv-b svg { width: 1.2em; height: 1.2em; }
 .sv-b + .sv-b { background: rgba(245,158,11,0.2); color: #fde68a; }
 .saver.night .sv-b { background: rgba(120,80,60,0.25); color: #9a6a58; }
+/* (16/10/2026) Goc tren phai man hinh cho kieu dien thoai: tin nhan / thong bao / bao thuc (bieu tuong + so), mang, pin. */
+.sv-top { position: absolute; top: clamp(6px, 1.6vmin, 14px); right: clamp(10px, 2.4vmin, 20px); display: flex; align-items: center;
+  gap: clamp(8px, 1.8vmin, 14px); color: #fff; font: 600 clamp(13px, 3vmin, 19px)/1 "Be Vietnam Pro", Roboto, sans-serif; z-index: 2; }
+.sv-top:empty { display: none; }
+.sv-tb { display: inline-flex; align-items: center; gap: 0.3em; padding: 0.28em 0.7em; border: none; border-radius: 999px; cursor: pointer;
+  background: rgba(255,255,255,0.14); color: inherit; font: inherit; }
+.sv-tb .ic { width: 1.15em; height: 1.15em; }
+.sv-tb.al { background: rgba(245,158,11,0.22); color: #fde68a; }
+.sv-top .sb-wifi { width: 1.2em; height: 1em; display: block; }
+.sv-top .sb-eth { width: 1.1em; height: 1.1em; display: block; }
+.sv-bt { display: inline-flex; align-items: center; gap: 0.3em; font-variant-numeric: tabular-nums; }
+.sv-top .sb-bat { width: 1.6em; height: 0.8em; display: block; }
+.sv-top .sb-bat.low .lvl { fill: #ff453a; }
+.saver.photo .sv-top { text-shadow: 0 1px 6px rgba(0,0,0,0.7); }
+.saver.photo .sv-tb { background: rgba(0,0,0,0.45); }
+.saver.night .sv-top { color: #9a6a58; }
+.saver.night .sv-tb { background: rgba(120,80,60,0.2); }
 /* (16/10/2026) CUOC GOI NHO tren man hinh cho: the do dac, chu trang lon, bieu tuong tron + anh khach (chuong cong) — khac han
    chip thong bao xanh. Chiem ca hang cua dai chip (flex-basis 100%). */
+/* Dai chip chi con the goi nho (chip da len goc tren phai): gian het be ngang cot de the khong co lai theo chu. */
+.sv-main > .sv-bdg { align-self: stretch; }
 .sv-miss { flex: 1 0 100%; display: flex; align-items: center; gap: clamp(8px, 2.2vmin, 16px); box-sizing: border-box; max-width: min(92vw, 560px);
   padding: clamp(6px, 1.6vmin, 12px) clamp(10px, 2.4vmin, 18px); border: none; border-radius: clamp(14px, 3.2vmin, 24px); cursor: pointer;
   background: #dc2626; color: #fff; text-align: left; box-shadow: 0 6px 24px rgba(220,38,38,0.35); font-family: "Be Vietnam Pro", Roboto, sans-serif; }
@@ -434,9 +453,14 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   .saver.hascard .lw-s > .ic { width: 16px; height: 16px; }
   .saver.hascard .lw-v { font-size: 13px; }
   .saver.hascard .lw-l { font-size: 9px; margin-top: 0; overflow: hidden; text-overflow: ellipsis; }
-  .saver.hascard.haslw .lw-r { display: none; }
+  /* (16/10/2026) The thoi tiet SAT TREN (ngay duoi thanh trang thai), cho trong ben duoi danh cho 1 dong camera / lich
+     (truoc day an tren man nay). */
+  .saver.hascard .sv-box { align-self: stretch; }
+  .saver.hascard .sv-main { align-self: flex-end; }
+  .saver.hascard .sv-side { align-self: flex-start; margin-top: 28px; }
+  .saver.hascard .sv-rows .lw-r ~ .lw-r { display: none; }
+  .saver.hascard .sv-rows { padding: 0 2px; }
   .saver.hascard .lw-r { max-width: 100%; }
-  .saver.hasmiss .lw-r { display: none; }
   .saver.hasmiss.hascard .sv-mimg { display: none; }
   /* Co the goi nho: cot trai cao them ~50 px -> dong ho nho lai, bo chu thich anh (do that: dong ho tran mep tren). */
   .saver.hasmiss.hascard .sv-main .sv-clock { font-size: 22vmin; }

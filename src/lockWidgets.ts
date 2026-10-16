@@ -212,7 +212,9 @@ export async function refreshLockWidgets(active: boolean, tzMin: number): Promis
     run(S.en, k ? 30_000 : IDLE_REFRESH_MS, fetchEnergy),
     run(S.cal, IDLE_REFRESH_MS, () => fetchCalendar(tzMin)),
     run(S.hosts, 10 * 60_000, cameraHosts),
-    run(S.cam, k ? 20_000 : IDLE_REFRESH_MS, async () => (await recentEvents(Date.now() / 1000 - CAM_WINDOW_MS / 1000, 20))
+    // (16/10/2026) 20 -> 4 s khi co man dang cho / khoa (vong screensaverTick 5 s): su kien Frigate hien gan nhu NGAY (<= 5 s);
+    // /api/events cua Frigate trong mang noi bo, rat nhe.
+    run(S.cam, k ? 4_000 : IDLE_REFRESH_MS, async () => (await recentEvents(Date.now() / 1000 - CAM_WINDOW_MS / 1000, 20))
       .map((e) => ({ id: e.id, c: e.camera, l: e.label, ...(e.sub ? { sub: e.sub } : {}), s: Math.round(e.start * 1000), ...(e.end == null ? { live: 1 as const } : {}) }))),
   ]);
   return res.some(Boolean);
