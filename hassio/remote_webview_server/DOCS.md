@@ -441,7 +441,7 @@ khuếch đại MAX98357A, vòng LED WS2812, nút chuông, MOSFET mở khóa). K
   **"Chuông cổng"** trong trang Darboard (ảnh ghi ngày / giờ, lọc Nhỡ / Đã nghe / Từ chối / Ảnh chụp, chọn + xóa).
 - Home Assistant nhận sự kiện `darboard_doorbell` (dữ liệu: `door`, `name`, `panels`) — dùng cho automation, ví dụ
   gửi thông báo về điện thoại. Trong HA, chuông có sẵn switch **Mở cổng**, nút, camera, vòng LED.
-- Cài đặt (mục **"Gọi"** trong Darboard → nút ⚙ góc trên phải): màn nào đổ chuông, thời gian đổ chuông (chọn nhanh 5–100 s
+- Cài đặt (mục **"Gọi"** trong Darboard → nút ⚙ góc trên phải): **chọn một hoặc nhiều màn bất kỳ** đổ chuông (màn không có loa vẫn hiện trang chuông, chỉ không nói chuyện được; không chọn = mọi màn), thời gian đổ chuông (chọn nhanh 5–100 s
   hoặc nhập số giây 5–300), thời gian mở khóa cổng (chọn nhanh 1–30 s hoặc nhập 1–120).
 - **Thông báo Telegram** (2.9.169, cùng hộp ⚙): add-on gửi thẳng qua Telegram Bot API — **chuông cổng nhỡ**, **chuông cổng bị từ chối**,
   **mỗi lần bấm chuông** (cả ba kèm ảnh khách) và **cuộc gọi video nhỡ**; mỗi tin có thời gian (giờ Home Assistant), tên chuông / người gọi.

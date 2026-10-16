@@ -89,6 +89,15 @@ export function deleteLog(files: unknown): number {
 /** Cham thong bao "Cuoc goi nho" -> mo ung dung Chuong cong dung anh nay (trang hoi /door/log?dev=). */
 const openReq = new Map<string, string>();
 export function requestOpenLog(dev: string, f: string): void { if (/^[\w.-]+\.jpg$/.test(f)) openReq.set(dev, f); }
+/**
+ * (16/10/2026) Cai dat chuong: CHON BAT KY man nao (khong chi man co loa / camera) — man khong co loa van mo trang chuong binh thuong
+ * (chi xem hinh + mo cong, khong noi chuyen). Man da chon nhung dang offline van hien (danh dau) de bo chon duoc.
+ */
+function doorPanelChoices(): { id: string; name: string; online: boolean }[] {
+  const on = connectedScreens().filter((s) => !isDoor(s.id)).map((s) => ({ id: s.id, name: nameOf(s.id) || s.id, online: true }));
+  const off = cfg.ringPanels.filter((id) => !on.some((x) => x.id === id)).map((id) => ({ id, name: nameOf(id) || id, online: false }));
+  return [...on, ...off];
+}
 export function setDoorConfig(b: any): DoorConfig {
   const panels = Array.isArray(b?.ringPanels) ? b.ringPanels.filter((x: unknown) => typeof x === 'string' && /^[\w-]{1,40}$/.test(x)).slice(0, 20) : cfg.ringPanels;
   const num = (v: unknown, lo: number, hi: number, d: number) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
@@ -164,7 +173,9 @@ function press(d: Door, only?: string[]): void {
   if (d.talk) return;                              // dang noi chuyen: bo qua
   if (d.ring) { clearTimeout(d.ring.timer); closeDoorbell(d.ring.id); }
   const sel = only?.length ? only : cfg.ringPanels.length ? cfg.ringPanels : d.panels.length ? d.panels : undefined;
-  const r = ringDoorPanels(d.id, d.name, cfg.ringS, sel, d.canTalk);
+  let r = ringDoorPanels(d.id, d.name, cfg.ringS, sel, d.canTalk);
+  // Cac man da chon deu offline -> do chuong tat ca man dang ket noi (con hon la khong ai thay chuong).
+  if (!r.devices.length && sel) { console.log(`[door] ${d.id}: man da chon deu offline — do chuong moi man`); r = ringDoorPanels(d.id, d.name, cfg.ringS, undefined, d.canTalk); }
   d.ring = { id: r.id, panels: r.devices, timer: setTimeout(() => missed(d, r.id), cfg.ringS * 1000), snap: null };
   // Anh khach NGAY khi bam (nhat ky moi lan bam chuong); ket qua cap nhat sau.
   const ring = d.ring;
@@ -347,7 +358,7 @@ export function handleDoorApi(req: http.IncomingMessage, res: http.ServerRespons
   if (!p.startsWith('/door/')) return false;
   // Cai dat chuong: tu trang Darboard (ingress, HA da buoc dang nhap).
   if (p === '/door/config' && (isLocal(req) || (req.socket.remoteAddress || '').replace(/^::ffff:/, '') === '172.30.32.2')) {
-    if (req.method === 'GET') { json(res, 200, { cfg, doors: doorList(), panels: connectedScreens().filter((s) => s.spk || s.cam).map((s) => ({ id: s.id, name: nameOf(s.id) || s.id })) }); return true; }
+    if (req.method === 'GET') { json(res, 200, { cfg, doors: doorList(), panels: doorPanelChoices() }); return true; }
     let body = '';
     req.on('data', (c) => { body += c; if (body.length > 4096) req.destroy(); });
     req.on('end', () => { try { json(res, 200, { ok: true, cfg: setDoorConfig(JSON.parse(body || '{}')) }); } catch { json(res, 400, { ok: false, error: 'JSON sai' }); } });

@@ -83,7 +83,7 @@
     <h2 id="dsetT">Chuông cổng</h2>
     <div class="sec"><span class="k">Chuông đang kết nối</span><div id="dDoors"></div></div>
     <div class="sec"><span class="k">Màn đổ chuông</span><div id="dPanels"></div>
-      <div class="hint">Không chọn màn nào = mọi màn đều đổ chuông.</div></div>
+      <div class="hint">Chọn một hoặc nhiều màn (kể cả màn không có loa — vẫn hiện trang chuông, xem hình và mở cổng). Không chọn màn nào = mọi màn đều đổ chuông. Các màn chọn đều ngoại tuyến thì đổ chuông mọi màn đang kết nối.</div></div>
     <div class="sec"><span class="k">Đổ chuông trong</span><div class="dur" id="dRing" data-min="5" data-max="300"></div>
       <div class="hint">Chọn nhanh hoặc nhập số giây (5–300).</div></div>
     <div class="sec"><span class="k">Mở khóa cổng trong</span><div class="dur" id="dGate" data-min="1" data-max="120"></div>
@@ -316,7 +316,7 @@
         var pp = $('dPanels'); pp.replaceChildren();
         j.panels.forEach(function (p) {
           var l = document.createElement('label'); l.className = 'ck'; var c = document.createElement('input'); c.type = 'checkbox'; c.value = p.id;
-          c.checked = j.cfg.ringPanels.indexOf(p.id) >= 0; l.append(c, document.createTextNode(p.name)); pp.append(l);
+          c.checked = j.cfg.ringPanels.indexOf(p.id) >= 0; l.append(c, document.createTextNode(p.name + (p.online === false ? ' (ngoại tuyến)' : ''))); pp.append(l);
         });
         opts($('dRing'), [5, 10, 20, 30, 50, 70, 90, 100], j.cfg.ringS); opts($('dGate'), [1, 2, 3, 5, 8, 10, 15, 20, 30], j.cfg.gateS);
         $('dset').hidden = false;

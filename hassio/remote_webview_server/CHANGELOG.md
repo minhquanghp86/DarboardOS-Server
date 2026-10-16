@@ -1,3 +1,10 @@
+## V2.9.171
+- Cài đặt chuông cổng: **chọn một hoặc nhiều màn bất kỳ** để đổ chuông — kể cả màn **không có loa / camera** (vẫn hiện trang chuông, xem hình
+  và mở cổng; chỉ không nói chuyện được). Trước đây danh sách chỉ liệt kê màn có loa hoặc camera (thực tế chỉ P4). Màn đã chọn nhưng
+  đang ngoại tuyến vẫn hiện (đánh dấu) để bỏ chọn; các màn chọn đều ngoại tuyến thì đổ chuông mọi màn đang kết nối. Không chọn = mọi màn.
+- Sửa: màn hình chờ **S3 480×480** (và màn nhỏ khác) khi có thẻ "Cuộc gọi nhỡ" + hai hàng năng lượng + thời tiết + camera: nội dung cao hơn
+  màn nên đồng hồ bị đẩy lên mất gần một nửa — nay thu nhỏ cả khối cho vừa màn (không phóng to; khung ảnh nền không đổi).
+
 ## V2.9.170
 - Sửa: nút **‹ Trang chủ** ở Màn hình / Chuông cổng / Gọi làm trình duyệt **tải về tệp "Tải xuống" 2 byte** và không về được trang chủ
   (liên kết `./` trỏ vào gốc ingress, nơi chỉ trả "ok"). Nay trỏ `launcher-config.html`; gốc ingress cũng trả trang chủ.

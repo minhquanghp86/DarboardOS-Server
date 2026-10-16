@@ -557,6 +557,18 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   // tiet tren nen den; dich cho moi phut (chong luu anh), tong am toi tu 22h-6h. Cham = tat (cham do KHONG toi trang). ──
   let saverEl: HTMLElement | null = null, svBox: HTMLElement, svClock: HTMLElement, svDate: HTMLElement, svWx: HTMLElement;
   let svShiftMin = -1, svWxSig = '';
+  let svFitRo: ResizeObserver | null = null, svFitBusy = false;
+  /** Zoom khoi dong ho + the cho vua man (chua tinh goi y vuot o day): khong phong to, chi thu nho; khung anh nen thi bo qua. */
+  function fitSaver(): void {
+    if (!saverEl || !svBox || svFitBusy || saverEl.classList.contains('photo')) return;
+    svFitBusy = true;
+    try {
+      svBox.style.zoom = '1';
+      const hh = svBox.offsetHeight, ww = svBox.offsetWidth;
+      const z = Math.min(1, (innerHeight * 0.86) / Math.max(1, hh), (innerWidth * 0.97) / Math.max(1, ww));
+      svBox.style.zoom = z < 0.995 ? z.toFixed(3) : '';
+    } finally { svFitBusy = false; }
+  }
   // (27/09/2026) Nen anh gia dinh (server gui URL moi phut, null = chi dong ho — ban dem / khong co anh). Hai lop
   // chong mo cheo; anh tai xong moi hien (mang cham thi giu anh cu).
   // (27/09/2026) KHUNG ANH SO: server gui {url, cap, fx, dir, clock}. Hieu ung chuyen (mo dan / truot theo huong vuot /
@@ -681,7 +693,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     frzSvg = []; frzAnim = [];
   }
   function screensaver(on: boolean | SaverOpts): void {
-    if (!on) { saverEl?.remove(); saverEl = null; svHint = null; svPending = null; saverSignal(false); return; }
+    if (!on) { svFitRo?.disconnect(); svFitRo = null; saverEl?.remove(); saverEl = null; svHint = null; svPending = null; saverSignal(false); return; }
     svOpts = typeof on === 'object' ? on : {};
     if (saverEl) { applySaverOpts(); updateSaver(); return; }  // dang hien: chi doi kieu (vd nguoi dung vua doi Cai dat)
     if (alarmId || shadow.querySelector('.alarm')) return;  // (01/10/2026) dang bao thuc: khong che
@@ -690,6 +702,9 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     if (!deviceNow()) return;
     closeShade(false); closeRecents();
     saverEl = el('div', 'saver'); svBox = el('div', 'sv-box');
+    // (16/10/2026) Noi dung man hinh cho co the CAO hon man (the cuoc goi nho + 2 hang nang luong + thoi tiet + camera tren S3 480x480:
+    // dong ho bi day len, mat ~1 nua) -> thu nho CA KHOI cho vua man (zoom), do lai moi khi khoi doi kich thuoc.
+    try { svFitRo?.disconnect(); svFitRo = new ResizeObserver(() => fitSaver()); svFitRo.observe(svBox); } catch { /* */ }
     saverSignal(true);
     svClock = el('div', 'sv-clock'); svDate = el('div', 'sv-date'); svWx = el('div', 'sv-wx');
     svCap = el('div', 'sv-cap'); svCard = el('div', 'sv-card');
@@ -840,6 +855,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     const csig = card ? JSON.stringify([card.code, card.day, card.t, card.fl, card.rh, card.ws, card.hi, card.lo, card.pp, card.aqi, card.hr]) : '';
     if (csig !== svCardSig) { svCardSig = csig; renderCard(card); saverEl.classList.toggle('hascard', !!card); }
     renderLockWidgets(m !== svShiftMin);
+    fitSaver();
     if (m !== svShiftMin) {  // moi phut mot vi tri moi — cung khung voi luc doi so phut, khong ton them khung nao
       svShiftMin = m;
       // Dang khung anh: dong ho o goc duoi trai -> chi dich vao trong (khong ra ngoai mep).
