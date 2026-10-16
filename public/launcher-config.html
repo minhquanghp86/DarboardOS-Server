@@ -441,6 +441,48 @@
   @media (max-width: 560px) { #ivGear .tx { display: none; } #ivGear { width: 44px; justify-content: center; padding: 0; } }
   #ivSettings { display: flex; flex-direction: column; gap: 16px; padding-top: 8px; border-top: 1px dashed var(--line); }
   #ivSettings[hidden] { display: none; }
+
+  /* (16/10/2026) Man khoa: xem truoc + dong cam bien gon (bam de sua) */
+  .lead { margin: 0; color: var(--muted); max-width: 70ch; }
+  .lw-pv { border-radius: 18px; padding: 18px 20px; background: linear-gradient(160deg, #0f172a, #020617); color: #eef2f8;
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 20px; box-shadow: 0 6px 20px rgba(2,6,23,0.25); }
+  .lw-pv .t { grid-column: 1 / -1; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: #94a3b8; font-weight: 600; }
+  .lw-pv .s { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .lw-pv .s svg { width: 32px; height: 32px; fill: currentColor; flex: none; }
+  .lw-pv .v { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .lw-pv .l { font-size: 12.5px; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lw-pv .e { grid-column: 1 / -1; color: #94a3b8; }
+  @media (max-width: 560px) { .lw-pv { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 16px; } .lw-pv .v { font-size: 18px; } .lw-pv .s svg { width: 26px; height: 26px; } }
+  .lw-it { border-bottom: 1px solid var(--line); }
+  .lw-it:last-child { border-bottom: none; }
+  .lw-hd { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 4px; border: none; background: none; color: var(--text); cursor: pointer; text-align: left; font: inherit; }
+  .lw-hd .ai { width: 36px; height: 36px; border-radius: 10px; }
+  .lw-hd .ai svg { width: 20px; height: 20px; }
+  .lw-hd .tx { flex: 1; min-width: 0; }
+  .lw-hd .n { font-weight: 500; }
+  .lw-hd .f { color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lw-hd .f.miss { color: var(--danger); }
+  .lw-hd .val { font-variant-numeric: tabular-nums; font-size: 13px; padding: 3px 10px; border-radius: 999px; background: var(--surface-2); white-space: nowrap; }
+  .lw-hd .chev { width: 20px; height: 20px; fill: var(--muted); transition: transform .15s; flex: none; }
+  .lw-it.open .lw-hd .chev { transform: rotate(180deg); }
+  .lw-ed { display: none; padding: 0 4px 14px 52px; flex-direction: column; gap: 8px; }
+  .lw-it.open .lw-ed { display: flex; }
+  .lw-ed input[type=text] { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--surface); color: var(--text); min-width: 0; }
+  @media (max-width: 560px) { .lw-ed { padding-left: 4px; } }
+  .card-head { flex-wrap: wrap; row-gap: 6px; }
+  .card-head h2 { white-space: nowrap; }
+
+  /* (16/10/2026) Menu ung dung: xem truoc nhu tren man */
+  .mn-pv { border-radius: 18px; padding: 16px 18px 6px; background: linear-gradient(160deg, #1e293b, #0b1120); color: #e5e7eb; box-shadow: 0 6px 20px rgba(2,6,23,0.25); }
+  .mn-pv .t { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: #94a3b8; font-weight: 600; margin-bottom: 4px; }
+  .mn-pv .g { font-size: 13px; color: #cbd5e1; font-weight: 600; margin: 10px 0 8px; }
+  .mn-pv .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 12px 8px; margin-bottom: 8px; }
+  .mn-pv button { display: flex; flex-direction: column; align-items: center; gap: 6px; border: none; background: none; color: inherit; cursor: pointer; padding: 4px 2px; border-radius: 12px; font: inherit; }
+  .mn-pv button:hover { background: rgba(255,255,255,0.06); }
+  .mn-pv .tile { width: 52px; height: 52px; border-radius: 24%; }
+  .mn-pv .lb { font-size: 12px; line-height: 1.2; text-align: center; max-width: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #groups .row .btn.ed-ic { width: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
 </style>
 </head>
 <body>
@@ -643,14 +685,12 @@
 </main>
 <main id="lockView" hidden>
 <div class="wrap">
-  <header>
-    <h1>Widget trên màn hình khóa</h1>
-    <p>Màn hình khóa / chờ của các panel hiện năng lượng, lịch 3 ngày tới (lịch Home Assistant hoặc lịch Google) và lần camera phát hiện gần nhất. Bật / tắt từng loại trên mỗi panel: Cài đặt → Màn hình khóa.</p>
-  </header>
+  <p class="lead">Năng lượng, lịch và sự kiện camera trên màn hình khóa / chờ. Bật / tắt từng loại trên mỗi màn: Cài đặt → Màn hình khóa.</p>
+  <!-- (16/10/2026) Xem truoc dung kieu dai nang luong tren man khoa (6 chi so). -->
+  <section class="lw-pv" id="lwPv" aria-label="Xem trước màn khóa"></section>
   <section class="card">
-    <div class="card-head"><h2>Năng lượng</h2><span class="count" id="lwFrom"></span></div>
+    <div class="card-head"><h2>Cảm biến năng lượng</h2><span class="count" id="lwFrom"></span></div>
     <form class="lw-form" id="lwForm" novalidate>
-      <div class="lw-now" id="lwNow" role="status"></div>
       <div id="lwRows"></div>
       <div class="err" id="lwErr" role="alert"></div>
       <div class="acts"><button class="btn" type="button" id="lwUseHa">Theo trang Năng lượng của HA</button><button class="btn primary" type="submit" id="lwSave">Lưu</button></div>
@@ -694,10 +734,9 @@
 
 <div id="appsView" hidden>
 <div class="wrap">
-  <header>
-    <h1>Menu ứng dụng trên màn hình</h1>
-    <p>Bật/tắt, sắp xếp, đổi biểu tượng và màu, thêm ứng dụng cho menu mở ra từ nút ở giữa mép trên các panel. Bấm <b>Lưu</b> là màn hình cập nhật ngay.</p>
-  </header>
+  <p class="lead">Menu mở từ nút giữa mép trên các màn. Bật / tắt, sắp xếp, đổi biểu tượng, màu, thêm ứng dụng — bấm <b>Lưu</b> là màn cập nhật ngay.</p>
+  <!-- (16/10/2026) Xem truoc menu nhu tren man (chi ung dung dang bat); bam bieu tuong = sua. -->
+  <section class="mn-pv" id="mnPv" aria-label="Xem trước menu trên màn"></section>
   <div id="groups"><div class="card" style="padding:16px">Đang tải…</div></div>
 </div>
 <div class="bar"><div class="in">
@@ -791,7 +830,27 @@
   // ── Danh sach ───────────────────────────────────────────────────────
   var ICON_UP = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M7.4 15.4 12 10.8l4.6 4.6L18 14l-6-6-6 6z"/></svg>';
   var ICON_DOWN = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z"/></svg>';
+  function renderMenuPreview() {
+    var box = $('mnPv'); if (!box) return;
+    var out = [Object.assign(document.createElement('div'), { className: 't', textContent: 'Xem trước menu trên màn' })];
+    GROUPS.forEach(function (g) {
+      var list = items.filter(function (i) { return i.group === g[0] && !i.hidden; });
+      if (!list.length) return;
+      out.push(Object.assign(document.createElement('div'), { className: 'g', textContent: g[1] }));
+      var grid = document.createElement('div'); grid.className = 'grid';
+      list.forEach(function (it) {
+        var b = document.createElement('button'); b.type = 'button'; b.title = 'Sửa ' + it.label;
+        var t = document.createElement('div'); t.className = 'tile'; tile(it, t);
+        var l = document.createElement('div'); l.className = 'lb'; l.textContent = it.label;
+        b.append(t, l); b.onclick = function () { openEditor(it); };
+        grid.appendChild(b);
+      });
+      out.push(grid);
+    });
+    box.replaceChildren.apply(box, out);
+  }
   function render() {
+    renderMenuPreview();
     var root = $('groups'); root.textContent = '';
     GROUPS.forEach(function (g) {
       var list = items.filter(function (i) { return i.group === g[0]; });
@@ -819,7 +878,9 @@
         sw.firstChild.checked = !it.hidden;
         sw.firstChild.setAttribute('aria-label', 'Hiện ' + it.label);
         sw.firstChild.onchange = function () { it.hidden = !this.checked; render(); refreshBar(); };
-        var ed = document.createElement('button'); ed.className = 'btn'; ed.textContent = 'Sửa'; ed.onclick = function () { openEditor(it); };
+        var ed = document.createElement('button'); ed.className = 'btn ed-ic'; ed.title = 'Sửa ' + it.label; ed.setAttribute('aria-label', ed.title);
+        ed.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="' + ((window.RwvIcons || {})['pencil-outline'] || '') + '"/></svg>';
+        ed.onclick = function () { openEditor(it); };
         row.appendChild(mv); row.appendChild(t); row.appendChild(m); row.appendChild(sw); row.appendChild(ed);
         if (!it.builtin) {
           var del = document.createElement('button'); del.className = 'btn danger'; del.textContent = 'Xoá';
@@ -964,7 +1025,7 @@
   }
   function load() {
     fetch('launcher/config', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) { apply(j); setStatus(''); })
-      .catch(function () { $('groups').innerHTML = '<div class="card" style="padding:16px">Không tải được cấu hình từ server.</div>'; });
+      .catch(function (e) { var d = document.createElement('div'); d.className = 'card'; d.style.padding = '16px'; d.textContent = 'Không tải được cấu hình từ server (' + (e && e.message || e) + ').'; $('groups').replaceChildren(d); });
   }
   $('revert').onclick = load;
   $('save').onclick = function () {
@@ -1934,14 +1995,14 @@
     T.busy = true; render();
     status(refresh ? 'Đang tải lại các danh sách…' : '');
     return api(refresh ? 'refresh' : 'config', refresh ? null : undefined)
-      .then(function (j) { T.lists = j.lists || []; T.loaded = true; if (refresh) status('Đã tải lại danh sách kênh.', 'ok'); })
+      .then(function (j) { T.lists = j.lists || []; T.loaded = true; if (refresh) { status('Đã tải lại danh sách kênh.', 'ok'); loadChannels(false); } })   // (16/10/2026) luoi kenh cung tai lai
       .catch(function (e) { status(e.message, 'err'); })
       .then(function () { T.busy = false; render(); });
   }
   function save(lists, okText) {
     T.busy = true; render(); status('Đang lưu và tải danh sách…');
     return api('config', { lists: lists.map(function (l) { return { id: l.id, name: l.name, url: l.url, on: l.on }; }) })
-      .then(function (j) { T.lists = j.lists || []; status(okText || 'Đã lưu.', 'ok'); })
+      .then(function (j) { T.lists = j.lists || []; status(okText || 'Đã lưu.', 'ok'); loadChannels(false); })   // (16/10/2026) bat / tat / them danh sach -> luoi kenh doi theo
       .catch(function (e) { status(e.message, 'err'); throw e; })
       .finally(function () { T.busy = false; render(); if (T.chLoaded) loadChannels(false); });
   }
@@ -2287,14 +2348,15 @@
   function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; }
   function svg(n) { var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true');
     var p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', IC[n] || ''); s.appendChild(p); return s; }
+  // (16/10/2026) Thu tu = 6 chi so tren man khoa; ic / c = bieu tuong + mau (giong dai nang luong).
   var FIELDS = [
-    { k: 'pv', l: 'Công suất mặt trời', dl: 'lwDlP' },
-    { k: 'pvToday', l: 'Sản lượng mặt trời hôm nay', dl: 'lwDlE', hint: 'Cảm biến kWh tự về 0 lúc nửa đêm' },
-    { k: 'soc', l: 'Phần trăm pin', dl: 'lwDlS' },
-    { k: 'bat', l: 'Công suất pin', dl: 'lwDlP', inv: 'batInvert', invL: 'Số dương là đang sạc', hint: 'Mặc định số dương là đang xả (quy ước của Home Assistant)' },
-    { k: 'load', l: 'Công suất tiêu thụ', dl: 'lwDlP' },
-    { k: 'loadToday', l: 'Điện tải hôm nay', dl: 'lwDlE', hint: 'Cảm biến kWh tự về 0 lúc nửa đêm (vd Hòa lưới hôm nay)' },
-    { k: 'grid', l: 'Công suất lưới', dl: 'lwDlP', inv: 'gridInvert', invL: 'Số dương là đang bán lên lưới', hint: 'Mặc định số dương là đang mua điện' }
+    { k: 'pvToday', l: 'PV hôm nay', dl: 'lwDlE', ic: 'solar-power-variant', c: ['#fbbf24', '#d97706'], hint: 'Cảm biến kWh tự về 0 lúc nửa đêm' },
+    { k: 'pv', l: 'Công suất PV', dl: 'lwDlP', ic: 'weather-sunny', c: ['#fde047', '#ca8a04'] },
+    { k: 'loadToday', l: 'Tải hôm nay', dl: 'lwDlE', ic: 'home-lightning-bolt-outline', c: ['#93c5fd', '#2563eb'], hint: 'Cảm biến kWh tự về 0 lúc nửa đêm (vd Hòa lưới hôm nay)' },
+    { k: 'grid', l: 'Tiêu thụ lưới', dl: 'lwDlP', ic: 'transmission-tower', c: ['#a5b4fc', '#4f46e5'], inv: 'gridInvert', invL: 'Số dương là đang bán lên lưới', hint: 'Mặc định số dương là đang mua điện' },
+    { k: 'load', l: 'Tiêu thụ tải', dl: 'lwDlP', ic: 'home-lightning-bolt', c: ['#7dd3fc', '#0369a1'] },
+    { k: 'soc', l: 'Phần trăm pin', dl: 'lwDlS', ic: 'battery-high', c: ['#86efac', '#16a34a'] },
+    { k: 'bat', l: 'Công suất pin (sạc / xả)', dl: 'lwDlP', ic: 'battery-charging', c: ['#6ee7b7', '#047857'], inv: 'batInvert', invL: 'Số dương là đang sạc', hint: 'Mặc định số dương là đang xả (quy ước của Home Assistant)' }
   ];
   var L = { loaded: false, busy: false, cands: {}, data: null };
   function visible() { return location.hash === '#man-khoa'; }
@@ -2307,42 +2369,56 @@
   }
   function status(t, cls) { var s = $('lwStatus'); s.textContent = t || ''; s.className = 'iv-status' + (cls ? ' ' + cls : ''); }
   function fmtW(w) { var a = Math.abs(w); return a < 999.5 ? Math.round(a) + ' W' : (Math.round(a / 100) / 10).toFixed(1).replace('.', ',') + ' kW'; }
-  function nowText(en) {
-    var parts = [];
-    if (en.pv != null) parts.push(['Mặt trời ', fmtW(en.pv) + (en.pvd != null ? ' (' + String(en.pvd).replace('.', ',') + ' kWh hôm nay)' : '')]);
-    if (en.soc != null || en.bat != null) parts.push(['Pin ', (en.soc != null ? Math.round(en.soc) + '%' : '') +
-      (en.bat > 25 ? ' · đang xả ' + fmtW(en.bat) : en.bat < -25 ? ' · đang sạc ' + fmtW(en.bat) : '')]);
-    if (en.load != null) parts.push(['Tiêu thụ ', fmtW(en.load)]);
-    if (en.grid != null) parts.push(['Lưới ', en.grid < -25 ? 'bán ' + fmtW(en.grid) : fmtW(en.grid)]);
-    return parts;
+  function fmtKwh(k) { return String(Math.round(k * 10) / 10).replace('.', ',') + ' kWh'; }
+  function ai(f) { var i = el('span', 'ai'); i.style.setProperty('--c1', f.c[0]); i.style.setProperty('--c2', f.c[1]); i.append(svg(f.ic)); return i; }
+  /** Xem truoc: dung 6 o nhu dai nang luong tren man khoa (cung thu tu, cung chu). */
+  function renderPreview(en) {
+    var box = $('lwPv'), out = [el('div', 't', 'Xem trước màn khóa')];
+    function st(ic, color, v, l) { var x = el('div', 's'), ico = svg(ic), tx = el('div'); ico.style.color = color; tx.style.minWidth = '0'; tx.append(el('div', 'v', v), el('div', 'l', l)); x.append(ico, tx); out.push(x); }
+    if (en.pvd != null) st('solar-power-variant', '#fbbf24', fmtKwh(en.pvd), 'PV hôm nay');
+    if (en.pv != null) st('weather-sunny', '#fde047', fmtW(en.pv), en.pvd != null ? 'Công suất PV' : 'Mặt trời');
+    if (en.ld != null) st('home-lightning-bolt-outline', '#93c5fd', fmtKwh(en.ld), 'Tải hôm nay');
+    if (en.grid != null) st('transmission-tower', '#a5b4fc', fmtW(en.grid), en.grid < -25 ? 'Bán lưới' : 'Tiêu thụ lưới');
+    if (en.load != null) st('home-lightning-bolt', '#7dd3fc', fmtW(en.load), 'Tiêu thụ tải');
+    if (en.soc != null || en.bat != null) {
+      var b = en.bat || 0;
+      st('battery-high', en.soc == null || en.soc >= 50 ? '#4ade80' : en.soc >= 20 ? '#fbbf24' : '#f87171', en.soc != null ? Math.round(en.soc) + '%' : fmtW(b),
+        b > 25 ? 'Đang xả ' + fmtW(b) : b < -25 ? 'Đang sạc ' + fmtW(b) : 'Pin');
+    }
+    if (out.length === 1) out.push(el('div', 'e', 'Chưa có số liệu — chọn cảm biến bên dưới rồi bấm Lưu.'));
+    box.replaceChildren.apply(box, out);
   }
   function valueOf(id) {
     var c = L.cands[id];
-    if (!id) return { t: '', miss: false };
-    if (!c) return { t: 'Không tìm thấy', miss: true };
-    return { t: c.state + (c.unit ? ' ' + c.unit : ''), miss: c.state === 'unavailable' || c.state === 'unknown' };
+    if (!id) return { t: 'Chưa chọn', n: '', miss: false, none: true };
+    if (!c) return { t: '—', n: id + ' · không tìm thấy', miss: true };
+    var num = Number(c.state), shown = c.state === '' || !isFinite(num) ? c.state : String(Math.round(num * 100) / 100).replace('.', ',');
+    return { t: shown + (c.unit ? ' ' + c.unit : ''), n: c.name || id, miss: c.state === 'unavailable' || c.state === 'unknown' };
   }
   function showValue(f) {
-    var v = valueOf($('lw_' + f.k).value.trim()), out = $('lwv_' + f.k);
-    out.textContent = v.t; out.classList.toggle('miss', v.miss);
+    var v = valueOf($('lw_' + f.k).value.trim());
+    $('lwv_' + f.k).textContent = v.t;
+    var n = $('lwn_' + f.k); n.textContent = v.none ? 'Chưa chọn cảm biến — bấm để chọn' : v.n; n.classList.toggle('miss', !!v.miss);
   }
   function buildRows() {
     var box = $('lwRows'), frag = document.createDocumentFragment();
-    box.style.display = 'flex'; box.style.flexDirection = 'column'; box.style.gap = '14px';
     FIELDS.forEach(function (f) {
-      var row = el('div', 'lw-row'), lab = el('label', 'lw-l', f.l), inp = el('input'), val = el('span', 'lw-v');
-      lab.htmlFor = 'lw_' + f.k;
-      inp.type = 'text'; inp.id = 'lw_' + f.k; inp.setAttribute('list', f.dl); inp.placeholder = 'sensor.…'; inp.autocomplete = 'off'; inp.spellcheck = false;
+      var it = el('div', 'lw-it'), hd = el('button', 'lw-hd'), tx = el('span', 'tx'), val = el('span', 'val'), nm = el('div', 'f');
+      hd.type = 'button'; hd.setAttribute('aria-expanded', 'false');
+      nm.id = 'lwn_' + f.k; val.id = 'lwv_' + f.k;
+      tx.append(el('div', 'n', f.l), nm);
+      var ch = svg('chevron-down'); ch.setAttribute('class', 'chev');
+      hd.append(ai(f), tx, val, ch);
+      hd.onclick = function () { var o = !it.classList.contains('open'); it.classList.toggle('open', o); hd.setAttribute('aria-expanded', String(o)); if (o) $('lw_' + f.k).focus(); };
+      var ed = el('div', 'lw-ed'), inp = el('input');
+      inp.type = 'text'; inp.id = 'lw_' + f.k; inp.setAttribute('list', f.dl); inp.placeholder = 'sensor.… (gõ để tìm)'; inp.autocomplete = 'off'; inp.spellcheck = false;
+      inp.setAttribute('aria-label', f.l);
       inp.addEventListener('input', function () { showValue(f); });
-      val.id = 'lwv_' + f.k;
-      row.append(lab, inp, val);
-      if (f.inv || f.hint) {
-        var sub = el('div', 'lw-sub');
-        if (f.inv) { var cl = el('label', 'lw-inv'), cb = el('input'); cb.type = 'checkbox'; cb.id = 'lwi_' + f.k; cl.append(cb, document.createTextNode(f.invL)); sub.append(cl); }
-        if (f.hint) sub.append(el('span', 'hint', f.hint));
-        row.append(sub);
-      }
-      frag.append(row);
+      ed.append(inp);
+      if (f.inv) { var cl = el('label', 'lw-inv'), cb = el('input'); cb.type = 'checkbox'; cb.id = 'lwi_' + f.k; cl.append(cb, document.createTextNode(f.invL)); ed.append(cl); }
+      if (f.hint) ed.append(el('span', 'hint', f.hint));
+      it.append(hd, ed);
+      frag.append(it);
     });
     box.replaceChildren(frag);
   }
@@ -2364,12 +2440,7 @@
       showValue(f);
     });
     $('lwFrom').textContent = j.from === 'saved' ? 'Cảm biến đã chọn' : 'Theo trang Năng lượng của HA';
-    var parts = nowText(j.energy || {}), now = $('lwNow');
-    if (!parts.length) now.textContent = 'Chưa có số liệu năng lượng — chọn cảm biến bên dưới rồi bấm Lưu.';
-    else {
-      now.replaceChildren(el('span', '', 'Màn khóa đang hiện: '));
-      parts.forEach(function (p, i) { if (i) now.append(document.createTextNode(' · ')); now.append(el('b', '', p[0]), document.createTextNode(p[1])); });
-    }
+    renderPreview(j.energy || {});
     // Trang Nang luong cua HA tro toi cam bien khong con (do that 08/10 o nha nguoi dung) -> bao ro.
     var gone = Object.keys(j.ha || {}).filter(function (k) { return typeof j.ha[k] === 'string' && !L.cands[j.ha[k]]; }).map(function (k) { return j.ha[k]; });
     // Da chon cam bien rieng -> chi la ghi chu nhat (bang Nang luong cua HA trong cho toi khi sua ben HA).

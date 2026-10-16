@@ -1,3 +1,13 @@
+## V2.9.157
+- Trang Darboard — thiết kế lại, giai đoạn 2:
+  - Màn khóa: ô "Xem trước màn khóa" (6 chỉ số đúng như trên màn, số liệu trực tiếp); cảm biến năng lượng thành danh sách gọn
+    theo đúng thứ tự 6 chỉ số (biểu tượng, tên cảm biến, giá trị) — bấm một dòng để đổi cảm biến.
+  - Menu ứng dụng: ô "Xem trước menu trên màn" (lưới biểu tượng theo nhóm, chỉ ứng dụng đang bật; bấm để sửa); nút Sửa thành
+    biểu tượng bút chì.
+  - Chuông cổng / Gọi: nút "‹ Trang chủ" không đè tiêu đề. Tiêu đề thẻ không còn xuống dòng chồng lên nút trên điện thoại.
+- IPTV: "Tải lại kênh" (và bật / tắt / thêm danh sách) nay làm mới cả lưới kênh — trước chỉ cập nhật số đếm ở phần danh sách.
+- Menu ứng dụng không tải được: hiện lý do.
+
 ## V2.9.156
 - Trang Darboard (thanh bên Home Assistant) — THIẾT KẾ LẠI, giai đoạn 1:
   - Trang chủ dạng biểu tượng ứng dụng như điện thoại (Tin nhắn có huy hiệu số tin chưa đọc, IPTV, Quản lý file, Màn khóa,
