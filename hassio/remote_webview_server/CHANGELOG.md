@@ -1,3 +1,8 @@
+## V2.9.160
+- Sửa: ứng dụng **Chuông cổng** trên màn hẹp — S3 480×480: dải lọc (Tất cả / Nhỡ / …) đè lên tiêu đề, chữ "Lưu 30 ngày"
+  bị bẻ dọc; nay tiêu đề một hàng, dải lọc xuống hàng riêng. S3 480×272: gọn một hàng (dải lọc cuộn ngang). Ảnh thu nhỏ
+  hẹp: ngày giờ và nhãn không gãy dòng.
+
 ## V2.9.159
 - Chuông cổng (trang Darboard): "‹ Trang chủ" + biểu tượng + tên nằm trên hàng tiêu đề như các mục khác (trước nổi đè lên
   tiêu đề và lên tiêu đề ảnh đang xem); ảnh thu nhỏ có thêm ngày / tháng ("16/10 07:10").

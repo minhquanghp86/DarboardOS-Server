@@ -22,10 +22,17 @@
   svg { display: block; }
   .view { height: 100%; display: flex; flex-direction: column; gap: var(--gap); padding: calc(var(--pad) + 14px) var(--pad) 0; }
   .bar { flex: none; display: flex; align-items: center; gap: var(--gap); flex-wrap: wrap; }
-  .ttl { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-  .ttl b { font-size: clamp(16px, 4.2vmin, 26px); font-weight: 700; }
-  .ttl small { color: var(--muted); font-size: clamp(10px, 2.5vmin, 14px); }
-  .chips { display: flex; gap: 4px; padding: 3px; border-radius: 999px; background: var(--surface-2); overflow-x: auto; scrollbar-width: none; }
+  /* (16/10/2026) Tieu de KHONG xuong dong; dai chip co lai + cuon ngang (truoc: chip khong co -> tieu de bi ep ve ~0, chu "Lưu
+     30 ngày" be doc tung chu va chip de len tieu de tren S3 480x480). */
+  .ttl { flex: 1 1 auto; min-width: max-content; display: flex; flex-direction: column; }
+  .ttl b { font-size: clamp(16px, 4.2vmin, 26px); font-weight: 700; white-space: nowrap; }
+  .ttl small { color: var(--muted); font-size: clamp(10px, 2.5vmin, 14px); white-space: nowrap; }
+  .chips { flex: 0 1 auto; min-width: 0; display: flex; gap: 4px; padding: 3px; border-radius: 999px; background: var(--surface-2); overflow-x: auto; scrollbar-width: none; }
+  .chips > * { flex: none; }
+  /* Man hep, du cao (S3 480x480, dien thoai): chip xuong hang rieng ca be ngang. */
+  @media (max-width: 640px) and (min-height: 321px) { .chips { order: 3; flex: 1 1 100%; } }
+  /* Man thap (S3 480x272): mot hang, bo dong phu, tieu de nho lai. */
+  @media (max-height: 320px) { .bar { flex-wrap: nowrap; } .ttl small { display: none; } .ttl b { font-size: 18px; } }
   .chip { border: none; background: none; color: var(--muted); font-weight: 600; font-size: clamp(11px, 2.7vmin, 15px); height: clamp(28px, 6.6vmin, 40px);
     padding: 0 clamp(9px, 2.4vmin, 16px); border-radius: 999px; white-space: nowrap; }
   .chip.on { background: var(--accent); color: #fff; }
@@ -39,6 +46,10 @@
   .tile .meta { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 6px; padding: 18px 8px 6px;
     background: linear-gradient(transparent, rgba(0, 0, 0, 0.75)); color: #fff; font-size: clamp(11px, 2.6vmin, 14px); font-weight: 600; font-variant-numeric: tabular-nums; }
   .badge { margin-left: auto; padding: 1px 7px; border-radius: 6px; font-size: 0.85em; font-weight: 700; color: #fff; }
+  /* (16/10/2026) O anh hep (S3 480x480: 3 cot ~145 px): ngay gio + nhan khong gay dong. */
+  .tile .meta > span { white-space: nowrap; }
+  .tile .meta { container-type: inline-size; }
+  @container (max-width: 170px) { .tile .meta > span { font-size: 11px; } .badge { padding: 1px 5px; } }
   .k-missed { background: #dc2626; } .k-answered { background: #16a34a; } .k-declined { background: #6b7280; }
   .k-shot { background: #2563eb; } .k-ring { background: #d97706; }
   /* Xem anh */
