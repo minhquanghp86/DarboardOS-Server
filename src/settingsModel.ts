@@ -320,8 +320,11 @@ export function planSet(view: SettingsView, id: string, value: unknown): Service
 // ── (08/10/2026) BIEU TUONG CANH DONG HO (giot nuoc o mep tren moi trang): pin ben trai, mang ben phai ──────────────────
 /** k = 'eth' (dang dung cap RJ45) | 'wifi' (q = so vach sang 0..3). */
 export type NetIcon = { k: 'eth' } | { k: 'wifi'; q: 0 | 1 | 2 | 3 };
-export interface StatusIcons { nw: NetIcon | null; bt: number | null }
-export interface StatusIds { sig?: string; kind?: string; bat?: string }
+/** (16/10/2026) ch = nguon (firmware battery_monitor.h, thuc the "Nguồn điện"): none = khong co pin (nguon ngoai), chg = dang
+ *  sac, full = cam nguon + day, bat = dang dung pin. Khong co thuc the -> bo truong. */
+export type PowerState = 'none' | 'chg' | 'full' | 'bat';
+export interface StatusIcons { nw: NetIcon | null; bt: number | null; ch?: PowerState }
+export interface StatusIds { sig?: string; kind?: string; bat?: string; pw?: string }
 
 /** Thuc the cua thiet bi HA `devId`: cuong do Wi-Fi, kieu ket noi (firmware co Ethernet), muc pin. */
 export function statusEntityIds(entities: HaEntity[], devId: string): StatusIds {
@@ -332,6 +335,7 @@ export function statusEntityIds(entities: HaEntity[], devId: string): StatusIds 
     if (!out.sig && /^sensor\..*_wifi_signal$/.test(id)) out.sig = id;
     else if (!out.kind && /^sensor\..*_ket_noi_mang$/.test(id)) out.kind = id;
     else if (!out.bat && /^sensor\..*_battery_(percent|level)$/.test(id)) out.bat = id;
+    else if (!out.pw && /^sensor\..*_nguon_dien$/.test(id)) out.pw = id;
   }
   return out;
 }
@@ -348,7 +352,18 @@ const num = (s?: HaState | null) => {
   return Number.isFinite(v) ? v : null;
 };
 
-export function statusIconsOf(sig?: HaState | null, kind?: HaState | null, bat?: HaState | null): StatusIcons {
+/** Chu "Nguồn điện" cua firmware -> ma trang thai (bo dau / hoa thuong cho chac). */
+export function powerStateOf(pw?: HaState | null): PowerState | undefined {
+  const t = (pw?.state ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/gi, 'd').toLowerCase();
+  if (!t) return undefined;
+  if (t.includes('khong co pin')) return 'none';
+  if (t.includes('dang sac')) return 'chg';
+  if (t.includes('cam nguon')) return 'full';
+  if (t.includes('dung pin')) return 'bat';
+  return undefined;
+}
+
+export function statusIconsOf(sig?: HaState | null, kind?: HaState | null, bat?: HaState | null, pw?: HaState | null): StatusIcons {
   let nw: NetIcon | null = null;
   if (/ethernet|rj45|day|dây|lan/i.test(kind?.state ?? '')) nw = { k: 'eth' };
   else {
@@ -356,5 +371,6 @@ export function statusIconsOf(sig?: HaState | null, kind?: HaState | null, bat?:
     if (v != null && (unit === '%' ? v >= 0 : v < 0)) nw = { k: 'wifi', q: wifiBars(v, unit) };
   }
   const b = num(bat);
-  return { nw, bt: b == null ? null : Math.max(0, Math.min(100, Math.round(b))) };
+  const ch = powerStateOf(pw);
+  return { nw, bt: b == null || ch === 'none' ? null : Math.max(0, Math.min(100, Math.round(b))), ...(ch ? { ch } : {}) };
 }

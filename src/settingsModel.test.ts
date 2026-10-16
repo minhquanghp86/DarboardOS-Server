@@ -227,6 +227,12 @@ describe("(08/10/2026) pin + mang canh dong ho", () => {
     expect(statusIconsOf(S("-64", "dBm"), S("Wi-Fi"), S("unknown", "%"))).toEqual({ nw: { k: "wifi", q: 2 }, bt: null });
     expect(statusIconsOf(S("unavailable"), null, S("104", "%"))).toEqual({ nw: null, bt: 100 });
     expect(statusIconsOf(null, null, null)).toEqual({ nw: null, bt: null });
+    // (16/10/2026) Nguon dien (battery_monitor.h): khong co pin -> bo % (so do troi), con lai kem ma trang thai.
+    expect(statusIconsOf(null, S("Ethernet"), S("5", "%"), S("Không có pin"))).toEqual({ nw: { k: "eth" }, bt: null, ch: "none" });
+    expect(statusIconsOf(null, null, S("80", "%"), S("Đang sạc"))).toEqual({ nw: null, bt: 80, ch: "chg" });
+    expect(statusIconsOf(null, null, S("100", "%"), S("Cắm nguồn"))).toEqual({ nw: null, bt: 100, ch: "full" });
+    expect(statusIconsOf(null, null, S("40", "%"), S("Đang dùng pin"))).toEqual({ nw: null, bt: 40, ch: "bat" });
+    expect(statusIconsOf(null, null, S("40", "%"), S("Đang xác định"))).toEqual({ nw: null, bt: 40 });
   });
 });
 

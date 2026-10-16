@@ -30,6 +30,10 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .pill .sb-l { justify-self: end; display: flex; } .pill .sb-r { justify-self: start; display: flex; }
 .pill .sb-bat { width: 22px; height: 11px; color: #fff; display: block; }
 .pill .sb-bat.low .lvl { fill: #ff453a; }
+/* (16/10/2026) Dang sac / cam nguon: muc pin xanh la (nhu dien thoai); phich cam canh pin hoac thay pin (khong co pin). */
+.sb-bat.chg .lvl { fill: #34c759; }
+.pill .sb-plug { width: 14px; height: 14px; color: #fff; display: block; }
+.sv-top .sb-plug { width: 1.1em; height: 1.1em; display: block; }
 .pill .sb-wifi { width: 17px; height: 14px; color: #fff; display: block; }
 .pill .sb-eth { width: 15px; height: 15px; color: #fff; display: block; }
 .pill.wide { width: 160px; }

@@ -109,8 +109,8 @@ export async function getStatusIcons(deviceId: string): Promise<StatusIcons | nu
     const r = await haFetch(`/states/${id}`);
     return r.ok ? await r.json() as HaState : null;
   };
-  const [sig, kind, bat] = await Promise.all([one(ids.sig), one(ids.kind), one(ids.bat)]);
-  return statusIconsOf(sig, kind, bat);
+  const [sig, kind, bat, pw] = await Promise.all([one(ids.sig), one(ids.kind), one(ids.bat), one(ids.pw)]);
+  return statusIconsOf(sig, kind, bat, pw);
 }
 
 export async function callService(c: ServiceCall): Promise<boolean> {

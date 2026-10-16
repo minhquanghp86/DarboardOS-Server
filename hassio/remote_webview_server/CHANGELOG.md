@@ -1,3 +1,10 @@
+## V2.9.154
+- Pin / nguồn kiểu điện thoại trên thanh trạng thái (giọt nước trên cùng + góc phải màn hình chờ): đang sạc = pin xanh lá có
+  tia sét; cắm nguồn, đã đầy = pin xanh lá + phích cắm; đang dùng pin = pin thường (đỏ khi ≤ 20 %); không có pin = chỉ
+  phích cắm (không còn báo % ảo). Đọc thực thể "Nguồn điện" của firmware (YAML mẫu P4 / S3 480×272 kèm battery_monitor.h —
+  tự phát hiện có pin, cắm / rút nguồn). Màn chưa có thực thể này: hiển thị như cũ.
+- Pin / mạng / nguồn đọc lại mỗi 10 s (trước 30 s).
+
 ## V2.9.153
 - Màn hình chờ / khoá (cả 3 màn): góc trên bên phải có thanh trạng thái kiểu điện thoại — tin nhắn / thông báo / báo thức
   (biểu tượng + số, chạm để mở), mạng (Wi-Fi theo vạch hoặc cáp), pin của màn (nếu có). Chip "N thông báo" giữa màn bỏ đi.

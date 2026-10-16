@@ -4,7 +4,10 @@
 import { mdi, svgEl } from './dom';
 
 export type SbNet = { k: 'eth' } | { k: 'wifi'; q: 0 | 1 | 2 | 3 };
-export interface SbData { nw: SbNet | null; bt: number | null }
+/** (16/10/2026) ch = nguon (firmware battery_monitor.h): none = khong co pin (nguon ngoai), chg = dang sac, full = cam nguon
+ *  + day, bat = dang dung pin. Thieu = chua biet (ve pin thuong). */
+export type SbPower = 'none' | 'chg' | 'full' | 'bat';
+export interface SbData { nw: SbNet | null; bt: number | null; ch?: SbPower }
 
 /** Pin yeu (do) tu muc nay tro xuong. */
 export const LOW_BATTERY = 20;
@@ -13,7 +16,7 @@ export const LOW_BATTERY = 20;
 export function sbKey(sb: SbData | null | undefined): string {
   if (!sb) return '';
   const n = sb.nw ? (sb.nw.k === 'eth' ? 'e' : 'w' + sb.nw.q) : '';
-  return n + '|' + (sb.bt == null ? '' : sb.bt);
+  return n + '|' + (sb.bt == null ? '' : sb.bt) + (sb.ch ? '|' + sb.ch : '');
 }
 
 /** Giot nuoc: rong them `extra` px o giua (cho pin + mang hai ben gio), giu nguyen hai duong cong. */
@@ -38,16 +41,29 @@ export function wifiIcon(q: number): SVGElement {
   return s;
 }
 
-/** Pin nam ngang, phan day ty le % that; <= LOW_BATTERY thi do. */
-export function batteryIcon(pct: number): SVGElement {
+/** Pin nam ngang, phan day ty le % that; <= LOW_BATTERY thi do. (16/10/2026) Dang sac / cam nguon: xanh la + tia set
+ *  (dang sac) — giong dien thoai; dang dung pin: trang (do khi yeu). */
+export function batteryIcon(pct: number, ch?: SbPower): SVGElement {
   const p = Math.max(0, Math.min(100, pct));
-  const s = svgEl('svg', { viewBox: '0 0 25 12', class: 'sb-bat' + (p <= LOW_BATTERY ? ' low' : ''), 'aria-hidden': 'true' });
+  const plugged = ch === 'chg' || ch === 'full';
+  const s = svgEl('svg', { viewBox: '0 0 25 12', class: 'sb-bat' + (plugged ? ' chg' : p <= LOW_BATTERY ? ' low' : ''), 'aria-hidden': 'true' });
   s.append(
     svgEl('rect', { x: '0.6', y: '0.6', width: '21', height: '10.8', rx: '3', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.1', opacity: '0.55' }),
     svgEl('rect', { x: '22.6', y: '3.8', width: '1.8', height: '4.4', rx: '0.9', fill: 'currentColor', opacity: '0.55' }),
     svgEl('rect', { class: 'lvl', x: '2.2', y: '2.2', width: (Math.max(p, 4) * 17.6 / 100).toFixed(2), height: '7.6', rx: '1.6', fill: 'currentColor' }),
   );
+  if (ch === 'chg') s.append(svgEl('path', { class: 'bolt', d: 'M12.4 1.2L7.6 6.7H10.6L9.4 10.8L14.4 5.1H11.3Z', fill: '#fff', stroke: 'rgba(0,0,0,0.55)', 'stroke-width': '0.7', 'stroke-linejoin': 'round' }));
   return s;
+}
+
+/** (16/10/2026) Phich cam: khong co pin (chay nguon ngoai) hoac cam nguon da day (canh pin). */
+export function plugIcon(): SVGElement { return mdi('plug', 'sb-plug'); }
+
+/** Pin + nguon cho thanh trang thai: [pin(+tia set)] [phich cam neu cam nguon da day] / chi phich cam neu khong co pin. */
+export function powerIcons(sb: SbData | null | undefined): SVGElement[] {
+  if (!sb) return [];
+  if (sb.bt != null) return sb.ch === 'full' ? [batteryIcon(sb.bt, sb.ch), plugIcon()] : [batteryIcon(sb.bt, sb.ch)];
+  return sb.ch === 'none' ? [plugIcon()] : [];
 }
 
 export function netIcon(nw: SbNet): SVGElement {

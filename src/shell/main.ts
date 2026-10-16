@@ -13,7 +13,7 @@ import { HomeApi, mountHome } from './home';
 import { classifyLockGesture } from './lockGesture';
 import { loadClockFont } from './clockFont';
 import { LwData, buildLockWidgets, lwModel } from './lockWidgets';
-import { SbData, batteryIcon, dropPath, netIcon, sbKey } from './statusIcons';
+import { SbData, dropPath, netIcon, powerIcons, sbKey } from './statusIcons';
 import type { HomeLayout } from '../homeLayout';
 
 declare global { interface Window { [k: string]: any } }
@@ -130,7 +130,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     const k = sbKey(sb);
     if (k === sbShown) return;
     sbShown = k;
-    sbL.replaceChildren(...(sb?.bt != null ? [batteryIcon(sb.bt)] : []));
+    sbL.replaceChildren(...powerIcons(sb));
     sbR.replaceChildren(...(sb?.nw ? [netIcon(sb.nw)] : []));
     const g = dropPath(k ? 50 : 0);
     dropP.setAttribute('d', g.d);
@@ -783,7 +783,8 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     if (al) { const c = chip('alarm', al.t, () => openApp('alarm')); c.classList.add('al'); top.push(c); }
     const sb = st?.sb;
     if (sb?.nw) top.push(netIcon(sb.nw));
-    if (sb?.bt != null) { const b = el('span', 'sv-bt'); b.append(batteryIcon(sb.bt), el('span', '', Math.round(sb.bt) + '%')); top.push(b); }
+    const pw = powerIcons(sb);
+    if (pw.length) { const b = el('span', 'sv-bt'); b.append(...pw); if (sb?.bt != null) b.append(el('span', '', Math.round(sb.bt) + '%')); top.push(b); }
     svStat.replaceChildren(...top);
     svBadges.replaceChildren(...out);
   }

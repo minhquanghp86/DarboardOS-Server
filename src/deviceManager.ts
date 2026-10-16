@@ -39,7 +39,7 @@ import { Notice, NoticeStore, NotifyRequest, noticeKind, parseNotify, shouldPopu
 import { Sound, soundForNotice, soundPrefs } from "./sound.js";
 import { alarms, type Ringing } from "./alarms.js";
 import { callService, getRegistry, getSettingsView, getStates, haReady, getStatusIcons } from "./haSettings.js";
-import { NetIcon, findDeviceByMac, findNoSleepSwitch, findPresenceSelect, isSaverPhotosSwitchId, macFromDeviceId, planCamAuth, planSet, planWifi } from "./settingsModel.js";
+import { NetIcon, PowerState, findDeviceByMac, findNoSleepSwitch, findPresenceSelect, isSaverPhotosSwitchId, macFromDeviceId, planCamAuth, planSet, planWifi } from "./settingsModel.js";
 import { getLauncherConfig, saveHomeLayout } from "./launcherConfig.js";
 import { lockWidgetsFor, refreshLockWidgets } from "./lockWidgets.js";
 import { getHaLocation, haLocationCached } from "./haLocation.js";
@@ -200,7 +200,7 @@ export type DeviceSession = {
   /** (30/09/2026) Select "Nguon phat hien nguoi" cua thiet bi (HA) cho thanh trang thai; null = thiet bi khong co. */
   presenceSel?: { id: string; v: string; o: string[]; at: number } | null;
   /** (08/10/2026) Bieu tuong canh dong ho: pin (%) + mang (Wi-Fi vach / Ethernet), doc tu HA moi 30 s. */
-  sb?: { nw: NetIcon | null; bt: number | null; at: number };
+  sb?: { nw: NetIcon | null; bt: number | null; ch?: PowerState; at: number };
   /** (27/09/2026) Ngay (gio thiet bi) da chao buoi sang — moi ngay mot lan. */
   morningDate?: string;
   /** (27/09/2026) Chuong cua dang hien: id lan bam, URL trang, tab dang dung truoc do, hen gio tu dong. */
@@ -1841,7 +1841,7 @@ function pushDeviceStateToPage(dev: DeviceSession): void {
     // (08/10/2026) Widget man hinh khoa / cho (src/lockWidgets.ts): so lieu tho, Shell tu viet chu theo gio thiet bi.
     lw: lockWidgetsFor(dev.deviceId, panelPrefs.lockWidgets(dev.deviceId)),
     // (08/10/2026) Pin ben trai, mang ben phai dong ho.
-    sb: dev.sb ? { nw: dev.sb.nw, bt: dev.sb.bt } : null,
+    sb: dev.sb ? { nw: dev.sb.nw, bt: dev.sb.bt, ...(dev.sb.ch ? { ch: dev.sb.ch } : {}) } : null,
   };
   if (dev.presenceSel === undefined) { dev.presenceSel = null; refreshPresenceSel(dev, 0).catch(() => { }); }
   dev.cdp.send('Runtime.evaluate', {
@@ -3652,13 +3652,13 @@ function syncMediaPlaying(dev: DeviceSession, force = false): void {
 
 let lwRefreshBusy = false;
 let sbRefreshBusy = false;
-/** (08/10/2026) Doc lai pin + mang cua tung man (toi da moi 30 s); doi thi day xuong trang. */
+/** (08/10/2026) Doc lai pin + mang + nguon cua tung man (toi da moi 10 s); doi thi day xuong trang. */
 async function refreshStatusIcons(now: number): Promise<void> {
   for (const d of [...devices.values()]) {
-    if (d.sb && now - d.sb.at < 30_000) continue;
+    if (d.sb && now - d.sb.at < 10_000) continue;  // (16/10/2026) 30 -> 10 s: cam / rut nguon hien nhanh (pin tu phat hien)
     const r = await getStatusIcons(d.deviceId).catch(() => null);
-    if (!r) { d.sb = { nw: d.sb?.nw ?? null, bt: d.sb?.bt ?? null, at: now }; continue; }
-    const changed = !d.sb || JSON.stringify([d.sb.nw, d.sb.bt]) !== JSON.stringify([r.nw, r.bt]);
+    if (!r) { d.sb = { nw: d.sb?.nw ?? null, bt: d.sb?.bt ?? null, ...(d.sb?.ch ? { ch: d.sb.ch } : {}), at: now }; continue; }
+    const changed = !d.sb || JSON.stringify([d.sb.nw, d.sb.bt, d.sb.ch]) !== JSON.stringify([r.nw, r.bt, r.ch]);
     d.sb = { ...r, at: now };
     if (changed) pushDeviceStateToPage(d);
   }
