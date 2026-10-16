@@ -1,3 +1,12 @@
+## V2.9.150
+- Sửa: màn đang ở MÀN HÌNH CHỜ (không khoá) — bấm Từ chối / hết chuông cổng thì về trang Home Assistant và phải chờ hết thời
+  gian rảnh mới hiện lại màn hình chờ (gặp trên S3 480×272). Nay hiện lại màn hình chờ ngay, như màn khoá.
+- Mới: CUỘC GỌI NHỠ (chuông cổng hoặc gọi giữa các màn) hiện thẻ đỏ lớn "Cuộc gọi nhỡ" trên màn hình chờ / khoá, kèm ảnh
+  khách ở cổng; màn hình chờ KHÔNG bị tắt nữa. Chạm thẻ = mở Nhật ký chuông / Gọi đúng cuộc gọi đó (màn khoá: sau khi vuốt
+  mở). Thẻ mất khi đã xem (chạm thẻ hoặc mở thanh thông báo), tự ẩn sau 12 giờ.
+- Sửa: màn hình chờ trên màn ngang thấp (S3 480×272) có ảnh nền + thẻ thời tiết — dải năng lượng (mặt trời / pin / tiêu thụ)
+  đè lên thẻ thời tiết. Nay cột trái co theo chỗ còn lại, ba ô năng lượng chia đều.
+
 ## V2.9.149
 - Sửa: giờ của tệp trên thẻ nhớ lệch +7 giờ (vd tệp chép lúc 18:02 hiện "Thứ sáu 16/10 01:02") ở Thư viện / Tệp trên màn
   và Quản lý file trên trang Darboard. Firmware trả giờ của tệp theo giờ địa phương; trang trước đây đổi múi giờ thêm một

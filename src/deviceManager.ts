@@ -204,7 +204,8 @@ export type DeviceSession = {
   /** (27/09/2026) Ngay (gio thiet bi) da chao buoi sang — moi ngay mot lan. */
   morningDate?: string;
   /** (27/09/2026) Chuong cua dang hien: id lan bam, URL trang, tab dang dung truoc do, hen gio tu dong. */
-  doorbell?: { id: string; url: string; prevKey: string; timer: NodeJS.Timeout; unlock: string | null };
+  /** saver: man dang o man hinh cho / khoa LUC chuong reo -> het chuong hien lai ngay (16/10/2026). */
+  doorbell?: { id: string; url: string; prevKey: string; timer: NodeJS.Timeout; unlock: string | null; saver?: boolean };
   /** (27/09/2026) Dien thoai dang truyen YouTube: URL youtube.com/tv (kem pairingCode) + ung dung dang dung truoc do. */
   castUrl?: string;
   /** (30/09/2026) Luc thiet bi NOI LAI gan nhat (phien cu duoc dung lai) — xem navigateToUrl. */
@@ -1520,7 +1521,7 @@ alarms.hooks = {
 /** Gon cho Shell: id, tieu de, noi dung, uu tien, thoi diem, anh, co hanh dong khi cham khong. */
 function noticeForShell(n: Notice) {
   return { id: n.id, t: n.title, m: n.message, p: n.priority, ts: n.ts, img: n.image ?? null, act: !!(n.app || n.url),
-    s: !!n.seen, k: noticeKind(n) };
+    s: !!n.seen, k: noticeKind(n), ...(n.missed ? { mc: 1 } : {}) };
 }
 
 /**
@@ -1542,8 +1543,12 @@ export function postNotify(body: NotifyRequest): { ok: boolean; error?: string; 
     const wake = shouldWake(n, quiet);
     const screenOff = dev.devState ? !dev.devState.backlightOn : false;
     if (wake && dev.cfg.devControl) broadcaster.sendDeviceControl(id, ControlField.Brightness, userBrightness(dev));
+    // (16/10/2026) Cuoc goi nho khi dang man hinh cho / khoa: GIU man hinh cho — the "Cuộc gọi nhỡ" hien ngay tren do
+    // (Shell, st.nt), khong bat the noi.
+    const keepSaver = !!n.missed && dev.saverOn;
     if (wake && dev.locked && dev.saverOn) { dev.lastTouchMs = Date.now(); wakeBrightWhileLocked(dev); }  // (07/10/2026) giu khoa
-    else if (wake) { dev.lastTouchMs = Date.now(); setSaver(dev, false); }
+    else if (wake && !keepSaver) { dev.lastTouchMs = Date.now(); setSaver(dev, false); }
+    if (keepSaver) continue;
     // Man hinh dang tat: doi den nen bat + remote_webview resume (~0,5 s) roi moi hien, de khung do toi duoc man hinh.
     // (01/10/2026) Firmware tu phat am (?snd=1): am theo loai (tin nhan / uu tien / canh bao khan) voi am luong Thong bao
     // hoac Bao thuc — khong qua luong am thanh trang (Im lang chi tat media). Khong lam phien: khong keu gi.
@@ -2239,8 +2244,9 @@ export function postDoorbell(body: unknown): { ok: boolean; error?: string; id?:
     const url = `${LOCAL_ORIGIN}/doorbell.html?cam=${encodeURIComponent(b.camera)}&title=${encodeURIComponent(b.title)}` +
       `&id=${id}&u=${b.unlock ? 1 : 0}&t=${b.timeoutS}` + (canPlay(dev) || dndOf(dev.deviceId) ? '&quiet=1' : '');
     const prevKey = dev.doorbell?.prevKey ?? (dev.activeTabKey === '__doorbell' ? 'home' : dev.activeTabKey);
+    const saver = dev.doorbell?.saver ?? (dev.saverOn || !!dev.locked);
     if (dev.doorbell) clearTimeout(dev.doorbell.timer);
-    dev.doorbell = { id, url, prevKey, unlock: b.unlock, timer: setTimeout(() => endDoorbell(dev, id, 'het gio'), b.timeoutS * 1000) };
+    dev.doorbell = { id, url, prevKey, unlock: b.unlock, saver, timer: setTimeout(() => endDoorbell(dev, id, 'het gio'), b.timeoutS * 1000) };
     // Sang man hinh (nhu thong bao khan) roi mo trang chuong; da co tab chuong (bam lien tiep) thi tai lai trang moi.
     if (dev.cfg.devControl) broadcaster.sendDeviceControl(dev.deviceId, ControlField.Brightness, userBrightness(dev));
     noteActivity(dev, 'chuong cua');
@@ -2284,9 +2290,10 @@ export function openRingPage(devOrId: DeviceSession | string, id: string, url: s
   const dev = typeof devOrId === 'string' ? devices.get(devOrId) : devOrId;
   if (!dev || broadcaster.getClientCount(dev.deviceId) === 0) return false;
   const prevKey = dev.doorbell?.prevKey ?? (dev.activeTabKey === '__doorbell' ? 'home' : dev.activeTabKey);
+  const saver = dev.doorbell?.saver ?? (dev.saverOn || !!dev.locked);
   if (dev.doorbell) clearTimeout(dev.doorbell.timer);
   const timer = timeoutS > 0 ? setTimeout(() => endDoorbell(dev, id, 'het gio'), timeoutS * 1000) : setTimeout(() => { }, 0);
-  dev.doorbell = { id, url, prevKey, unlock: null, timer };
+  dev.doorbell = { id, url, prevKey, unlock: null, saver, timer };
   if (dev.cfg.devControl) broadcaster.sendDeviceControl(dev.deviceId, ControlField.Brightness, userBrightness(dev));
   noteActivity(dev, why);
   if (chime && canPlay(dev)) playSound(dev, Sound.Doorbell);
@@ -2330,6 +2337,12 @@ function endDoorbell(dev: DeviceSession, id: string, why: string): void {
     if (dev.activeTabKey === '__doorbell') await openAppNow(dev, dev.tabs.has(d.prevKey) || d.prevKey === 'home' || d.prevKey === '__system' ? d.prevKey : '__system');
     if (wasLocked && !dev.locked) { dev.locked = true; console.log(`[saver] ${dev.deviceId}: khoa lai sau chuong`); }
     closeTab(dev, '__doorbell', why);
+    // (16/10/2026) Dang MAN HINH CHO (khong khoa) truoc chuong: truoc day ve trang HA va doi het thoi gian ranh moi hien lai
+    // (do that S3 480x272: tu choi -> o trang HA). Nay hien lai NGAY nhu man khoa.
+    const tab = dev.tabs.get(dev.activeTabKey);
+    if (d.saver && !dev.saverOn && tab && !dev.doorbell && broadcaster.getClientCount(dev.deviceId) > 0) {
+      showSaver(dev, tab);
+    }
   }).catch(() => { });
 }
 

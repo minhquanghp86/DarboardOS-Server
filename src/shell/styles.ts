@@ -262,6 +262,21 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .sv-b .ic, .sv-b svg { width: 1.2em; height: 1.2em; }
 .sv-b + .sv-b { background: rgba(245,158,11,0.2); color: #fde68a; }
 .saver.night .sv-b { background: rgba(120,80,60,0.25); color: #9a6a58; }
+/* (16/10/2026) CUOC GOI NHO tren man hinh cho: the do dac, chu trang lon, bieu tuong tron + anh khach (chuong cong) — khac han
+   chip thong bao xanh. Chiem ca hang cua dai chip (flex-basis 100%). */
+.sv-miss { flex: 1 0 100%; display: flex; align-items: center; gap: clamp(8px, 2.2vmin, 16px); box-sizing: border-box; max-width: min(92vw, 560px);
+  padding: clamp(6px, 1.6vmin, 12px) clamp(10px, 2.4vmin, 18px); border: none; border-radius: clamp(14px, 3.2vmin, 24px); cursor: pointer;
+  background: #dc2626; color: #fff; text-align: left; box-shadow: 0 6px 24px rgba(220,38,38,0.35); font-family: "Be Vietnam Pro", Roboto, sans-serif; }
+.sv-mic { flex: none; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: #fff; color: #dc2626;
+  width: clamp(30px, 8.4vmin, 60px); height: clamp(30px, 8.4vmin, 60px); }
+.sv-mic .ic { width: 62%; height: 62%; }
+.sv-mtx { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+.sv-mtx b { font: 700 clamp(15px, 4.6vmin, 32px)/1.15 "Be Vietnam Pro", Roboto, sans-serif; white-space: nowrap; }
+.sv-mtx span { font: 500 clamp(11px, 2.8vmin, 19px)/1.25 "Be Vietnam Pro", Roboto, sans-serif; opacity: 0.92; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sv-mimg { flex: none; height: clamp(34px, 9.6vmin, 72px); aspect-ratio: 4/3; object-fit: cover; border-radius: clamp(8px, 1.8vmin, 14px); }
+.saver.night .sv-miss { background: #7f1d1d; color: #f3d6cf; box-shadow: none; }
+.saver.night .sv-mic { background: #f3d6cf; color: #7f1d1d; }
+.saver.photo .sv-miss { text-shadow: none; }
 .saver.photo .sv-b { text-shadow: 0 1px 6px rgba(0,0,0,0.7); background: rgba(0,0,0,0.45); }
 .nt-row.new .nt-t::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #3b82f6; margin-right: 6px; vertical-align: middle; }
 .sv-cap { font-size: clamp(11px, 2.6vmin, 16px); color: #fff; opacity: 0.85; text-shadow: 0 1px 8px rgba(0,0,0,0.8); }
@@ -394,6 +409,28 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
    (xem anh tron): an luon widget. */
 .saver.photo.haslw .lw-r ~ .lw-r { display: none; }
 .saver.photo.noclock .sv-lw { display: none; }
+/* (16/10/2026) Man NGANG THAP (S3 480x272) co the thoi tiet: cot trai (dong ho / ngay / widget) KHONG duoc lan sang the — do
+   that: dai nang luong 3 o ~350 px > ~270 px con lai -> "Tieu thu" de len the thoi tiet. Cot trai co theo cho con lai, the giu
+   be rong, 3 o nang luong chia deu va nhan xuong dong; co cuoc goi nho thi bo dong lich / camera cho du cho. */
+@media (min-aspect-ratio: 4/3) and (max-height: 320px) {
+  .saver.hascard .sv-box { width: 100%; gap: 12px; }
+  .saver.hascard .sv-main { flex: 1 1 0; min-width: 0; }
+  .saver.hascard .sv-card { flex: none; }
+  .saver.hascard .lw-en { width: 100%; gap: 8px; }
+  .saver.hascard .lw-s { flex: 1 1 0; gap: 4px; }
+  .saver.hascard .lw-s > .ic { width: 20px; height: 20px; }
+  .saver.hascard .lw-v { font-size: 14px; }
+  .saver.hascard .lw-l { font-size: 9px; white-space: normal; }
+  .saver.hascard .lw-r { max-width: 100%; }
+  .saver.hasmiss .lw-r { display: none; }
+  .saver.hasmiss.hascard .sv-mimg { display: none; }
+  /* Co the goi nho: cot trai cao them ~50 px -> dong ho nho lai, bo chu thich anh (do that: dong ho tran mep tren). */
+  .saver.hasmiss.hascard .sv-main .sv-clock { font-size: 22vmin; }
+  .saver.hasmiss .sv-cap { display: none; }
+  .saver.hasmiss .sv-main { gap: 4px; }
+  .sv-miss { padding: 5px 10px; }
+  .sv-mic { width: 30px; height: 30px; }
+}
 
 /* ── Thong bao (OS-5) ────────────────────────────────────────────────── */
 .pill.unread::after { content: ''; position: absolute; top: 6px; right: 26px; width: 7px; height: 7px; border-radius: 50%; background: #f59e0b; }

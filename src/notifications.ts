@@ -30,6 +30,8 @@ export interface Notice {
   /** (01/10/2026) Nguoi dung DA XEM tren chinh man hinh nay (cham the / mo thanh keo xuong). The noi tu hien khi khong
    *  ai nhin KHONG tinh la da xem — cham bao (chuong) con cho toi khi co nguoi xem tren dung man hinh do. */
   seen?: boolean;
+  /** (16/10/2026) CUOC GOI NHO (chuong cong / goi giua cac man): man hinh cho hien the do lon rieng, KHONG tat man hinh cho. */
+  missed?: boolean;
 }
 
 /** Loai thong bao: tin nhan (ung dung Tin nhan) hay thong bao thuong (HA /notify, Bang tin...). */
@@ -37,7 +39,7 @@ export const noticeKind = (n: Pick<Notice, 'app'>): 'chat' | 'nt' => (n.app === 
 
 export interface NotifyRequest {
   title?: unknown; message?: unknown; priority?: unknown; device?: unknown; app?: unknown; url?: unknown;
-  image?: unknown; camera?: unknown; arg?: unknown;
+  image?: unknown; camera?: unknown; arg?: unknown; missed?: unknown;
 }
 
 const str = (v: unknown, max: number): string => (typeof v === 'string' ? v.trim().slice(0, max) : '');
@@ -66,7 +68,7 @@ export function parseNotify(body: NotifyRequest, go2rtc: string):
   return {
     ok: true,
     device: str(body.device, 64) || 'all',
-    notice: { title, message, priority, ...(app ? { app } : {}), ...(arg ? { arg } : {}), ...(url ? { url } : {}), ...(image ? { image } : {}) },
+    notice: { title, message, priority, ...(body.missed === true ? { missed: true } : {}), ...(app ? { app } : {}), ...(arg ? { arg } : {}), ...(url ? { url } : {}), ...(image ? { image } : {}) },
   };
 }
 

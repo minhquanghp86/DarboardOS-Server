@@ -58,7 +58,7 @@ interface DevState {
 interface AlarmInfo { id: string; l: string; t: string; sz: number; tm: boolean; beep?: boolean }
 /** s = da xem tren man hinh nay; k = loai (chat = tin nhan, nt = thong bao thuong). Server < 2.9.94 khong gui. */
 interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'critical'; ts: number; img: string | null; act: boolean;
-  s?: boolean; k?: 'chat' | 'nt' }
+  s?: boolean; k?: 'chat' | 'nt'; mc?: number }
 
 (function () {
   if (window.__rwvShell) return;
@@ -736,9 +736,12 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     if (!saverEl) return;
     const u = unseenCounts();
     const al = st?.al && st.al.at - Date.now() < 24 * 3600_000 ? st.al : null;
-    const sig = u.chat + '|' + u.nt + '|' + (al ? al.t : '');
+    // (16/10/2026) CUOC GOI NHO chua xem (12 gio gan day): the do LON rieng, khong gop vao chip "N thông báo".
+    const miss = (st?.nt || []).filter((n) => n.mc && !n.s && Date.now() - n.ts < 12 * 3600_000);
+    const sig = u.chat + '|' + u.nt + '|' + (al ? al.t : '') + '|' + miss.map((n) => n.id).join(',');
     if (sig === svBdgSig) return;
     svBdgSig = sig;
+    saverEl.classList.toggle('hasmiss', miss.length > 0);
     const chip = (icon: string, text: string, go: () => void) => {
       const c = el('button', 'sv-b'); c.append(mdi(icon), el('span', '', text));
       c.addEventListener('pointerdown', (e) => e.stopPropagation());
@@ -750,8 +753,26 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
       return c;
     };
     const out: HTMLElement[] = [];
+    if (miss.length) {
+      const n = miss[0];
+      const c = el('button', 'sv-miss');
+      const tx = el('div', 'sv-mtx');
+      tx.append(el('b', '', miss.length > 1 ? miss.length + ' cuộc gọi nhỡ' : 'Cuộc gọi nhỡ'), el('span', '', n.m || n.t));
+      const ic = el('span', 'sv-mic'); ic.append(mdi('phone-missed'));
+      c.append(ic, tx);
+      if (n.img) { const im = document.createElement('img'); im.className = 'sv-mimg'; im.src = n.img; im.alt = ''; c.appendChild(im); }
+      c.addEventListener('pointerdown', (e) => e.stopPropagation());
+      c.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const go = () => sendControl({ ntOpen: n.id });
+        if (svOpts.lock) { svPending = go; hintPulse(); sendControl({ lockTap: 1 }); return; }
+        screensaver(false); sendControl({ wake: 1 }); go();
+      });
+      out.push(c);
+    }
+    const ntN = Math.max(0, u.nt - miss.length);
     if (u.chat) out.push(chip('message', u.chat + ' tin nhắn', () => { if (hasApp('chat')) openApp('chat'); else openShade(true); }));
-    if (u.nt) out.push(chip('bell', u.nt + ' thông báo', () => openShade(true)));
+    if (ntN) out.push(chip('bell', ntN + ' thông báo', () => openShade(true)));
     if (al) { const c = chip('alarm', al.t, () => openApp('alarm')); c.classList.add('al'); out.push(c); }
     svBadges.replaceChildren(...out);
   }

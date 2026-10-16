@@ -124,7 +124,7 @@ export function finish(callId: string, reason: string, missed = false): boolean 
   for (const [k, v] of ended) if (Date.now() - v.at > 120_000) ended.delete(k);
   if (missed && c.to.kind === 'panel') {
     postNotify({ title: 'Cuộc gọi nhỡ', message: `${partyName(c.from)} đã gọi lúc ${new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`,
-      priority: 'high', device: c.to.id, app: 'call' });
+      priority: 'high', device: c.to.id, app: 'call', missed: true });
   }
   const s = c.startedAt ? Math.round((Date.now() - c.startedAt) / 1000) : 0;
   console.log(`[calls] ${callId}: ket thuc (${reason})${s ? ` sau ${s} s` : ''}`);

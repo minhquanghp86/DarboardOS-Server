@@ -184,7 +184,7 @@ async function missed(d: Door, ringId: string): Promise<void> {
   else setLogKind(img, 'missed');
   // Cham thong bao -> ung dung "Chuong cong" mo dung anh nay (xem lai bat cu luc nao trong 30 ngay).
   postNotify({ title: 'Cuộc gọi nhỡ ở cổng', message: `${d.name}: không ai nghe lúc ${new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`,
-    priority: 'high', device: 'all', app: 'doorlog', ...(img ? { arg: img, image: `${LOCAL_ORIGIN}/door/snap/${img}` } : {}) });
+    priority: 'high', device: 'all', app: 'doorlog', missed: true, ...(img ? { arg: img, image: `${LOCAL_ORIGIN}/door/snap/${img}` } : {}) });
   console.log(`[door] ${d.id}: cuoc goi nho${img ? ' (co anh)' : ''}`);
 }
 
