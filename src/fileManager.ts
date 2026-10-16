@@ -347,6 +347,18 @@ export function visibleJobs(now = Date.now()): Job[] {
 }
 
 // ── API (chi ingress) ────────────────────────────────────────────────────────────────────────────────────────────────
+// (16/10/2026) Man nao DANG co the nho (status.sd.ok) — o chon man chi liet ke man co the (truoc: moi man ho tro the, ke ca
+// P4 da rut the). Nho 10 s; hoi status cung giup firmware tu gan lai khi vua cam the.
+const sdOkCache = new Map<string, { at: number; ok: boolean }>();
+async function sdOk(id: string): Promise<boolean> {
+  const c = sdOkCache.get(id);
+  if (c && Date.now() - c.at < 10_000) return c.ok;
+  const st = await cam('/cam/status', 'GET', undefined, id).catch(() => null);
+  const ok = !!(st?.j as { sd?: { ok?: boolean } } | undefined)?.sd?.ok;
+  sdOkCache.set(id, { at: Date.now(), ok });
+  return ok;
+}
+
 /** true = da xu ly (duong /fm/...). */
 export function handleFileManager(req: http.IncomingMessage, res: http.ServerResponse, url: URL): boolean {
   if (!url.pathname.startsWith('/fm/')) return false;
@@ -359,10 +371,15 @@ export function handleFileManager(req: http.IncomingMessage, res: http.ServerRes
     // (09/10/2026) devices: moi man co the nho dang ket noi (o chon man o trang); device: man dang chon (?dev=, mac dinh man dau).
     const devices = cameraDevices().map((id) => ({ id, name: hooks?.screenName?.(id) || id }));
     if (route === 'info' && req.method === 'GET') {
-      const { h, id: dev } = camHostOf(DEV, true);
-      if (!dev || !h) return json(res, 200, { ok: true, online: false, device: dev ?? null, devices, jobs: visibleJobs() });
+      const all = cameraDevices();
+      const oks = await Promise.all(all.map((id) => sdOk(id)));
+      const withSd = devices.filter((d) => oks[all.indexOf(d.id)]);
+      // Man dang chon khong con the (vua rut) -> chuyen sang man dau tien CO the; khong man nao co the -> giu (trang bao "Chưa có thẻ").
+      const pick = DEV && withSd.some((d) => d.id === DEV) ? DEV : withSd[0]?.id ?? DEV;
+      const { h, id: dev } = camHostOf(pick, true);
+      if (!dev || !h) return json(res, 200, { ok: true, online: false, device: dev ?? null, devices: withSd, jobs: visibleJobs() });
       const st = await cam('/cam/status', 'GET', undefined, dev).catch(() => null);
-      return json(res, 200, { ok: true, online: !!st, device: dev, devices, busy: !!hooks?.mediaBusy(dev), sd: st?.j?.sd ?? null,
+      return json(res, 200, { ok: true, online: !!st, device: dev, devices: withSd, busy: !!hooks?.mediaBusy(dev), sd: st?.j?.sd ?? null,
         rec: st?.j?.rec ?? null, jobs: visibleJobs() });
     }
     if (route === 'ls' && req.method === 'GET') {

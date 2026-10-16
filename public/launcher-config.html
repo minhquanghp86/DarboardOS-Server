@@ -369,11 +369,87 @@
   .lw-form .acts { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
   #lockView .btn:disabled { opacity: 0.45; cursor: default; }
   @media (max-width: 640px) { .lw-row { grid-template-columns: minmax(0, 1fr) auto; } .lw-row .lw-l, .lw-row .lw-sub { grid-column: 1 / 3; } }
+
+  /* ── (16/10/2026) TRANG CHU kieu dien thoai + thanh dieu huong co nut ve Trang chu ──────────────────────── */
+  .tabs { display: none !important; }
+  .nav-back { display: flex; align-items: center; gap: 2px; height: 36px; padding: 0 12px 0 6px; border-radius: 999px; color: var(--primary);
+    text-decoration: none; font-weight: 500; background: var(--surface-2); }
+  .nav-back:hover { background: var(--line); }
+  .nav-back svg { width: 22px; height: 22px; fill: currentColor; }
+  .nav-ttl { display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 600; min-width: 0; }
+  .nav-ttl .ai { width: 30px; height: 30px; border-radius: 9px; }
+  .nav-ttl .ai svg { width: 18px; height: 18px; }
+  .nav-ttl span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nav-act { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .ai { flex: none; display: flex; align-items: center; justify-content: center; color: #fff;
+    background: linear-gradient(160deg, var(--c1), var(--c2)); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.14), 0 2px 6px rgba(16,24,40,0.18); }
+  .ai svg { fill: currentColor; }
+  .hm { max-width: 720px; margin: 0 auto; padding: 28px 16px 96px; }
+  .hm-head h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.2px; }
+  .hm-head p { margin: 4px 0 0; color: var(--muted); }
+  .hm-sec { margin: 26px 0 10px; font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .hm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 22px 12px; }
+  .app { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; text-decoration: none; color: var(--text);
+    border-radius: 18px; padding: 6px 2px; }
+  .app:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .app .ai { width: 64px; height: 64px; border-radius: 22%; transition: transform 0.12s; }
+  .app .ai svg { width: 34px; height: 34px; }
+  .app:hover .ai { transform: translateY(-2px); }
+  .app:active .ai { transform: scale(0.95); }
+  .app .an { font-size: 13px; font-weight: 500; text-align: center; line-height: 1.25; }
+  .app .bd { position: absolute; top: 0; left: calc(50% + 20px); min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px;
+    background: #ff3b30; color: #fff; font: 700 12px/22px Roboto, sans-serif; text-align: center; box-shadow: 0 0 0 2px var(--bg); }
+  .hm-scr { display: flex; flex-wrap: wrap; gap: 8px; }
+  .hm-scr .s { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: var(--surface);
+    border: 1px solid var(--line); font-size: 13px; }
+  .hm-scr .s::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+
+  /* (16/10/2026) IPTV moi: tim + chip + luoi the kenh */
+  .iv-top { display: flex; gap: 10px; align-items: center; position: sticky; top: 52px; z-index: 3; padding: 4px 0; background: var(--bg); }
+  .iv-search { flex: 1; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px; border-radius: 12px; background: var(--surface);
+    border: 1px solid var(--line); box-shadow: var(--shadow); }
+  .iv-search svg { width: 20px; height: 20px; fill: var(--muted); flex: none; }
+  .iv-search input { flex: 1; border: none; outline: none; background: none; color: var(--text); font: inherit; font-size: 15px; min-width: 0; }
+  #ivGear { height: 44px; border-radius: 12px; display: inline-flex; align-items: center; gap: 6px; }
+  #ivGear svg { width: 20px; height: 20px; fill: currentColor; }
+  #ivGear[aria-expanded="true"] { background: var(--primary); color: var(--primary-text); border-color: var(--primary); }
+  .iv-chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 2px 0; }
+  .iv-chip { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--surface); color: var(--text); font: 500 13px Roboto, sans-serif; cursor: pointer; }
+  .iv-chip svg { width: 16px; height: 16px; fill: currentColor; }
+  .iv-chip .n { color: var(--muted); font-weight: 400; }
+  .iv-chip.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .iv-chip.on .n { color: inherit; opacity: 0.7; }
+  .iv-sub { display: flex; align-items: center; gap: 10px; min-height: 24px; }
+  .iv-sub .count { color: var(--muted); font-size: 13px; flex: 1; }
+  .iv-sub select { height: 32px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--text); padding: 0 8px; max-width: 55%; }
+  .iv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+  .iv-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 10px 12px; border-radius: 14px;
+    background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); cursor: pointer; text-align: center; color: var(--text); font: inherit; }
+  .iv-card:hover { border-color: var(--primary); }
+  .iv-card:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .iv-card .lg { width: 64px; height: 64px; border-radius: 14px; display: flex; align-items: center; justify-content: center; overflow: hidden;
+    background: var(--surface-2); color: var(--muted); font-weight: 700; font-size: 18px; position: relative; }
+  .iv-card .lg img { position: absolute; inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px); object-fit: contain; }
+  .iv-card .nm { font-weight: 500; font-size: 14px; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .iv-card .gp { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .iv-card .fv { position: absolute; top: 6px; right: 6px; width: 32px; height: 32px; border: none; background: none; border-radius: 50%; cursor: pointer;
+    color: var(--muted); display: flex; align-items: center; justify-content: center; }
+  .iv-card .fv svg { width: 20px; height: 20px; fill: currentColor; }
+  .iv-card .fv.on { color: #f5a524; }
+  .iv-card .fv:hover { background: var(--surface-2); }
+  @media (max-width: 560px) { #ivGear .tx { display: none; } #ivGear { width: 44px; justify-content: center; padding: 0; } }
+  #ivSettings { display: flex; flex-direction: column; gap: 16px; padding-top: 8px; border-top: 1px dashed var(--line); }
+  #ivSettings[hidden] { display: none; }
 </style>
 </head>
 <body>
 <nav class="top" aria-label="Darboard"><div class="in">
-  <div class="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="brandPath" d=""/></svg><span>Darboard</span></div>
+  <div class="brand" id="navBrand"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="brandPath" d=""/></svg><span>Darboard</span></div>
+  <!-- (16/10/2026) Trong mot ung dung: nut ve Trang chu + bieu tuong / ten ung dung (thay hang the chu). -->
+  <a class="nav-back" id="navBack" href="#" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path id="backPath" d=""/></svg>Trang chủ</a>
+  <div class="nav-ttl" id="navTtl" hidden></div>
+  <div class="nav-act" id="navAct"></div>
   <div class="tabs" role="tablist">
     <a href="#tin-nhan" id="tabChat" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="tabChatPath" d=""/></svg>Tin nhắn<span class="cnt" id="tabCnt" hidden></span></a>
     <a href="#quan-ly-file" id="tabFiles" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="tabFilesPath" d=""/></svg>Quản lý file</a>
@@ -386,6 +462,16 @@
   </div>
 </div></nav>
 
+<!-- (16/10/2026) TRANG CHU: luoi bieu tuong ung dung kieu dien thoai. -->
+<main id="homeView" hidden>
+<div class="hm">
+  <div class="hm-head"><h1>Darboard</h1><p id="hmSum">Màn hình gắn tường cho Home Assistant</p></div>
+  <div class="hm-sec">Ứng dụng</div>
+  <div class="hm-grid" id="hmGrid"></div>
+  <div class="hm-sec" id="hmScrSec" hidden>Màn hình đang kết nối</div>
+  <div class="hm-scr" id="hmScr"></div>
+</div>
+</main>
 <main id="chatView" hidden>
   <section class="col clist">
     <div class="chead"><div class="t"><h2>Cuộc trò chuyện</h2><div class="s" id="meName"></div></div>
@@ -513,29 +599,33 @@
       <p class="iv-cast-ch" id="ivCastCh"></p>
       <div class="iv-cast-list" id="ivCastList"></div>
     </div>
-    <div class="dlg-foot"><button type="button" class="btn" id="ivCastNo">Huỷ</button><button type="button" class="btn primary" id="ivCastGo">Phát</button></div>
+    <div class="dlg-foot"><button type="button" class="btn" id="ivCastWeb">Xem trong trình duyệt</button><span style="flex:1"></span><button type="button" class="btn" id="ivCastNo">Huỷ</button><button type="button" class="btn primary" id="ivCastGo">Phát</button></div>
   </form>
 </dialog>
 
 <main id="iptvView" hidden>
 <div class="wrap">
+  <!-- (16/10/2026) THIET KE LAI: tim kenh + chip (Yeu thich / Gan day / Tat ca / tung danh sach) + luoi the kenh; quan ly
+       danh sach M3U chi mo khi bam "Danh sach kenh" (truoc: hai khoi dai xep doc, tim + chon kenh rat lau). -->
+  <div class="iv-top">
+    <label class="iv-search"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="ivSearchPath" d=""/></svg>
+      <input id="ivChQ" type="search" placeholder="Tìm kênh…" aria-label="Tìm kênh" autocomplete="off" spellcheck="false"></label>
+    <button class="btn" id="ivGear" type="button" aria-expanded="false"></button>
+  </div>
+  <div class="iv-chips" id="ivChips" role="tablist" aria-label="Lọc kênh"></div>
+  <div class="iv-sub"><span class="count" id="ivChCount"></span><select id="ivChGroup" aria-label="Nhóm kênh" hidden></select></div>
+  <div class="iv-grid" id="ivChannels"></div>
+  <button class="add" id="ivChMore" type="button" hidden></button>
+  <div class="iv-status" id="ivStatus" role="status"></div>
+  <div id="ivSettings" hidden>
   <header>
-    <h1>IPTV trên màn hình</h1>
-    <p>Thêm danh sách kênh M3U — đường link, hoặc tệp đặt trong thư mục media của Home Assistant. Kênh xem ở ứng dụng <b>IPTV</b> trong menu các panel. Mỗi thay đổi lưu ngay.</p>
+    <h1>Danh sách kênh</h1>
+    <p>Thêm danh sách kênh M3U — đường link, hoặc tệp đặt trong thư mục media của Home Assistant. Mỗi thay đổi lưu ngay.</p>
   </header>
   <section class="card">
-    <div class="card-head"><h2>Danh sách kênh</h2><span class="count" id="ivCount"></span><button class="btn" id="ivRefresh" type="button"></button></div>
+    <div class="card-head"><h2>Danh sách</h2><span class="count" id="ivCount"></span><button class="btn" id="ivRefresh" type="button"></button></div>
     <div id="ivLists"></div>
     <button class="add" id="ivAdd" type="button"></button>
-  </section>
-  <section class="card">
-    <div class="card-head"><h2>Kênh</h2><span class="count" id="ivChCount"></span></div>
-    <div class="iv-chfilter">
-      <select id="ivChList" aria-label="Chọn danh sách kênh"></select>
-      <input id="ivChQ" type="search" placeholder="Tìm kênh…" aria-label="Tìm kênh" autocomplete="off" spellcheck="false">
-    </div>
-    <div id="ivChannels"></div>
-    <button class="add" id="ivChMore" type="button" hidden></button>
   </section>
   <section class="card" id="ivForm" hidden>
     <div class="card-head"><h2 id="ivFormTitle">Thêm danh sách</h2></div>
@@ -547,8 +637,8 @@
       <div class="acts"><button class="btn" type="button" id="ivCancel">Huỷ</button><button class="btn primary" type="submit" id="ivSave">Lưu</button></div>
     </form>
   </section>
-  <div class="iv-status" id="ivStatus" role="status"></div>
   <div class="fm-note iv-help" id="ivHelp"></div>
+  </div>
 </div>
 </main>
 <main id="lockView" hidden>
@@ -914,12 +1004,51 @@
 
   // ── Hai the (#tin-nhan | #menu) ──
   // (02/10/2026) + the #quan-ly-file (khoi script rieng o cuoi trang nghe hashchange).
+  // (16/10/2026) TRANG CHU (khong co #) + moi ung dung mot #. Thanh tren: nut "Trang chủ" + bieu tuong / ten ung dung.
+  var APPS = [
+    { h: '#tin-nhan', n: 'Tin nhắn', ic: 'message-text-outline', c: ['#3b82f6', '#1d4ed8'] },
+    { h: '#iptv', n: 'IPTV', ic: 'television-classic', c: ['#d946ef', '#9d174d'] },
+    { h: '#quan-ly-file', n: 'Quản lý file', ic: 'folder', c: ['#94a3b8', '#475569'] },
+    { h: '#man-khoa', n: 'Màn khóa', ic: 'cellphone-lock', c: ['#2dd4bf', '#0f766e'] },
+    { h: 'door-log.html', n: 'Chuông cổng', ic: 'doorbell-video', c: ['#fb923c', '#c2410c'] },
+    { h: 'call-web.html', n: 'Gọi', ic: 'video', c: ['#4ade80', '#15803d'] },
+    { h: '#menu', n: 'Menu ứng dụng', ic: 'view-grid-plus-outline', c: ['#818cf8', '#4338ca'] }
+  ];
+  function appIcon(a) { var i = document.createElement('span'); i.className = 'ai'; i.style.setProperty('--c1', a.c[0]); i.style.setProperty('--c2', a.c[1]); i.append(svg(a.ic) ); return i; }
+  (function () {
+    var g = $('hmGrid');
+    APPS.forEach(function (a) {
+      var x = document.createElement('a'); x.className = 'app'; x.href = a.h;
+      var n = document.createElement('span'); n.className = 'an'; n.textContent = a.n;
+      x.append(appIcon(a), n);
+      if (a.h === '#tin-nhan') { var b = document.createElement('span'); b.className = 'bd'; b.id = 'hmChatCnt'; b.hidden = true; x.append(b); }
+      g.append(x);
+    });
+    $('backPath').setAttribute('d', IC['chevron-left'] || '');
+  })();
+  function loadScreens() {
+    fetch('iptv/screens', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
+      var list = (j && j.screens) || [];
+      $('hmSum').textContent = list.length ? list.length + ' màn hình đang kết nối' : 'Chưa có màn hình nào kết nối';
+      $('hmScrSec').hidden = !list.length;
+      $('hmScr').replaceChildren.apply($('hmScr'), list.map(function (s) { var x = document.createElement('span'); x.className = 's'; x.textContent = s.name || s.id; return x; }));
+    }).catch(function () { });
+  }
   function route() {
     var apps = location.hash === '#menu', files = location.hash === '#quan-ly-file', iptv = location.hash === '#iptv';
     var lock = location.hash === '#man-khoa';  // (08/10/2026) widget man hinh khoa
-    var chat = !apps && !files && !iptv && !lock;
+    var chat = location.hash === '#tin-nhan';
+    var home = !apps && !files && !iptv && !lock && !chat;
+    $('homeView').hidden = !home;
     $('chatView').hidden = !chat; $('appsView').hidden = !apps; $('filesView').hidden = !files; $('iptvView').hidden = !iptv;
     $('lockView').hidden = !lock;
+    var a = APPS.filter(function (x) { return x.h === location.hash; })[0];
+    $('navBrand').hidden = !home; $('navBack').hidden = home; $('navTtl').hidden = home;
+    if (a) { var n = document.createElement('span'); n.textContent = a.n; $('navTtl').replaceChildren(appIcon(a), n); }
+    $('navAct').replaceChildren();
+    document.dispatchEvent(new CustomEvent('rwv-view', { detail: location.hash }));
+    if (home) loadScreens();
+    window.scrollTo(0, 0);
     [['tabChat', chat], ['tabFiles', files], ['tabIptv', iptv], ['tabLock', lock], ['tabApps', apps]].forEach(function (t) {
       $(t[0]).classList.toggle('on', t[1]); $(t[0]).setAttribute('aria-selected', String(t[1]));
     });
@@ -962,6 +1091,7 @@
     if (S.me) { mn.append(personAv(S.me, 'meav'), document.createTextNode('Bạn là ' + S.me.name)); }
     var unread = S.convs.reduce(function (n, c) { return n + c.unread; }, 0);
     $('tabCnt').hidden = !unread; $('tabCnt').textContent = unread > 99 ? '99+' : String(unread);
+    if ($('hmChatCnt')) { $('hmChatCnt').hidden = !unread; $('hmChatCnt').textContent = unread > 99 ? '99+' : String(unread); }
     document.title = (unread ? '(' + unread + ') ' : '') + 'Darboard';
     if (!S.convs.length) {
       var e = el('div', 'cempty'); e.append(el('b', '', 'Chưa có cuộc trò chuyện'), document.createTextNode('Bấm “＋ Mới” để nhắn tới một hay nhiều màn hình.'));
@@ -1427,7 +1557,9 @@
   function renderCrumbs() {
     var c = $('fmCrumbs'); c.replaceChildren();
     var parts = F.dir === '/' ? [] : F.dir.slice(1).split('/');
-    var root = el('button'); root.type = 'button'; root.append(svg('sd'), document.createTextNode('Thẻ SD'));
+    // (16/10/2026) Chi mot man co the (khong co o chon man): ghi ten man canh "Thẻ SD" de biet dang xem the cua man nao.
+    var inf = F.info || {}, devs = inf.devices || [], one = devs.length === 1 ? devs[0].name : '';
+    var root = el('button'); root.type = 'button'; root.append(svg('sd'), document.createTextNode('Thẻ SD' + (one ? ' · ' + one : '')));
     root.disabled = !parts.length; root.onclick = function () { load('/'); };
     c.append(root);
     parts.forEach(function (seg, i) {
@@ -1537,13 +1669,13 @@
   // O chon man: chi hien khi co tu 2 man co the nho (hoac man da chon dang tat).
   function renderDev() {
     var i = F.info || {}, list = (i.devices || []).slice(), cur = F.dev || i.device || '';
-    if (cur && !list.some(function (d) { return d.id === cur; })) list.push({ id: cur, name: cur, off: true });
+    if (cur && !list.some(function (d) { return d.id === cur; })) list.push({ id: cur, name: cur, off: true });   // man dang xem khong con the
     $('fmDevBox').hidden = list.length < 2;
     if ($('fmDevBox').hidden) return;
     var sel = $('fmDev'), sig = JSON.stringify(list) + cur;
     if (sel.dataset.sig === sig) return;
     sel.dataset.sig = sig;
-    sel.replaceChildren.apply(sel, list.map(function (d) { var o = el('option', '', d.name + (d.off ? ' (đang tắt)' : '')); o.value = d.id; return o; }));
+    sel.replaceChildren.apply(sel, list.map(function (d) { var o = el('option', '', d.name + (d.off ? ' (không có thẻ)' : '')); o.value = d.id; return o; }));
     sel.value = cur;
   }
   $('fmDevBox').prepend(svg('tablet'));
@@ -1556,7 +1688,13 @@
   function poll() {
     if (!visible() || document.hidden) return Promise.resolve();
     return api('info').then(function (i) {
+      var oneWas = ((F.info || {}).devices || []).length;
       F.info = i;
+      if (oneWas !== (i.devices || []).length) renderCrumbs();
+      // (16/10/2026) Man dang chon vua RUT the -> server chuyen sang man khac con the: trang theo luon (truoc: van hien man cu).
+      if (F.dev && i.device && i.device !== F.dev && !(i.devices || []).some(function (d) { return d.id === F.dev; })) {
+        F.dev = i.device; F.items = []; F.loaded = false; F.sel.clear(); F.selMode = false; render(); load('/');
+      }
       renderDev();
       var sig = JSON.stringify((i.jobs || []).map(function (j) { return [j.id, j.stage]; }));
       if (F.lastJobs && sig !== F.lastJobs && (i.jobs || []).some(function (j) { return j.stage === 'done'; })) load(F.dir, true);
@@ -1921,60 +2059,93 @@
     w.forEach(function (x) { s += x.charAt(0); });
     return s.toUpperCase() || '?';
   }
+  // (16/10/2026) THIET KE LAI: chip Yeu thich / Gan day / Tat ca / tung danh sach + nhom; luoi the kenh (logo, ten, sao);
+  // cham the -> chon man de phat (hoac xem trong trinh duyet). Tim kenh = tim trong TAT CA kenh.
+  T.favs = []; T.recent = []; T.mode = ''; T.group = '';
+  function favKey(c) { return String(c.name || '').trim().toLowerCase(); }
   function loadChannels(force) {
     if (T.chBusy) return Promise.resolve();
     T.chBusy = true;
     if (!T.chLoaded) renderChannels();
     return api('channels' + (force ? '?refresh=1' : ''))
-      .then(function (j) { T.ch = j.channels || []; T.chLists = j.lists || []; T.chLoaded = true; })
+      .then(function (j) {
+        T.ch = j.channels || []; T.chLists = j.lists || []; T.favs = j.favs || []; T.recent = j.recent || []; T.chLoaded = true;
+        if (!T.mode) T.mode = T.favs.length ? 'fav' : T.recent.length ? 'recent' : 'all';
+      })
       .catch(function (e) { status(e.message, 'err'); })
       .then(function () { T.chBusy = false; renderChannels(); });
   }
+  /** Kenh theo thu tu danh sach ten (yeu thich / gan day) — moi ten lay kenh dau tien trung ten. */
+  function byKeys(keys) {
+    var m = {}; T.ch.forEach(function (c) { var k = favKey(c); if (!m[k]) m[k] = c; });
+    return keys.map(function (k) { return m[k]; }).filter(Boolean);
+  }
   function chView() {
-    var L = T.chList, q = norm(T.chQ);
-    return T.ch.filter(function (c) {
-      if (L && c.list !== L) return false;
-      return !q || norm(c.name).indexOf(q) >= 0;
-    });
+    var q = norm(T.chQ);
+    if (q) return T.ch.filter(function (c) { return norm(c.name).indexOf(q) >= 0; });
+    var base = T.mode === 'fav' ? byKeys(T.favs) : T.mode === 'recent' ? byKeys(T.recent)
+      : T.mode === 'all' ? T.ch : T.ch.filter(function (c) { return c.list === T.mode; });
+    if (T.group && T.mode !== 'fav' && T.mode !== 'recent')
+      base = base.filter(function (c) { return (c.groups || []).indexOf(T.group) >= 0; });
+    return base;
+  }
+  function chip(mode, icon, label, n) {
+    var b = el('button', 'iv-chip' + (T.mode === mode && !T.chQ ? ' on' : '')); b.type = 'button'; b.setAttribute('role', 'tab');
+    if (icon) b.append(svg(icon));
+    b.append(document.createTextNode(label));
+    if (n != null) b.append(el('span', 'n', String(n)));
+    b.onclick = function () { T.mode = mode; T.group = ''; T.chQ = ''; $('ivChQ').value = ''; T.chShown = CH_PAGE; renderChannels(); };
+    return b;
   }
   function renderChannels() {
-    var sel = $('ivChList'), cur = T.chList;
-    var opts = [el('option', '', 'Tất cả danh sách')];
-    opts[0].value = '';
-    (T.chLists || []).forEach(function (l) { var o = el('option', '', l.name + ' (' + (l.count || 0) + ' kênh)'); o.value = l.id; opts.push(o); });
-    sel.replaceChildren.apply(sel, opts);
-    sel.value = cur;
+    var chips = [chip('fav', 'star', 'Yêu thích', byKeys(T.favs).length), chip('recent', 'history', 'Gần đây', byKeys(T.recent).length),
+      chip('all', null, 'Tất cả', T.ch.length)];
+    if ((T.chLists || []).length > 1) T.chLists.forEach(function (l) { chips.push(chip(l.id, null, l.name, l.count || 0)); });
+    $('ivChips').replaceChildren.apply($('ivChips'), chips);
+    // Nhom (chi khi xem Tat ca / mot danh sach)
+    var gsel = $('ivChGroup'), showG = !T.chQ && T.mode !== 'fav' && T.mode !== 'recent';
+    gsel.hidden = !showG;
+    if (showG) {
+      var src = T.mode === 'all' ? T.ch : T.ch.filter(function (c) { return c.list === T.mode; }), gs = {};
+      src.forEach(function (c) { (c.groups || []).forEach(function (g) { gs[g] = (gs[g] || 0) + 1; }); });
+      var opts = [el('option', '', 'Mọi nhóm')]; opts[0].value = '';
+      Object.keys(gs).sort().forEach(function (g) { var o = el('option', '', g + ' (' + gs[g] + ')'); o.value = g; opts.push(o); });
+      gsel.replaceChildren.apply(gsel, opts); gsel.value = T.group;
+      gsel.hidden = opts.length <= 2;
+    }
     var box = $('ivChannels'), all = chView(), shown = all.slice(0, T.chShown);
-    if (!T.chLoaded) {
-      box.replaceChildren(el('div', 'iv-empty', 'Đang tải danh sách kênh…'));
-      $('ivChCount').textContent = ''; $('ivChMore').hidden = true;
-      return;
-    }
+    if (!T.chLoaded) { box.replaceChildren(el('div', 'iv-empty', 'Đang tải danh sách kênh…')); $('ivChCount').textContent = ''; $('ivChMore').hidden = true; return; }
     if (!all.length) {
-      box.replaceChildren(el('div', 'iv-empty', T.ch.length ? 'Không có kênh nào khớp.' : 'Chưa có kênh — thêm danh sách M3U ở trên.'));
-      $('ivChCount').textContent = ''; $('ivChMore').hidden = true;
-      return;
+      var msg = T.chQ ? 'Không có kênh nào khớp “' + T.chQ + '”.' : !T.ch.length ? 'Chưa có kênh — bấm “Danh sách kênh” để thêm danh sách M3U.'
+        : T.mode === 'fav' ? 'Chưa có kênh yêu thích — bấm ☆ trên một kênh để thêm.' : T.mode === 'recent' ? 'Chưa xem kênh nào gần đây.' : 'Không có kênh nào.';
+      box.replaceChildren(el('div', 'iv-empty', msg)); $('ivChCount').textContent = ''; $('ivChMore').hidden = true; return;
     }
-    box.replaceChildren.apply(box, shown.map(chRow));
-    $('ivChCount').textContent = (shown.length < all.length ? shown.length + '/' + all.length : String(all.length)) + ' kênh';
+    box.replaceChildren.apply(box, shown.map(chCard));
+    $('ivChCount').textContent = (T.chQ ? 'Kết quả: ' : '') + (shown.length < all.length ? shown.length + '/' + all.length : String(all.length)) + ' kênh';
     $('ivChMore').hidden = shown.length >= all.length;
     $('ivChMore').textContent = 'Hiện thêm ' + Math.min(CH_PAGE, all.length - shown.length) + ' kênh';
   }
-  function chRow(c) {
-    var r = el('div', 'row iv-ch');
+  function chCard(c) {
+    var card = el('div', 'iv-card'); card.tabIndex = 0; card.setAttribute('role', 'button'); card.setAttribute('aria-label', 'Phát ' + c.name);
     var lg = el('div', 'lg', chInitials(c.name));
     if (c.logo) {
       var im = el('img'); im.alt = ''; im.loading = 'lazy'; im.src = c.logo;
       im.onerror = function () { im.remove(); };   // logo http / loi -> giu chu cai dau
       lg.appendChild(im);
     }
-    var sub = [chListName(c.list)].concat(c.groups && c.groups.length ? [c.groups[0]] : []).filter(Boolean).join(' · ');
-    var meta = el('div', 'meta');
-    meta.append(el('div', 'name', c.name), el('div', 'sub', sub));
-    r.append(lg, meta,
-      icBtn('cast', 'Phát trên màn hình', function () { openCast(c); }),
-      icBtn('play', 'Phát trong trình duyệt', function () { window.open('iptv.html?play=' + encodeURIComponent(c.id), '_blank', 'noopener'); }));
-    return r;
+    var isFav = T.favs.indexOf(favKey(c)) >= 0;
+    var fv = el('button', 'fv' + (isFav ? ' on' : '')); fv.type = 'button';
+    fv.title = isFav ? 'Bỏ yêu thích' : 'Yêu thích'; fv.setAttribute('aria-label', fv.title); fv.append(svg(isFav ? 'star' : 'star-outline'));
+    fv.onclick = function (e) {
+      e.stopPropagation();
+      var on = !isFav;
+      api('fav', { key: favKey(c), on: on }).then(function (j) { T.favs = j.favs || []; renderChannels(); }).catch(function (er) { status(er.message, 'err'); });
+    };
+    var sub = (c.groups && c.groups.length ? c.groups[0] : '') || chListName(c.list);
+    card.append(fv, lg, el('div', 'nm', c.name), el('div', 'gp', sub));
+    card.onclick = function () { openCast(c); };
+    card.onkeydown = function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCast(c); } };
+    return card;
   }
   function openCast(c) {
     T.castCh = c;
@@ -1989,7 +2160,7 @@
       var rows = [castOpt('all', 'Tất cả màn hình (' + list.length + ')')];
       list.forEach(function (s) { rows.push(castOpt(s.id, s.name || s.id)); });
       box.replaceChildren.apply(box, rows);
-      rows[0].querySelector('input').checked = true;
+      rows[list.length === 1 ? 1 : 0].querySelector('input').checked = true;
       $('ivCastGo').disabled = false;
     }).catch(function (e) { box.replaceChildren(el('div', 'iv-empty', e.message)); });
   }
@@ -2000,26 +2171,40 @@
     return l;
   }
   $('ivCastNo').onclick = function () { $('ivCastDlg').close(); };
+  $('ivCastWeb').onclick = function () {
+    var c = T.castCh; if (!c) return;
+    $('ivCastDlg').close();
+    window.open('iptv.html?play=' + encodeURIComponent(c.id), '_blank', 'noopener');
+  };
   $('ivCastGo').onclick = function () {
     var c = T.castCh, picked = $('ivCastList').querySelector('input[name=ivCastDev]:checked');
     if (!c) return;
     if (!picked) { status('Chọn một màn hình hoặc “Tất cả màn hình”.', 'err'); return; }
     $('ivCastGo').disabled = true;
-    api('cast', { dev: picked.value, ch: c.id })
+    api('cast', { dev: picked.value, ch: c.id, name: c.name })
       .then(function () {
         status('Đã gửi “' + c.name + '” tới ' + (picked.value === 'all' ? 'tất cả màn hình đang kết nối' : 'màn hình đã chọn') + '.', 'ok');
         $('ivCastDlg').close();
+        var k = favKey(c); T.recent = [k].concat(T.recent.filter(function (x) { return x !== k; })).slice(0, 24);
+        if (T.mode === 'recent') renderChannels();
       })
       .catch(function (e) { status(e.message, 'err'); })
       .finally(function () { $('ivCastGo').disabled = false; });
   };
-  $('ivChList').onchange = function () { T.chList = $('ivChList').value; T.chShown = CH_PAGE; renderChannels(); };
+  $('ivChGroup').onchange = function () { T.group = $('ivChGroup').value; T.chShown = CH_PAGE; renderChannels(); };
   var chQ = null;
   $('ivChQ').oninput = function () {
     clearTimeout(chQ);
-    chQ = setTimeout(function () { T.chQ = $('ivChQ').value; T.chShown = CH_PAGE; renderChannels(); }, 150);
+    chQ = setTimeout(function () { T.chQ = $('ivChQ').value.trim(); T.chShown = CH_PAGE; renderChannels(); }, 150);
   };
   $('ivChMore').onclick = function () { T.chShown += CH_PAGE; renderChannels(); };
+  $('ivSearchPath').setAttribute('d', IC['magnify'] || '');
+  $('ivGear').append(svg('cog'), el('span', 'tx', 'Danh sách kênh')); $('ivGear').title = 'Danh sách kênh'; $('ivGear').setAttribute('aria-label', 'Danh sách kênh');
+  $('ivGear').onclick = function () {
+    var open = $('ivSettings').hidden;
+    $('ivSettings').hidden = !open; $('ivGear').setAttribute('aria-expanded', String(open));
+    if (open) setTimeout(function () { $('ivSettings').scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 30);
+  };
 
   function enter() {
     if (!visible()) return;

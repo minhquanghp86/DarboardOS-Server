@@ -1,3 +1,13 @@
+## V2.9.156
+- Trang Darboard (thanh bên Home Assistant) — THIẾT KẾ LẠI, giai đoạn 1:
+  - Trang chủ dạng biểu tượng ứng dụng như điện thoại (Tin nhắn có huy hiệu số tin chưa đọc, IPTV, Quản lý file, Màn khóa,
+    Chuông cổng, Gọi, Menu ứng dụng) + danh sách màn hình đang kết nối. Mỗi ứng dụng có nút "‹ Trang chủ" ở thanh trên.
+  - IPTV: ô tìm kênh luôn ở trên; chip Yêu thích / Gần đây / Tất cả / từng danh sách + chọn nhóm; lưới thẻ kênh (logo, ngôi
+    sao yêu thích); chạm thẻ = chọn màn để phát hoặc "Xem trong trình duyệt". Quản lý danh sách M3U chỉ mở khi bấm
+    "Danh sách kênh". Mới: "Gần đây" — kênh phát từ Darboard và kênh xem trên màn.
+- Quản lý file: chỉ liệt kê màn ĐANG có thẻ nhớ (trước: cả màn đã rút thẻ); màn đang xem vừa rút thẻ thì tự chuyển sang màn
+  còn thẻ; chỉ một màn thì ghi tên màn cạnh "Thẻ SD".
+
 ## V2.9.155
 - Cắm / rút sạc hiện trên thanh trạng thái nhanh hơn: thực thể "Nguồn điện" đọc riêng mỗi 2 s (pin % / mạng vẫn 10 s). Cùng
   firmware mới (battery_monitor.h: nhận cắm / rút trong ~2–3 s, phát lên HA ngay) — tổng ~3–5 s.

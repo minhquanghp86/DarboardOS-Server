@@ -53,7 +53,9 @@ export interface Channel {
 }
 export interface ClearKey { keys?: Record<string, string>; url?: string }
 export interface IptvList { id: string; name: string; url: string; on: boolean }
-interface IptvConfig { lists: IptvList[]; favs: string[] }
+/** (16/10/2026) recent: ten kenh (chu thuong) xem GAN DAY — moi nhat truoc, toi da RECENT_MAX (phat tu Darboard + tren man). */
+interface IptvConfig { lists: IptvList[]; favs: string[]; recent: string[] }
+const RECENT_MAX = 24;
 
 const OTHER = 'Khác';
 const HEADER_NAMES: Record<string, string> = {
@@ -318,9 +320,19 @@ function config(): IptvConfig {
   if (conf) return conf;
   try {
     const j = JSON.parse(fs.readFileSync(CONF_FILE, 'utf8')) as Partial<IptvConfig>;
-    conf = { lists: Array.isArray(j.lists) ? j.lists : [SAMPLE], favs: Array.isArray(j.favs) ? j.favs : [] };
-  } catch { conf = { lists: [SAMPLE], favs: [] }; }
+    conf = { lists: Array.isArray(j.lists) ? j.lists : [SAMPLE], favs: Array.isArray(j.favs) ? j.favs : [],
+      recent: Array.isArray(j.recent) ? j.recent.filter((x): x is string => typeof x === 'string').slice(0, RECENT_MAX) : [] };
+  } catch { conf = { lists: [SAMPLE], favs: [], recent: [] }; }
   return conf;
+}
+/** (16/10/2026) Ghi kenh vua xem len dau danh sach "Gần đây". */
+function noteRecent(name: string): void {
+  const key = name.trim().toLowerCase().slice(0, 120);
+  if (!key) return;
+  const c = config();
+  if (c.recent[0] === key) return;
+  c.recent = [key, ...c.recent.filter((k) => k !== key)].slice(0, RECENT_MAX);
+  saveConfig();
 }
 function saveConfig(): void {
   try { fs.mkdirSync(path.dirname(CONF_FILE), { recursive: true }); fs.writeFileSync(CONF_FILE, JSON.stringify(conf, null, 1)); }
@@ -634,8 +646,9 @@ export function handleIptvApi(req: http.IncomingMessage, res: http.ServerRespons
   if (p === '/iptv/cast' && req.method === 'POST') {
     readJson(req, 4096).then((b) => {
       if (!hooks) throw new Error('server chua san sang');
-      const o = b as { dev?: unknown; ch?: unknown };
+      const o = b as { dev?: unknown; ch?: unknown; name?: unknown };
       const ch = String(o.ch ?? '').trim().slice(0, 120);
+      if (typeof o.name === 'string') noteRecent(o.name);
       if (!ch) throw new Error('thiếu kênh');
       const want = String(o.dev ?? 'all');
       const online = hooks.screens().filter((s) => s.online);
@@ -650,7 +663,7 @@ export function handleIptvApi(req: http.IncomingMessage, res: http.ServerRespons
   }
   if (p === '/iptv/channels' && req.method === 'GET') {
     allChannels(url.searchParams.get('refresh') === '1').then(({ lists, channels }) => json(res, 200, {
-      ok: true, token: TOKEN, favs: config().favs,
+      ok: true, token: TOKEN, favs: config().favs, recent: config().recent,
       lists: lists.filter((l) => l.on).map((l) => ({ id: l.id, name: l.name, count: l.count, error: l.error, stale: l.stale })),
       channels: channels.map((c) => ({ ...c, h: encHeaders(c.headers), headers: undefined })),
     })).catch((e) => json(res, 500, { ok: false, error: (e as Error).message }));
@@ -667,6 +680,15 @@ export function handleIptvApi(req: http.IncomingMessage, res: http.ServerRespons
       saveConfig();
       json(res, 200, { ok: true, favs: c.favs });
     }).catch((e) => json(res, 400, { ok: false, error: (e as Error).message }));
+    return true;
+  }
+  // (16/10/2026) Man bat dau phat mot kenh (iptv.html start) -> "Gần đây" (trang Darboard hien kenh xem gan day).
+  if (p === '/iptv/recent' && req.method === 'POST') {
+    readJson(req, 2048).then((b) => {
+      const o = b as { name?: unknown };
+      if (typeof o.name === 'string') noteRecent(o.name);
+      json(res, 200, { ok: true });
+    }).catch(() => json(res, 400, { ok: false }));
     return true;
   }
   if (p === '/iptv/log' && req.method === 'POST') {

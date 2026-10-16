@@ -113,6 +113,13 @@
   var IC = window.RwvIcons || {};
   var $ = function (id) { return document.getElementById(id); };
   var DEV = new URLSearchParams(location.search).get('dev') || '';
+  // (16/10/2026) Mo tu trang Darboard (khong co ?dev): nut ve Trang chu nhu cac ung dung khac.
+  if (!DEV) {
+    var bk = document.createElement('a'); bk.href = './'; bk.textContent = '‹ Trang chủ';
+    bk.style.cssText = 'position:fixed;z-index:20;left:12px;top:12px;display:inline-flex;align-items:center;height:36px;padding:0 14px 0 10px;border-radius:999px;' +
+      'background:rgba(255,255,255,0.12);color:#e5e7eb;text-decoration:none;font:500 14px "Be Vietnam Pro",Roboto,sans-serif;backdrop-filter:blur(8px)';
+    document.body.appendChild(bk);
+  }
   function svg(n) {
     var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true');
     var p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', IC[n] || ''); s.appendChild(p); return s;
