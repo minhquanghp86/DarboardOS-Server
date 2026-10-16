@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url';
 import { WebSocketServer } from "ws"
 import env from "env-var";
 import { makeConfigFromParams, setConfigFor, logDeviceConfig } from "./config.js";
-import { reloadAllLaunchers, broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick, refreshDisplaysTick, markInteraction, screensaverTick, powerTick, postNotify, repaintRect, onDeviceStatePacket, onDeviceEvent, anyTzOffset, postDoorbell, closeDoorbell, unlockDoorbell, dialHooks, YT_TV_URL, hostMem, pipelineStats } from './deviceManager.js';
+import { reloadAllLaunchers, broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick, refreshDisplaysTick, markInteraction, screensaverTick, powerTick, iptvStatus, iptvControl, postNotify, repaintRect, onDeviceStatePacket, onDeviceEvent, anyTzOffset, postDoorbell, closeDoorbell, unlockDoorbell, dialHooks, YT_TV_URL, hostMem, pipelineStats } from './deviceManager.js';
 import type { DeviceSession } from './deviceManager.js';
 import { camFetch, handleCamLive, handleCamProxy, noteCameraHost } from './camProxy.js';
 import { handleGo2rtcHttp, handleGo2rtcUpgrade } from './go2rtcProxy.js';
@@ -419,6 +419,8 @@ setFileManagerHooks({ mediaBusy: (device) => isMediaPlaying(device), screenName:
 setIptvHooks({
   screens: () => connectedScreens().map((s) => ({ id: s.id, name: screenNameOf(s.id) || s.id, online: true })),
   cast: (ids, urlOf) => castUrlToDevices(ids, urlOf),
+  status: (id) => iptvStatus(id),
+  control: (id, act) => iptvControl(id, act),
 });
 startWeatherMini();
 // (27/09/2026) Truyen YouTube tu dien thoai: panel hien nhu mot TV trong nut truyen (DIAL). Tat: tuy chon cast_enabled.

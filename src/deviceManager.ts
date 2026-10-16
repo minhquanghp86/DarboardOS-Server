@@ -1777,6 +1777,28 @@ export function castUrlToDevices(ids: string[], urlOf: (deviceId: string) => str
   }
   return sent.length ? { ok: true, sent } : { ok: false, sent, error: 'khong co man hinh nao dang ket noi' };
 }
+/** (16/10/2026) Tab IPTV cua man (ung dung 'iptv' hoac trang iptv.html mo qua "Phát trên màn"). */
+function iptvTabOf(dev: DeviceSession): Tab | undefined {
+  return dev.tabs.get('iptv') ?? [...dev.tabs.values()].find((t) => t.kind === 'iptv' || /\/iptv\.html/.test(t.url));
+}
+/** (16/10/2026) Trang thai IPTV tung man cho trang Darboard → IPTV: mo?, dang hien?, dang phat? */
+export function iptvStatus(deviceId: string): { open: boolean; active: boolean; playing: boolean } {
+  const dev = devices.get(deviceId), t = dev && iptvTabOf(dev);
+  if (!dev || !t) return { open: false, active: false, playing: false };
+  return { open: true, active: dev.activeTabKey === t.key, playing: t.mediaPlaying };
+}
+/** (16/10/2026) Trang Darboard → IPTV: 'home' = ve man chinh (IPTV vao nen, ngung phat); 'stop' = ve man chinh + DONG tab IPTV. */
+export async function iptvControl(deviceId: string, act: 'stop' | 'home'): Promise<boolean> {
+  const dev = devices.get(deviceId);
+  if (!dev) return false;
+  const t = iptvTabOf(dev);
+  if (!t) { if (act === 'home') await openApp(dev, 'home'); return act === 'home'; }
+  if (dev.activeTabKey === t.key) await openApp(dev, 'home');
+  if (act === 'stop') closeTab(dev, t.key, 'dung IPTV tu trang Darboard');
+  console.log(`[iptv] ${deviceId}: ${act === 'stop' ? 'dung IPTV' : 've man chinh'} (trang Darboard)`);
+  return true;
+}
+
 /** Ung dung `key` dang la tab hien tren man hinh (va den nen dang bat). */
 /** (02/10/2026) Man hinh dang phat video/am thanh — Quan ly file tam dung day tep len the de video khong giat. */
 export function isMediaPlaying(deviceId: string): boolean {

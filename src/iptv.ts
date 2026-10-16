@@ -27,7 +27,12 @@ import { camHostOf, cameraDevices } from './camProxy.js';
 export interface IptvHooks {
   screens(): { id: string; name: string; online: boolean }[];
   cast(ids: string[], urlOf: (id: string) => string): { ok: boolean; sent: string[]; error?: string };
+  /** (16/10/2026) Trang thai / dieu khien IPTV tung man (trang Darboard). */
+  status?(id: string): { open: boolean; active: boolean; playing: boolean };
+  control?(id: string, act: 'stop' | 'home'): Promise<boolean>;
 }
+/** (16/10/2026) Kenh dang / vua phat tren tung man (iptv.html bao khi bat dau phat — POST /iptv/recent {name, dev}). */
+const nowOn = new Map<string, { name: string; at: number }>();
 let hooks: IptvHooks | null = null;
 export function setIptvHooks(h: IptvHooks): void { hooks = h; }
 // Dia chi server nhin tu chinh Chromium cua no (giong launcherApps.LOCAL) — trang iptv.html phai mo qua 127.0.0.1.
@@ -636,6 +641,27 @@ export function handleIptvApi(req: http.IncomingMessage, res: http.ServerRespons
     return true;
   }
   if (!local && !ingress) { json(res, 403, { error: 'Chỉ dùng được từ màn hình hoặc trang Darboard.' }); return true; }
+  // (16/10/2026) Trang Darboard → IPTV: tung man dang phat gi + dung / ve man chinh.
+  if (p === '/iptv/status' && req.method === 'GET') {
+    const list = (hooks ? hooks.screens() : []).map((s) => {
+      const st = hooks?.status?.(s.id) ?? { open: false, active: false, playing: false };
+      return { ...s, ...st, ch: st.open ? nowOn.get(s.id)?.name ?? '' : '' };
+    });
+    json(res, 200, { ok: true, screens: list });
+    return true;
+  }
+  if (p === '/iptv/control' && req.method === 'POST') {
+    readJson(req, 1024).then(async (b) => {
+      const o = b as { dev?: unknown; act?: unknown };
+      const dev = String(o.dev ?? ''), act = o.act === 'stop' ? 'stop' : o.act === 'home' ? 'home' : '';
+      if (!dev || !act || !hooks?.control) throw new Error('lệnh không hợp lệ');
+      const ok = await hooks.control(dev, act);
+      if (!ok) throw new Error('màn hình không kết nối');
+      if (act === 'stop') nowOn.delete(dev);
+      json(res, 200, { ok: true });
+    }).catch((e) => json(res, 400, { ok: false, error: (e as Error).message }));
+    return true;
+  }
   if (p === '/iptv/screens' && req.method === 'GET') {
     json(res, 200, { ok: true, screens: hooks ? hooks.screens() : [] });
     return true;
@@ -685,8 +711,9 @@ export function handleIptvApi(req: http.IncomingMessage, res: http.ServerRespons
   // (16/10/2026) Man bat dau phat mot kenh (iptv.html start) -> "Gần đây" (trang Darboard hien kenh xem gan day).
   if (p === '/iptv/recent' && req.method === 'POST') {
     readJson(req, 2048).then((b) => {
-      const o = b as { name?: unknown };
+      const o = b as { name?: unknown; dev?: unknown };
       if (typeof o.name === 'string') noteRecent(o.name);
+      if (typeof o.name === 'string' && typeof o.dev === 'string' && o.dev) nowOn.set(o.dev.slice(0, 64), { name: o.name.slice(0, 120), at: Date.now() });
       json(res, 200, { ok: true });
     }).catch(() => json(res, 400, { ok: false }));
     return true;

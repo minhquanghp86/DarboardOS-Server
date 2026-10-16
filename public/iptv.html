@@ -786,7 +786,7 @@
     var seq = ++S.seq;
     try { localStorage.setItem(K_LAST, JSON.stringify({ id: c.id, name: c.name })); } catch (e) { /* */ }
     // (16/10/2026) "Gần đây" chung (trang Darboard → IPTV).
-    fetch(rel('/iptv/recent'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: c.name }) }).catch(function () { });
+    fetch(rel('/iptv/recent'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: c.name, dev: DEV }) }).catch(function () { });
     show('player'); renderOsd(); live(false); osd(true, 0);
     msg('loading', 'Đang mở ' + c.name + '…', '');
     if (c.drm) { fail('Kênh này dùng DRM Widevine / PlayReady nên không phát được.', false); return; }

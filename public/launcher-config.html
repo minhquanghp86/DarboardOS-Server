@@ -483,6 +483,23 @@
   .mn-pv .tile { width: 52px; height: 52px; border-radius: 24%; }
   .mn-pv .lb { font-size: 12px; line-height: 1.2; text-align: center; max-width: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #groups .row .btn.ed-ic { width: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+
+  /* (16/10/2026) IPTV: trang thai tung man */
+  .iv-now { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+  .iv-now[hidden] { display: none; }
+  .iv-scr { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); }
+  .iv-scr.on { border-color: #22c55e; box-shadow: 0 0 0 1px #22c55e inset, var(--shadow); }
+  .iv-scr .hd { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .iv-scr .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line); flex: none; }
+  .iv-scr.on .dot { background: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,0.2); }
+  .iv-scr.bg .dot { background: #f59e0b; }
+  .iv-scr .nm { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .iv-scr .st { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .iv-scr.on .st { color: var(--text); }
+  .iv-scr .ac { display: flex; gap: 8px; }
+  .iv-scr .ac .btn { flex: 1; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 34px; }
+  .iv-scr .ac .btn svg { width: 18px; height: 18px; fill: currentColor; }
+  .iv-scr .ac .btn.stop { color: var(--danger); }
 </style>
 </head>
 <body>
@@ -649,6 +666,8 @@
 <div class="wrap">
   <!-- (16/10/2026) THIET KE LAI: tim kenh + chip (Yeu thich / Gan day / Tat ca / tung danh sach) + luoi the kenh; quan ly
        danh sach M3U chi mo khi bam "Danh sach kenh" (truoc: hai khoi dai xep doc, tim + chon kenh rat lau). -->
+  <!-- (16/10/2026) Tung man dang phat gi + Dung / Ve man chinh (truoc: phat len man roi khong dung duoc tu day). -->
+  <section class="iv-now" id="ivNow" aria-label="IPTV trên các màn hình" hidden></section>
   <div class="iv-top">
     <label class="iv-search"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="ivSearchPath" d=""/></svg>
       <input id="ivChQ" type="search" placeholder="Tìm kênh…" aria-label="Tìm kênh" autocomplete="off" spellcheck="false"></label>
@@ -2246,6 +2265,7 @@
       .then(function () {
         status('Đã gửi “' + c.name + '” tới ' + (picked.value === 'all' ? 'tất cả màn hình đang kết nối' : 'màn hình đã chọn') + '.', 'ok');
         $('ivCastDlg').close();
+        setTimeout(pollNow, 2500);
         var k = favKey(c); T.recent = [k].concat(T.recent.filter(function (x) { return x !== k; })).slice(0, 24);
         if (T.mode === 'recent') renderChannels();
       })
@@ -2267,8 +2287,53 @@
     if (open) setTimeout(function () { $('ivSettings').scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 30);
   };
 
+  // (16/10/2026) Tung man dang phat gi (iptv/status, 3 s khi the dang mo) + Dung / Ve man chinh (iptv/control).
+  var nowT = 0, nowBusy = false;
+  function renderNow(list) {
+    var box = $('ivNow');
+    box.hidden = !list.length;
+    box.replaceChildren.apply(box, list.map(function (x) {
+      var on = x.active && x.playing, bg = x.open && !x.active;
+      var card = el('div', 'iv-scr' + (on ? ' on' : bg ? ' bg' : ''));
+      var hd = el('div', 'hd'); hd.append(el('span', 'dot'), el('span', 'nm', x.name || x.id));
+      var st = el('div', 'st', on ? 'Đang phát' + (x.ch ? ': ' + x.ch : '') : x.open && x.active ? 'Đang mở IPTV' + (x.ch ? ' · ' + x.ch : '') :
+        bg ? 'IPTV đang chạy nền' + (x.ch ? ' · ' + x.ch : '') : 'Không phát IPTV');
+      var ac = el('div', 'ac');
+      if (x.open) {
+        var stop = el('button', 'btn stop'); stop.type = 'button'; stop.append(svg('stop'), document.createTextNode('Dừng')); stop.title = 'Dừng IPTV và về màn chính';
+        stop.onclick = function () { control(x, 'stop', stop); };
+        ac.append(stop);
+      }
+      if (x.open && x.active) {
+        var home = el('button', 'btn'); home.type = 'button'; home.append(svg('home'), document.createTextNode('Màn chính')); home.title = 'Về màn chính (IPTV vào nền)';
+        home.onclick = function () { control(x, 'home', home); };
+        ac.append(home);
+      }
+      card.append(hd, st);
+      if (ac.childNodes.length) card.append(ac);
+      return card;
+    }));
+  }
+  function pollNow() {
+    clearTimeout(nowT);
+    if (!visible() || document.hidden) return;
+    if (!nowBusy) {
+      nowBusy = true;
+      api('status').then(function (j) { renderNow(j.screens || []); }).catch(function () { }).then(function () { nowBusy = false; });
+    }
+    nowT = setTimeout(pollNow, 3000);
+  }
+  function control(x, act, btn) {
+    btn.disabled = true;
+    api('control', { dev: x.id, act: act })
+      .then(function () { status(act === 'stop' ? 'Đã dừng IPTV trên ' + (x.name || x.id) + '.' : (x.name || x.id) + ' đã về màn chính.', 'ok'); })
+      .catch(function (e) { status(e.message, 'err'); })
+      .then(function () { setTimeout(pollNow, 600); });
+  }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) pollNow(); });
   function enter() {
-    if (!visible()) return;
+    if (!visible()) { clearTimeout(nowT); return; }
+    pollNow();
     if (!T.loaded && !T.busy) load(false);
     if (!T.chLoaded && !T.chBusy) loadChannels(false);
   }

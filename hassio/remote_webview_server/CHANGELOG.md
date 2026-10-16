@@ -1,3 +1,8 @@
+## V2.9.158
+- IPTV (trang Darboard): hàng thẻ trạng thái từng màn hình ở đầu trang — Đang phát (kênh gì) / Đang mở / IPTV chạy nền /
+  Không phát — kèm nút **Dừng** (đóng IPTV trên màn, về màn chính) và **Màn chính** (IPTV vào nền). Tự làm mới 3 s. Trước:
+  phát lên màn rồi không dừng được từ trang này.
+
 ## V2.9.157
 - Trang Darboard — thiết kế lại, giai đoạn 2:
   - Màn khóa: ô "Xem trước màn khóa" (6 chỉ số đúng như trên màn, số liệu trực tiếp); cảm biến năng lượng thành danh sách gọn
