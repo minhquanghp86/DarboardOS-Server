@@ -325,6 +325,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   .saver.hascard.ck-m .sv-clock { font-size: min(32vmin, 21vw); }
   .saver.hascard.ck-l .sv-clock { font-size: min(40vmin, 25vw); }
   .saver.hascard.ck-xl .sv-clock { font-size: min(46vmin, 28vw); }
+  /* (16/10/2026) Them the "Cuoc goi nho" + 2 hang nang luong: cot trai cao hon man (do that P4: dinh dong ho bi cat). */
+  .saver.hasmiss.hascard .sv-main .sv-clock { font-size: min(34vmin, 22vw); }
 }
 @media (max-aspect-ratio: 4/3) {
   /* Man vuong (S3 480x480): dong ho + ngay + the xep doc gan het chieu cao -> bot mot nac co de chua cho goi y vuot. */
@@ -364,7 +366,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
    ngay thang. Mau theo vai tro (mat troi ho phach, pin theo %, camera dang thay nguoi = do). Khong hoat anh. */
 .sv-lw { display: flex; flex-direction: column; align-items: inherit; gap: clamp(6px, 1.6vmin, 12px); max-width: 100%; margin-top: clamp(2px, 1vmin, 8px); }
 .sv-lw:empty { display: none; }
-.lw-en { display: flex; justify-content: center; gap: clamp(14px, 3.6vmin, 30px); }
+/* (16/10/2026) 6 chi so: luoi 3 cot x 2 hang (cot rong theo noi dung, cac o cung cot thang hang). */
+.lw-en { display: grid; grid-template-columns: repeat(3, auto); justify-content: center; gap: clamp(8px, 2.4vmin, 18px) clamp(14px, 3.6vmin, 30px); }
 .lw-s { display: flex; align-items: center; gap: clamp(6px, 1.4vmin, 10px); min-width: 0; }
 .lw-s > .ic { flex: none; width: clamp(26px, 6.4vmin, 40px); height: clamp(26px, 6.4vmin, 40px); }
 .lw-tx { display: flex; flex-direction: column; min-width: 0; }
@@ -416,11 +419,12 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   .saver.hascard .sv-box { width: 100%; gap: 12px; }
   .saver.hascard .sv-main { flex: 1 1 0; min-width: 0; }
   .saver.hascard .sv-card { flex: none; }
-  .saver.hascard .lw-en { width: 100%; gap: 8px; }
-  .saver.hascard .lw-s { flex: 1 1 0; gap: 4px; }
-  .saver.hascard .lw-s > .ic { width: 20px; height: 20px; }
-  .saver.hascard .lw-v { font-size: 14px; }
-  .saver.hascard .lw-l { font-size: 9px; white-space: normal; }
+  .saver.hascard .lw-en { width: 100%; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px 6px; }
+  .saver.hascard .lw-s { gap: 3px; }
+  .saver.hascard .lw-s > .ic { width: 16px; height: 16px; }
+  .saver.hascard .lw-v { font-size: 13px; }
+  .saver.hascard .lw-l { font-size: 9px; margin-top: 0; overflow: hidden; text-overflow: ellipsis; }
+  .saver.hascard.haslw .lw-r { display: none; }
   .saver.hascard .lw-r { max-width: 100%; }
   .saver.hasmiss .lw-r { display: none; }
   .saver.hasmiss.hascard .sv-mimg { display: none; }

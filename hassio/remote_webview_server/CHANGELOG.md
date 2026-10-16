@@ -1,3 +1,9 @@
+## V2.9.151
+- Màn hình chờ / khoá: dải năng lượng nay có 6 chỉ số, xếp lưới 3 × 2 — PV hôm nay · Công suất PV · Tải hôm nay · Tiêu thụ
+  lưới · Tiêu thụ tải · Pin % (đang sạc / xả bao nhiêu). Thiếu cảm biến nào thì bỏ ô đó.
+- Trang Darboard → Màn khoá: thêm ô chọn cảm biến "Điện tải hôm nay" (kWh, tự về 0 lúc nửa đêm — vd Hòa lưới hôm nay).
+- Màn ngang có thẻ "Cuộc gọi nhỡ": đồng hồ nhỏ lại để không bị cắt mép trên (P4).
+
 ## V2.9.150
 - Sửa: màn đang ở MÀN HÌNH CHỜ (không khoá) — bấm Từ chối / hết chuông cổng thì về trang Home Assistant và phải chờ hết thời
   gian rảnh mới hiện lại màn hình chờ (gặp trên S3 480×272). Nay hiện lại màn hình chờ ngay, như màn khoá.

@@ -22,9 +22,11 @@ import { allCalendarEvents } from './calendarSource.js';
  *  grid: + = MUA dien (quy uoc HA); gridInvert: nguoc dau. pvToday: san luong mat troi HOM NAY (kWh, tu ve 0 luc nua dem). */
 export interface EnergyCfg {
   pv?: string; pvToday?: string; soc?: string; bat?: string; batInvert?: boolean; load?: string; grid?: string; gridInvert?: boolean;
+  /** (16/10/2026) Dien TAI hom nay (kWh, tu ve 0 luc nua dem) — vd "Hoa luoi hom nay" cua Luxpower. */
+  loadToday?: string;
 }
 /** So lieu gui Shell: W, kWh, %. bat + = dang xa; grid + = dang mua. Thieu / unavailable -> bo truong. */
-export interface LwEnergy { pv?: number; pvd?: number; soc?: number; bat?: number; load?: number; grid?: number }
+export interface LwEnergy { pv?: number; pvd?: number; soc?: number; bat?: number; load?: number; grid?: number; ld?: number }
 /** Su kien lich: t = tieu de; s/e = bat dau / ket thuc (ms epoch); ad = ca ngay (s/e = nua dem gio dia phuong). */
 export interface LwEvent { t: string; s: number; e: number; ad?: 1 }
 /** Lan phat hien camera gan nhat: c = camera, l = nhan Frigate (person/car...), sub = ten (nhan dien mat), live = dang dien ra. */
@@ -50,7 +52,7 @@ export function savedEnergyCfg(): EnergyCfg | null {
 export function sanitizeEnergyCfg(x: unknown): EnergyCfg {
   const o = (x && typeof x === 'object' ? x : {}) as Record<string, unknown>;
   const out: EnergyCfg = {};
-  for (const k of ['pv', 'pvToday', 'soc', 'bat', 'load', 'grid'] as const) {
+  for (const k of ['pv', 'pvToday', 'soc', 'bat', 'load', 'grid', 'loadToday'] as const) {
     const v = typeof o[k] === 'string' ? (o[k] as string).trim() : '';
     if (ENTITY_RE.test(v)) out[k] = v;
   }
@@ -117,11 +119,12 @@ export function buildEnergy(cfg: EnergyCfg, st: Partial<Record<keyof EnergyCfg, 
   if (bat !== undefined) out.bat = cfg.batInvert ? -bat : bat;
   if (grid !== undefined) out.grid = cfg.gridInvert ? -grid : grid;
   put('load', numIn(st.load ?? null, 'W'));
+  put('ld', numIn(st.loadToday ?? null, 'kWh'));
   return out;
 }
 async function fetchEnergy(): Promise<LwEnergy> {
   const { cfg } = await effectiveEnergyCfg();
-  const keys = (['pv', 'pvToday', 'soc', 'bat', 'load', 'grid'] as const).filter((k) => cfg[k]);
+  const keys = (['pv', 'pvToday', 'soc', 'bat', 'load', 'grid', 'loadToday'] as const).filter((k) => cfg[k]);
   const vals = await Promise.all(keys.map((k) => readState(cfg[k]!)));
   const st: Partial<Record<keyof EnergyCfg, RawState | null>> = {};
   keys.forEach((k, i) => { st[k] = vals[i]; });

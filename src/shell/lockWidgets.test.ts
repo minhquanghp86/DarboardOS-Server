@@ -11,14 +11,17 @@ describe("widget man khoa — dinh dang", () => {
       ["0 W", "239 W", "239 W", "999 W", "1,0 kW", "1,2 kW", "13 kW"]);
     expect([fmtKwh(12.44), fmtKwh(0), fmtKwh(3)]).toEqual(["12,4 kWh", "0 kWh", "3 kWh"]);
   });
-  it("nang luong do that 08/10 dem: PV 0, pin 64% xa 239 W, tai 222 W, khong mua luoi", () => {
-    expect(energyStats({ pv: 0, pvd: 0, soc: 64, bat: 239, load: 222, grid: 0 })).toEqual([
-      { k: "pv", v: "0 W", l: "0 kWh hôm nay", cls: "sun off" },
+  it("nang luong 6 chi so (16/10): PV hom nay, tai hom nay, luoi, tai, pin", () => {
+    expect(energyStats({ pv: 0, pvd: 0, soc: 64, bat: 239, load: 222, grid: 0, ld: 3.6 })).toEqual([
+      { k: "pvd", v: "0 kWh", l: "PV hôm nay", cls: "sun off" },
+      { k: "pv", v: "0 W", l: "Công suất PV", cls: "sun off" },
+      { k: "ld", v: "3,6 kWh", l: "Tải hôm nay", cls: "load" },
+      { k: "grid", v: "0 W", l: "Tiêu thụ lưới", cls: "grid" },
+      { k: "load", v: "222 W", l: "Tiêu thụ tải", cls: "load" },
       { k: "bat", v: "64%", l: "Đang xả 239 W", cls: "b-ok", soc: 64 },
-      { k: "load", v: "222 W", l: "Tiêu thụ", cls: "load" },
     ]);
     const day = energyStats({ pv: 3150, soc: 18, bat: -1800, load: 900, grid: 400 });
-    expect(day.map((s) => [s.v, s.l, s.cls])).toEqual([["3,2 kW", "Mặt trời", "sun"], ["18%", "Đang sạc 1,8 kW", "b-low"], ["900 W", "Lưới 400 W", "load"]]);
+    expect(day.map((s) => [s.v, s.l, s.cls])).toEqual([["3,2 kW", "Mặt trời", "sun"], ["400 W", "Tiêu thụ lưới", "grid"], ["900 W", "Tiêu thụ tải", "load"], ["18%", "Đang sạc 1,8 kW", "b-low"]]);
     expect(energyStats({ grid: -500 })).toEqual([{ k: "grid", v: "500 W", l: "Bán lưới", cls: "grid" }]);
   });
   it("lich theo gio thiet bi: hom nay / mai / thu, ca ngay, dang dien ra", () => {

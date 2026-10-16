@@ -4,14 +4,14 @@
 import { el, mdi, svgEl } from './dom';
 
 /** W, kWh, %. bat + = dang xa; grid + = dang mua dien. */
-export interface LwEnergy { pv?: number; pvd?: number; soc?: number; bat?: number; load?: number; grid?: number }
+export interface LwEnergy { pv?: number; pvd?: number; soc?: number; bat?: number; load?: number; grid?: number; ld?: number }
 /** t = tieu de; s/e = ms epoch; ad = ca ngay (s/e = nua dem gio dia phuong). */
 export interface LwEvent { t: string; s: number; e: number; ad?: 1 }
 /** c = camera Frigate, l = nhan (person/car...), sub = ten nhan dien, s = ms epoch bat dau, live = dang dien ra. */
 export interface LwCam { id: string; c: string; l: string; sub?: string; s: number; live?: 1 }
 export interface LwData { en?: LwEnergy; ev?: LwEvent[]; cam?: LwCam }
 
-export interface LwStat { k: 'pv' | 'bat' | 'load' | 'grid'; v: string; l: string; cls: string; soc?: number }
+export interface LwStat { k: 'pv' | 'pvd' | 'ld' | 'bat' | 'load' | 'grid'; v: string; l: string; cls: string; soc?: number }
 export interface LwRow { k: string; ic: string; b: string; t: string; cls: string }
 export interface LwModel { stats: LwStat[]; rows: LwRow[]; key: string }
 
@@ -51,9 +51,17 @@ export function camWhen(c: LwCam, now: number): string {
   return m < 1 ? 'Vừa xong' : `${m} phút trước`;
 }
 
+/** (16/10/2026) 6 chi so theo thu tu nguoi dung chon: PV hom nay (kWh) · Cong suat PV (W) · Tai hom nay (kWh) · Tieu thu
+ *  luoi (W) · Tieu thu tai (W) · Pin % (dang sac / xa bao nhieu). Thieu cam bien nao thi bo o do. */
 export function energyStats(en: LwEnergy): LwStat[] {
   const out: LwStat[] = [];
-  if (en.pv != null) out.push({ k: 'pv', v: fmtW(en.pv), l: en.pvd != null ? `${fmtKwh(en.pvd)} hôm nay` : 'Mặt trời', cls: en.pv >= 5 ? 'sun' : 'sun off' });
+  const sun = en.pv == null || en.pv >= 5 ? 'sun' : 'sun off';
+  if (en.pvd != null) out.push({ k: 'pvd', v: fmtKwh(en.pvd), l: 'PV hôm nay', cls: sun });
+  if (en.pv != null) out.push({ k: 'pv', v: fmtW(en.pv), l: en.pvd != null ? 'Công suất PV' : 'Mặt trời', cls: sun });
+  if (en.ld != null) out.push({ k: 'ld', v: fmtKwh(en.ld), l: 'Tải hôm nay', cls: 'load' });
+  const g = en.grid;
+  if (g != null) out.push({ k: 'grid', v: fmtW(g), l: g < -IDLE_W ? 'Bán lưới' : 'Tiêu thụ lưới', cls: 'grid' });
+  if (en.load != null) out.push({ k: 'load', v: fmtW(en.load), l: 'Tiêu thụ tải', cls: 'load' });
   if (en.soc != null || en.bat != null) {
     const p = en.bat ?? 0, soc = en.soc != null ? Math.round(en.soc) : undefined;
     out.push({
@@ -62,11 +70,6 @@ export function energyStats(en: LwEnergy): LwStat[] {
       cls: soc == null || soc >= 50 ? 'b-ok' : soc >= 20 ? 'b-mid' : 'b-low', ...(soc != null ? { soc } : {}),
     });
   }
-  const g = en.grid;
-  if (en.load != null) {
-    out.push({ k: 'load', v: fmtW(en.load), cls: 'load',
-      l: g != null && g > IDLE_W ? `Lưới ${fmtW(g)}` : g != null && g < -IDLE_W ? `Bán lưới ${fmtW(g)}` : 'Tiêu thụ' });
-  } else if (g != null) out.push({ k: 'grid', v: fmtW(g), l: g < -IDLE_W ? 'Bán lưới' : 'Lưới', cls: 'grid' });
   return out;
 }
 
@@ -109,7 +112,7 @@ export function buildLockWidgets(m: LwModel): HTMLElement[] {
     for (const s of m.stats) {
       const box = el('div', 'lw-s ' + s.cls), tx = el('div', 'lw-tx');
       tx.append(el('div', 'lw-v', s.v), el('div', 'lw-l', s.l));
-      box.append(s.k === 'bat' ? batteryIcon(s.soc) : mdi(s.k === 'pv' ? 'solar' : s.k === 'load' ? 'homebolt' : 'tower'), tx);
+      box.append(s.k === 'bat' ? batteryIcon(s.soc) : mdi(s.k === 'pvd' ? 'solar' : s.k === 'pv' ? 'sun' : s.k === 'load' ? 'homebolt' : s.k === 'ld' ? 'homebolto' : 'tower'), tx);
       strip.append(box);
     }
     out.push(strip);
