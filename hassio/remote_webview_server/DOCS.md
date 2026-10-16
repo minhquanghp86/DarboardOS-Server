@@ -73,16 +73,13 @@ Màn hình ESP32-S3/P4 khác (có PSRAM, màn hình ESPHome hỗ trợ) thườn
 3. **Tạo tài khoản HA riêng cho màn hình** (khuyến nghị): Cài đặt → Người & Khu vực → Người → thêm người, *không* cho
    quyền quản trị. Màn hình sẽ đăng nhập bằng tài khoản này.
 4. **Chuẩn bị firmware**: trong addon ESPHome tạo thiết bị mới, dán cấu hình mẫu của màn hình bạn từ thư mục
-   [`examples/`](https://github.com/minhquanghp86/HA-Darboard-Client/tree/main/examples) của repo firmware. Sửa hai dòng:
-
-   ```yaml
-   remote_webview:
-     server: 192.168.1.10:8081            # IP máy Home Assistant : ws_port của addon
-     url: http://192.168.1.10:8123/lovelace/0   # trang mở khi khởi động
-   ```
-
-   Thêm `wifi_ssid`, `wifi_password`, `ap_fallback_password` vào `secrets.yaml` của ESPHome.
-5. **Nạp firmware** lần đầu qua cáp USB, các lần sau qua WiFi (OTA). Màn hình khởi động, kết nối addon và hiện trang.
+   [`examples/`](https://github.com/minhquanghp86/HA-Darboard-Client/tree/main/examples) của repo firmware — **không phải sửa
+   gì**: YAML mẫu là *một file cho mọi thiết bị* (không có IP, tên, Wi-Fi của nhà nào). Tên tự thêm 6 số MAC, Wi-Fi nhập qua
+   mạng tạm `<tên>` (captive portal), địa chỉ máy chủ Darboard và Home URL **tự lấy từ Home Assistant** lần đầu kết nối, múi giờ
+   do Home Assistant (≥ 2026.3) gửi. Đổi sau này ở các thực thể **HA Darboard server** / **Home URL** của thiết bị.
+5. **Nạp firmware** lần đầu qua cáp USB, các lần sau qua WiFi (OTA). Mở mạng Wi-Fi `<tên>` của màn hình trên điện thoại và nhập
+   Wi-Fi nhà; thêm thiết bị vào Home Assistant (tích hợp ESPHome) — màn hình tự nhận địa chỉ máy chủ rồi khởi động lại một lần
+   và hiện trang. Muốn giữ tên cũ / nạp sẵn Wi-Fi / IP tĩnh: dùng file riêng gọi YAML chung (`examples/rieng-cua-ban/`).
 6. **Đăng nhập Home Assistant lần đầu** ngay trên màn hình: chạm vào ô tên đăng nhập → bàn phím ảo hiện ra (có tiếng
    Việt, gõ Telex) → đăng nhập bằng tài khoản ở bước 3, tích *Ghi nhớ*. Đăng nhập được lưu trong thư mục hồ sơ của
    addon (`/data/pw-data`), không mất khi cập nhật.
