@@ -2287,7 +2287,13 @@ export function physicalButton(dev: DeviceSession, button: number, press: 'click
   dev.lastTouchMs = Date.now();
   if (dev.saverOn) { if (dev.locked) wakeBrightWhileLocked(dev); else setSaver(dev, false); return; }
   if (button === 2) {
-    if (press === 'long') openApp(dev, 'cams').catch((e: unknown) => console.warn(`[nut] ${id}: mo Frigate that bai:`, e));
+    if (press === 'long') {
+      // Giu Home: vao THANG Frigate, uu tien hon ban phim ao dang mo / o nhap dang chon cua trang hien tai (dong truoc roi moi chuyen).
+      dev.cdp.send('Runtime.evaluate', {
+        expression: '(function(){ try { window.__vkbHide && window.__vkbHide(); var a = document.activeElement; if (a && a.blur) a.blur(); } catch (e) {} })()',
+      }).catch(() => { });
+      openApp(dev, 'cams').catch((e: unknown) => console.warn(`[nut] ${id}: mo Frigate that bai:`, e));
+    }
     return;
   }
   if (press === 'long' || (button !== 1 && button !== 3)) return;

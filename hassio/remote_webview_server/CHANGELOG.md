@@ -1,3 +1,7 @@
+## V2.9.168
+- Nút giữa (Home) giữ ≥ 2 s: vào thẳng Frigate, **đóng bàn phím ảo / bỏ chọn ô nhập** của trang đang mở trước khi chuyển (không còn
+  bàn phím nằm lại).
+
 ## V2.9.167
 - Mới: **nút bấm vật lý** màn S3 480×272 (firmware `fw-2026.10.23`): nút trái / phải = bài (kênh) trước / sau của trình phát đang
   chạy, giữ nút giữa ≥ 2 s = mở ứng dụng Frigate (nút giữa nhấn = về Home như trước). Thay chế độ xem camera cũ bằng go2rtc.

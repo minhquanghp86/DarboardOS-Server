@@ -47,8 +47,13 @@ it('trai / phai = bai truoc / sau khi dang phat; khong phat thi bo qua; giu giua
   expect(await calls()).toEqual({ nx: 1, pv: 1 });
 
   // Giu giua >= 2 s (firmware gui "long") -> mo ung dung Frigate; nhan giua thuong khong lam gi o server
+  // (o nhap dang duoc chon + ban phim ao: giu Home phai dong chung va vao thang Frigate)
+  await srv.evaluate(ha, `(() => { const i = document.createElement('input'); i.id = 'zz'; document.body.appendChild(i); i.focus(); window.__hid = 0; const f = window.__vkbHide; window.__vkbHide = () => { window.__hid++; if (f) f(); }; })()`);
   dev.event(BTN, C, 'long');
   await dev.waitFor(() => srv.log().includes('chuyen sang tab "cams"'), 12_000, 'mo Frigate');
+
+  expect(await srv.evaluate<number>(ha, 'window.__hid')).toBeGreaterThanOrEqual(1);
+  expect(await srv.evaluate<boolean>(ha, "document.activeElement && document.activeElement.id === 'zz'")).toBe(false);
 
   // Nut la khong lam sap server
   dev.event(BTN, 9);

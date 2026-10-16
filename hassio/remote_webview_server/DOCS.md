@@ -258,13 +258,13 @@ Dùng được không cần chạm màn hình:
 
 | Nút | Nhấn | Giữ ≥ 2 giây |
 |---|---|---|
-| **Giữa** (Home) | Về trang chủ Home Assistant (*Home URL* của màn) | Mở ứng dụng **Frigate** |
+| **Giữa** (Home) | Về trang chủ Home Assistant (*Home URL* của màn) | Vào **thẳng Frigate** (đóng bàn phím ảo / ô nhập đang mở) |
 | **Trái** | Bài / kênh **trước** của trình phát đang chạy | — |
 | **Phải** | Bài / kênh **tiếp theo** của trình phát đang chạy | — |
 
 Trình phát: Radio (kênh trước / sau), YouTube / nhạc (phím media Track Previous / Next); không có gì đang phát thì nút trái / phải
 không làm gì. Màn đang ở màn hình chờ / khóa: nhấn đầu chỉ **đánh thức** màn (không đổi bài, không mở khóa). Cần firmware
-`fw-2026.10.23` trở lên.
+`fw-2026.10.23` trở lên (server ≥ 2.9.168 cho phần đóng bàn phím).
 
 ### Bàn phím ảo
 
