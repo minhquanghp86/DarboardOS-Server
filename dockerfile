@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright (c) 2026 minhquanghp86
+# Licensed under the Apache License, Version 2.0 (see LICENSE).
 # Build từ Playwright image có Chrome
 FROM mcr.microsoft.com/playwright:v1.55.0-jammy AS base
 
@@ -76,6 +80,13 @@ COPY self-test ./self-test
 # HEALTH_PORT (KHÔNG tunnel ra ngoài) thay vì /config/www/ của HA (bị lộ ra
 # internet qua Cloudflare Tunnel). Xem ghi chú trong src/index.ts.
 COPY public ./public
+
+# (16/10/2026) Giay phep + thong bao di kem anh (Apache-2.0 §4(a)/(d), LGPL cua libvips trong sharp, OFL cua font dong ho):
+# nguoi nhan anh phai thay duoc LICENSE / NOTICE / THIRD-PARTY-NOTICES ngay trong anh (docker run ... ls /licenses).
+COPY LICENSE LICENSE-MIT LICENSE-OFL-BebasNeue.txt NOTICE THIRD-PARTY-NOTICES.md TRADEMARKS.md /licenses/
+LABEL org.opencontainers.image.licenses="Apache-2.0 AND MIT" \
+      org.opencontainers.image.source="https://github.com/minhquanghp86/HA-Darboard-Server" \
+      org.opencontainers.image.vendor="minhquanghp86"
 
 # Create user data directory
 RUN mkdir -p /pw-data && chmod 777 /pw-data

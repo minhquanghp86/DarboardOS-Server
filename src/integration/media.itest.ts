@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (30/09/2026) Server bao thiet bi "dang phat media" (DeviceControl Media=7) — P4 dung de tam dung tu danh thuc + AEC
 // trong luc phat video/am thanh (giu tro ly giong noi ma khong tranh CPU voi video).
 import { afterEach, beforeEach, expect, it } from 'vitest';

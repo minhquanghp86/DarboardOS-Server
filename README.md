@@ -9,7 +9,7 @@ Dự án gồm hai repo dùng cùng nhau:
 
 | Repo | Vai trò | Phiên bản hiện tại (16/10/2026) |
 |---|---|---|
-| **HA-Darboard-Server** (repo này) | Máy chủ — addon Home Assistant (hoặc container Docker) | **2.9.163** |
+| **HA-Darboard-Server** (repo này) | Máy chủ — addon Home Assistant (hoặc container Docker) | **2.9.164** |
 | [HA-Darboard-Client](https://github.com/minhquanghp86/HA-Darboard-Client) | Firmware màn hình (ESPHome) + cấu hình mẫu đang chạy thật | tag **`fw-2026.10.20`** |
 
 > Tài liệu bàn giao / báo cáo nội bộ được giữ riêng (không công khai).
@@ -288,13 +288,23 @@ npm run test:integration   # server thật + Chromium thật + panel giả qua W
 
 - Phát triển tiếp từ [strange-v/RemoteWebViewServer](https://github.com/strange-v/RemoteWebViewServer) — cảm ơn
   strange-v. Ý tưởng bàn phím ảo từ [SleepinDevil](https://github.com/SleepinDevil/RemoteWebViewServer).
-- Dữ liệu thời tiết [Open-Meteo](https://open-meteo.com), radio Đài Tiếng nói Việt Nam, âm lịch theo thuật toán
-  Hồ Ngọc Đức, biểu tượng [Material Design Icons](https://pictogrammers.com/library/mdi/).
+- Dữ liệu thời tiết [Open-Meteo](https://open-meteo.com) (CC BY 4.0), radio Đài Tiếng nói Việt Nam, biểu tượng
+  [Material Design Icons](https://pictogrammers.com/library/mdi/).
 
 | Phần | Giấy phép | File |
 |---|---|---|
 | Mã gốc của strange_v | MIT © 2025 strange_v | `LICENSE-MIT` |
 | Sửa đổi và bổ sung | Apache License 2.0 © 2026 minhquanghp86 | `LICENSE` |
+| **Âm lịch** (`public/lunar.js`, thuật toán của Hồ Ngọc Đức) | **Chỉ dùng cá nhân, phi thương mại**, giữ nguyên thông báo | đầu file, `NOTICE` |
+| Font đồng hồ (Bebas Neue, phần số) | SIL OFL 1.1 | `LICENSE-OFL-BebasNeue.txt` |
+| Thư viện npm (sharp/libvips, ical.js, hls.js, ...) | Giấy phép riêng từng thư viện | `THIRD-PARTY-NOTICES.md` |
 
-Mọi file đã sửa từ upstream đều có thông báo ở đầu file theo Apache-2.0 §4(b); xem `NOTICE`. Khi dùng lại mã nguồn, giữ
-cả hai thông báo bản quyền.
+Khi dùng lại, sao chép hay phát hành lại (mã hoặc ảnh Docker), theo Apache-2.0 mục 4 bạn phải: **kèm bản `LICENSE`**; **giữ**
+các thông báo bản quyền trong file và cả hai thông báo (strange_v + minhquanghp86); **ghi rõ file nào bạn đã sửa**; **giữ nội
+dung `NOTICE`**. Mọi file mã nguồn đều có dòng `SPDX-License-Identifier` ở đầu (kiểm bằng `npm run check:spdx`); ảnh Docker
+kèm toàn bộ giấy phép trong `/licenses`.
+
+- **Dùng thương mại:** giấy phép Apache-2.0 cho phép, **trừ** file âm lịch ở trên (chỉ phi thương mại) — muốn dùng thương mại phải
+  gỡ / thay phần âm lịch hoặc xin phép tác giả thuật toán. Ảnh Docker còn chứa Google Chrome theo điều khoản riêng của Google.
+- **Tên, logo** "HA Darboard" / "Darboard" không được cấp phép dùng cho bản fork — xem [`TRADEMARKS.md`](TRADEMARKS.md).
+- **Đóng góp** theo [`CONTRIBUTING.md`](CONTRIBUTING.md) (Apache-2.0 mục 5, mã phải có nguồn gốc rõ ràng).

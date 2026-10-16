@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (30/09/2026) Server bao thiet bi "dang man hinh cho" (DeviceControl Saver=8) — P4 phat hien khuon mat ca luc man
 // hinh cho, thay mat thi ve trang chu. Phai bao NGAY khi man hinh cho tat (cham), khong doi nhip 5 s.
 import { afterEach, beforeEach, expect, it } from 'vitest';

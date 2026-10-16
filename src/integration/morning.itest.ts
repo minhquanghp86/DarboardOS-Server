@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (27/09/2026) Chao buoi sang + Bang tin: ghi chu gui tu HA -> the thong bao + luu; camera thay nguoi lan dau trong
 // khung gio sang -> mo "Hom nay" va doc tom tat (tts.speak toi media_player cua CHINH panel); lan sau trong ngay: khong.
 import fs from 'node:fs';

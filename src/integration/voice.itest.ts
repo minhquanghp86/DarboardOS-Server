@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (27/09/2026) Thu tich hop tro ly giong noi: firmware bao trang thai (DeviceEvent) -> the tro ly tren Shell cua tab
 // dang hien; nut "Tro ly" tren Shell -> DeviceControl Assist xuong thiet bi; man hinh cho tat khi tro ly nghe.
 import fs from 'node:fs';

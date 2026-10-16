@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 import { describe, expect, it } from "vitest";
 import { buildMedia, buildRooms, buildTodoLists, planAction, planTodo, shortName, todoItemsOf } from "./homeModel.js";
 import type { HaState } from "./settingsModel.js";

@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (25/09/2026) API cua trang "Menu panel" (ingress HA): doc / luu cau hinh menu ung dung.
 //   GET  launcher/config -> { apps, config, groups, mdiVersion }
 //   POST launcher/config -> luu (CHI qua ingress: dia chi Supervisor 172.30.32.2 — ingress da buoc dang nhap HA;

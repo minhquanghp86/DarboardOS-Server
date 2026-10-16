@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (25/09/2026) Tinh chinh LUC DANG CHAY, khong can khoi dong lai container.
 //
 // Ly do: moi lan `docker restart` de thu mot tham so, Supervisor lai TAO LAI container (do that 2 lan) -> ban va nong

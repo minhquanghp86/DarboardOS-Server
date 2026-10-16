@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (08/10/2026) Danh sach thuc the THAT cua P4 + S3 (lay tu ung dung Cai dat 08/10) — kiem luat xep nhom kieu iOS.
 export const REAL_P4: [string, string, string, string][] = [
   ["light.7inch_tab_lcd_backlight", "light", "control", "LCD Backlight"],

@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 import { describe, expect, it } from "vitest";
 import { EdgeGestures, RECENTS_HOLD_MS } from "./gestures.js";
 import { TouchKind } from "./protocol.js";

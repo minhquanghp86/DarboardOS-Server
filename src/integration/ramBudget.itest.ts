@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (30/09/2026) Ngan sach RAM: tab nen khong dung qua IDLE_TAB_CLOSE_MIN -> dong han (giai phong renderer Chromium) nhung
 // VAN con trong "Gan day" (anh + URL cu); cham the = mo lai dung trang. /metrics bao RAM/swap may chu.
 import { afterEach, beforeEach, expect, it } from 'vitest';

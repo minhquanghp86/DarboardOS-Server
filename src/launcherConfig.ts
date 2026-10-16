@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (25/09/2026) Cau hinh MENU UNG DUNG chinh bang giao dien (trang "Menu panel" tren thanh ben HA — ingress):
 // an/hien, thu tu trong nhom, doi ten/bieu tuong/mau, them ung dung. Luu /data/launcher.json (ben qua cap nhat addon).
 // Bieu tuong MDI ("mdi:ten", dung bo HA dung): server tai SVG tu jsDelivr MOT lan, luu dem /data/mdi-cache.json, roi

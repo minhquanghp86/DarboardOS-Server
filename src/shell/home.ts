@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (27/09/2026 OS-3) MAN HINH CHINH cua OS (/os/home): tien ich + luoi ung dung chia trang + dock, va CHE DO SAP XEP
 // kieu may tinh bang:
 //   - Cham giu mot ung dung ~0,5 s -> vao che do sap xep va nhac ung dung len luon (keo theo ngon).

@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (07/10/2026) Cu chi tren man hinh khoa / man hinh cho — ham thuan (src/shell/lockGesture.test.ts).
 // Vuot LEN de mo khoa: bat dau o 65% duoi man hinh, di len >= 22% chieu cao (toi thieu 70 px), gan thang dung, trong
 // 2,5 s — cham / quet nham / ngon tay ty len man hinh khong mo duoc. Vuot ngang (khi co anh) = anh sau / truoc.

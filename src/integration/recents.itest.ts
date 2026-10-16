@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (26/09/2026 OS-3) Thu tich hop man hinh "Gan day": anh thu nho tung ung dung, cham de chuyen, dong mot / dong tat ca.
 import fs from 'node:fs';
 import path from 'node:path';

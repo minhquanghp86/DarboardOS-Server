@@ -1,4 +1,8 @@
 #!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright (c) 2026 minhquanghp86
+# Licensed under the Apache License, Version 2.0 (see LICENSE).
 # (23/09/2026) Khoi dong PulseAudio (che do he thong, sink ao "chrome_out")
 # TRUOC KHI chay lenh chinh (node dist/index.js, hoac run.sh cua addon boc
 # ngoai no) — Chrome can PULSE_SERVER san sang tu luc no khoi dong de dua

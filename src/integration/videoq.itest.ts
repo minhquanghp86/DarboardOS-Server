@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (30/09/2026) Ha chat luong screencast khi phat video (2.9.72/2.9.74): trang co hoat anh lien tuc -> Chrome chuyen sang
 // chat luong cua thiet bi; hoat anh dung -> ve 90, khung van den. Loi that 30/09: goi lai startScreencast khi dang chay
 // bi Chrome tu choi ("Screencast is already active") -> tinh nang khong bao gio chay ma khong test nao bat duoc.

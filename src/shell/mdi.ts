@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (25/09/2026) Duong ve 24x24 cua cac bieu tuong Material Design Icons 7.4.47 dung trong Shell (tai san luc viet ma,
 // khong tai luc chay). Nguon: https://pictogrammers.com/library/mdi/ (Apache-2.0).
 export const MDI: Record<string, string> = {

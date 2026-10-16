@@ -1,4 +1,8 @@
 #!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright (c) 2026 minhquanghp86
+# Licensed under the Apache License, Version 2.0 (see LICENSE).
 # (14/10/2026) DUNG ANH THU KHONG CAN GITHUB ACTIONS: build TypeScript tren may dev, chep dist/ + public/ + package*.json
 # sang HASS, chong len anh addon DA PHAT HANH cua phien ban dang cai, gan lai dung tag do roi khoi dong lai addon.
 # Chi dung khi KHONG doi thu vien npm (node_modules lay tu anh goc). Quay ve ban phat hanh:

@@ -10,4 +10,71 @@ LICENSE-MIT and continues to apply to those portions of the code.
 
 Modifications and additions made in this repository are licensed under the
 Apache License, Version 2.0 (see LICENSE). Files that were modified from the
-original carry a notice to that effect at the top of the file.
+original carry a notice to that effect at the top of the file
+(SPDX-License-Identifier: Apache-2.0 AND MIT). Every other source file carries
+SPDX-License-Identifier: Apache-2.0 (checked by `npm run check:spdx`).
+
+If you redistribute this work (source or the Docker image), Apache-2.0 section 4
+requires you to: include a copy of LICENSE; keep the copyright / license notices
+in the files; state prominently in files you change that you changed them; and
+include a readable copy of the attribution notices of this NOTICE file.
+
+
+COMPONENTS NOT LICENSED UNDER APACHE-2.0
+----------------------------------------
+
+1. public/lunar.js - Vietnamese lunar calendar computation, based on the
+   algorithm and code of Ho Ngoc Duc
+   (https://www.informatik.uni-leipzig.de/~duc/amlich/):
+
+     Copyright 2004 Ho Ngoc Duc. Permission to use, copy, modify, and
+     redistribute this software and its documentation for personal,
+     non-commercial use is hereby granted provided that this copyright
+     notice appears in all copies.
+
+   This file (including this project's changes to it) is available ONLY under
+   those terms: personal, NON-COMMERCIAL use, with the notice kept in all
+   copies. It is identified as SPDX LicenseRef-HoNgocDuc-NonCommercial. The
+   Apache-2.0 grant in LICENSE does not extend to it. Anyone who wants to use
+   this project commercially must remove or replace this file (the lunar date
+   display) or obtain the author's permission.
+
+2. src/shell/clockFont.ts - embeds a subset (digits and colon) of the font
+   Bebas Neue by Dharma Type, under the SIL Open Font License 1.1
+   (LICENSE-OFL-BebasNeue.txt).
+
+3. public/icons.js and icons fetched at run time - Material Design Icons
+   (Pictogrammers), Apache License 2.0.
+
+4. npm dependencies - each keeps its own license; the full list with license
+   texts is in THIRD-PARTY-NOTICES.md (generated: `npm run licenses`).
+   - sharp ships the prebuilt libvips shared library (LGPL-3.0-or-later,
+     https://github.com/lovell/sharp-libvips). It is loaded dynamically from
+     node_modules and can be replaced by the user.
+   - ical.js is under MPL-2.0 (https://github.com/kewisch/ical.js); it is used
+     unmodified.
+
+5. The published Docker image also contains software that is NOT part of this
+   project and keeps its own terms: the Playwright base image (Microsoft,
+   Apache-2.0), Google Chrome (proprietary; Google Chrome Terms of Service),
+   PulseAudio (own license), Debian/Ubuntu packages (see /usr/share/doc/*/copyright
+   inside the image).
+
+
+EXTERNAL SERVICES AND DATA (not distributed with this project)
+--------------------------------------------------------------
+
+- Weather: Open-Meteo (https://open-meteo.com), data under CC BY 4.0; the free
+  API is intended for non-commercial use - the operator of each installation is
+  responsible for complying with Open-Meteo's terms.
+- Web fonts (Be Vietnam Pro, SIL OFL) are loaded by the pages from Google Fonts
+  at run time; they are not included in this repository.
+- Radio (Voice of Vietnam), IPTV lists, YouTube and other web content opened
+  in the panel belong to their owners and are used under their own terms.
+
+TRADEMARKS
+----------
+
+The names and logos "HA Darboard" and "Darboard" (as used for this product)
+are not licensed - see TRADEMARKS.md and Apache-2.0
+section 6.

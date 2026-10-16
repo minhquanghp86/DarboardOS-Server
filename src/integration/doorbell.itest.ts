@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (27/09/2026) Chuong cua: POST /doorbell -> panel mo camera cong toan man hinh; Mo cong -> dung script HA da khai;
 // Dong / het gio -> quay ve ung dung truoc, tab chuong dong.
 import fs from 'node:fs';

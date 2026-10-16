@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (07/10/2026) Hang doi gui cua KERNEL cho tung socket thiet bi (cot Send-Q cua `ss` = tx_queue trong /proc/net/tcp6).
 // Do that khi P4 phat YouTube: trung vi 21 KB, p90 143 KB, max 374 KB — nam TRUOC moi goi am thanh nhung
 // ws.bufferedAmount khong thay (chi la phan Node con giu), nen bo khung / gian nhip phan ung qua muon va tieng bi dut

@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (25/09/2026) Bieu tuong ung dung (o mau bo goc + hinh trang). Hinh ve tay giu nguyen tu launcher cu; 'ha' = logo Home
 // Assistant (MDI); 'mdi' = duong ve do server chen (bieu tuong nguoi dung chon o Menu panel).
 import { MDI } from './mdi';

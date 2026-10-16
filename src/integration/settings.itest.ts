@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (26/09/2026 OS-4) Thu tich hop trang Cai dat voi mot Home Assistant GIA (REST + WebSocket): tim thiet bi theo MAC,
 // doc thuc the, doi cai dat -> HA nhan dung dich vu; trang khong phai Cai dat thi bi tu choi.
 import fs from 'node:fs';

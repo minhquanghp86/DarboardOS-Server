@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright (c) 2026 minhquanghp86
+# Licensed under the Apache License, Version 2.0 (see LICENSE).
 set -euo pipefail
 
 OPTIONS_FILE="/data/options.json"

@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (09/10/2026) THANH CONG CU KIEU CHROME cho tab trinh duyet (ung dung "Chrome"; server danh dau tab bang window.__RWV_BROWSER):
 // lui / toi / tai lai / o dia chi (hien trang dang xem; cham de go dia chi hoac tu khoa -> tim Google) / trang chu / thu gon.
 // O DAY man hinh (nhu che do "thanh dia chi duoi" cua Chrome Android) — mep tren da co dong ho. DOM THUONG (khong Shadow)

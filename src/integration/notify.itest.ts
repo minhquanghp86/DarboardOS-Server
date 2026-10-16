@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (26/09/2026 OS-5) Thu tich hop thong bao: POST /notify -> the noi + lich su; Khong lam phien; cham the mo ung dung.
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { FakeDevice, TestServer, sleep } from './harness.js';

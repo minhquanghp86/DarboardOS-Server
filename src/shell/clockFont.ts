@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0 AND OFL-1.1
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (07/10/2026) Font dong ho man hinh khoa / cho: Bebas Neue (Dharma Type, SIL Open Font License 1.1 — xem
 // LICENSE-OFL-BebasNeue.txt), CHI giu "0123456789:" (pyftsubset -> woff2 4,9 KB, moi chu so rong bang nhau). Nhung thang
 // vao Shell: trang nao cung hien dung, khong tai them; Shadow DOM dung duoc vi FontFace gan vao document.fonts. Trang co

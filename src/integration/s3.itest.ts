@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (27/09/2026 OS-6) Bo cuc tren man hinh nho cua panel S3 (480x480, 480x272): moi be mat cua Shell phai nam tron
 // trong man hinh (khong tran, khong bi cat), chu du doc. ITEST_SHOTS=<thu muc> de luu anh xem bang mat.
 import fs from 'node:fs';

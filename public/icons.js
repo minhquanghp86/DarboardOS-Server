@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (01/10/2026) Bieu tuong MDI 7.4.47 (Apache-2.0, Pictogrammers) dung chung cho files.html, chat.html, launcher-config.html.
 // Them bieu tuong: lay thuoc tinh d cua https://cdn.jsdelivr.net/npm/@mdi/svg@7.4.47/svg/<ten>.svg
 window.RwvIcons = {

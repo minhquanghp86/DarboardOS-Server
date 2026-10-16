@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (27/09/2026) Man hinh cho dang KHUNG ANH SO: ban ngay -> anh (dung kich thuoc man hinh, theo cai dat cua man hinh:
 // thu tu, hieu ung, kieu hien thi, chu thich); VUOT trai/phai -> anh sau/truoc; album Google loi mang -> van dung thu
 // muc; ban dem -> chi dong ho.

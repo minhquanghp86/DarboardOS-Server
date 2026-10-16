@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (25/09/2026) Thoi tiet THU GON cho dau menu ung dung (bieu tuong + nhiet do + kha nang mua) tai vi tri nha trong HA.
 // Server lay 15 phut/lan tu Open-Meteo roi day kem trang thai thiet bi — menu khong phai tu tai gi khi mo.
 // (01/10/2026) Open-Meteo tra 503 dung luc addon khoi dong lai -> khung thoi tiet o Home bien mat 15 phut. Nay: loi thi thu

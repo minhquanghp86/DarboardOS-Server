@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (25/09/2026) Nhan dien cu chi MEP MAN HINH o server (docs/KE-HOACH-GIAO-DIEN-HE-DIEU-HANH.md muc 3.3).
 // Server thay chuoi cham tho cua panel TRUOC trinh duyet -> cu chi chay tren moi trang (ke ca trang chan cham, video,
 // iframe khac nguon). Quy tac:

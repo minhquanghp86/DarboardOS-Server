@@ -1,3 +1,10 @@
+## V2.9.164
+- Giấy phép (không đổi chức năng): giữ Apache-2.0 + MIT nhưng siết chặt — mọi file mã nguồn có tiêu đề SPDX (kiểm bằng
+  `npm run check:spdx`); ảnh Docker kèm `LICENSE`, `NOTICE`, `THIRD-PARTY-NOTICES.md` trong `/licenses` và nhãn giấy phép;
+  `NOTICE` viết lại đầy đủ; thêm `THIRD-PARTY-NOTICES.md` (24 thư viện kèm toàn văn giấy phép, sinh bằng `npm run licenses`),
+  `TRADEMARKS.md` (tên / logo "Darboard" không cấp phép cho bản fork), `CONTRIBUTING.md`.
+- Ghi rõ **âm lịch** (`public/lunar.js`, thuật toán của Hồ Ngọc Đức) chỉ được dùng **cá nhân, phi thương mại**, không thuộc Apache-2.0.
+
 ## V2.9.163
 - Màn hình / trang chủ Darboard: màn không lắp pin (P4) hiện **Cắm nguồn · không lắp pin** (trước đây không hiện gì về
   nguồn); màn có pin hiện thêm trạng thái "sạc" / "cắm nguồn" cạnh %.

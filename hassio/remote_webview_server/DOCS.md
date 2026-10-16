@@ -675,3 +675,10 @@ chậm hơn một chút.
 - Giấy phép: mã gốc MIT © strange_v; sửa đổi và bổ sung Apache-2.0 © minhquanghp86 (xem `LICENSE`, `LICENSE-MIT`,
   `NOTICE` trong repo).
 - Nhật ký thay đổi: tab *Nhật ký thay đổi* của addon.
+
+## Giấy phép
+
+Mã của dự án theo **Apache-2.0** (phần phái sinh từ strange_v theo **MIT**). Riêng chức năng **âm lịch** dùng mã của Hồ Ngọc Đức
+chỉ cho phép **dùng cá nhân, phi thương mại**. Thư viện bên thứ ba có giấy phép riêng (xem `THIRD-PARTY-NOTICES.md` trong
+kho mã). Toàn bộ văn bản giấy phép nằm trong ảnh Docker tại `/licenses`. Tên và logo "HA Darboard" / "Darboard" không được
+cấp phép dùng cho bản fork. Chi tiết: README, `NOTICE`, `TRADEMARKS.md`.

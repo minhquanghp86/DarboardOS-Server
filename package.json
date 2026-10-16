@@ -1,7 +1,10 @@
 {
   "name": "remotewebviewserver",
-  "version": "2.9.163",
+  "version": "2.9.164",
   "type": "module",
+  "license": "Apache-2.0 AND MIT",
+  "author": "minhquanghp86",
+  "repository": { "type": "git", "url": "git+https://github.com/minhquanghp86/HA-Darboard-Server.git" },
   "scripts": {
     "dev": "tsx src/index.ts",
     "build": "tsc && esbuild src/shell/main.ts --bundle --format=iife --target=chrome120 --minify --outfile=dist/shell.bundle.js",
@@ -11,6 +14,8 @@
     "test:watch": "vitest --watch",
     "coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "licenses": "node scripts/gen-third-party.mjs",
+    "check:spdx": "node scripts/check-spdx.mjs",
     "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {

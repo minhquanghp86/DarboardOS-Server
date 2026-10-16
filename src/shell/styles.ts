@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (25/09/2026) CSS cua Shell — nam trong Shadow DOM nen trang web ben duoi khong de duoc (truoc day font dong ho bi
 // trang doi). Kich thuoc theo vmin: cung ma chay tren P4 1024x600 va S3 480x480 / 480x272.
 // KHONG hieu ung chay lien tuc: moi khung dong la bang thong WiFi. Chi transform/opacity/height ngan (muc 'full').

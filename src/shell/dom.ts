@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (25/09/2026) Tien ich DOM cho Shell. CHI dung DOM API (khong innerHTML): mot so trang co Trusted Types CSP
 // (vd accounts.google.com) nem loi khi gan chuoi HTML.
 import { MDI } from './mdi';

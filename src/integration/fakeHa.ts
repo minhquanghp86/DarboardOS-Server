@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (27/09/2026) Home Assistant GIA cho thu tich hop: REST (/api/states, /api/services/*) + WebSocket (so dang ky khu
 // vuc/thiet bi/thuc the, todo/item/list). Dich vu goi toi duoc ghi lai va doi trang thai nhu HA that (mot phan).
 import http from 'node:http';

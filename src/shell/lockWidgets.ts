@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (08/10/2026) WIDGET MAN HINH KHOA (st.lw — server >= 2.9.116, src/lockWidgets.ts): server gui so lieu tho, o day viet
 // chu tieng Viet theo gio THIET BI ("Ngày mai", "5 phút trước", "1,2 kW") va dung DOM. Tach rieng de thu
 // (lockWidgets.test.ts). Khong hoat anh (moi khung doi la mot khung gui qua WiFi).

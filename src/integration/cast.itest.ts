@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (27/09/2026) Truyen YouTube tu dien thoai (DIAL): gia lam app YouTube — tim TV (SSDP M-SEARCH), doc mo ta, bam truyen
 // (POST pairingCode) -> panel mo YouTube TV (UA Smart TV) -> ngat (DELETE) -> quay ve ung dung truoc.
 import dgram from 'node:dgram';

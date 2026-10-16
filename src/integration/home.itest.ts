@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (27/09/2026 OS-3) Thu tich hop man hinh chinh: cham giu -> che do sap xep, keo doi cho, gop thu muc, keo xuong dock;
 // bo cuc luu vao launcher.json va con nguyen sau khi tai lai trang.
 import fs from 'node:fs';

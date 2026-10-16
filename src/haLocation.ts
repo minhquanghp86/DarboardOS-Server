@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (25/09/2026) Vi tri NHA tu Home Assistant cho ung dung "Thoi tiet" (du lieu thoi tiet van lay tu web — Open-Meteo).
 // Can quyen addon `homeassistant_api: true`: Supervisor cap SUPERVISOR_TOKEN, goi http://supervisor/core/api/config
 // (khong can mat khau/token cua nguoi dung). Chi tra ve qua HEALTH_PORT (LAN), khong qua ingress/Cloudflare.

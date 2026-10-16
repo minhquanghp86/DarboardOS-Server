@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright (c) 2026 minhquanghp86
+# Licensed under the Apache License, Version 2.0 (see LICENSE).
 # Chay Remote WebView Server NGOAI Home Assistant (Docker thuan, may x86-64).
 # Trong Home Assistant OS/Supervised hay dung addon (hassio/remote_webview_server) thay vi file nay.
 services:

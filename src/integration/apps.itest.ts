@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (27/09/2026) Thu tich hop cac ung dung Nha: Phong (cham bat/tat, cham giu dieu hoa), Viec can lam (them nhanh, danh
 // dau), Dieu khien TV/loa, Khung anh — Chromium that, cham qua panel gia, Home Assistant gia.
 import fs from 'node:fs';

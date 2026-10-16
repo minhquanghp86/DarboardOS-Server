@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (25/09/2026) API nho cho cac ung dung cua launcher (chi o HEALTH_PORT, LAN — nhu /metrics, cam.html):
 //   GET  /cams/list          -> luong go2rtc (bo *_sub khi co luong chinh; *_sub dung cho anh chup nhe hon)
 // (01/10/2026) Bo ung dung "Canh" theo yeu cau nguoi dung (cung /ha/scenes, /ha/run — may LAN khong con kich duoc

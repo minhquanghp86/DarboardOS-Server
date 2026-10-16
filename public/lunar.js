@@ -1,3 +1,13 @@
+// SPDX-License-Identifier: LicenseRef-HoNgocDuc-NonCommercial
+//
+// KHONG THUOC Apache-2.0: ham tinh am lich trong file nay dua tren ma cua Ho Ngoc Duc
+// (https://www.informatik.uni-leipzig.de/~duc/amlich/), giay phep rieng cua tac gia:
+//   Copyright 2004 Ho Ngoc Duc. Permission to use, copy, modify, and redistribute this software and its
+//   documentation for personal, non-commercial use is hereby granted provided that this copyright notice
+//   appears in all copies.
+// => CHI dung ca nhan, PHI THUONG MAI; giu nguyen thong bao nay trong moi ban sao. Phan chinh sua / bo sung
+// (c) 2026 minhquanghp86 trong file nay cung chiu dung dieu kien tren. Xem NOTICE.
+
 // (25/09/2026) Am lich Viet Nam — thuat toan cua Ho Ngoc Duc (https://www.informatik.uni-leipzig.de/~duc/amlich/),
 // mui gio +7. Dung chung: launcher (tiem vao moi trang, ngay am o dau menu) va calendar.html (/lunar.js).
 // KHONG dung dau "\" hay "${" trong file nay: no duoc chen nguyen van vao template string cua launcher (TypeScript).

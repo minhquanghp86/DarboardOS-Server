@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 import { describe, expect, it } from "vitest";
 import { briefingText, deviceClock, eventTime, greeting, parseWindow, shouldGreet, wxText } from "./today.js";
 import { BoardStore, parseNote } from "./board.js";

@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (13/10/2026) BO SUNG cho trang he thong: cac trang nay con duoc mo trong TAB TRINH DUYET qua duong dan ingress
 // (/api/hassio_ingress/<token>/<ten trang>). Khi do MOI duong dan tuyet doi ('/api/...', '/frigate/...', '/ui.css'...)
 // deu tro SAI GOC -> trang trang hoac khong tai duoc du lieu. Ho tro:

@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright (c) 2026 minhquanghp86
+# Licensed under the Apache License, Version 2.0 (see LICENSE).
 # Kiem tra moi PR / moi lan push: kieu (ca file test), unit test, build, va THU TICH HOP (server that + Chromium that
 # + panel gia qua WebSocket — src/integration/). Thu tich hop bat duoc nhung loi chi lo ra khi cac phan that chay cung
 # nhau (vd race tao trung tab o 2.9.48, CurrentURL khong gui khi mo dung Home URL, khung doi kich thuoc lam "Frame
@@ -28,6 +32,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Kiem tra tieu de giay phep (SPDX)
+        run: npm run check:spdx
       - name: Kiem tra kieu (ca file test)
         run: npm run typecheck
       - name: Unit test

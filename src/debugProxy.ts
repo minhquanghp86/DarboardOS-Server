@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2026 minhquanghp86
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
+
 // (25/09/2026) Proxy Chrome DevTools ra LAN (tuy chon addon expose_debug_proxy, mac dinh TAT).
 // Chrome chi mo cong debug o 127.0.0.1 (DEBUG_PORT); proxy nay chuyen tiep DEBUG_PROXY_PORT -> 127.0.0.1:DEBUG_PORT de
 // may tinh vao chrome://inspect xem/thao tac truc tiep cac tab cua server (vd dang nhap HA lan dau).
