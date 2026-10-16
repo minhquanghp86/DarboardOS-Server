@@ -91,7 +91,7 @@ export function requestOpenLog(dev: string, f: string): void { if (/^[\w.-]+\.jp
 export function setDoorConfig(b: any): DoorConfig {
   const panels = Array.isArray(b?.ringPanels) ? b.ringPanels.filter((x: unknown) => typeof x === 'string' && /^[\w-]{1,40}$/.test(x)).slice(0, 20) : cfg.ringPanels;
   const num = (v: unknown, lo: number, hi: number, d: number) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
-  cfg = { ringPanels: panels, ringS: num(b?.ringS, 10, 120, cfg.ringS), gateS: num(b?.gateS, 1, 30, cfg.gateS) };
+  cfg = { ringPanels: panels, ringS: num(b?.ringS, 5, 300, cfg.ringS), gateS: num(b?.gateS, 1, 120, cfg.gateS) };
   try { fs.mkdirSync(DATA_DIR, { recursive: true }); fs.writeFileSync(CFG_FILE, JSON.stringify(cfg)); } catch { /* */ }
   console.log(`[door] cai dat: do chuong ${cfg.ringPanels.length ? cfg.ringPanels.join(', ') : '(theo chuong / moi man)'}, ${cfg.ringS} s, mo cong ${cfg.gateS} s`);
   return cfg;
@@ -262,7 +262,7 @@ export function hangup(doorId: string, why = 'ket thuc'): boolean {
 export function openGate(doorId: string, secs = cfg.gateS): boolean {
   const d = doors.get(doorId);
   if (!d) return false;
-  const n = Math.max(1, Math.min(30, Math.round(secs)));
+  const n = Math.max(1, Math.min(120, Math.round(secs)));   // (16/10/2026) toi 120 s (firmware nhan 1 byte)
   broadcaster.sendDeviceControl(d.id, ControlField.Gate, n);
   // Het xung: ve "dang noi" neu con noi chuyen, khong thi ve ranh (truoc day ve ranh roi moi sang dang noi -> LED nhay).
   led(d, DoorState.Opening);

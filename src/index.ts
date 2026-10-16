@@ -38,6 +38,7 @@ import { ensureMdiIcons } from './launcherConfig.js';
 import { startDebugProxy } from './debugProxy.js';
 import { startWeatherMini } from './weatherMini.js';
 import { handleIptvApi, setIptvHooks } from './iptv.js';
+import { handleScreenCtlApi, setScreenCtlHooks } from './screenCtl.js';
 import { handleMediaApi } from './mediaLib.js';
 import { endCall, handleCallApi, handleCallUpgrade, onMicFrame } from './callBridge.js';
 import { attachDoor, handleDoorApi, requestOpenLog, setDoorHooks } from './door.js';
@@ -199,7 +200,8 @@ const STATIC_PAGES = ['no-url.html', 'cam.html', 'camera.html', 'weather.html', 
   // (01/10/2026) Thu vien / Tep (the SD cua P4), Tin nhan noi bo, bieu tuong dung chung.
   'files.html', 'chat.html', 'icons.js', 'alarm.html',
   // (07/10/2026) IPTV (src/iptv.ts). (08/10/2026) Su kien camera Frigate (src/frigate.ts).
-  'iptv.html', 'events.html', 'media.html', 'call-test.html', 'door.html', 'call.html', 'call-web.html', 'call-ui.js', 'call-ui.css', 'door-log.html'];
+  'iptv.html', 'events.html', 'media.html', 'call-test.html', 'door.html', 'call.html', 'call-web.html', 'call-ui.js', 'call-ui.css', 'door-log.html',
+  'screens.html'];   // (16/10/2026) Darboard → Màn hình
 const staticCache = new Map<string, Buffer>();
 for (const name of STATIC_PAGES) {
   const p = path.join(__dirname, '..', 'public', name);
@@ -235,6 +237,7 @@ http.createServer((req, res) => {
   if (handleFileManager(req, res, reqUrl)) return;
   // (07/10/2026) IPTV: danh sach kenh, proxy luong, yeu thich, cau hinh tu trang Darboard (src/iptv.ts).
   if (handleIptvApi(req, res, reqUrl)) return;
+  if (handleScreenCtlApi(req, res, reqUrl)) return;   // (16/10/2026) Darboard → Màn hình
   // (14/10/2026) Ung dung Media: nguon media cua HA, phat tren man / loa HA (src/mediaLib.ts) — chi 127.0.0.1.
   if (handleMediaApi(req, res, reqUrl)) return;
   // (14/10/2026) INTERCOM GD0: tieng giua man va trang thu / do vong lap (src/callBridge.ts).
@@ -392,6 +395,7 @@ function screenNameOf(id: string): string | undefined {
 // (14/10/2026) Cuoc goi video: ten man trong danh ba / man hinh cuoc goi.
 setCallHooks({ name: (id) => screenNameOf(id) });
 setDoorHooks({ name: (id) => screenNameOf(id) });
+setScreenCtlHooks({ name: (id) => screenNameOf(id) });
 setChatHooks({
   screens: () => connectedScreens().map((s) => {
     if (!screenNames.has(s.id)) refreshScreenNames();

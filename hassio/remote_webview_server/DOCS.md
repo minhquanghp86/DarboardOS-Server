@@ -263,7 +263,26 @@ Tự hiện khi chạm vào ô nhập chữ trên bất kỳ trang nào; có ch�
 
 Mục **Darboard** trên thanh bên HA (trước 2.9.94 tên "Menu panel") mở ra **trang chủ kiểu điện thoại**: lưới biểu tượng
 các ứng dụng — **Tin nhắn** (huy hiệu số tin chưa đọc), **IPTV**, **Quản lý file**, **Màn khóa**, **Chuông cổng**, **Gọi**,
-**Menu ứng dụng** — và danh sách màn hình đang kết nối. Trong mỗi ứng dụng, nút **‹ Trang chủ** ở góc trên trái để quay lại.
+**Menu ứng dụng**, **Màn hình** — và ở đầu trang là **thẻ rút gọn của từng màn** (trạng thái, ứng dụng đang hiển thị,
+mạng, pin, cuộc gọi nhỡ, thông báo; chạm để mở chi tiết). Trong mỗi ứng dụng, nút **‹ Trang chủ** ở góc trên trái để quay lại.
+
+**Màn hình** — xem và điều khiển từng màn từ xa, không cần chạm vào màn. Chọn màn ở hàng trên cùng; bên trái là **ảnh màn
+đang hiển thị** (làm mới 4 giây/lần, có cả màn hình chờ / màn khóa), bên phải chia 5 nhóm:
+
+- **Tổng quan**: kết nối (cáp / Wi-Fi, dBm), trạng thái màn (đang dùng / màn hình chờ / đã khóa / tắt đèn), độ sáng, pin
+  và nguồn, âm lượng, ứng dụng đang hiển thị, thông báo + cuộc gọi nhỡ, có người trước màn, lần chạm gần nhất; thao tác
+  nhanh (đánh thức, màn hình chờ, khóa, về màn hình chính, về Home Assistant, tải lại trang); trình phát; thông báo gần đây.
+- **Điều khiển**: độ sáng, bật/tắt đèn nền, luôn sáng, thời gian tắt màn, xoay màn; âm lượng phát / thông báo / báo thức,
+  tắt tiếng, loa, khử vọng; Không làm phiền; khởi động lại thiết bị; **trình phát** của ứng dụng đang hiển thị hoặc đang
+  phát nền (YouTube, YouTube TV, Radio, IPTV, nhạc…): phát / tạm dừng, lùi / tới 10 s, bài (kênh) trước / sau, dừng.
+- **Ứng dụng**: các ứng dụng đang mở trên màn (mở, tải lại, đóng), mở bất kỳ ứng dụng nào của màn, mở một trang web.
+- **Thông báo**: danh sách thông báo của màn (đánh dấu đã xem, xoá từng cái / tất cả); **gửi thông báo** tới màn (tùy chọn
+  *Quan trọng* để bật sáng màn); **Đọc to** bằng giọng nói (màn có loa, cần TTS trong HA, vd Piper); hẹn giờ, báo thức.
+- **Cài đặt**: mọi cài đặt của màn như ứng dụng Cài đặt trên màn (thực thể ESPHome của thiết bị + cài đặt của Darboard), xếp
+  theo nhóm; thông tin kết nối với máy chủ (băng thông, RAM).
+
+Ô nào màn không hỗ trợ thì tự ẩn (vd S3 không loa thì không có Âm thanh / Đọc to). Độ sáng / âm lượng điều khiển trực tiếp
+khi màn báo trạng thái, không thì qua thực thể Home Assistant của thiết bị.
 
 **Tin nhắn** — nhắn tin nội bộ với các màn hình:
 
@@ -411,7 +430,8 @@ khuếch đại MAX98357A, vòng LED WS2812, nút chuông, MOSFET mở khóa). K
   **"Chuông cổng"** trong trang Darboard (ảnh ghi ngày / giờ, lọc Nhỡ / Đã nghe / Từ chối / Ảnh chụp, chọn + xóa).
 - Home Assistant nhận sự kiện `darboard_doorbell` (dữ liệu: `door`, `name`, `panels`) — dùng cho automation, ví dụ
   gửi thông báo về điện thoại. Trong HA, chuông có sẵn switch **Mở cổng**, nút, camera, vòng LED.
-- Cài đặt (mục **"Gọi"** trong Darboard → nút ⚙ góc trên phải): màn nào đổ chuông, thời gian đổ chuông, thời gian mở khóa.
+- Cài đặt (mục **"Gọi"** trong Darboard → nút ⚙ góc trên phải): màn nào đổ chuông, thời gian đổ chuông (chọn nhanh 5–100 s
+  hoặc nhập số giây 5–300), thời gian mở khóa cổng (chọn nhanh 1–30 s hoặc nhập 1–120).
 - Tự đổ chuông từ automation (vd cảm biến khác) — `rest_command` trong `configuration.yaml`:
   ```yaml
   rest_command:

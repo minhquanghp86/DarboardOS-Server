@@ -9,7 +9,7 @@ Dự án gồm hai repo dùng cùng nhau:
 
 | Repo | Vai trò | Phiên bản hiện tại (16/10/2026) |
 |---|---|---|
-| **HA-Darboard-Server** (repo này) | Máy chủ — addon Home Assistant (hoặc container Docker) | **2.9.160** |
+| **HA-Darboard-Server** (repo này) | Máy chủ — addon Home Assistant (hoặc container Docker) | **2.9.161** |
 | [HA-Darboard-Client](https://github.com/minhquanghp86/HA-Darboard-Client) | Firmware màn hình (ESPHome) + cấu hình mẫu đang chạy thật | tag **`fw-2026.10.20`** |
 
 > Tài liệu bàn giao / báo cáo nội bộ được giữ riêng (không công khai).
@@ -91,8 +91,11 @@ trên thanh bên Home Assistant.
 
 ### Trang "Darboard" (thanh bên Home Assistant)
 
-- **Trang chủ kiểu điện thoại**: lưới biểu tượng ứng dụng (Tin nhắn có huy hiệu số tin chưa đọc, IPTV, Quản lý file, Màn
-  khóa, Chuông cổng, Gọi, Menu ứng dụng) + danh sách màn hình đang kết nối. Mỗi ứng dụng có nút **‹ Trang chủ** ở thanh trên.
+- **Trang chủ kiểu điện thoại**: thẻ rút gọn từng màn ở đầu trang + lưới biểu tượng ứng dụng (Màn hình, Tin nhắn có huy
+  hiệu số tin chưa đọc, IPTV, Quản lý file, Màn khóa, Chuông cổng, Gọi, Menu ứng dụng). Mỗi ứng dụng có nút **‹ Trang chủ**.
+- **Màn hình** (2.9.161): điều khiển + cài đặt từng màn từ xa — ảnh màn đang hiển thị, trạng thái (mạng, pin, độ sáng, âm
+  lượng, ứng dụng, thông báo, cuộc gọi nhỡ), thao tác (đánh thức, màn hình chờ, khóa, về màn chính / HA, tải lại, khởi động
+  lại), trình phát (phát / tạm dừng / tua / kênh trước-sau / dừng), mở / đóng ứng dụng, gửi thông báo, đọc to, mọi cài đặt.
 - **Màn khóa**: ô *Xem trước màn khóa* (6 chỉ số năng lượng như trên màn, số liệu trực tiếp) + chọn cảm biến theo từng dòng;
   lịch Google / iCal.
 - **Menu ứng dụng**: ô *Xem trước menu trên màn* (lưới biểu tượng theo nhóm, bấm để sửa); bật / tắt, sắp xếp, đổi tên,

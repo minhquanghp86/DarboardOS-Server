@@ -44,6 +44,15 @@
   .dset .dot { width: 9px; height: 9px; border-radius: 50%; background: #34c759; flex: none; }
   .dset label.ck { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: #1a1f26; font-size: 15px; cursor: pointer; }
   .dset input[type=checkbox] { width: 20px; height: 20px; accent-color: #34c759; }
+  .dset .dur { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .dset .dur button { min-width: 46px; height: 36px; padding: 0 10px; border: none; border-radius: 999px; background: #1a1f26; color: #eef1f5;
+    font: 600 14px "Be Vietnam Pro", sans-serif; font-variant-numeric: tabular-nums; cursor: pointer; }
+  .dset .dur button.on { background: #34c759; color: #06210f; }
+  .dset .dur label { display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 4px 0 12px; border-radius: 999px; background: #1a1f26; color: #9aa4b2; font-size: 13px; }
+  .dset .dur input { width: 64px; height: 30px; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 999px; background: #0d1115; color: #eef1f5;
+    font: 600 14px "Be Vietnam Pro", sans-serif; text-align: center; font-variant-numeric: tabular-nums; }
+  .dset .dur input.on { border-color: #34c759; }
+  .dset .dur input:invalid { border-color: #ff453a; }
   .dset select { height: 42px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.12); background: #1a1f26; color: #eef1f5; font: inherit; padding: 0 10px; }
   .dset .hint { color: #9aa4b2; font-size: 13px; line-height: 1.45; }
   .dset .acts { display: flex; justify-content: flex-end; gap: 10px; }
@@ -61,8 +70,10 @@
     <div class="sec"><span class="k">Chuông đang kết nối</span><div id="dDoors"></div></div>
     <div class="sec"><span class="k">Màn đổ chuông</span><div id="dPanels"></div>
       <div class="hint">Không chọn màn nào = mọi màn đều đổ chuông.</div></div>
-    <div class="sec"><span class="k">Đổ chuông trong</span><select id="dRing" aria-label="Thời gian đổ chuông"></select></div>
-    <div class="sec"><span class="k">Mở khóa cổng trong</span><select id="dGate" aria-label="Thời gian mở cổng"></select></div>
+    <div class="sec"><span class="k">Đổ chuông trong</span><div class="dur" id="dRing" data-min="5" data-max="300"></div>
+      <div class="hint">Chọn nhanh hoặc nhập số giây (5–300).</div></div>
+    <div class="sec"><span class="k">Mở khóa cổng trong</span><div class="dur" id="dGate" data-min="1" data-max="120"></div>
+      <div class="hint">Chọn nhanh hoặc nhập số giây (1–120).</div></div>
     <div class="acts"><button type="button" id="dCancel">Đóng</button><button type="button" class="ok" id="dSave">Lưu</button></div>
   </div>
 </div>
@@ -206,8 +217,31 @@
     var vi = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); vi.setAttribute('viewBox', '0 0 24 24');
     var vp = document.createElementNS('http://www.w3.org/2000/svg', 'path'); vp.setAttribute('d', (window.RwvIcons || {})['video'] || ''); vi.appendChild(vp);
     $('backIc').appendChild(vi);
-    function opts(sel, vals, unit, cur) {
-      sel.replaceChildren(); vals.forEach(function (v) { var o = document.createElement('option'); o.value = v; o.textContent = v + ' ' + unit; if (v === cur) o.selected = true; sel.append(o); });
+    // (16/10/2026) Chon nhanh (chip) HOAC nhap so giay le; gia tri doc lai bang durVal().
+    function opts(box, vals, cur) {
+      var min = Number(box.dataset.min), max = Number(box.dataset.max);
+      var inp = document.createElement('input'); inp.type = 'number'; inp.inputMode = 'numeric'; inp.min = min; inp.max = max; inp.step = 1;
+      inp.id = box.id + 'N'; inp.setAttribute('aria-label', 'Số giây khác');
+      var lab = document.createElement('label'); lab.append('Khác', inp, 's');
+      function mark(v) {
+        var hit = false;
+        box.querySelectorAll('button').forEach(function (b) { var on = Number(b.dataset.v) === v; b.classList.toggle('on', on); hit = hit || on; });
+        inp.classList.toggle('on', !hit); box.dataset.v = v;
+      }
+      box.replaceChildren();
+      vals.forEach(function (v) {
+        var b = document.createElement('button'); b.type = 'button'; b.dataset.v = v; b.textContent = v + ' s';
+        b.onclick = function () { inp.value = ''; mark(v); }; box.append(b);
+      });
+      inp.oninput = function () { var v = Math.round(Number(inp.value)); if (inp.value !== '' && v >= min && v <= max) mark(v); };
+      box.append(lab);
+      if (vals.indexOf(cur) < 0) inp.value = cur;
+      mark(cur);
+    }
+    function durVal(box) {
+      var inp = box.querySelector('input'), v = Number(box.dataset.v);
+      if (inp.value !== '' && !inp.checkValidity()) return NaN;
+      return v;
     }
     function row(cls, txt) { var d = document.createElement('div'); d.className = cls; d.textContent = txt; return d; }
     $('gear').onclick = function () {
@@ -220,15 +254,17 @@
           var l = document.createElement('label'); l.className = 'ck'; var c = document.createElement('input'); c.type = 'checkbox'; c.value = p.id;
           c.checked = j.cfg.ringPanels.indexOf(p.id) >= 0; l.append(c, document.createTextNode(p.name)); pp.append(l);
         });
-        opts($('dRing'), [20, 30, 45, 60, 90], 'giây', j.cfg.ringS); opts($('dGate'), [1, 2, 3, 5, 8, 10, 15], 'giây', j.cfg.gateS);
+        opts($('dRing'), [5, 10, 20, 30, 50, 70, 90, 100], j.cfg.ringS); opts($('dGate'), [1, 2, 3, 5, 8, 10, 15, 20, 30], j.cfg.gateS);
         $('dset').hidden = false;
       }).catch(function () { ui.toast('Không đọc được cài đặt chuông.'); });
     };
     $('dCancel').onclick = function () { $('dset').hidden = true; };
     $('dSave').onclick = function () {
       var panels = [].slice.call($('dPanels').querySelectorAll('input:checked')).map(function (c) { return c.value; });
+      var ringS = durVal($('dRing')), gateS = durVal($('dGate'));
+      if (!(ringS > 0) || !(gateS > 0)) { ui.toast('Số giây nằm ngoài khoảng cho phép.'); return; }
       fetch(BASE + 'door/config', { method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ ringPanels: panels, ringS: Number($('dRing').value), gateS: Number($('dGate').value) }) })
+        body: JSON.stringify({ ringPanels: panels, ringS: ringS, gateS: gateS }) })
         .then(function (r) { if (!r.ok) throw new Error(); $('dset').hidden = true; ui.toast('Đã lưu cài đặt chuông'); })
         .catch(function () { ui.toast('Không lưu được.'); });
     };

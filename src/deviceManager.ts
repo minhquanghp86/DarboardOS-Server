@@ -1621,37 +1621,46 @@ async function handleSettings(dev: DeviceSession, tab: Tab, msg: any): Promise<v
     return;
   }
   if (msg.settings !== 'set' || typeof msg.id !== 'string') return;
+  const res = await applySetting(dev, msg.id, msg.v);
+  const note = res.ok ? undefined : { ok: false, msg: res.msg ?? 'Không đổi được cài đặt này.' };
+  // Muc cua addon: doc lai ngay. Thuc the HA: doi thiet bi ESPHome ap dung + HA cap nhat trang thai roi moi doc lai.
+  if (msg.id.startsWith('rwv.')) return pushSettings(dev, tab, note);
+  setTimeout(() => { pushSettings(dev, tab, note).catch(() => { }); }, 600);
+}
+
+/** (16/10/2026) Doi MOT cai dat cua man (muc addon "rwv.*" hoac thuc the HA cua thiet bi) — dung chung cho ung dung Cai
+ *  dat tren man va trang Darboard → Màn hình (src/screenCtl.ts). */
+async function applySetting(dev: DeviceSession, sid: string, v: unknown): Promise<{ ok: boolean; msg?: string }> {
   // (27/09/2026) Muc cua addon (id "rwv.*"): server tu luu, khong qua HA.
-  if (msg.id.startsWith('rwv.')) {
-    const ok = panelPrefs.set(dev.deviceId, msg.id, msg.v);
-    console.log(`[settings] ${dev.deviceId}: ${msg.id} = ${JSON.stringify(msg.v)} ${ok ? 'OK' : 'TU CHOI'}`);
-    if (ok && msg.id === 'rwv.saver_photos') {
+  if (sid.startsWith('rwv.')) {
+    const ok = panelPrefs.set(dev.deviceId, sid, v);
+    console.log(`[settings] ${dev.deviceId}: ${sid} = ${JSON.stringify(v)} ${ok ? 'OK' : 'TU CHOI'}`);
+    if (ok && sid === 'rwv.saver_photos') {
       dev.saverPhotoAt = 0;
-      if (!msg.v) { dev.saverPhoto = null; showSaverPhoto(dev, null); }
+      if (!v) { dev.saverPhoto = null; showSaverPhoto(dev, null); }
       // (01/10/2026, nguoi dung yeu cau) Khung anh chi co y nghia khi man con sang: bat anh -> bat "No Sleep" (Màn hình
       // chờ), tat anh -> tat. Chi tac dong LUC GAT; sau do van doi rieng duoc. Qua HA nen chay ca firmware S3 (khong co
       // on_set_no_sleep).
-      setNoSleepViaHa(dev, !!msg.v).catch(() => { });
-      setSaverPhotosSwitch(dev, !!msg.v).catch(() => { });
+      setNoSleepViaHa(dev, !!v).catch(() => { });
+      setSaverPhotosSwitch(dev, !!v).catch(() => { });
     }
     // Doi nguon / album / kieu hien thi: ap dung ngay o lan doi anh ke tiep; album moi -> tai danh sach ngay.
-    if (ok && (msg.id === 'rwv.gphotos_url' || msg.id === 'rwv.photo_source')) {
+    if (ok && (sid === 'rwv.gphotos_url' || sid === 'rwv.photo_source')) {
       dev.saverNav = undefined;
       albumItems(panelPrefs.albumUrl(GPHOTOS_ALBUM)).then((l) => console.log(`[photos] album Google Photos: ${l.length} anh`)).catch(() => { });
     }
-    return pushSettings(dev, tab, ok ? undefined : { ok: false, msg: 'Không đổi được cài đặt này.' });
+    return ok ? { ok: true } : { ok: false, msg: 'Không đổi được cài đặt này.' };
   }
   const r = await getSettingsView(dev.deviceId);
-  if (!r.ok) return pushSettings(dev, tab);
-  const plan = planSet(r.view, msg.id, msg.v);
+  if (!r.ok) return { ok: false, msg: r.error };
+  const plan = planSet(r.view, sid, v);
   if (typeof plan === 'string') {
-    console.warn(`[settings] ${dev.deviceId}: tu choi ${msg.id}: ${plan}`);
-    return pushSettings(dev, tab, { ok: false, msg: 'Không đổi được cài đặt này.' });
+    console.warn(`[settings] ${dev.deviceId}: tu choi ${sid}: ${plan}`);
+    return { ok: false, msg: 'Không đổi được cài đặt này.' };
   }
   const ok = await callService(plan).catch(() => false);
-  console.log(`[settings] ${dev.deviceId}: ${plan.domain}.${plan.service} ${msg.id} -> ${ok ? 'OK' : 'LOI'}`);
-  // Doi thiet bi ESPHome ap dung + HA cap nhat trang thai roi moi doc lai.
-  setTimeout(() => { pushSettings(dev, tab, ok ? undefined : { ok: false, msg: 'Home Assistant không nhận thay đổi.' }).catch(() => { }); }, 600);
+  console.log(`[settings] ${dev.deviceId}: ${plan.domain}.${plan.service} ${sid} -> ${ok ? 'OK' : 'LOI'}`);
+  return ok ? { ok: true } : { ok: false, msg: 'Home Assistant không nhận thay đổi.' };
 }
 
 /** (01/10/2026) Gat cong tac HA "Ảnh màn hình chờ" cua thiet bi cho khop Cai dat (khong co cong tac -> bo qua). */
@@ -1828,7 +1837,15 @@ export function onDeviceStatePacket(dev: DeviceSession, buf: Buffer): void {
   if (!st) return;
   const wasOff = dev.devState ? !dev.devState.backlightOn : false;
   dev.devState = { ...st, receivedAt: Date.now() };
-  if (!dev.lockDim) { const p = lockBrightLoad(dev.deviceId); if (p != null) dev.lockDim = { prev: p }; }
+  if (!dev.lockDim) {
+    const p = lockBrightLoad(dev.deviceId);
+    if (p != null) {
+      dev.lockDim = { prev: p };
+      // (16/10/2026) Addon vua khoi dong lai giua luc man dang giam sang (man khoa / cho) nhung phien moi KHONG o man hinh
+      // cho -> tra lai do sang ngay. Truoc day man cu sang 5% toi lan man hinh cho ke tiep (do that P4 sau cap nhat addon).
+      if (!dev.saverOn) restoreBright(dev);
+    }
+  }
   if (wasOff && st.backlightOn) noteActivity(dev, 'den nen vua bat');
   pushDeviceStateToPage(dev);
 }
@@ -4016,4 +4033,256 @@ async function deleteDeviceAsync(device: DeviceSession) {
   }
   device.tabs.clear();
   console.log(`[device] Device ${device.deviceId} deleted [${devices.size}/${MAX_DEVICES} slots used]`);
+}
+
+// ── (16/10/2026) TRANG DARBOARD → "MÀN HÌNH": trang thai + dieu khien TUNG man tu xa (src/screenCtl.ts, public/screens.html) ──
+// Khong can cham man: do sang / am luong / Khong lam phien / man hinh cho-khoa / ung dung dang hien / trinh phat / thong bao /
+// moi cai dat (addon + thuc the HA cua thiet bi, dung chung applySetting voi ung dung Cai dat tren man).
+
+/** Tom tat 1 man (the rut gon tren trang chu Darboard + dau trang chi tiet). */
+function screenSummary(dev: DeviceSession) {
+  const s = dev.devState, t = dev.tabs.get(dev.activeTabKey), nts = noticesOf(dev.deviceId);
+  const recent = nts.list(50);
+  return {
+    id: dev.deviceId, w: dev.cfg.width, h: dev.cfg.height, online: broadcaster.getClientCount(dev.deviceId) > 0,
+    on: s ? s.backlightOn : null, ctl: !!s && !!dev.cfg.devControl,
+    // Do sang NGUOI DUNG (khi man khoa dang giam sang thi la muc se tra lai luc mo) + co dang giam sang khong.
+    b: s ? userBrightness(dev) : null, dim: !!dev.lockDim, v: s?.volume ?? null, tg: s?.toggles ?? null,
+    saver: dev.saverOn, locked: !!dev.locked,
+    app: t ? { k: t.key, l: t.label, kind: t.kind } : null,
+    np: [...dev.tabs.values()].filter((x) => x.mediaPlaying).map((x) => ({ k: x.key, l: x.label, active: x.key === dev.activeTabKey })),
+    nw: dev.sb?.nw ?? null, bt: dev.sb?.bt ?? null, ch: dev.sb?.ch ?? null,
+    nu: nts.unseen('nt'), cu: chatUnread(dev.deviceId).total, mc: recent.filter((n) => n.missed && !n.seen).length,
+    dnd: dndOf(dev.deviceId), ring: !!dev.doorbell || !!alarms.ringingOn(dev.deviceId),
+    pr: dev.presence ? dev.presence.on : null, touch: dev.lastTouchMs || null,
+  };
+}
+
+export function screensOverview(): ReturnType<typeof screenSummary>[] {
+  return [...devices.values()].map(screenSummary);
+}
+
+/** Chi tiet 1 man. null = server khong biet man nay. */
+export function screenDetail(id: string) {
+  const dev = devices.get(id);
+  if (!dev) return null;
+  const m = metrics.snapshot().devices.find((d) => d.id === id);
+  const hasCamera = dev.cfg.camPort > 0, hasSd = hasCamera || dev.cfg.sdPort > 0;
+  const nx = alarms.next(Date.now(), anyTzOffset(), id);
+  return {
+    ...screenSummary(dev),
+    cap: { cam: hasCamera, sd: hasSd, spk: !!dev.cfg.audioEnabled, mic: !!dev.cfg.micCall, snd: canPlay(dev), voice: !!dev.cfg.voice,
+      rot: dev.cfg.rotation ?? 0 },
+    tabs: [...dev.tabs.values()].sort((a, b) => b.lastUsed - a.lastUsed).map((t) => ({
+      k: t.key, l: t.label, kind: t.kind, active: t.key === dev.activeTabKey, playing: t.mediaPlaying, pinned: t.pinned, used: t.lastUsed,
+    })),
+    apps: buildLauncherApps(dev.cfg.homeUrl, hasCamera, hasSd).map((a) => ({ id: a.id, l: a.label, c: a.color, kind: a.kind, p: a.path ?? null })),
+    sv: canPlay(dev) ? soundPrefs.get(id) : null,
+    tm: dev.timer ? { endsAt: dev.timer.endsAt, label: dev.timer.label } : null,
+    al: nx ? { t: nx.time, at: nx.at, l: nx.label } : null,
+    nt: noticesOf(id).list(30).map(noticeForShell),
+    perf: m ? { up: m.uptimeSec, kbps: m.recentBytesPerSec != null ? Math.round(m.recentBytesPerSec / 1024) : null,
+      dec: m.recentMedianDecodeMs, heap: m.deviceHeapFree, psram: m.devicePsramFree, q: m.appliedQuality, frames: m.framesSent } : null,
+  };
+}
+
+/** Anh man dang hien (tab dang hien + lop Shell: man hinh cho / khoa / thong bao). JPEG; null = man khong ket noi. */
+export async function screenShot(id: string): Promise<Buffer | null> {
+  const dev = devices.get(id);
+  if (!dev || broadcaster.getClientCount(id) === 0) return null;
+  const r = await withTimeout(dev.cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 60 }) as Promise<{ data: string }>, 4000);
+  return Buffer.from(r.data, 'base64');
+}
+
+/** Tim <video>/<audio> "chinh" cua trang: cai dang chay, khong thi cai dai nhat. */
+const PICK_MEDIA_JS = `const ms = [...document.querySelectorAll('video,audio')];
+  const m = ms.find((x) => !x.paused && !x.ended) || ms.slice().sort((a, b) => (b.duration || 0) - (a.duration || 0))[0];`;
+const MEDIA_INFO_JS = `(() => { try { ${PICK_MEDIA_JS}
+  if (!m) return null;
+  const md = navigator.mediaSession && navigator.mediaSession.metadata;
+  return { p: !m.paused && !m.ended, t: Math.round(m.currentTime || 0), d: Number.isFinite(m.duration) ? Math.round(m.duration) : null,
+    vid: m.tagName === 'VIDEO', ti: (md && md.title) || document.title || '', ar: (md && md.artist) || '',
+    art: (md && md.artwork && md.artwork[0] && md.artwork[0].src) || '' };
+} catch (e) { return null; } })()`;
+
+/** Trinh phat cua cac tab co media (tab dang hien + tab dang phat nen). */
+export async function screenMedia(id: string): Promise<{ k: string; l: string; active: boolean; m: unknown }[]> {
+  const dev = devices.get(id);
+  if (!dev) return [];
+  const tabs = [...dev.tabs.values()].filter((t) => t.key === dev.activeTabKey || t.mediaPlaying);
+  const out = await Promise.all(tabs.map(async (t) => {
+    const r = await withTimeout(t.session.send('Runtime.evaluate', { expression: MEDIA_INFO_JS, returnByValue: true }) as Promise<{ result?: { value?: unknown } }>, 1500)
+      .catch(() => null);
+    const m = r?.result?.value as { p?: boolean; t?: number } | null | undefined;
+    // Tab dang hien: chi tinh la trinh phat khi DANG phat / da phat / la ung dung nghe nhin (khong tinh video nho cua the HA).
+    // Radio / IPTV la luong truc tiep: thoi luong HLS chi la cua so dem -> khong hien thanh tien do.
+    if (m && (t.kind === 'radio' || t.kind === 'iptv')) (m as { d?: number | null }).d = null;
+    const keep = !!m && (t.mediaPlaying || !!m.p || (m.t ?? 0) > 0 || MEDIA_APP_KINDS.has(t.kind));
+    return { k: t.key, l: t.label, active: t.key === dev.activeTabKey, m: keep ? m : null };
+  }));
+  return out.filter((x) => x.m);
+}
+
+const MEDIA_APP_KINDS = new Set(['youtube', 'yttv', 'music', 'radio', 'iptv', 'media', 'tiktok', 'vtvgo']);
+const MEDIA_KEYS: Record<string, { key: string; code: number }> = {
+  next: { key: 'MediaTrackNext', code: 176 }, prev: { key: 'MediaTrackPrevious', code: 177 },
+};
+
+/** Goi window.<fn>() cua trang neu co (ham trang tu dinh nghia cho trinh phat). true = da goi. */
+async function pageHook(t: Tab, fn: string): Promise<boolean> {
+  if (!fn) return false;
+  const r = await t.session.send('Runtime.evaluate', { expression: `typeof window.${fn} === 'function' ? (window.${fn}(), true) : false`, returnByValue: true })
+    .catch(() => null) as { result?: { value?: unknown } } | null;
+  return r?.result?.value === true;
+}
+
+/** Lenh tu trang Darboard → Màn hình. null = da lam; chuoi = loi (tieng Viet, hien cho nguoi dung). */
+export async function screenAct(id: string, b: any): Promise<string | null> {
+  const dev = devices.get(id);
+  if (!dev) return 'Server không biết màn hình này.';
+  const online = broadcaster.getClientCount(id) > 0;
+  const act = String(b?.act ?? '');
+  const num = (x: unknown, lo: number, hi: number): number | null => {
+    const n = Math.round(Number(x));
+    return Number.isFinite(n) && n >= lo && n <= hi ? n : null;
+  };
+  const tabOf = (k: unknown): Tab | undefined => (typeof k === 'string' && k ? dev.tabs.get(k) : dev.tabs.get(dev.activeTabKey));
+  const tag = `[man] ${id}:`;
+  if (!online && !['dnd', 'snd', 'ntClear', 'ntDel', 'ntSeen'].includes(act)) return 'Màn hình đang mất kết nối.';
+  switch (act) {
+    // ── Hien thi & am thanh (ghi thang xuong firmware, nhu thanh truot trong menu man) ──
+    case 'b': case 'v': case 'mu': case 'ns': case 'aec': {
+      if (!dev.cfg.devControl) return 'Màn hình này không bật điều khiển trực tiếp (devControl).';
+      const v = num(b.v, 0, 100);
+      if (v == null) return 'Giá trị không hợp lệ.';
+      const F: Record<string, ControlField> = { b: ControlField.Brightness, v: ControlField.Volume, mu: ControlField.Mute, ns: ControlField.NoSleep, aec: ControlField.Aec };
+      if (act === 'b' && dev.lockDim) {
+        // Man khoa / cho dang giam sang: doi muc se tra lai khi mo; man dang sang (vua cham) thi doi luon.
+        dev.lockDim.prev = v; lockBrightSave(id, v);
+        if (dev.lockWakeTimer) broadcaster.sendDeviceControl(id, ControlField.Brightness, v);
+      } else {
+        broadcaster.sendDeviceControl(id, F[act], act === 'b' || act === 'v' ? v : (v ? 1 : 0));
+      }
+      console.log(`${tag} ${act} = ${v} (trang Darboard)`);
+      return null;
+    }
+    case 'snd': {
+      if (!canPlay(dev)) return 'Màn hình này không có âm thông báo / báo thức.';
+      const k = b.k === 'alarm' ? 'alarm' : b.k === 'alert' ? 'alert' : null, v = num(b.v, 0, 100);
+      if (!k || v == null) return 'Giá trị không hợp lệ.';
+      soundPrefs.set(id, { [k]: v });
+      syncSoundToDevice(dev); pushDeviceStateToPage(dev);
+      return null;
+    }
+    case 'dnd':
+      setDnd(id, !!b.v); pushDeviceStateToPage(dev);
+      return null;
+    // ── Man hinh ──
+    case 'wake':
+      dev.locked = false; setSaver(dev, false); dev.lastTouchMs = Date.now();
+      console.log(`${tag} mo man hinh (trang Darboard)`);
+      return null;
+    case 'saver': case 'lock': {
+      const t = dev.tabs.get(dev.activeTabKey);
+      if (!t) return 'Màn hình chưa có trang nào.';
+      if (dev.doorbell || alarms.ringingOn(id)) return 'Màn hình đang đổ chuông — để sau.';
+      if (act === 'lock') dev.locked = true;
+      if (dev.saverOn) { dev.saverOn = false; }
+      showSaver(dev, t);
+      return null;
+    }
+    // ── Ung dung ──
+    case 'app': {
+      if (typeof b.app !== 'string' || b.app.length > 40) return 'Thiếu ứng dụng.';
+      if (dev.saverOn) { dev.locked = false; setSaver(dev, false); }
+      dev.lastTouchMs = Date.now();
+      await openApp(dev, b.app);
+      return null;
+    }
+    case 'tab': {
+      const t = tabOf(b.k);
+      if (!t) return 'Ứng dụng này đã đóng.';
+      if (dev.saverOn) { dev.locked = false; setSaver(dev, false); }
+      dev.lastTouchMs = Date.now();
+      await dev.tabOps.run(() => activateTab(dev, t.key));
+      return null;
+    }
+    case 'close': {
+      const t = tabOf(b.k);
+      if (!t) return null;
+      if (t.pinned) return 'Ứng dụng ghim (trang chủ) không đóng được.';
+      await dev.tabOps.run(async () => {
+        if (t.key === dev.activeTabKey) await openAppNow(dev, 'home');
+        closeTab(dev, t.key, 'dong tu trang Darboard');
+      });
+      pushDeviceStateToPage(dev);
+      return null;
+    }
+    case 'reload': {
+      const t = tabOf(b.k);
+      if (!t) return 'Không có trang để tải lại.';
+      await t.session.send('Page.reload', { ignoreCache: false }).catch(() => { });
+      console.log(`${tag} tai lai tab "${t.key}" (trang Darboard)`);
+      return null;
+    }
+    case 'url': {
+      const u = String(b.url ?? '').trim();
+      if (!/^https?:\/\/\S{3,500}$/i.test(u)) return 'Địa chỉ web phải bắt đầu bằng http:// hoặc https://';
+      if (dev.saverOn) { dev.locked = false; setSaver(dev, false); }
+      dev.lastTouchMs = Date.now();
+      await navigateToUrl(dev, u);
+      return null;
+    }
+    // ── Trinh phat (tab dang hien hoac tab phat nen `k`) ──
+    case 'media': {
+      const t = tabOf(b.k), cmd = String(b.cmd ?? '');
+      if (!t) return 'Không có trình phát.';
+      if (cmd === 'stop') {
+        await t.session.send('Runtime.evaluate', { expression: 'window.__rwvMediaStop && window.__rwvMediaStop();' }).catch(() => { });
+      } else if (await pageHook(t, cmd === 'play' ? 'rwvResume' : cmd === 'next' ? 'rwvNext' : cmd === 'prev' ? 'rwvPrev' : '')) {
+        // Trang tu lo (vd radio.html: phat tiep kenh cuoi, doi kenh) — xem public/radio.html.
+      } else if (MEDIA_KEYS[cmd]) {
+        const k = MEDIA_KEYS[cmd];
+        for (const type of ['rawKeyDown', 'keyUp'] as const) {
+          await t.session.send('Input.dispatchKeyEvent', { type, key: k.key, code: k.key, windowsVirtualKeyCode: k.code, nativeVirtualKeyCode: k.code }).catch(() => { });
+        }
+      } else if (['play', 'pause', 'back', 'fwd'].includes(cmd)) {
+        const body = cmd === 'play' ? 'm.play().catch(() => {});' : cmd === 'pause' ? 'm.pause();'
+          : cmd === 'back' ? 'm.currentTime = Math.max(0, m.currentTime - 10);' : 'm.currentTime = m.currentTime + 10;';
+        const r = await t.session.send('Runtime.evaluate', { expression: `(() => { ${PICK_MEDIA_JS} if (!m) return false; ${body} return true; })()`, returnByValue: true })
+          .catch(() => null) as { result?: { value?: unknown } } | null;
+        if (r?.result?.value !== true) return 'Trang này không có trình phát điều khiển được.';
+      } else return 'Lệnh không hợp lệ.';
+      console.log(`${tag} trinh phat "${t.key}": ${cmd} (trang Darboard)`);
+      return null;
+    }
+    // ── Thong bao ──
+    case 'ntClear': noticesOf(id).clear(); pushDeviceStateToPage(dev); return null;
+    case 'ntDel': { const n = num(b.n, 0, Number.MAX_SAFE_INTEGER); if (n != null) noticesOf(id).remove(n); pushDeviceStateToPage(dev); return null; }
+    case 'ntSeen': noticesOf(id).markSeen('all'); pushDeviceStateToPage(dev); return null;
+    case 'notify': {
+      const r = postNotify({ device: id, title: b.title, message: b.message, priority: b.priority === 'high' ? 'high' : 'normal' });
+      return r.ok ? null : (r.error ?? 'Không gửi được thông báo.');
+    }
+    case 'say': {
+      const msg = String(b.message ?? '').trim().slice(0, 300);
+      if (!msg) return 'Nhập nội dung cần đọc.';
+      const err = await speakOnPanel(id, msg);
+      return err ? `Không đọc được: ${err}.` : null;
+    }
+    default: return 'Lệnh không hợp lệ.';
+  }
+}
+
+/** Cai dat cua man: thuc the HA cua thiet bi + muc addon (giong ung dung Cai dat tren man). */
+export async function screenSettings(id: string) {
+  const dev = devices.get(id);
+  if (!dev) return null;
+  const r = await getSettingsView(id);
+  return { ...r, panel: panelPrefs.items(id, panelDefaults(), GPHOTOS_ALBUM) };
+}
+export async function screenSettingSet(id: string, sid: string, v: unknown): Promise<{ ok: boolean; msg?: string }> {
+  const dev = devices.get(id);
+  if (!dev) return { ok: false, msg: 'Server không biết màn hình này.' };
+  return applySetting(dev, sid, v);
 }

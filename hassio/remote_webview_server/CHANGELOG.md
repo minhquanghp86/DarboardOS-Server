@@ -1,3 +1,16 @@
+## V2.9.161
+- Mới: ứng dụng **Màn hình** trên trang Darboard — điều khiển và cài đặt từng màn từ xa, không cần chạm vào màn. Ảnh màn
+  đang hiển thị; 5 nhóm Tổng quan / Điều khiển / Ứng dụng / Thông báo / Cài đặt: trạng thái (mạng, pin, độ sáng, âm lượng,
+  ứng dụng, thông báo, cuộc gọi nhỡ, có người), đánh thức / màn hình chờ / khóa / về màn chính / về HA / tải lại / khởi động
+  lại, độ sáng, âm lượng phát / thông báo / báo thức, Không làm phiền, trình phát (phát, tạm dừng, ±10 s, kênh trước / sau,
+  dừng — cả ứng dụng phát nền), mở / đóng ứng dụng, mở trang web, gửi thông báo, đọc to, mọi cài đặt của màn.
+- Trang chủ Darboard: thẻ rút gọn từng màn ở đầu trang (chạm để mở chi tiết).
+- Cài đặt chuông cổng: thời gian đổ chuông chọn nhanh 5/10/20/30/50/70/90/100 s hoặc nhập số giây (5–300); mở khóa cổng
+  chọn nhanh hoặc nhập (1–120 s).
+- Radio: điều khiển từ xa phát tiếp kênh cuối, chuyển kênh trước / sau; tên kênh hiện ở trình phát.
+- Sửa: sau khi add-on khởi động lại (cập nhật), màn đang dùng bị kẹt ở "Độ sáng khi khóa" (vd P4 5%) tới lần màn hình chờ
+  kế tiếp — nay trả lại độ sáng ngay.
+
 ## V2.9.160
 - Sửa: ứng dụng **Chuông cổng** trên màn hẹp — S3 480×480: dải lọc (Tất cả / Nhỡ / …) đè lên tiêu đề, chữ "Lưu 30 ngày"
   bị bẻ dọc; nay tiêu đề một hàng, dải lọc xuống hàng riêng. S3 480×272: gọn một hàng (dải lọc cuộn ngang). Ảnh thu nhỏ

@@ -399,10 +399,23 @@
   .app .an { font-size: 13px; font-weight: 500; text-align: center; line-height: 1.25; }
   .app .bd { position: absolute; top: 0; left: calc(50% + 20px); min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px;
     background: #ff3b30; color: #fff; font: 700 12px/22px Roboto, sans-serif; text-align: center; box-shadow: 0 0 0 2px var(--bg); }
-  .hm-scr { display: flex; flex-wrap: wrap; gap: 8px; }
-  .hm-scr .s { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: var(--surface);
-    border: 1px solid var(--line); font-size: 13px; }
-  .hm-scr .s::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+  /* (16/10/2026) The rut gon tung man (cham -> screens.html#<id>: dieu khien + cai dat man do). */
+  .hm-scr { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+  @media (max-width: 520px) { .hm-scr { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; margin: 0 -16px; padding: 0 16px 4px; }
+    .hm-scr .s { flex: 0 0 72%; scroll-snap-align: start; } }
+  .hm-scr .s { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line);
+    box-shadow: var(--shadow); text-decoration: none; color: var(--text); min-width: 0; }
+  .hm-scr .s:hover { border-color: color-mix(in srgb, var(--primary) 45%, var(--line)); }
+  .hm-scr .s:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .hm-scr .sn { display: flex; align-items: center; gap: 8px; font-weight: 600; min-width: 0; }
+  .hm-scr .sn span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hm-scr .sd { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+  .hm-scr .sd.off { background: var(--muted); }
+  .hm-scr .sa { color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hm-scr .si { display: flex; flex-wrap: wrap; gap: 4px 10px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .hm-scr .si span { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+  .hm-scr .si svg { width: 14px; height: 14px; fill: currentColor; }
+  .hm-scr .si .red { color: var(--danger); font-weight: 600; }
 
   /* (16/10/2026) IPTV moi: tim + chip + luoi the kenh */
   .iv-top { display: flex; gap: 10px; align-items: center; position: sticky; top: 52px; z-index: 3; padding: 4px 0; background: var(--bg); }
@@ -525,10 +538,10 @@
 <main id="homeView" hidden>
 <div class="hm">
   <div class="hm-head"><h1>Darboard</h1><p id="hmSum">Màn hình gắn tường cho Home Assistant</p></div>
+  <div class="hm-sec" id="hmScrSec" hidden>Màn hình</div>
+  <div class="hm-scr" id="hmScr"></div>
   <div class="hm-sec">Ứng dụng</div>
   <div class="hm-grid" id="hmGrid"></div>
-  <div class="hm-sec" id="hmScrSec" hidden>Màn hình đang kết nối</div>
-  <div class="hm-scr" id="hmScr"></div>
 </div>
 </main>
 <main id="chatView" hidden>
@@ -1086,6 +1099,7 @@
   // (02/10/2026) + the #quan-ly-file (khoi script rieng o cuoi trang nghe hashchange).
   // (16/10/2026) TRANG CHU (khong co #) + moi ung dung mot #. Thanh tren: nut "Trang chủ" + bieu tuong / ten ung dung.
   var APPS = [
+    { h: 'screens.html', n: 'Màn hình', ic: 'monitor-dashboard', c: ['#38bdf8', '#0369a1'] },
     { h: '#tin-nhan', n: 'Tin nhắn', ic: 'message-text-outline', c: ['#3b82f6', '#1d4ed8'] },
     { h: '#iptv', n: 'IPTV', ic: 'television-classic', c: ['#d946ef', '#9d174d'] },
     { h: '#quan-ly-file', n: 'Quản lý file', ic: 'folder', c: ['#94a3b8', '#475569'] },
@@ -1106,12 +1120,28 @@
     });
     $('backPath').setAttribute('d', IC['chevron-left'] || '');
   })();
+  // (16/10/2026) The rut gon tung man o DAU trang chu: trang thai, ung dung dang hien, mang / pin, thong bao. Cham -> screens.html#<id>.
   function loadScreens() {
-    fetch('iptv/screens', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
-      var list = (j && j.screens) || [];
-      $('hmSum').textContent = list.length ? list.length + ' màn hình đang kết nối' : 'Chưa có màn hình nào kết nối';
+    fetch('screens/list', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
+      var list = (j && j.screens) || [], on = list.filter(function (s) { return s.online; }).length;
+      $('hmSum').textContent = list.length ? on + ' màn hình đang kết nối' : 'Chưa có màn hình nào kết nối';
       $('hmScrSec').hidden = !list.length;
-      $('hmScr').replaceChildren.apply($('hmScr'), list.map(function (s) { var x = document.createElement('span'); x.className = 's'; x.textContent = s.name || s.id; return x; }));
+      var mk = function (t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+      var item = function (ic, t, cls) { var x = mk('span', cls || ''); x.append(svg(ic), document.createTextNode(t)); return x; };
+      $('hmScr').replaceChildren.apply($('hmScr'), list.map(function (s) {
+        var a = mk('a', 's'); a.href = 'screens.html#' + encodeURIComponent(s.id);
+        var st = !s.online ? 'Mất kết nối' : s.ring ? 'Đang đổ chuông' : s.on === false ? 'Tắt đèn nền' : s.saver ? (s.locked ? 'Đã khóa' : 'Màn hình chờ') : 'Đang dùng';
+        var n = mk('div', 'sn'); n.append(mk('span', 'sd' + (s.online ? '' : ' off')), mk('span', '', s.name || s.id));
+        var si = mk('div', 'si');
+        if (s.online) si.append(item(!s.nw || s.nw.k === 'eth' ? 'ethernet' : ['wifi-strength-1', 'wifi-strength-2', 'wifi-strength-3', 'wifi-strength-4'][s.nw.q], !s.nw ? 'Mạng' : s.nw.k === 'eth' ? 'Cáp' : 'Wi-Fi'));
+        if (s.bt != null) si.append(item(s.ch === 'chg' ? 'battery-charging' : 'battery-high', s.bt + '%', s.bt < 20 && s.ch === 'bat' ? 'red' : ''));
+        if (s.np && s.np.length) si.append(item('play', 'Đang phát'));
+        if (s.mc) si.append(item('phone-missed', s.mc + ' nhỡ', 'red'));
+        if (s.nu) si.append(item('bell-badge-outline', String(s.nu)));
+        if (s.dnd) si.append(item('moon-waning-crescent', 'Im lặng'));
+        a.append(n, mk('div', 'sa', st + ' · ' + (s.app ? s.app.l : '—')), si);
+        return a;
+      }));
     }).catch(function () { });
   }
   function route() {
@@ -1135,6 +1165,7 @@
     if (chat) setTimeout(scrollEnd, 0);
   }
   window.addEventListener('hashchange', route); route();
+  setInterval(function () { if (!$('homeView').hidden && document.visibilityState === 'visible') loadScreens(); }, 10000);
 
   function api(path, body) {
     var init = { cache: 'no-store' };
