@@ -1,3 +1,8 @@
+## V2.9.167
+- Mới: **nút bấm vật lý** màn S3 480×272 (firmware `fw-2026.10.23`): nút trái / phải = bài (kênh) trước / sau của trình phát đang
+  chạy, giữ nút giữa ≥ 2 s = mở ứng dụng Frigate (nút giữa nhấn = về Home như trước). Thay chế độ xem camera cũ bằng go2rtc.
+  Sự kiện `DeviceEvent` loại `Button` (4); thử tích hợp `buttons.itest.ts`.
+
 ## V2.9.166
 - Bảo mật: nâng **ws** 8.22 (sửa lỗ hổng cạn bộ nhớ / lộ bộ nhớ chưa khởi tạo của máy chủ WebSocket) và **sharp** 0.35.5
   (libvips, libheif, librsvg có lỗ hổng đã công bố — ảnh người dùng tải lên Tin nhắn / khung ảnh đi qua sharp). `npm audit`:

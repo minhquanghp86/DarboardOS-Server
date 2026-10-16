@@ -66,7 +66,9 @@ export enum MsgType {
 }
 
 /** (14/10/2026) + Doorbell = 3: chuong cong (ESP32-S3) bao nut bam (value 1). */
-export enum DeviceEventKind { Voice = 1, Presence = 2, Doorbell = 3 }
+/** (16/10/2026) Button = nut bam vat ly tren bo (S3 480x272): value 1 trai / 2 giua / 3 phai, text "click" | "long" — trai / phai = bai truoc / sau
+ *  cua trinh phat, giu giua = mo Frigate (deviceManager.physicalButton). */
+export enum DeviceEventKind { Voice = 1, Presence = 2, Doorbell = 3, Button = 4 }
 export enum VoiceState { Idle = 0, Listening = 1, Thinking = 2, Replying = 3, Error = 4 }
 
 /** Truong cua goi DeviceControl (khop proto::ControlField ben firmware). */

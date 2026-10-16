@@ -252,6 +252,20 @@ rest_command:
   *YouTube TV: chế độ khách*. Muốn đo hiệu năng thì để nguyên (số đo mới phản ánh video thật, không phải đoạn quảng cáo).
 - Nhật ký: `[youtube] <màn>: bo qua quang cao` / `chon che do khach` (tối đa 1 dòng / 20 giây / màn).
 
+### Nút bấm vật lý (màn S3 480×272, 3 nút bên hông, 2.9.167)
+
+Dùng được không cần chạm màn hình:
+
+| Nút | Nhấn | Giữ ≥ 2 giây |
+|---|---|---|
+| **Giữa** (Home) | Về trang chủ Home Assistant (*Home URL* của màn) | Mở ứng dụng **Frigate** |
+| **Trái** | Bài / kênh **trước** của trình phát đang chạy | — |
+| **Phải** | Bài / kênh **tiếp theo** của trình phát đang chạy | — |
+
+Trình phát: Radio (kênh trước / sau), YouTube / nhạc (phím media Track Previous / Next); không có gì đang phát thì nút trái / phải
+không làm gì. Màn đang ở màn hình chờ / khóa: nhấn đầu chỉ **đánh thức** màn (không đổi bài, không mở khóa). Cần firmware
+`fw-2026.10.23` trở lên.
+
 ### Bàn phím ảo
 
 Tự hiện khi chạm vào ô nhập chữ trên bất kỳ trang nào; có chế độ tiếng Việt (Telex), số và ký hiệu. Phím ▼ để ẩn.

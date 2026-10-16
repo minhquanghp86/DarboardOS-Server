@@ -2269,6 +2269,40 @@ export function onDeviceEvent(dev: DeviceSession, kind: number, value: number, t
     if (dev.locked && dev.saverOn && dev.lockDim) {
       if (on) wakeBrightWhileLocked(dev); else scheduleLockDim(dev);
     }
+    return;
+  }
+  if (kind === DeviceEventKind.Button) physicalButton(dev, value, text === 'long' ? 'long' : 'click');
+}
+
+/**
+ * (16/10/2026) NUT BAM VAT LY (S3 480x272, 3 nut ben hong). Firmware gui DeviceEvent Button (1 trai / 2 giua / 3 phai; "click" | "long"):
+ *   GIUA nhan = Home (firmware tu xu ly) · GIUA giu >= 2 s = mo ung dung Frigate (firmware gui "long")
+ *   TRAI / PHAI = bai (kenh) TRUOC / SAU cua trinh phat dang chay — Radio: kenh truoc / sau, YouTube / nhac: phim media Track Previous / Next.
+ * Man hinh cho / khoa: nhan dau chi danh thuc, khong thuc hien lenh; dang do chuong: bo qua; khong co trinh phat: trai / phai bo qua.
+ */
+export function physicalButton(dev: DeviceSession, button: number, press: 'click' | 'long' = 'click'): void {
+  const id = dev.deviceId;
+  console.log(`[nut] ${id}: ${['', 'trai', 'giua', 'phai'][button] ?? button}${press === 'long' ? ' (giu)' : ''}`);
+  if (dev.doorbell || alarms.ringingOn(id)) return;
+  dev.lastTouchMs = Date.now();
+  if (dev.saverOn) { if (dev.locked) wakeBrightWhileLocked(dev); else setSaver(dev, false); return; }
+  if (button === 2) {
+    if (press === 'long') openApp(dev, 'cams').catch((e: unknown) => console.warn(`[nut] ${id}: mo Frigate that bai:`, e));
+    return;
+  }
+  if (press === 'long' || (button !== 1 && button !== 3)) return;
+  const t = [...dev.tabs.values()].find((x) => x.mediaPlaying && x.key === dev.activeTabKey) ?? [...dev.tabs.values()].find((x) => x.mediaPlaying);
+  if (!t) return;
+  skipTrack(t, button === 1 ? 'prev' : 'next').catch(() => { });
+  console.log(`[nut] ${id}: ${button === 1 ? 'bai truoc' : 'bai sau'} (tab "${t.key}")`);
+}
+
+/** Bai / kenh truoc-sau cua tab: ham trang tu dinh nghia (radio.html: rwvPrev / rwvNext), khong co thi phim media cua Chromium. */
+async function skipTrack(t: Tab, cmd: 'prev' | 'next'): Promise<void> {
+  if (await pageHook(t, cmd === 'next' ? 'rwvNext' : 'rwvPrev')) return;
+  const k = MEDIA_KEYS[cmd];
+  for (const type of ['rawKeyDown', 'keyUp'] as const) {
+    await t.session.send('Input.dispatchKeyEvent', { type, key: k.key, code: k.key, windowsVirtualKeyCode: k.code, nativeVirtualKeyCode: k.code }).catch(() => { });
   }
 }
 
