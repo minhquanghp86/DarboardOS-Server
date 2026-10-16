@@ -1,3 +1,8 @@
+## V2.9.159
+- Chuông cổng (trang Darboard): "‹ Trang chủ" + biểu tượng + tên nằm trên hàng tiêu đề như các mục khác (trước nổi đè lên
+  tiêu đề và lên tiêu đề ảnh đang xem); ảnh thu nhỏ có thêm ngày / tháng ("16/10 07:10").
+- Gọi: thanh trên "‹ Trang chủ" + biểu tượng + "Cuộc gọi"; nút cài đặt chuông cổng thành biểu tượng bánh răng.
+
 ## V2.9.158
 - IPTV (trang Darboard): hàng thẻ trạng thái từng màn hình ở đầu trang — Đang phát (kênh gì) / Đang mở / IPTV chạy nền /
   Không phát — kèm nút **Dừng** (đóng IPTV trên màn, về màn chính) và **Màn chính** (IPTV vào nền). Tự làm mới 3 s. Trước:

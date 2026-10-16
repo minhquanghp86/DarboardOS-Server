@@ -15,15 +15,21 @@
 <script src="icons.js"></script>
 <script src="call-ui.js"></script>
 <style>
-  /* (16/10/2026) Nut ve Trang chu Darboard (giong cac ung dung khac): goc tren trai, dang vien thuoc. */
-  .back { position: fixed; z-index: 5; left: 12px; top: 12px; display: none; align-items: center; gap: 2px; height: 36px; padding: 0 14px 0 8px;
-    border-radius: 999px; background: rgba(255,255,255,0.12); color: #e5e7eb; text-decoration: none; font: 500 14px "Be Vietnam Pro", Roboto, sans-serif; }
-  .back:hover { background: rgba(255,255,255,0.2); }
+  /* (16/10/2026) Thanh tren (danh ba): "‹ Trang chủ" + bieu tuong + "Cuộc gọi" nhu cac ung dung khac; nut cai dat chuong la bieu tuong. */
+  .back { position: fixed; z-index: 5; left: 12px; top: 12px; display: none; align-items: center; gap: 10px; }
+  .back a { display: inline-flex; align-items: center; height: 36px; padding: 0 14px 0 10px; border-radius: 999px; background: rgba(255,255,255,0.12);
+    color: #e5e7eb; text-decoration: none; font: 500 14px "Be Vietnam Pro", Roboto, sans-serif; }
+  .back a:hover { background: rgba(255,255,255,0.2); }
+  .back .ai { width: 36px; height: 36px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; color: #fff;
+    background: linear-gradient(160deg, #4ade80, #15803d); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.14); }
+  .back .ai svg { width: 20px; height: 20px; fill: currentColor; }
+  .back b { font: 600 17px "Be Vietnam Pro", Roboto, sans-serif; color: #fff; }
+  .call .lt { display: none; }
   .call[data-view="contacts"] ~ .back { display: inline-flex; }
   /* danh ba (trang Darboard): chua cho nut Trang chu o tren */
   .call .contacts { padding-top: 64px !important; }
   /* (14/10/2026) Cai dat chuong cong */
-  .gear { position: fixed; z-index: 5; top: 16px; right: 16px; display: none; align-items: center; gap: 8px; padding: 9px 14px; border: none;
+  .gear { position: fixed; z-index: 5; top: 12px; right: 16px; display: none; align-items: center; justify-content: center; gap: 8px; width: 40px; height: 40px; padding: 0; border-radius: 50% !important; border: none;
     border-radius: 999px; background: #1c2128; color: #e6e9ee; font: 600 14px "Be Vietnam Pro", sans-serif; cursor: pointer; }
   .gear svg { width: 18px; height: 18px; fill: currentColor; }
   .call[data-view="contacts"] ~ .gear { display: inline-flex; }
@@ -47,7 +53,7 @@
 </head>
 <body style="margin:0;background:#0b0d10">
 <div id="app"></div>
-<a class="back" href="./">‹ Trang chủ</a>
+<div class="back"><a href="./">‹ Trang chủ</a><span class="ai" id="backIc"></span><b>Cuộc gọi</b></div>
 <button class="gear" id="gear" type="button" aria-haspopup="dialog"></button>
 <div class="dset" id="dset" hidden role="dialog" aria-modal="true" aria-labelledby="dsetT">
   <div class="box">
@@ -193,10 +199,13 @@
   // ── Cai dat chuong cong (/door/config) ──
   (function () {
     var $ = function (id) { return document.getElementById(id); };
-    var ic = (window.RwvIcons || {})['doorbell-video'] || '';
+    var ic = (window.RwvIcons || {})['cog'] || '';   // (16/10/2026) nut cai dat chuong cong = bieu tuong banh rang
     var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true');
     var pth = document.createElementNS('http://www.w3.org/2000/svg', 'path'); pth.setAttribute('d', ic); s.appendChild(pth);
-    $('gear').append(s, document.createTextNode('Chuông cổng'));
+    $('gear').append(s); $('gear').title = 'Cài đặt chuông cổng'; $('gear').setAttribute('aria-label', 'Cài đặt chuông cổng');
+    var vi = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); vi.setAttribute('viewBox', '0 0 24 24');
+    var vp = document.createElementNS('http://www.w3.org/2000/svg', 'path'); vp.setAttribute('d', (window.RwvIcons || {})['video'] || ''); vi.appendChild(vp);
+    $('backIc').appendChild(vi);
     function opts(sel, vals, unit, cur) {
       sel.replaceChildren(); vals.forEach(function (v) { var o = document.createElement('option'); o.value = v; o.textContent = v + ' ' + unit; if (v === cur) o.selected = true; sel.append(o); });
     }

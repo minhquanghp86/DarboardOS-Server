@@ -113,13 +113,18 @@
   var IC = window.RwvIcons || {};
   var $ = function (id) { return document.getElementById(id); };
   var DEV = new URLSearchParams(location.search).get('dev') || '';
-  // (16/10/2026) Mo tu trang Darboard (khong co ?dev): nut ve Trang chu nhu cac ung dung khac.
+  // (16/10/2026) Mo tu trang Darboard (khong co ?dev): "‹ Trang chủ" + bieu tuong + ten NGAY tren hang tieu de (nhu cac ung
+  // dung khac) — khong noi de len tieu de / trinh xem anh.
   if (!DEV) {
     var bk = document.createElement('a'); bk.href = './'; bk.textContent = '‹ Trang chủ';
-    bk.style.cssText = 'position:fixed;z-index:20;left:12px;top:12px;display:inline-flex;align-items:center;height:36px;padding:0 14px 0 10px;border-radius:999px;' +
-      'background:rgba(255,255,255,0.12);color:#e5e7eb;text-decoration:none;font:500 14px "Be Vietnam Pro",Roboto,sans-serif;backdrop-filter:blur(8px)';
-    document.body.appendChild(bk);
-    document.body.style.paddingTop = '44px';   // khong de len tieu de trang
+    bk.style.cssText = 'flex:none;display:inline-flex;align-items:center;height:36px;padding:0 14px 0 10px;border-radius:999px;' +
+      'background:rgba(255,255,255,0.12);color:#e5e7eb;text-decoration:none;font:500 14px "Be Vietnam Pro",Roboto,sans-serif';
+    var ico = document.createElement('span');
+    ico.style.cssText = 'flex:none;width:36px;height:36px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;color:#fff;' +
+      'background:linear-gradient(160deg,#fb923c,#c2410c);box-shadow:inset 0 0 0 1px rgba(255,255,255,0.14)';
+    ico.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="' + (IC['doorbell-video'] || '') + '"/></svg>';
+    var bar = document.getElementById('bar');
+    bar.insertBefore(ico, bar.firstChild); bar.insertBefore(bk, ico);
   }
   function svg(n) {
     var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true');
@@ -155,7 +160,7 @@
       if (dl !== lastDay) { lastDay = dl; m.append(el('div', 'day', dl)); grid = el('div', 'grid'); m.append(grid); }
       var b = el('button', 'tile'); b.type = 'button'; b.setAttribute('aria-label', (KIND[x.kind] || '') + ' lúc ' + hm(d));
       var img = el('img'); img.alt = ''; img.loading = 'lazy'; img.decoding = 'async'; img.src = src(x.f);
-      var meta = el('div', 'meta'); meta.append(el('span', '', hm(d)), el('span', 'badge k-' + x.kind, KIND[x.kind] || x.kind));
+      var meta = el('div', 'meta'); meta.append(el('span', '', p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + ' ' + hm(d)), el('span', 'badge k-' + x.kind, KIND[x.kind] || x.kind));
       var ck = el('span', 'ck'); ck.append(svg('check-circle'));
       if (S.sel && S.sel.has(x.f)) b.classList.add('on');
       b.setAttribute('aria-pressed', String(!!(S.sel && S.sel.has(x.f))));
