@@ -7,7 +7,7 @@
 // REST khong co), trang thai va goi dich vu (REST). Quyen: `homeassistant_api: true` cua addon -> SUPERVISOR_TOKEN
 // (khong can token nguoi dung). Duong dan doi duoc qua bien moi truong de thu tich hop voi HA gia.
 import WebSocket from 'ws';
-import { HaDevice, HaEntity, HaState, ServiceCall, SettingsView, StatusIcons, buildSettingsView, findDeviceByMac, macFromDeviceId, statusEntityIds, statusIconsOf } from './settingsModel.js';
+import { HaDevice, HaEntity, HaState, PowerState, ServiceCall, SettingsView, StatusIcons, buildSettingsView, findDeviceByMac, macFromDeviceId, powerStateOf, statusEntityIds, statusIconsOf } from './settingsModel.js';
 
 const API = () => process.env.HA_API_URL || 'http://supervisor/core/api';
 const WS = () => process.env.HA_WS_URL || 'ws://supervisor/core/websocket';
@@ -97,7 +97,7 @@ export async function getSettingsView(deviceId: string): Promise<SettingsResult>
 }
 
 /** (08/10/2026) Pin + mang cho bieu tuong canh dong ho. null = khong doc duoc (khong co HA / chua them thiet bi). */
-export async function getStatusIcons(deviceId: string): Promise<StatusIcons | null> {
+export async function getStatusIcons(deviceId: string): Promise<(StatusIcons & { pwId?: string }) | null> {
   const mac = macFromDeviceId(deviceId);
   if (!token() || !mac) return null;
   const reg = await getRegistry();
@@ -110,7 +110,15 @@ export async function getStatusIcons(deviceId: string): Promise<StatusIcons | nu
     return r.ok ? await r.json() as HaState : null;
   };
   const [sig, kind, bat, pw] = await Promise.all([one(ids.sig), one(ids.kind), one(ids.bat), one(ids.pw)]);
-  return statusIconsOf(sig, kind, bat, pw);
+  return { ...statusIconsOf(sig, kind, bat, pw), ...(ids.pw ? { pwId: ids.pw } : {}) };
+}
+
+/** (16/10/2026) Chi doc thuc the "Nguồn điện" (doc nhanh moi 2 s — cam / rut sac hien ngay). null = khong doc duoc. */
+export async function getPowerState(entityId: string): Promise<PowerState | undefined | null> {
+  try {
+    const r = await haFetch(`/states/${entityId}`);
+    return r.ok ? powerStateOf(await r.json() as HaState) : null;
+  } catch { return null; }
 }
 
 export async function callService(c: ServiceCall): Promise<boolean> {

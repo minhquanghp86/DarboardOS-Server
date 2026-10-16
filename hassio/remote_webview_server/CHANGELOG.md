@@ -1,3 +1,7 @@
+## V2.9.155
+- Cắm / rút sạc hiện trên thanh trạng thái nhanh hơn: thực thể "Nguồn điện" đọc riêng mỗi 2 s (pin % / mạng vẫn 10 s). Cùng
+  firmware mới (battery_monitor.h: nhận cắm / rút trong ~2–3 s, phát lên HA ngay) — tổng ~3–5 s.
+
 ## V2.9.154
 - Pin / nguồn kiểu điện thoại trên thanh trạng thái (giọt nước trên cùng + góc phải màn hình chờ): đang sạc = pin xanh lá có
   tia sét; cắm nguồn, đã đầy = pin xanh lá + phích cắm; đang dùng pin = pin thường (đỏ khi ≤ 20 %); không có pin = chỉ

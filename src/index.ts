@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url';
 import { WebSocketServer } from "ws"
 import env from "env-var";
 import { makeConfigFromParams, setConfigFor, logDeviceConfig } from "./config.js";
-import { reloadAllLaunchers, broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick, refreshDisplaysTick, markInteraction, screensaverTick, postNotify, repaintRect, onDeviceStatePacket, onDeviceEvent, anyTzOffset, postDoorbell, closeDoorbell, unlockDoorbell, dialHooks, YT_TV_URL, hostMem, pipelineStats } from './deviceManager.js';
+import { reloadAllLaunchers, broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick, refreshDisplaysTick, markInteraction, screensaverTick, powerTick, postNotify, repaintRect, onDeviceStatePacket, onDeviceEvent, anyTzOffset, postDoorbell, closeDoorbell, unlockDoorbell, dialHooks, YT_TV_URL, hostMem, pipelineStats } from './deviceManager.js';
 import type { DeviceSession } from './deviceManager.js';
 import { camFetch, handleCamLive, handleCamProxy, noteCameraHost } from './camProxy.js';
 import { handleGo2rtcHttp, handleGo2rtcUpgrade } from './go2rtcProxy.js';
@@ -451,6 +451,8 @@ ensureMdiIcons().then((changed) => { if (changed) return reloadAllLaunchers(); }
 setInterval(() => requestStatsFromDevices(), 5_000);
 // (26/09/2026 OS-5) Man hinh cho — xem screensaverTick().
 setInterval(() => screensaverTick(), 5_000);
+// (16/10/2026) Nguon dien (cam / rut sac) moi 2 s — xem powerTick().
+setInterval(() => powerTick(), 2_000);
 // (14/09/2026) GĐ3: 15s/lan chinh quality/nhip theo so do thuc (tat bang CCR_ADAPTIVE=0)
 // (17/09/2026) 15s -> 5s. Do that: AIMD hoan tat 7 buoc trong 90 giay chu khong
 // phai ~25 giay nhu tinh toan. Ly do: chu ky tick nay CHI PHOI, con cooldownDownMs

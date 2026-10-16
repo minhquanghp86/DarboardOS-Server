@@ -38,7 +38,7 @@ import type { DialHooks } from "./dial.js";
 import { Notice, NoticeStore, NotifyRequest, noticeKind, parseNotify, shouldPopup, shouldWake } from "./notifications.js";
 import { Sound, soundForNotice, soundPrefs } from "./sound.js";
 import { alarms, type Ringing } from "./alarms.js";
-import { callService, getRegistry, getSettingsView, getStates, haReady, getStatusIcons } from "./haSettings.js";
+import { callService, getRegistry, getSettingsView, getStates, haReady, getStatusIcons, getPowerState } from "./haSettings.js";
 import { NetIcon, PowerState, findDeviceByMac, findNoSleepSwitch, findPresenceSelect, isSaverPhotosSwitchId, macFromDeviceId, planCamAuth, planSet, planWifi } from "./settingsModel.js";
 import { getLauncherConfig, saveHomeLayout } from "./launcherConfig.js";
 import { lockWidgetsFor, refreshLockWidgets } from "./lockWidgets.js";
@@ -200,7 +200,7 @@ export type DeviceSession = {
   /** (30/09/2026) Select "Nguon phat hien nguoi" cua thiet bi (HA) cho thanh trang thai; null = thiet bi khong co. */
   presenceSel?: { id: string; v: string; o: string[]; at: number } | null;
   /** (08/10/2026) Bieu tuong canh dong ho: pin (%) + mang (Wi-Fi vach / Ethernet), doc tu HA moi 30 s. */
-  sb?: { nw: NetIcon | null; bt: number | null; ch?: PowerState; at: number };
+  sb?: { nw: NetIcon | null; bt: number | null; ch?: PowerState; pwId?: string; at: number };
   /** (27/09/2026) Ngay (gio thiet bi) da chao buoi sang — moi ngay mot lan. */
   morningDate?: string;
   /** (27/09/2026) Chuong cua dang hien: id lan bam, URL trang, tab dang dung truoc do, hen gio tu dong. */
@@ -3663,6 +3663,26 @@ async function refreshStatusIcons(now: number): Promise<void> {
     if (changed) pushDeviceStateToPage(d);
   }
 }
+/**
+ * (16/10/2026) CHI thuc the "Nguồn điện" moi 2 s (index.ts): cam / rut sac -> bieu tuong pin doi trong ~3-5 s (firmware phat
+ * len HA ngay khi doi). Pin % / mang van theo vong 10 s cua refreshStatusIcons.
+ */
+let pwBusy = false;
+export function powerTick(): void {
+  if (pwBusy) return;
+  const list = [...devices.values()].filter((d) => d.sb?.pwId);
+  if (!list.length) return;
+  pwBusy = true;
+  Promise.all(list.map(async (d) => {
+    const ch = await getPowerState(d.sb!.pwId!);
+    if (ch === null || !d.sb || ch === d.sb.ch) return;
+    d.sb = { ...d.sb, ...(ch ? { ch } : {}), ...(ch === 'none' ? { bt: null } : {}) };
+    if (!ch) delete d.sb.ch;
+    console.log(`[pin] ${d.deviceId}: nguon -> ${ch ?? '?'}`);
+    pushDeviceStateToPage(d);
+  })).catch(() => { }).finally(() => { pwBusy = false; });
+}
+
 export function screensaverTick(): void {
   const now = Date.now();
   // Moi 5 s: dong bo lai trang thai phat (tu sua neu mot goi bi mat khi thiet bi vua noi lai).
