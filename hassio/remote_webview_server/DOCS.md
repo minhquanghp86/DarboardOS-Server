@@ -208,6 +208,20 @@ rest_command:
   **"Ảnh màn hình chờ"** (màn hình chờ hiện khung ảnh). Gạt "Ảnh màn hình chờ" trên HA hay mục *Màn hình chờ hiện ảnh*
   trong Cài đặt trên màn đều như nhau, và kéo theo "Màn hình chờ" (bật ảnh → bật, tắt ảnh → tắt).
 
+### Màn hình chờ / màn khóa: thanh trạng thái, năng lượng, pin
+
+- **Thanh trạng thái** góc trên phải (như điện thoại): tin nhắn / thông báo / báo thức kèm số (chạm để mở), mạng (Wi-Fi
+  theo vạch hoặc biểu tượng cáp), **pin** của màn.
+- **Năng lượng**: 6 chỉ số — PV hôm nay, Công suất PV, Tải hôm nay, Tiêu thụ lưới, Tiêu thụ tải, Pin % (đang sạc / xả bao
+  nhiêu). Chọn cảm biến ở Darboard › Màn khóa. Màn ngang (P4): thời tiết + dòng lịch / camera ở cột phải.
+- **Camera Frigate**: lần phát hiện gần nhất (trong 1 giờ) hiện trong ~5 giây.
+- **Cuộc gọi nhỡ** (chuông cổng / gọi giữa các màn): thẻ đỏ lớn kèm ảnh khách, màn hình chờ không bị tắt.
+- **Pin** (YAML mẫu P4 / S3 480×272 kèm `battery_monitor.h` — chép cùng thư mục với YAML): màn **tự biết có lắp pin hay
+  không** (không còn báo % ảo khi chỉ cắm USB) và đang **sạc / cắm nguồn / dùng pin**. Thanh trạng thái: pin xanh có tia
+  sét = đang sạc; pin xanh + phích cắm = cắm nguồn, đã đầy; pin thường (đỏ khi ≤ 20 %) = đang dùng pin; chỉ phích cắm =
+  không có pin. Trong HA: `binary_sensor … Có pin`, `sensor … Nguồn điện` (Không có pin / Đang sạc / Cắm nguồn / Đang dùng
+  pin / Đang xác định). Cắm / rút sạc hiện sau ~3–5 giây; sau khi khởi động, xác định có pin trong ~5 giây, nguồn trong ~3 phút.
+
 ### Ứng dụng Camera (2.9.93, chỉ P4)
 
 - Mở từ menu hoặc nút **Camera** trên thanh trạng thái: hình trực tiếp, nút chụp (chế độ ẢNH) / quay (chế độ VIDEO), ô
@@ -247,9 +261,11 @@ Tự hiện khi chạm vào ô nhập chữ trên bất kỳ trang nào; có ch�
 
 ### Trang "Darboard" (thanh bên Home Assistant)
 
-Mục **Darboard** trên thanh bên HA (trước 2.9.94 tên "Menu panel") có hai thẻ:
+Mục **Darboard** trên thanh bên HA (trước 2.9.94 tên "Menu panel") mở ra **trang chủ kiểu điện thoại**: lưới biểu tượng
+các ứng dụng — **Tin nhắn** (huy hiệu số tin chưa đọc), **IPTV**, **Quản lý file**, **Màn khóa**, **Chuông cổng**, **Gọi**,
+**Menu ứng dụng** — và danh sách màn hình đang kết nối. Trong mỗi ứng dụng, nút **‹ Trang chủ** ở góc trên trái để quay lại.
 
-**Tin nhắn** (mặc định) — nhắn tin nội bộ với các màn hình:
+**Tin nhắn** — nhắn tin nội bộ với các màn hình:
 
 - **＋ Mới**: đặt tên (không bắt buộc) và chọn màn hình nhận (hoặc *Mọi màn hình*). Home Assistant luôn có mặt.
 - Gõ chữ (Enter gửi, Shift+Enter xuống dòng); **ảnh / video** bằng nút ghim, kéo thả hoặc dán (ảnh tự thu nhỏ ≤ 2048 px,
@@ -262,11 +278,22 @@ Mục **Darboard** trên thanh bên HA (trước 2.9.94 tên "Menu panel") có h
 
 **Menu ứng dụng** — chỉnh menu của panel bằng giao diện:
 
-- **Hiện/Ẩn** từng ứng dụng bằng công tắc; **↑↓** đổi thứ tự trong nhóm.
+- Ô **Xem trước menu trên màn**: lưới biểu tượng theo nhóm (chỉ ứng dụng đang bật), giống hệt menu trên màn — bấm một
+  biểu tượng để sửa ứng dụng đó.
+- **Hiện/Ẩn** từng ứng dụng bằng công tắc; **↑↓** đổi thứ tự trong nhóm; bút chì để sửa.
 - **Sửa**: đổi tên, nhóm, **biểu tượng** (bộ Material Design Icons giống Home Assistant — gõ từ khoá tiếng Anh như
   `lamp`, `fan`, `tv` để tìm), **màu** (bảng màu hoặc tự chọn). *Khôi phục mặc định* cho ứng dụng có sẵn.
 - **＋ Thêm ứng dụng**: tên, địa chỉ web (dashboard HA khác, trang web bất kỳ…), nhóm, biểu tượng, màu.
 - **Lưu** → menu trên mọi màn hình đổi ngay, không cần khởi động lại. Cấu hình lưu ở `/data/launcher.json` của addon.
+
+**Màn khóa** — widget trên màn hình khóa / chờ:
+
+- Ô **Xem trước màn khóa**: 6 chỉ số năng lượng đúng như trên màn (PV hôm nay · Công suất PV · Tải hôm nay · Tiêu thụ
+  lưới · Tiêu thụ tải · Pin % kèm đang sạc / xả bao nhiêu), số liệu trực tiếp.
+- **Cảm biến năng lượng**: mỗi chỉ số một dòng (tên cảm biến, giá trị hiện tại) — bấm dòng để chọn cảm biến khác (gõ để
+  tìm). Dấu: công suất pin mặc định số dương = đang xả, công suất lưới số dương = đang mua (có ô đảo dấu). **Theo trang
+  Năng lượng của HA** = bỏ lựa chọn riêng, lấy từ Cài đặt › Bảng điều khiển › Năng lượng.
+- **Lịch**: lịch của Home Assistant + lịch Google / iCal (dán địa chỉ bí mật dạng iCal).
 
 Chỉ dùng được từ trang này bên trong Home Assistant (đã đăng nhập); máy khác trong mạng gọi thẳng vào addon thì bị từ chối.
 
@@ -309,9 +336,12 @@ không có màn hình chờ đè lên và có người chạm màn hình trong 2
   rồi mở **Tệp**: màn hình báo "Thẻ chưa đúng định dạng" → **Định dạng thẻ (FAT32)** (2.9.96 + `fw-2026.10.01e`, không
   cần máy tính). Mỗi tệp tối đa 4 GB (video tự dừng sau 30 phút, không vượt).
 
-### Quản lý file trên trang Darboard (2.9.104, thẻ SD của P4)
+### Quản lý file trên trang Darboard (2.9.104; thẻ SD của P4 và S3 4848S040)
 
-Trang **Darboard** (thanh bên Home Assistant) › thẻ **Quản lý file**:
+Trang **Darboard** (thanh bên Home Assistant) › **Quản lý file**:
+
+- Chỉ hiện màn **đang có thẻ nhớ** (rút thẻ ra thì màn đó biến khỏi danh sách trong vài giây — cần firmware
+  `fw-2026.10.20`). Nhiều màn có thẻ: ô chọn màn; chỉ một màn: tên màn ghi cạnh "Thẻ SD".
 
 - Duyệt thư mục trên thẻ SD, ảnh thu nhỏ, sắp xếp theo ngày / tên / cỡ, thanh dung lượng.
 - Chạm ảnh/video để xem (mũi tên chuyển tệp kế). Menu ⋮ của từng tệp: **Tải về (tệp gốc)**, **Tải về dạng MP4**
@@ -324,18 +354,21 @@ Trang **Darboard** (thanh bên Home Assistant) › thẻ **Quản lý file**:
 - Màn hình **phát được**: .mp4 / .m4v / .mkv / .webm / .mov với hình **H.264** (tốt nhất), VP9, AV1 và tiếng AAC, MP3,
   Opus, Vorbis, FLAC. **Không** phát được: H.265/HEVC, .avi / .wmv / .flv / .ts, tiếng AC3/DTS. Nên dùng 720p, 2–4 Mbps.
 
-### IPTV trên màn hình + phát từ trang Darboard (2.9.133)
+### IPTV trên màn hình + phát từ trang Darboard
 
-Trang **Darboard** (thanh bên Home Assistant) › thẻ **IPTV**: thêm **danh sách kênh M3U** (đường link, tệp `.m3u` trong
-thư mục `/media` của Home Assistant, hoặc tệp trên thẻ nhớ của màn — `sd:/…`). Kênh có mặt trong ứng dụng **IPTV** của
-mọi panel; mỗi thay đổi lưu ngay, danh sách tự cập nhật 6 giờ/lần (mất mạng thì dùng bản đã lưu).
+Trang **Darboard** › **IPTV**:
 
-- **Danh sách kênh** (thẻ “Kênh”): ô **chọn danh sách** + **ô tìm kênh** (gõ không dấu vẫn ra). Hiện 200 kênh mỗi lần,
-  bấm **Hiện thêm** để xem tiếp. Mỗi kênh có hai nút:
-  - **Phát trên màn hình** (biểu tượng *cast*): hiện danh sách **màn đang kết nối** — chọn **một màn** hoặc **Tất cả
-    màn hình** rồi bấm **Phát**. Máy chủ tự mở ứng dụng IPTV của màn đó và phát kênh; màn không kết nối thì báo rõ, không gửi.
-  - **Phát trong trình duyệt** (biểu tượng *play*): mở trang phát `iptv.html?play=<kênh>` ở tab mới để xem ngay trên máy
-    tính. Kênh cần header `Referer` / `User-Agent` vẫn xem được vì máy chủ làm proxy hộ.
+- **Trên màn hình** (hàng thẻ trên cùng): mỗi màn một thẻ — **Đang phát** (chấm xanh, tên kênh), **IPTV chạy nền** (chấm
+  vàng) hoặc **Không phát IPTV**; nút **Dừng** (đóng IPTV trên màn, về màn chính) và **Màn chính** (IPTV vào nền). Tự làm
+  mới 3 giây.
+- **Tìm kênh** (ô trên cùng, gõ không dấu vẫn ra — tìm trong mọi kênh) và chip lọc: **★ Yêu thích** (dùng chung mọi màn —
+  bấm ☆ trên thẻ kênh), **Gần đây** (kênh phát từ Darboard và kênh xem trên màn), **Tất cả**, từng danh sách; ô **Nhóm**.
+- Kênh hiện dạng **thẻ có logo**. Chạm thẻ → chọn **một màn** hoặc **Tất cả màn hình** rồi **Phát** (máy chủ tự mở ứng dụng
+  IPTV của màn), hoặc **Xem trong trình duyệt** (phát ngay trên máy tính — kênh cần `Referer` / `User-Agent` vẫn xem được
+  vì máy chủ làm proxy hộ).
+- Nút ⚙ **Danh sách kênh**: thêm / sửa / bật tắt **danh sách M3U** (đường link, tệp `.m3u` trong `/media` của Home
+  Assistant, hoặc tệp trên thẻ nhớ của màn — `sd:/…`). Danh sách tự cập nhật 6 giờ/lần (mất mạng dùng bản đã lưu);
+  **Tải lại kênh** để cập nhật ngay.
 - **Phát được**: HLS (`.m3u8`), MPEG-TS / FLV qua HTTP (Xtream, udpxy), video `.mp4`, DASH và kênh ClearKey. **Không phát
   được**: DRM Widevine / PlayReady, `udp://` / `rtmp://`, video H.265 hoặc MPEG-2.
 - Trên màn hình: ứng dụng **IPTV** → nút *danh sách* (góc trên) để thêm / xoá danh sách ngay tại chỗ. Địa chỉ
@@ -371,12 +404,14 @@ khuếch đại MAX98357A, vòng LED WS2812, nút chuông, MOSFET mở khóa). K
 
 - Các màn có điều khiển **đổ chuông** (hiện đè lên màn khóa, khóa lại sau khi xong) với hình cổng trực tiếp và các nút
   **Nói chuyện** (tiếng hai chiều), **Mở khóa cổng** (chạm 2 lần để tránh mở nhầm), **Chụp ảnh**, **Từ chối**.
-- Không ai nghe → thông báo **"Cuộc gọi nhỡ ở cổng"** kèm ảnh khách; chạm thông báo mở đúng ảnh.
-- Mỗi lần bấm chuông đều được lưu ảnh vào **nhật ký 30 ngày** — ứng dụng **"Chuông cổng"** trên màn và tab
-  **"Chuông cổng"** trong trang Darboard (lọc Nhỡ / Đã nghe / Từ chối / Ảnh chụp, chọn + xóa).
+- Không ai nghe → thông báo **"Cuộc gọi nhỡ ở cổng"** kèm ảnh khách; màn đang ở màn hình chờ / khóa thì giữ nguyên
+  và hiện **thẻ đỏ "Cuộc gọi nhỡ"** lớn trên đó (chạm thẻ mở đúng ảnh; thẻ mất khi đã xem hoặc sau 12 giờ). Từ chối / hết
+  chuông thì màn quay lại đúng màn hình chờ / khóa trước đó.
+- Mỗi lần bấm chuông đều được lưu ảnh vào **nhật ký 30 ngày** — ứng dụng **"Chuông cổng"** trên màn và mục
+  **"Chuông cổng"** trong trang Darboard (ảnh ghi ngày / giờ, lọc Nhỡ / Đã nghe / Từ chối / Ảnh chụp, chọn + xóa).
 - Home Assistant nhận sự kiện `darboard_doorbell` (dữ liệu: `door`, `name`, `panels`) — dùng cho automation, ví dụ
   gửi thông báo về điện thoại. Trong HA, chuông có sẵn switch **Mở cổng**, nút, camera, vòng LED.
-- Cài đặt (tab **"Gọi"** trong Darboard → **Chuông cổng**): màn nào đổ chuông, thời gian đổ chuông, thời gian mở khóa.
+- Cài đặt (mục **"Gọi"** trong Darboard → nút ⚙ góc trên phải): màn nào đổ chuông, thời gian đổ chuông, thời gian mở khóa.
 - Tự đổ chuông từ automation (vd cảm biến khác) — `rest_command` trong `configuration.yaml`:
   ```yaml
   rest_command:
@@ -387,7 +422,8 @@ khuếch đại MAX98357A, vòng LED WS2812, nút chuông, MOSFET mở khóa). K
 
 **Gọi video** giữa các màn có camera + mic (ứng dụng **"Gọi"**) và tab **"Gọi"** trong trang Darboard (trình duyệt máy
 tính / điện thoại — cần mở Home Assistant qua **HTTPS** để dùng camera, micro). Giao diện như điện thoại: cuộc gọi đến
-hiện đè lên màn khóa, tắt mic / tắt camera, máy bận, gọi nhỡ vào Thông báo. Camera màn tự lên 10 hình/giây khi đang gọi.
+hiện đè lên màn khóa, tắt mic / tắt camera, máy bận, gọi nhỡ vào Thông báo + thẻ "Cuộc gọi nhỡ" trên màn hình chờ.
+Camera màn tự lên 10 hình/giây khi đang gọi.
 
 **Nhạc chuông** lấy từ thư mục media của Home Assistant (bạn tự chép tệp vào, giữ đúng tên):
 

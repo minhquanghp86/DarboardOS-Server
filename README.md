@@ -7,7 +7,7 @@ chính, dock, thanh trạng thái kéo xuống, thông báo, tin nhắn nội b�
 
 Dự án gồm hai repo dùng cùng nhau:
 
-| Repo | Vai trò | Phiên bản hiện tại (15/10/2026) |
+| Repo | Vai trò | Phiên bản hiện tại (16/10/2026) |
 |---|---|---|
 | **HA-Darboard-Server** (repo này) | Máy chủ — addon Home Assistant (hoặc container Docker) | **2.9.159** |
 | [HA-Darboard-Client](https://github.com/minhquanghp86/HA-Darboard-Client) | Firmware màn hình (ESPHome) + cấu hình mẫu đang chạy thật | tag **`fw-2026.10.20`** |
@@ -55,9 +55,14 @@ Nhật ký thay đổi từng phiên bản: [`CHANGELOG.md`](hassio/remote_webvi
 - **Thanh trạng thái**: độ sáng, âm lượng (Media / Thông báo / Báo thức), nút Màn hình chờ, Im lặng, Không làm phiền,
   Khử vọng mic, hàng *Phát hiện người* (P4), thẻ *Đang phát*, danh sách thông báo, lối tắt (Camera, Frigate, Gần đây,
   Cài đặt, Trợ lý…).
-- **Màn hình chờ**: đồng hồ hoặc **khung ảnh số** (ảnh gia đình/Google Photos, hiệu ứng, ban đêm tông tối) sau một lúc
-  rảnh; không bao giờ đè lên video đang phát; hiện chip "2 tin nhắn · 1 thông báo" chưa xem. Màn có cảm biến người
-  (P4): **còn người đứng trước màn hình thì không vào màn hình chờ**, chỉ đếm thời gian rảnh từ lúc cảm biến báo trống.
+- **Màn hình chờ / màn khóa**: đồng hồ hoặc **khung ảnh số** (ảnh gia đình/Google Photos, hiệu ứng, ban đêm tông tối) sau
+  một lúc rảnh; không bao giờ đè lên video đang phát. Góc trên phải có **thanh trạng thái kiểu điện thoại** (tin nhắn /
+  thông báo / báo thức kèm số, mạng Wi-Fi hoặc cáp, **pin của màn**). Widget: thời tiết, **6 chỉ số năng lượng** (PV hôm nay,
+  công suất PV, tải hôm nay, tiêu thụ lưới, tiêu thụ tải, pin % kèm sạc/xả), lịch, lần camera Frigate phát hiện (~5 s),
+  và **thẻ đỏ "Cuộc gọi nhỡ"** (chuông cổng / gọi giữa các màn) kèm ảnh khách. Màn có cảm biến người (P4): **còn người
+  đứng trước màn hình thì không vào màn hình chờ**, chỉ đếm thời gian rảnh từ lúc cảm biến báo trống.
+- **Pin kiểu điện thoại** (firmware có `battery_monitor.h`): tự biết có lắp pin hay không, đang sạc / cắm nguồn / dùng pin —
+  pin xanh có tia sét khi sạc, phích cắm khi chạy nguồn ngoài; không còn báo % ảo khi không lắp pin.
 - **YouTube TV**: vuốt = phím mũi tên như remote, cử chỉ quay lại = Esc. **Truyền YouTube từ điện thoại** như Smart TV
   (DIAL/SSDP), tên màn hình khi truyền đổi được trong Cài đặt.
 - **Bàn phím ảo** tiếng Việt (Telex) tự hiện khi chạm ô nhập.
@@ -84,22 +89,34 @@ trên thanh bên Home Assistant.
   vẫn có chuông + thẻ thông báo.
 - Tin từ màn hình bắn sự kiện HA `darboard_chat_message` (dùng cho tự động hoá).
 
+### Trang "Darboard" (thanh bên Home Assistant)
+
+- **Trang chủ kiểu điện thoại**: lưới biểu tượng ứng dụng (Tin nhắn có huy hiệu số tin chưa đọc, IPTV, Quản lý file, Màn
+  khóa, Chuông cổng, Gọi, Menu ứng dụng) + danh sách màn hình đang kết nối. Mỗi ứng dụng có nút **‹ Trang chủ** ở thanh trên.
+- **Màn khóa**: ô *Xem trước màn khóa* (6 chỉ số năng lượng như trên màn, số liệu trực tiếp) + chọn cảm biến theo từng dòng;
+  lịch Google / iCal.
+- **Menu ứng dụng**: ô *Xem trước menu trên màn* (lưới biểu tượng theo nhóm, bấm để sửa); bật / tắt, sắp xếp, đổi tên,
+  biểu tượng, màu, thêm ứng dụng.
+
 ### Quản lý file (thẻ SD) trên trang Darboard
 
 - Thẻ **Quản lý file** trên trang Darboard (thanh bên HA, qua đăng nhập HA — dùng được cả ngoài nhà): duyệt thẻ, xem ảnh /
   phát video, **tải về** (tệp gốc hoặc **MP4** — máy chủ đổi .mkv sang MP4 trong vài giây, không nén lại hình), **tải lên**
   từ điện thoại / máy tính (tuỳ chọn **tối ưu video 720p** cho màn hình, nhận cả HEVC của điện thoại), đổi tên, tạo thư mục,
-  xoá nhiều. Chép vào thẻ ~0,7–0,85 MB/s, **tạm dừng khi màn hình đang phát video**. Nhà có nhiều màn có thẻ thì có ô chọn màn.
+  xoá nhiều. Chép vào thẻ ~0,7–0,85 MB/s, **tạm dừng khi màn hình đang phát video**. Chỉ liệt kê màn **đang có thẻ** (rút
+  thẻ ra thì màn đó biến khỏi danh sách); nhiều màn có thẻ thì có ô chọn màn, chỉ một màn thì ghi tên màn cạnh "Thẻ SD".
 
-### IPTV + phát từ trang Darboard (2.9.133)
+### IPTV + phát từ trang Darboard
 
-- Thẻ **IPTV** trên trang Darboard: thêm **danh sách kênh M3U** (đường link, `.m3u` trong `/media` của HA, hoặc tệp trên thẻ
-  nhớ của màn — `sd:/…`). Kênh hiện trong ứng dụng **IPTV** của mọi panel; danh sách tự cập nhật 6 giờ/lần (mất mạng dùng
-  bản đã lưu). Kênh yêu thích dùng chung mọi màn.
-- **Danh sách kênh có 2 nút mỗi kênh**: **Phát trên màn hình** (chọn **một màn** hoặc **Tất cả màn hình** đang kết nối →
-  máy chủ tự mở ứng dụng IPTV của màn đó) và **Phát trong trình duyệt** (mở trang phát ở tab mới để xem trên máy tính).
-  Ô chọn danh sách + ô tìm kênh (gõ không dấu vẫn ra). API: `GET /iptv/screens`, `POST /iptv/cast {dev, ch}`
-  (`dev` = id màn hoặc `all`).
+- **Danh sách kênh M3U** (đường link, `.m3u` trong `/media` của HA, hoặc tệp trên thẻ nhớ của màn — `sd:/…`): kênh hiện
+  trong ứng dụng **IPTV** của mọi panel; tự cập nhật 6 giờ/lần (nút **Tải lại kênh** để cập nhật ngay; mất mạng dùng bản
+  đã lưu). Quản lý danh sách nằm sau nút ⚙ **Danh sách kênh**.
+- **Trang IPTV của Darboard**: hàng **trạng thái từng màn** (Đang phát kênh gì / IPTV chạy nền / Không phát) với nút
+  **Dừng** và **Màn chính**; ô **tìm kênh** (gõ không dấu vẫn ra); chip **Yêu thích** (dùng chung mọi màn) · **Gần đây**
+  (kênh phát từ Darboard + kênh xem trên màn) · **Tất cả** · từng danh sách, chọn nhóm; lưới thẻ kênh có logo và ngôi sao.
+  Chạm thẻ → chọn **một màn** hoặc **Tất cả màn hình** để phát, hoặc **Xem trong trình duyệt**.
+- API: `GET /iptv/screens`, `GET /iptv/status`, `POST /iptv/cast {dev, ch, name?}` (`dev` = id màn hoặc `all`),
+  `POST /iptv/control {dev, act: "stop"|"home"}`.
 - Phát được HLS / MPEG-TS / FLV qua HTTP / `.mp4` / DASH + ClearKey; **không** phát DRM Widevine/PlayReady, `udp://`,
   `rtmp://`, H.265/MPEG-2. Máy chủ làm proxy luồng (`/iptv/p`) để gắn `Referer`/`User-Agent` riêng từng kênh và tránh CORS.
 
