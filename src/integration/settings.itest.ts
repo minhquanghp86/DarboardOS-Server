@@ -146,6 +146,8 @@ it('Cai dat: doc thuc the cua DUNG man hinh (theo MAC), doi cai dat -> HA nhan d
     [DEV_ID]: { saverPhotos: false, saverIdleS: 300, morning: false, photoEffect: 'slide' },
     __global: { gphotosUrl: 'https://photos.app.goo.gl/AbCd1234' },
   });
-  expect(ha.calls.length).toBe(before);
+  // (16/10/2026) Tat "Hien anh" cung tat "Luon sang" (No Sleep) qua HA — chu y tu 01/10 (setNoSleepViaHa); cac muc rwv.* khac
+  // (idle, morning, hieu ung, album, URL bi tu choi) KHONG goi HA.
+  expect(ha.calls.slice(before)).toEqual([{ path: 'switch.turn_off', body: { entity_id: 'switch.p4_man_hinh_cho' } }]);
   if (process.env.ITEST_SHOTS) { await sleep(300); fs.writeFileSync(path.join(process.env.ITEST_SHOTS, 'settings-1024x600.png'), await srv.screenshot(sp)); }
 });

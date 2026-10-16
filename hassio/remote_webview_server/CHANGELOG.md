@@ -1,3 +1,10 @@
+## V2.9.166
+- Bảo mật: nâng **ws** 8.22 (sửa lỗ hổng cạn bộ nhớ / lộ bộ nhớ chưa khởi tạo của máy chủ WebSocket) và **sharp** 0.35.5
+  (libvips, libheif, librsvg có lỗ hổng đã công bố — ảnh người dùng tải lên Tin nhắn / khung ảnh đi qua sharp). `npm audit`:
+  0 lỗ hổng ở phần chạy thật.
+- Kiểm thử: sửa 4 bài tích hợp bị cũ (màn hình chờ, khung ảnh, cài đặt) và thêm bài kiểm cho ứng dụng **Màn hình**
+  (`screens.itest.ts`). Nay toàn bộ bài tích hợp đạt.
+
 ## V2.9.165
 - Màn hình / trang chủ Darboard: mọi màn đang hiện màn hình chờ đều ghi **"Màn hình chờ"**; việc có khóa hay không là thông tin
   phụ riêng ("Có khóa · vuốt lên để mở" / "Không khóa · chạm để mở"). Trước đây màn bật "Khóa màn hình" hiện "Đã khóa" còn màn tắt

@@ -40,7 +40,9 @@ async function start(hour: number, prefs: Record<string, unknown> = {}): Promise
   await dev.waitFor(() => dev!.currentUrls().includes(home), 20_000, 'ket noi');
   dev.deviceState({ backlightOn: true, tzMin: tzFor(hour) });
   const hp = await srv.waitPage((u) => u === home);
-  await srv.evaluate(hp, `(() => { window.__sv = []; const f = window.__rwvShell.saverPhoto; window.__rwvShell.saverPhoto = (o) => { window.__sv.push(o); return f(o); }; })()`);
+  // (16/10/2026) Thu thap anh DA HIEN qua window.__rwvSaverShown cua Shell (boc __rwvShell.saverPhoto khong con tac dung: ham goi tu
+  // server khong di qua ban boc, spy rong). Giu moi lan doi anh (doi tuong moi) -> mang giong spy cu.
+  await srv.evaluate(hp, `(() => { window.__sv = []; let last = null; setInterval(() => { const m = window.__rwvSaverShown; if (m && m !== last) { last = m; window.__sv.push(m); } }, 40); })()`);
   return hp;
 }
 const shown = (p: PageTarget) => srv!.evaluate<any[]>(p, 'window.__sv');

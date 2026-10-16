@@ -9,6 +9,8 @@ import { FakeDevice, TestServer, sleep } from './harness.js';
 
 let srv: TestServer;
 let dev: FakeDevice | null = null;
+// (16/10/2026) Doc trang thai THAT cua Shell (window.__rwvSaverOn) thay vi boc screensaver(): may cham thi man hinh cho da hien
+// TRUOC khi test kip boc ham (log: "[saver] hien man hinh cho" ma __itestSaver khong bao gio true).
 // (14/10/2026) 5 s (truoc 3 s): 3 s thi man hinh cho co luc hien TRUOC khi test kip gan bo theo doi -> bo lo.
 beforeEach(async () => { srv = await TestServer.start({ SCREENSAVER_IDLE_S: '5' }); });
 afterEach(async (ctx) => {
@@ -29,7 +31,7 @@ it('hien man hinh cho sau khi khong cham; cham thi tat; den nen tat thi khong hi
   // Shadow DOM dong: theo doi qua API cua Shell — boc screensaver() de ghi lai lan goi.
   await srv.evaluate(ha, `(() => { const f = window.__rwvShell.screensaver; window.__rwvShell.screensaver = (on) => { window.__itestSaver = !!on; return f(on); }; })()`);
   const waitSaver = async (want: boolean, ms: number) => {
-    for (let t = 0; t < ms; t += 250) { if ((await srv.evaluate(ha, 'window.__itestSaver === true')) === want) return; await sleep(250); }
+    for (let t = 0; t < ms; t += 250) { if ((await srv.evaluate(ha, 'window.__rwvSaverOn === true')) === want) return; await sleep(250); }
     throw new Error(`man hinh cho != ${want}`);
   };
   await waitSaver(true, 12_000);
@@ -39,14 +41,14 @@ it('hien man hinh cho sau khi khong cham; cham thi tat; den nen tat thi khong hi
   await srv.evaluate(ha, `window.__rwvShell.screensaver(false); window.__itestSaver = false; window.__rwvControl('{"wake":1}')`);
   dev.touch(1, 500, 300); dev.touch(3, 500, 300);
   await sleep(1_500);
-  expect(await srv.evaluate(ha, 'window.__itestSaver')).toBe(false);
+  expect(await srv.evaluate(ha, '!!window.__rwvSaverOn')).toBe(false);
   await waitSaver(true, 12_000);
 
   // Den nen tat -> khong hien lai
   await srv.evaluate(ha, `window.__rwvShell.screensaver(false); window.__itestSaver = false; window.__rwvControl('{"wake":1}')`);
   dev.deviceState({ backlightOn: false });
   await sleep(6_000);
-  expect(await srv.evaluate(ha, 'window.__itestSaver')).toBe(false);
+  expect(await srv.evaluate(ha, '!!window.__rwvSaverOn')).toBe(false);
 });
 
 it('mo URL tu HA / trang bat dau phat video khi man hinh cho dang hien -> tat, khong phu len tab moi (loi 2.9.52)', async () => {
@@ -58,7 +60,7 @@ it('mo URL tu HA / trang bat dau phat video khi man hinh cho dang hien -> tat, k
   const spy = `(() => { const f = window.__rwvShell.screensaver; window.__rwvShell.screensaver = (on) => { window.__itestSaver = !!on; return f(on); }; })()`;
   await srv.evaluate(ha, spy);
   const waitOn = async (p: typeof ha, want: boolean, ms: number) => {
-    for (let t = 0; t < ms; t += 250) { if ((await srv.evaluate(p, 'window.__itestSaver === true')) === want) return; await sleep(250); }
+    for (let t = 0; t < ms; t += 250) { if ((await srv.evaluate(p, 'window.__rwvSaverOn === true')) === want) return; await sleep(250); }
     throw new Error(`man hinh cho != ${want}`);
   };
   await waitOn(ha, true, 12_000);
@@ -75,11 +77,11 @@ it('mo URL tu HA / trang bat dau phat video khi man hinh cho dang hien -> tat, k
   const w = await srv.waitPage((u) => u === url);
   await srv.evaluate(w, spy);
   await sleep(2_000);
-  expect(await srv.evaluate(w, 'window.__itestSaver === true')).toBe(false);
+  expect(await srv.evaluate(w, 'window.__rwvSaverOn === true')).toBe(false);
   expect(srv.log()).toContain('tat man hinh cho (mo URL)');
   // (30/09/2026) Tab cu nay o nen, JavaScript bi tam dung (freezeTab) — server go man hinh cho khoi no TRUOC khi dung.
   // Quay lai tab cu roi kiem tra (truoc day doc thang tab nen).
   await srv.evaluate(w, `window.__rwvControl('{"app":"home"}')`);
   await sleep(500);
-  expect(await srv.evaluate(ha, 'window.__itestSaver === true')).toBe(false);
+  expect(await srv.evaluate(ha, 'window.__rwvSaverOn === true')).toBe(false);
 });
