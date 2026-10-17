@@ -409,7 +409,8 @@
   .app .bd { position: absolute; top: 0; left: calc(50% + 20px); min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px;
     background: #ff3b30; color: #fff; font: 700 12px/22px Roboto, sans-serif; text-align: center; box-shadow: 0 0 0 2px var(--bg); }
   /* (16/10/2026) The rut gon tung man (cham -> screens.html#<id>: dieu khien + cai dat man do). */
-  .hm-scr { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+  /* (17/10/2026) 3 màn + 1 chuông = 2 hàng, căn đều và vừa màn hình (trước đây auto-fill nên dãn thành 1 hàng) */
+  .hm-scr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   @media (max-width: 520px) { .hm-scr { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; margin: 0 -16px; padding: 0 16px 4px; }
     .hm-scr .s { flex: 0 0 72%; scroll-snap-align: start; } }
   .hm-scr .s { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line);
@@ -1132,9 +1133,13 @@
   // (16/10/2026) The rut gon tung man o DAU trang chu: trang thai, ung dung dang hien, mang / pin, thong bao. Cham -> screens.html#<id>.
   function loadScreens() {
     fetch('screens/list', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
-      var list = (j && j.screens) || [], on = list.filter(function (s) { return s.online; }).length;
-      $('hmSum').textContent = list.length ? on + ' màn hình đang kết nối' : 'Chưa có màn hình nào kết nối';
-      $('hmScrSec').hidden = !list.length;
+      var list = (j && j.screens) || [], doors = (j && j.doors) || [];
+      var on = list.filter(function (s) { return s.online; }).length;
+      // (17/10/2026) "3 màn hình đang kết nối & 1 Chuông cửa." — phần chuông chỉ hiện khi hệ thống ĐÃ TỪNG có chuông.
+      $('hmSum').textContent = list.length
+        ? on + ' màn hình đang kết nối' + (doors.length ? ' & ' + doors.length + ' Chuông cửa' : '')
+        : (doors.length ? doors.length + ' Chuông cửa' : 'Chưa có màn hình nào kết nối');
+      $('hmScrSec').hidden = !list.length && !doors.length;
       var mk = function (t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
       var item = function (ic, t, cls) { var x = mk('span', cls || ''); x.append(svg(ic), document.createTextNode(t)); return x; };
       $('hmScr').replaceChildren.apply($('hmScr'), list.map(function (s) {
@@ -1152,6 +1157,20 @@
         a.append(n, mk('div', 'sa', st + ' · ' + (s.app ? s.app.l : '—')), si);
         return a;
       }));
+      // (17/10/2026) CHUÔNG CỬA — thiết bị của hệ thống, thẻ riêng (đã từng kết nối là hiện, kể cả đang offline).
+      // Chạm thẻ -> nhật ký chuông. Không có chuông nào (chưa từng kết nối) -> `doors` rỗng, không hiện gì.
+      doors.forEach(function (d) {
+        var a = mk('a', 's'); a.href = 'door-log.html';
+        var st = !d.online ? 'Ngoại tuyến' : d.busy ? 'Đang nói chuyện' : d.ringing ? 'Đang đổ chuông' : 'Trực tuyến';
+        var n = mk('div', 'sn'); n.append(mk('span', 'sd' + (d.online ? '' : ' off')), mk('span', '', d.name || d.id));
+        var si = mk('div', 'si');
+        si.append(item('video', 'Camera cổng'));
+        if (d.canTalk) si.append(item('phone', 'Nói chuyện 2 chiều'));
+        if (d.counts && d.counts.missed) si.append(item('phone-missed', d.counts.missed + ' nhỡ', 'red'));
+        if (d.last) si.append(item('bell-badge-outline', new Date(d.last.ts).toLocaleDateString('vi-VN')));
+        a.append(n, mk('div', 'sa', st + ' · Chuông cửa'), si);
+        $('hmScr').append(a);
+      });
     }).catch(function () { });
   }
   function route() {
