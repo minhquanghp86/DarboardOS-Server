@@ -297,14 +297,16 @@ export function openGate(doorId: string, secs = cfg.gateS): boolean {
 }
 
 // ── Hinh MJPEG: mot ket noi toi chuong, chia cho nhieu nguoi xem ─────────────────────────────────────────────
-interface MjHub { sinks: Set<FrameSink>; req: http.ClientRequest | null; buf: Buffer; t0: number; stopT: NodeJS.Timeout | null }
+interface MjHub { sinks: Set<FrameSink>; req: http.ClientRequest | null; buf: Buffer; t0: number; stopT: NodeJS.Timeout | null; last: Buffer | null }
 const mjHubs = new Map<string, MjHub>();
 
 export function subscribeDoorFrames(id: string, sink: FrameSink): () => void {
   let h = mjHubs.get(id);
-  if (!h) { h = { sinks: new Set(), req: null, buf: Buffer.alloc(0), t0: Date.now(), stopT: null }; mjHubs.set(id, h); }
+  if (!h) { h = { sinks: new Set(), req: null, buf: Buffer.alloc(0), t0: Date.now(), stopT: null, last: null }; mjHubs.set(id, h); }
   h.sinks.add(sink);
   sink({ kind: 'config', codec: 'jpeg', avcc: Buffer.alloc(0) });
+  // (16/10/2026) Nguoi xem vao giua: gui ngay khung CUOI (da co) de thay hinh tuc thi, khong cho khung ke tiep.
+  if (h.last) sink({ kind: 'frame', key: true, ts: Date.now() - h.t0, data: h.last });
   if (h.stopT) { clearTimeout(h.stopT); h.stopT = null; }
   if (!h.req) openMj(id, h);
   const hub = h;
@@ -333,6 +335,7 @@ function openMj(id: string, h: MjHub): void {
   const rq = http.get({ host: d.ip, port: d.mjPort, path: '/' }, (r) => {
     r.on('data', (c: Buffer) => {
       h.buf = splitJpegs(h.buf.length ? Buffer.concat([h.buf, c]) : c, (jpg) => {
+        h.last = jpg;
         for (const s of h.sinks) s({ kind: 'frame', key: true, ts: Date.now() - h.t0, data: jpg });
       });
       if (h.buf.length > 2 * 1024 * 1024) h.buf = Buffer.alloc(0);
@@ -343,6 +346,39 @@ function openMj(id: string, h: MjHub): void {
   rq.setTimeout(15_000, () => rq.destroy(new Error('het gio')));
   rq.on('error', () => reopen());
   h.req = rq;
+}
+
+/**
+ * (16/10/2026) HINH MJPEG qua HTTP cho **Frigate / Home Assistant** (WS `/call/video` chỉ dành cho trang web).
+ * Dùng CHUNG `MjHub` với trang web ⇒ vẫn chỉ **MỘT** kết nối tới camera của chuông (camera ESPHome chỉ phục vụ 1 luồng).
+ * Frigate: `ffmpeg.inputs.path: http://172.30.32.1:18080/door/video/<id chuông>` (roles: detect, record).
+ * Chỉ nhận từ mạng nội bộ (Frigate, go2rtc, HA core, Chromium của add-on) — không mở ra LAN.
+ */
+export function handleDoorMjpeg(req: http.IncomingMessage, res: http.ServerResponse, url: URL): boolean {
+  const m = /^\/door\/video\/([A-Za-z0-9_-]{1,40})$/.exec(url.pathname);
+  if (!m) return false;
+  if (!isInternalPeer(req.socket.remoteAddress)) {
+    res.writeHead(403, { 'content-type': 'text/plain; charset=utf-8' }); res.end('Chi Frigate / Home Assistant noi bo.'); return true;
+  }
+  const id = m[1];
+  if (!doors.has(id)) {
+    res.writeHead(503, { 'content-type': 'text/plain; charset=utf-8' }); res.end('Chuong chua ket noi.'); return true;
+  }
+  res.writeHead(200, { 'content-type': 'multipart/x-mixed-replace; boundary=frame', 'cache-control': 'no-store', connection: 'close' });
+  let closed = false;
+  let un: () => void = () => { };
+  un = subscribeDoorFrames(id, (f) => {
+    if (closed || f.kind !== 'frame') return;
+    try {
+      res.write(`--frame\r\nContent-Type: image/jpeg\r\nContent-Length: ${f.data.length}\r\n\r\n`);
+      res.write(f.data);
+      res.write('\r\n');
+    } catch { closed = true; un(); res.destroy(); }
+  });
+  const stop = () => { if (closed) return; closed = true; un(); };
+  req.on('close', stop); res.on('close', stop);
+  console.log(`[door] ${id}: Frigate/HA xem MJPEG qua HTTP`);
+  return true;
 }
 
 // ── HTTP ─────────────────────────────────────────────────────────────────────────────────────────────────────

@@ -42,7 +42,7 @@ import { handleScreenCtlApi, setScreenCtlHooks } from './screenCtl.js';
 import { handleTelegramApi } from './telegram.js';
 import { handleMediaApi } from './mediaLib.js';
 import { endCall, handleCallApi, handleCallUpgrade, onMicFrame } from './callBridge.js';
-import { attachDoor, handleDoorApi, requestOpenLog, setDoorHooks } from './door.js';
+import { attachDoor, handleDoorApi, handleDoorMjpeg, requestOpenLog, setDoorHooks } from './door.js';
 import { handleRingtone } from './ringtone.js';
 import { handleCallsApi, handleCallsUpgrade, setCallHooks } from './calls.js';
 import { handleFrigateApi } from './frigate.js';
@@ -244,6 +244,8 @@ http.createServer((req, res) => {
   if (handleMediaApi(req, res, reqUrl)) return;
   // (14/10/2026) INTERCOM GD0: tieng giua man va trang thu / do vong lap (src/callBridge.ts).
   if (handleCallApi(req, res, reqUrl)) return;
+  // (16/10/2026) Hình MJPEG của chuông cổng qua HTTP cho Frigate/HA — phải TRƯỚC handleDoorApi (nó nhận mọi /door/*).
+  if (handleDoorMjpeg(req, res, reqUrl)) return;
   // (14/10/2026) Chuong cong: Nghe / Tu choi / Ket thuc / Mo cong, anh khach (src/door.ts).
   if (handleDoorApi(req, res, reqUrl)) return;
   // (14/10/2026) Nhac chuong tu thu muc media HA (src/ringtone.ts).

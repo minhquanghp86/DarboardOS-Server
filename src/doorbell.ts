@@ -9,7 +9,7 @@
 // quay ve ung dung dang dung truoc do.
 import type { ServiceCall } from './settingsModel.js';
 
-export interface Doorbell { camera: string; title: string; unlock: string | null; timeoutS: number; device: string }
+export interface Doorbell { camera: string; title: string; unlock: string | null; timeoutS: number; device: string; mode: 'mse' | 'mjpeg' }
 
 const str = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 const UNLOCK_RE = /^(script|button|lock)\.[a-z0-9_]{1,64}$/;
@@ -20,12 +20,17 @@ export function parseDoorbell(body: any): { ok: true; bell: Doorbell } | { ok: f
   const unlock = str(body?.unlock, 80) || null;
   if (unlock && !UNLOCK_RE.test(unlock)) return { ok: false, error: 'unlock phai la script.*, button.* hoac lock.*' };
   const t = Number(body?.timeout);
+  // (16/10/2026) mode: cách xem luồng go2rtc của camera cổng. `mjpeg` cho camera ESPHome MJPEG
+  // (esp32_camera_web_server) — hiện hình ngay, không bắt go2rtc chạy ffmpeg chuyển sang H.264.
+  const rawMode = str(body?.mode, 8).toLowerCase();
+  const mode: 'mse' | 'mjpeg' = rawMode === 'mjpeg' ? 'mjpeg' : 'mse';
+  if (rawMode && rawMode !== 'mse' && rawMode !== 'mjpeg') return { ok: false, error: 'mode phai la mse hoac mjpeg' };
   return {
     ok: true,
     bell: {
       camera, unlock, title: str(body?.title, 60) || 'Có người bấm chuông',
       timeoutS: Number.isFinite(t) ? Math.min(300, Math.max(10, Math.round(t))) : 60,
-      device: str(body?.device, 64) || 'all',
+      device: str(body?.device, 64) || 'all', mode,
     },
   };
 }

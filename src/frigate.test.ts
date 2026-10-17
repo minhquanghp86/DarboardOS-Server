@@ -7,8 +7,8 @@ import { describe, expect, it } from "vitest";
 import { hostsOfConfig, hostsOfRuntime, parseFrigateTitle, toEvent } from "./frigate.js";
 
 describe("frigate — su kien camera", () => {
-  it("doc dia chi tu tieu de muc cau hinh tich hop (do that: ccab4aaf-frigate-fa:5000)", () => {
-    expect(parseFrigateTitle("ccab4aaf-frigate-fa:5000")).toEqual({ host: "ccab4aaf-frigate-fa", port: 5000 });
+  it("doc dia chi tu tieu de muc cau hinh tich hop (vd: frigate:5000)", () => {
+    expect(parseFrigateTitle("frigate:5000")).toEqual({ host: "frigate", port: 5000 });
     expect(parseFrigateTitle("http://192.168.1.5:5000/")).toEqual({ host: "192.168.1.5", port: 5000 });
     expect(parseFrigateTitle("frigate")).toEqual({ host: "frigate", port: 5000 });
     expect(parseFrigateTitle("rac rac")).toBeNull();
