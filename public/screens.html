@@ -102,6 +102,10 @@
   .hero { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
   .hero h1 { margin: 0; font-size: clamp(20px, 3.2vw, 26px); font-weight: 700; letter-spacing: -0.2px; }
   .hero .meta { color: var(--muted); font-size: 13px; }
+  /* (17/10/2026) ID man hinh (esp32-<mac>) de dan vao automation HA (rest_command darboard_hien_camera, truong device). */
+  .devid { margin-top: 6px; padding: 4px 10px; border: 1px dashed var(--line); border-radius: 8px; background: none; color: var(--muted);
+    font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; cursor: copy; max-width: 100%; overflow-wrap: anywhere; text-align: left; }
+  .devid:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
   .hero .chips { margin-left: auto; }
 
   .seg { position: sticky; top: 56px; z-index: 10; display: flex; gap: 4px; padding: 4px; border-radius: 14px; background: var(--surface-2);
@@ -295,7 +299,7 @@
 
 <main class="wrap" id="detailView" hidden>
   <nav class="switcher" id="switcher" aria-label="Chọn màn hình"></nav>
-  <div class="hero"><div><h1 id="dName"></h1><div class="meta" id="dMeta"></div></div><div class="chips" id="dChips"></div></div>
+  <div class="hero"><div><h1 id="dName"></h1><div class="meta" id="dMeta"></div><button type="button" class="devid" id="dId" title="Chạm để chép ID màn hình (dùng trong automation Home Assistant)"></button></div><div class="chips" id="dChips"></div></div>
   <div class="seg" id="seg" role="tablist" aria-label="Nhóm chức năng"></div>
   <div class="layout">
     <aside class="aside" id="aside">
@@ -330,6 +334,15 @@
       return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok || j.ok === false) throw new Error(j.error || ('Lỗi ' + r.status)); return j; });
     });
   }
+  $('dId').onclick = function () {
+    var id = this.dataset.id || '';
+    function done() { toast('Đã chép ID: ' + id); }
+    function fallback() {
+      var t = document.createElement('textarea'); t.value = id; t.style.position = 'fixed'; t.style.opacity = '0'; document.body.append(t); t.select();
+      try { document.execCommand('copy') ? done() : toast('ID: ' + id); } catch (e) { toast('ID: ' + id); } t.remove();
+    }
+    try { navigator.clipboard.writeText(id).then(done, fallback); } catch (e) { fallback(); }
+  };
   var toastT = 0;
   function toast(m, err) {
     var t = $('toast'); t.textContent = m; t.className = 'toast' + (err ? ' err' : ''); t.hidden = false;
@@ -556,6 +569,7 @@
     }
     $('ttl').textContent = d.name;
     $('dName').textContent = d.name;
+    $('dId').textContent = 'ID: ' + S.id + '  ⧉'; $('dId').dataset.id = S.id;
     $('dMeta').textContent = model(d) + (d.cap.rot ? ' · xoay ' + d.cap.rot + '°' : '') + ' · ' + capText(d.cap);
     if (sigOf('chips', [d.online, d.on, d.saver, d.locked, d.ring, d.nw, d.bt, d.ch, d.np, d.mc, d.nu, d.cu, d.dnd])) $('dChips').replaceChildren(chipsFor(d, false));
     if (sigOf('seg', [d.nu, d.mc])) renderSeg();

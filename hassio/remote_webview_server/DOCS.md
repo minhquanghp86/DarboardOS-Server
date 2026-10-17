@@ -485,27 +485,41 @@ Mỗi màn hình là một thiết bị ESPHome với các thực thể (tên th
 | Speaker Media Player | media_player | Phát TTS / thông báo ra loa màn hình |
 | WS Connected | binary_sensor | Màn hình đang kết nối addon |
 
-Ví dụ — mở camera cổng khi có người bấm chuông, rồi đọc thông báo:
+Ví dụ — hiện camera cổng toàn màn hình khi có người (hoặc chuông), tự đóng sau 45 giây rồi quay về ứng dụng đang dùng. Cần một `rest_command`
+(thêm vào `configuration.yaml`, rồi *Công cụ nhà phát triển → YAML → Tải lại REST command*):
+
+```yaml
+rest_command:
+  darboard_hien_camera:
+    url: "http://<IP-HASS>:18080/doorbell"     # 18080 = health_port của add-on
+    method: POST
+    content_type: application/json
+    payload: >-
+      {{ {"camera": camera, "title": title | default("Camera"), "device": device | default("all"),
+          "timeout": timeout | default(45)} | tojson }}
+    timeout: 10
+```
 
 ```yaml
 automation:
-  - alias: Chuông cửa → hiện camera trên màn hình phòng khách
-    trigger:
-      - platform: state
-        entity_id: binary_sensor.chuong_cua
+  - alias: Camera cổng → hiện trên màn hình phòng khách
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.camera_cong_person_occupancy
+        from: "off"
         to: "on"
-    action:
-      - action: light.turn_on
-        target: { entity_id: light.man_hinh_phong_khach_lcd_backlight }
-      - action: text.set_value
-        target: { entity_id: text.man_hinh_phong_khach_url_hien_thi }
-        data: { value: "http://192.168.1.10:18080/cam.html?src=cong" }
-      - action: tts.speak
-        target: { entity_id: tts.piper }
+    actions:
+      - action: rest_command.darboard_hien_camera
         data:
-          media_player_entity_id: media_player.man_hinh_phong_khach_speaker_media_player
-          message: "Có người bấm chuông cửa"
+          camera: cong               # tên luồng go2rtc
+          title: "Cổng: có người"
+          device: esp32-0a0b0c0d0003  # ID màn: Darboard → Màn hình → chạm dòng "ID" để chép; "all" = mọi màn
+          timeout: 45
 ```
+
+Không muốn tự viết: Blueprint "Hiện camera lên màn hình Darboard" (chọn camera + màn bằng giao diện) và hướng dẫn đầy đủ ở repo
+HA-Darboard-Client, `docs/HUONG-DAN-AUTOMATION-CAMERA.md`. **Đừng** đặt "URL hiển thị" của màn thành địa chỉ LAN của Home Assistant: trình duyệt
+của màn chạy trong add-on và địa chỉ LAN bị chặn.
 
 ## Thông báo từ Home Assistant (chuông cửa, nhắc việc…)
 

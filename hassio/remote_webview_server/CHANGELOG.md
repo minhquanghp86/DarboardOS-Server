@@ -1,3 +1,9 @@
+## V2.9.172
+- Ứng dụng **Màn hình** → chi tiết một màn: hiện **ID màn hình** (`esp32-<mac>`), chạm để chép — dùng cho trường `device` của
+  `POST /doorbell` / automation Home Assistant (trước đây phải tự dò).
+- Sửa tài liệu (DOCS): ví dụ "hiện camera khi có người" nay dùng `rest_command` + `/doorbell`; ví dụ cũ đặt "URL hiển thị" bằng địa chỉ LAN
+  không còn chạy (trình duyệt của màn nằm trong add-on, địa chỉ LAN bị chặn).
+
 ## V2.9.171
 - Cài đặt chuông cổng: **chọn một hoặc nhiều màn bất kỳ** để đổ chuông — kể cả màn **không có loa / camera** (vẫn hiện trang chuông, xem hình
   và mở cổng; chỉ không nói chuyện được). Trước đây danh sách chỉ liệt kê màn có loa hoặc camera (thực tế chỉ P4). Màn đã chọn nhưng
