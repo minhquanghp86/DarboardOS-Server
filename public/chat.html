@@ -18,9 +18,9 @@
   ?dev=<id thiet bi> do server them khi mo ung dung (nhan dien man hinh). Cap nhat tuc thi: long-poll chat/state.
   Khong hieu ung chay lien tuc (moi khung dong la bang thong WiFi toi panel).
 -->
-<link rel="stylesheet" href="ui.css">
-<script src="ui.js"></script>
-<script src="icons.js"></script>
+<link rel="stylesheet" href="ui.css?v=2.9.178">
+<script src="ui.js?v=2.9.178"></script>
+<script src="icons.js?v=2.9.178"></script>
 <style>
   :root { --accent: #3b82f6; --mine: #2563eb; --kb: 0px; --hdr: clamp(44px, 9vmin, 58px); --fs: clamp(13.5px, 3.1vmin, 16px); }
   html, body { height: 100%; overflow: hidden; }
@@ -84,13 +84,13 @@
     line-height: 1.38; white-space: pre-wrap; word-break: break-word; position: relative; }
   .b.mine { align-self: flex-end; background: var(--mine); color: #fff; }
   /* (17/10/2026) Khung anh/video rong hon khung chu -> anh hien thi lon, dung ty le */
-  .b.media { padding: 3px; background: none; max-width: min(92%, 520px); }
+  .b.media { padding: 3px; background: none; max-width: 100%; }
   .b.media.mine { background: none; }
   .b .cap { padding: 4px 8px 2px; }
   .b.media .cap { background: var(--surface-2); border-radius: 0 0 14px 14px; margin-top: -2px; }
   .b.media.mine .cap { background: var(--mine); }
   .mv { position: relative; display: block; border: none; padding: 0; border-radius: 15px; overflow: hidden; cursor: pointer;
-    background: var(--surface-3); width: min(520px, 100%); }
+    background: var(--surface-3); width: 100%; }
   /* (17/10/2026) Anh/video hien thi dung ty le, khong bi co/cat nhu truoc */
   .mv img { display: block; width: 100%; height: auto; max-height: 70vh; object-fit: contain; }
   .mv .noimg { width: 200px; height: 112px; display: flex; align-items: center; justify-content: center; color: var(--muted); }
