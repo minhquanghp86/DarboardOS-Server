@@ -30,10 +30,20 @@ const SNAP_DIR = path.join(DATA_DIR, 'rwv-door');
 // (14/10/2026) Cai dat chuong (tab "Gọi" trong Darboard -> Chuong cong): man do chuong (rong = theo firmware / moi man),
 // thoi gian do chuong, thoi gian mo cong. Luu /data/rwv-door.json.
 const CFG_FILE = path.join(DATA_DIR, 'rwv-door.json');
-export interface DoorConfig { ringPanels: string[]; ringS: number; gateS: number }
-let cfg: DoorConfig = { ringPanels: [], ringS: 45, gateS: 3 };
+/** `known`: các chuông ĐÃ TỪNG kết nối (để trang Darboard vẫn hiện thẻ khi chuông đang offline). */
+export interface KnownDoor { id: string; name: string; ip: string; at: number }
+export interface DoorConfig { ringPanels: string[]; ringS: number; gateS: number; known: KnownDoor[] }
+let cfg: DoorConfig = { ringPanels: [], ringS: 45, gateS: 3, known: [] };
 try { cfg = { ...cfg, ...JSON.parse(fs.readFileSync(CFG_FILE, 'utf8')) }; } catch { /* chua co */ }
 export function doorConfig(): DoorConfig { return cfg; }
+function saveCfg(): void { try { fs.mkdirSync(DATA_DIR, { recursive: true }); fs.writeFileSync(CFG_FILE, JSON.stringify(cfg)); } catch { /* */ } }
+/** (17/10/2026) Nhớ chuông đã từng kết nối (id + tên + IP) — hiện thẻ ở trang Darboard cả khi offline. */
+function rememberDoor(id: string, name: string, ip: string): void {
+  const k = cfg.known.filter((x) => x.id !== id);
+  k.push({ id, name, ip, at: Date.now() });
+  cfg.known = k.slice(-20);
+  saveCfg();
+}
 
 // ── (14/10/2026) NHAT KY CHUONG CONG: anh MOI lan bam chuong (+ anh tu chup), ket qua Nho / Da nghe / Tu choi; GIU 30 NGAY
 // (qua 30 ngay tu xoa — anh moi thay cho anh cu nhat). Xem lai: ung dung "Chuong cong" (door-log.html) tren moi man, cham
@@ -101,8 +111,8 @@ function doorPanelChoices(): { id: string; name: string; online: boolean }[] {
 export function setDoorConfig(b: any): DoorConfig {
   const panels = Array.isArray(b?.ringPanels) ? b.ringPanels.filter((x: unknown) => typeof x === 'string' && /^[\w-]{1,40}$/.test(x)).slice(0, 20) : cfg.ringPanels;
   const num = (v: unknown, lo: number, hi: number, d: number) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
-  cfg = { ringPanels: panels, ringS: num(b?.ringS, 5, 300, cfg.ringS), gateS: num(b?.gateS, 1, 120, cfg.gateS) };
-  try { fs.mkdirSync(DATA_DIR, { recursive: true }); fs.writeFileSync(CFG_FILE, JSON.stringify(cfg)); } catch { /* */ }
+  cfg = { ringPanels: panels, ringS: num(b?.ringS, 5, 300, cfg.ringS), gateS: num(b?.gateS, 1, 120, cfg.gateS), known: cfg.known };
+  saveCfg();
   console.log(`[door] cai dat: do chuong ${cfg.ringPanels.length ? cfg.ringPanels.join(', ') : '(theo chuong / moi man)'}, ${cfg.ringS} s, mo cong ${cfg.gateS} s`);
   return cfg;
 }
@@ -144,14 +154,21 @@ export function doorInfo(): DoorInfo[] {
   const recent = log.filter((x) => x.ts >= Date.now() - KEEP_MS);
   const count = (k: LogKind) => recent.filter((x) => x.kind === k).length;
   const last = recent.length ? recent[recent.length - 1] : null;
-  return [...doors.values()].map((d) => ({
+  const counts = { ring: count('ring'), missed: count('missed'), answered: count('answered'), declined: count('declined') };
+  const lastObj = last ? { f: last.f, ts: last.ts, kind: last.kind } : null;
+  const out: DoorInfo[] = [...doors.values()].map((d) => ({
     id: d.id, name: d.name, online: true, ip: d.ip,
     mjPort: d.mjPort, snapPort: d.snapPort, canTalk: d.canTalk,
     panels: d.panels, ringing: !!d.ring, busy: !!d.talk,
-    lastPress: d.lastPress || null,
-    counts: { ring: count('ring'), missed: count('missed'), answered: count('answered'), declined: count('declined') },
-    last: last ? { f: last.f, ts: last.ts, kind: last.kind } : null,
+    lastPress: d.lastPress || null, counts, last: lastObj,
   }));
+  // (17/10/2026) Chuông đã từng kết nối nhưng đang offline: vẫn trả về để Darboard giữ thẻ (online=false).
+  for (const k of cfg.known) {
+    if (doors.has(k.id)) continue;
+    out.push({ id: k.id, name: k.name, online: false, ip: k.ip, mjPort: 0, snapPort: 0, canTalk: false, panels: [], ringing: false, busy: false,
+      lastPress: k.at, counts, last: lastObj });
+  }
+  return out;
 }
 
 function led(d: Door, s: DoorState, backToIdleMs = 0): void {
@@ -170,6 +187,7 @@ export function attachDoor(ws: WebSocket, id: string, remote: string | undefined
   const panels = (params.get('panels') || '').split(',').map((s) => s.trim()).filter((s) => /^[\w-]{1,40}$/.test(s));
   const d: Door = { id, name, ws, ip, mjPort: port('mj'), snapPort: port('sn'), panels, talk: null, canTalk: params.get('mic') === '1' && params.get('audio') === '1', lastPress: 0, ring: null, ledT: null };
   doors.set(id, d);
+  rememberDoor(id, name, ip);
   broadcaster.addClient(id, ws);
   console.log(`[door] ${id} (${name}) ket noi tu ${ip} — MJPEG :${d.mjPort}, anh :${d.snapPort}${d.canTalk ? '' : ' (chua co mic / loa)'}`);
   led(d, DoorState.Idle);

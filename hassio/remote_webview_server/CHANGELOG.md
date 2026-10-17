@@ -1,3 +1,11 @@
+## V2.9.175
+- **Chuông cửa hiện ở TRANG CHÍNH Darboard** (sửa lại vị trí của 2.9.174 — KHÔNG đặt trong app "Màn hình"):
+  - Dòng tổng thành "**N màn hình đang kết nối & M Chuông cửa.**"; phần chuông chỉ xuất hiện khi hệ thống **đã từng** có chuông.
+  - Thẻ chuông nằm cùng các thẻ màn, lưới **2 cột** (3 màn + 1 chuông = 2 hàng, căn đều, vừa màn hình).
+  - Chuông **đã từng kết nối** vẫn hiện thẻ khi đang offline (lưu id/tên/IP vào `/data/rwv-door.json`, khoá `known`).
+  - Thẻ: tên + trạng thái, camera cổng, nói chuyện 2 chiều, số cuộc nhỡ, ngày bấm gần nhất; chạm thẻ → nhật ký chuông.
+  - Bỏ thẻ chuông khỏi trang "Màn hình" (đã thêm nhầm ở 2.9.174); `GET /screens/list` vẫn trả `doors` để trang chủ dùng.
+
 ## V2.9.174
 - **Darboard → "Màn hình": chuông cổng là một thiết bị của hệ thống** (hiển thị cùng các màn): `GET /screens/list` trả thêm
   `doors`; trang hiện thẻ chuông với **ID để chép** (`esp32-<MAC>` — dùng cho automation Home Assistant), IP, cổng
