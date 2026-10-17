@@ -5,7 +5,7 @@
 
 // (08/10/2026) SU KIEN CAMERA (Frigate) cho ung dung public/events.html.
 // Tim API Frigate KHONG can quyen Supervisor (addon goi /addons -> 403): muc cau hinh cua tich hop Frigate trong HA co
-// tieu de "ten-may:cong" (do that: ccab4aaf-frigate-fa:5000) -> phan giai ten qua DNS noi bo cua add-on (172.30.32.3 —
+// tieu de "ten-may:cong" (vd: frigate:5000) -> phan giai ten qua DNS noi bo cua add-on (172.30.32.3 —
 // addon chay host_network van toi duoc) -> http://<ip>:<cong> (cong 5000 khong xac thuc, chi trong mang add-on).
 // FRIGATE_URL (bien moi truong) de ghi de. Anh / clip CHI phuc vu trang cung may (127.0.0.1): hinh camera trong nha.
 import http from 'node:http';
@@ -17,7 +17,7 @@ const BASE_TTL_MS = 10 * 60_000;
 let base: { url: string; at: number } | null = null;
 let cfgCache: { at: number; cfg: FrigateConfig } | null = null;
 
-/** "ccab4aaf-frigate-fa:5000" / "http://frigate:5000/" -> { host, port }. */
+/** "frigate:5000" / "http://frigate:5000/" -> { host, port }. */
 export function parseFrigateTitle(title: string): { host: string; port: number } | null {
   const m = /^(?:https?:\/\/)?([A-Za-z0-9.-]+)(?::(\d{1,5}))?\/?$/.exec(String(title || '').trim());
   if (!m) return null;

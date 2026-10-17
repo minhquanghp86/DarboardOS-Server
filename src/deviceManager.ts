@@ -2321,7 +2321,7 @@ export function postDoorbell(body: unknown): { ok: boolean; error?: string; id?:
   const targets = b.device === 'all' ? [...devices.values()] : [devices.get(b.device)].filter((d): d is DeviceSession => !!d);
   for (const dev of targets) {
     const url = `${LOCAL_ORIGIN}/doorbell.html?cam=${encodeURIComponent(b.camera)}&title=${encodeURIComponent(b.title)}` +
-      `&id=${id}&u=${b.unlock ? 1 : 0}&t=${b.timeoutS}` + (canPlay(dev) || dndOf(dev.deviceId) ? '&quiet=1' : '');
+      `&id=${id}&u=${b.unlock ? 1 : 0}&t=${b.timeoutS}&mode=${b.mode}` + (canPlay(dev) || dndOf(dev.deviceId) ? '&quiet=1' : '');
     const prevKey = dev.doorbell?.prevKey ?? (dev.activeTabKey === '__doorbell' ? 'home' : dev.activeTabKey);
     const saver = dev.doorbell?.saver ?? (dev.saverOn || !!dev.locked);
     if (dev.doorbell) clearTimeout(dev.doorbell.timer);

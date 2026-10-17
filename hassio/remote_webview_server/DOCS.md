@@ -166,11 +166,14 @@ rest_command:
     url: "http://127.0.0.1:18080/doorbell"
     method: post
     content_type: "application/json"
-    payload: '{"camera": "cong_truoc", "title": "Cổng trước", "unlock": "script.mo_cong", "timeout": 60}'
+    payload: '{"camera": "cong_truoc", "title": "Cổng trước", "unlock": "script.mo_cong", "timeout": 60, "mode": "mjpeg"}'
 ```
 
 - `camera`: tên luồng trong go2rtc. `unlock` (tuỳ chọn): `script.*`, `button.*` hoặc `lock.*` — nút **Mở cổng** chỉ
   chạy đúng thực thể này. `timeout`: 10–300 giây rồi tự quay về ứng dụng trước.
+- `mode` (tuỳ chọn, 2.9.173): `mse` (mặc định) hoặc **`mjpeg`**. Camera cổng dùng ESPHome
+  `esp32_camera_web_server` (MJPEG) thì đặt `mjpeg`: màn hình hiện hình ngay, không bắt go2rtc chạy ffmpeg chuyển
+  sang H.264.
 - Automation mẫu: khi nút chuông (binary_sensor/event) bật → `rest_command.chuong_cua_panel`.
 
 ### Trợ lý giọng nói (cần firmware có `voice_assistant`)
@@ -448,6 +451,22 @@ khuếch đại MAX98357A, vòng LED WS2812, nút chuông, MOSFET mở khóa). K
   Cài: Telegram → `@BotFather` → `/newbot` → chép token; nhắn một tin cho bot (hoặc thêm bot vào nhóm gia đình) → **Tìm chat ID** → chọn
   → **Lưu** → **Gửi thử**. Chọn từng loại sự kiện. Token chỉ lưu trong add-on (`/data/rwv-telegram.json`), trang chỉ hiện 4 ký tự cuối,
   không ghi vào nhật ký. Telegram tạm lỗi / mất mạng: thử lại tới 4 lần. Docker riêng: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
+- **Frigate / Home Assistant xem hình cổng** (2.9.173): `GET http://172.30.32.1:18080/door/video/<ID chuông>` —
+  luồng **MJPEG**, chỉ nhận từ mạng nội bộ (Frigate, go2rtc, HA core). Nó dùng **chung một kết nối** với trang chuông trên
+  màn hình, nên camera ESPHome (chỉ phục vụ **1 luồng**) không bị tranh chấp: cứ để Frigate đọc URL trên.
+  ```yaml
+  # frigate/config.yml
+  cameras:
+    chuong_cua:
+      ffmpeg:
+        inputs:
+          - path: http://172.30.32.1:18080/door/video/<ID chuông>
+            roles: [detect, record]
+      detect:
+        width: 640      # đúng độ phân giải camera
+        height: 480
+  ```
+  ID chuông xem ở Darboard → **Gọi** → ⚙ (hoặc nút chép ID ở tab **Màn hình**). Không cần khai camera này trong go2rtc.
 - Tự đổ chuông từ automation (vd cảm biến khác) — `rest_command` trong `configuration.yaml`:
   ```yaml
   rest_command:

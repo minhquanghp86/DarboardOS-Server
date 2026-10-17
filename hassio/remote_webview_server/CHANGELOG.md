@@ -1,3 +1,12 @@
+## V2.9.173
+- **Hình chuông cổng cho Frigate / Home Assistant qua HTTP** (MJPEG): `GET http://172.30.32.1:18080/door/video/<ID chuông>`
+  — chỉ nhận từ mạng nội bộ, **dùng chung một kết nối** với trang chuông trên màn hình (`/call/video`). Nhờ vậy camera
+  ESPHome (chỉ phục vụ **1 luồng**) không bị tranh chấp khi vừa có người bấm chuông vừa chạy Frigate detect/record.
+  Cấu hình Frigate: `ffmpeg.inputs.path: http://172.30.32.1:18080/door/video/<ID chuông>` (xem DOCS).
+- **`POST /doorbell` thêm `mode`** (`mse` mặc định, hoặc `mjpeg`): camera cổng là ESPHome MJPEG
+  (`esp32_camera_web_server`) thì đặt `mjpeg` — màn hình hiện hình ngay, không bắt go2rtc chạy ffmpeg chuyển H.264.
+- Người xem vào giữa luồng MJPEG của chuông nhận ngay **khung hình cuối** (không phải chờ khung kế tiếp).
+
 ## V2.9.172
 - Ứng dụng **Màn hình** → chi tiết một màn: hiện **ID màn hình** (`esp32-<mac>`), chạm để chép — dùng cho trường `device` của
   `POST /doorbell` / automation Home Assistant (trước đây phải tự dò).
