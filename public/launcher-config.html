@@ -139,6 +139,7 @@
   .cempty { padding: 40px 24px; text-align: center; color: var(--muted); line-height: 1.5; }
   .cempty b { display: block; color: var(--text); font-size: 15px; margin-bottom: 4px; }
   .msgs { flex: 1; overflow-y: auto; padding: 12px 20px 8px; display: flex; flex-direction: column; gap: 3px; }
+  .msgs > * { flex: 0 0 auto; }   /* (18/10/2026) khong nen item — de .msgs cuon thay vi co noi dung */
   .sep { align-self: center; color: var(--muted); font-size: 12px; font-weight: 500; padding: 12px 0 4px; }
   .who { font-size: 12px; color: var(--muted); margin: 0 0 1px 12px; }
   .grp { display: flex; gap: 10px; align-items: flex-start; align-self: flex-start; max-width: 80%; margin-top: 8px; }
@@ -149,7 +150,9 @@
   .pav img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .pav svg { width: 20px; height: 20px; fill: currentColor; }
   .meav { width: 22px; height: 22px; font-size: 11px; display: inline-flex; vertical-align: middle; margin-right: 6px; }
-  .bub { max-width: min(72%, 560px); align-self: flex-start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
+  /* (18/10/2026) flex-shrink:0 — khong de flex nen tin nhan lai (anh/media bi bep dan khi nhieu tin).
+     Truoc day thieu dong nay nen .msgs khong cuon ma nen cac item. */
+  .bub { flex: 0 0 auto; max-width: min(72%, 560px); align-self: flex-start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
     padding: 8px 13px; line-height: 1.4; white-space: pre-wrap; word-break: break-word; position: relative; }
   .bub.mine { align-self: flex-end; background: var(--primary); border-color: var(--primary); color: #fff; }
   /* (16/10/2026) Chieu rong XAC DINH (khong phan tram): .grp / .gcol co chieu rong theo noi dung, anh tai cham (lazy) chua co kich
