@@ -18,6 +18,7 @@
  */
 import http from 'node:http';
 import { screenAct, screenDetail, screenMedia, screenSettingSet, screenSettings, screenShot, screensOverview } from './deviceManager.js';
+import { doorInfo } from './door.js';
 
 let nameOf: (id: string) => string | undefined = () => undefined;
 export function setScreenCtlHooks(h: { name: (id: string) => string | undefined }): void { nameOf = h.name; }
@@ -48,7 +49,8 @@ export function handleScreenCtlApi(req: http.IncomingMessage, res: http.ServerRe
   const named = <T extends { id: string }>(s: T) => ({ ...s, name: nameOf(s.id) || s.id });
   if (p === '/screens/list' && req.method === 'GET') {
     const list = screensOverview().map(named).sort((a, b) => Number(b.online) - Number(a.online) || b.w * b.h - a.w * a.h);
-    json(res, 200, { ok: true, screens: list });
+    // (17/10/2026) Chuông cổng là một thiết bị của hệ thống: trả kèm để trang "Màn hình" vẽ thẻ như các màn.
+    json(res, 200, { ok: true, screens: list, doors: doorInfo() });
     return true;
   }
   if (p === '/screens/info' && req.method === 'GET') {

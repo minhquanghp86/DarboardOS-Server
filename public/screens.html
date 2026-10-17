@@ -60,6 +60,11 @@
   /* ── Danh sach man ── */
   .lede { margin: 4px 0 0; color: var(--muted); max-width: 70ch; }
   .scr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+  /* (17/10/2026) Chuông cổng trong "Màn hình": thẻ như các màn + xem trước trực tiếp (dùng chung 1 kết nối camera) */
+  .sechead { margin: 22px 0 10px; font-size: 15px; font-weight: 600; color: var(--muted); }
+  .dcard { cursor: default; }
+  .dcard .prev { width: 100%; height: 150px; object-fit: cover; border-radius: 10px; background: #000; display: block; }
+  .dcard .dmeta { font-size: 12.5px; color: var(--muted); }
   .scard { display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line);
     box-shadow: var(--shadow); text-decoration: none; color: inherit; }
   .scard:hover { border-color: color-mix(in srgb, var(--primary) 45%, var(--line)); }
@@ -295,6 +300,9 @@
 <main class="wrap" id="listView">
   <div><p class="lede" id="listSum">Đang tải…</p></div>
   <div class="scr-grid" id="scrGrid"></div>
+  <!-- (17/10/2026) Chuông cổng: một thiết bị của hệ thống, hiển thị cùng các màn -->
+  <h2 class="sechead" id="doorsHead" hidden>Chuông cổng</h2>
+  <div class="scr-grid" id="doorGrid" hidden></div>
 </main>
 
 <main class="wrap" id="detailView" hidden>
@@ -456,6 +464,7 @@
       var g = $('scrGrid'), sig = JSON.stringify(S.list.map(function (s) { return [s.id, s.online, s.on, s.saver, s.locked, s.app && s.app.l, s.bt, s.ch, s.nw, s.nu, s.mc, s.cu, s.np.length, s.dnd, s.name]; }));
       if (g.dataset.sig === sig && Date.now() - (+g.dataset.at || 0) < 30000) return;
       g.dataset.sig = sig; g.dataset.at = Date.now();
+      renderDoors(j.doors || []);
       g.replaceChildren.apply(g, S.list.map(function (s) {
         var a = el('a', 'scard'); a.href = '#' + encodeURIComponent(s.id);
         var pv = el('div', 'pvbox'); var fr = devFrame(s, s.online && s.on !== false ? 'screens/shot?id=' + encodeURIComponent(s.id) + '&t=' + Date.now() : '');
@@ -466,6 +475,41 @@
         return a;
       }));
     }).catch(function (e) { $('listSum').textContent = 'Không đọc được danh sách màn hình: ' + e.message; });
+  }
+  // (17/10/2026) Chuông cổng — thiết bị của hệ thống (như các màn): thông tin + xem trước trực tiếp.
+  function copyId(id, what) {
+    function done() { toast('Đã chép ' + what + ': ' + id); }
+    function fallback() {
+      var t = document.createElement('textarea'); t.value = id; t.style.position = 'fixed'; t.style.opacity = '0'; document.body.append(t); t.select();
+      try { document.execCommand('copy') ? done() : toast(what + ': ' + id); } catch (e) { toast(what + ': ' + id); } t.remove();
+    }
+    try { navigator.clipboard.writeText(id).then(done, fallback); } catch (e) { fallback(); }
+  }
+  function renderDoors(doors) {
+    var head = $('doorsHead'), g = $('doorGrid');
+    head.hidden = g.hidden = !doors.length;
+    if (!doors.length) { g.replaceChildren(); return; }
+    g.replaceChildren.apply(g, doors.map(function (d) {
+      var c = el('div', 'scard dcard');
+      var nm = el('div', 'sname');
+      nm.append(el('span', 'dot' + (d.online ? '' : ' off')), el('span', '', d.name));
+      var idb = el('button', 'devid', d.id); idb.type = 'button';
+      idb.title = 'Chạm để chép ID chuông (dùng trong automation Home Assistant)';
+      idb.onclick = function () { copyId(d.id, 'ID chuông'); };
+      var prev = el('img', 'prev'); prev.alt = ''; prev.loading = 'lazy'; prev.src = 'door/video/' + encodeURIComponent(d.id);
+      var pan = d.panels && d.panels.length
+        ? d.panels.map(function (x) { var s = S.list.filter(function (q) { return q.id === x; })[0]; return s ? s.name : x; }).join(', ')
+        : 'mọi màn có điều khiển';
+      var st = d.busy ? 'Đang nói chuyện' : (d.ringing ? 'Đang đổ chuông' : (d.online ? 'Trực tuyến' : 'Ngoại tuyến'));
+      var logA = el('a', 'devid', 'Mở nhật ký chuông cổng →'); logA.href = 'door-log.html';
+      c.append(prev, nm, idb,
+        el('div', 'dmeta', 'IP ' + d.ip + ' · ' + (d.canTalk ? 'nói chuyện 2 chiều' : 'chỉ xem hình') + ' · MJPEG :' + d.mjPort + ' · ảnh :' + d.snapPort),
+        el('div', 'dmeta', 'Đổ chuông: ' + pan),
+        el('div', 'dmeta', st + ' · 30 ngày: ' + d.counts.missed + ' nhỡ · ' + d.counts.answered + ' đã nghe · ' + d.counts.declined + ' từ chối'),
+        el('div', 'dmeta', d.last ? 'Bấm gần nhất: ' + new Date(d.last.ts).toLocaleString('vi-VN') : 'Chưa có lần bấm nào'),
+        logA);
+      return c;
+    }));
   }
   function chip(t, ic, c) { var x = el('span', 'chip' + (c ? ' ' + c : '')); if (ic) x.append(svg(ic)); x.append(document.createTextNode(t)); return x; }
   function chipsFor(s, short) {

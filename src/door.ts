@@ -127,6 +127,33 @@ export function doorList(): { id: string; name: string; busy: boolean }[] {
   return [...doors.values()].map((d) => ({ id: d.id, name: d.name, busy: !!d.talk }));
 }
 
+/**
+ * (17/10/2026) Trang Darboard → "Màn hình": chuông cổng là MỘT THIẾT BỊ của hệ thống (như 3 màn) — trả về thông tin
+ * đầy đủ để vẽ thẻ: id (dùng cho automation), IP, cổng MJPEG/ảnh, có mic/loa, các màn được đổ chuông, trạng thái,
+ * và thống kê nhật ký 30 ngày (nhỡ / đã nghe / từ chối) + lần bấm gần nhất.
+ */
+export interface DoorInfo {
+  id: string; name: string; online: boolean; ip: string;
+  mjPort: number; snapPort: number; canTalk: boolean;
+  panels: string[]; ringing: boolean; busy: boolean;
+  lastPress: number | null;
+  counts: { ring: number; missed: number; answered: number; declined: number };
+  last: { f: string; ts: number; kind: LogKind } | null;
+}
+export function doorInfo(): DoorInfo[] {
+  const recent = log.filter((x) => x.ts >= Date.now() - KEEP_MS);
+  const count = (k: LogKind) => recent.filter((x) => x.kind === k).length;
+  const last = recent.length ? recent[recent.length - 1] : null;
+  return [...doors.values()].map((d) => ({
+    id: d.id, name: d.name, online: true, ip: d.ip,
+    mjPort: d.mjPort, snapPort: d.snapPort, canTalk: d.canTalk,
+    panels: d.panels, ringing: !!d.ring, busy: !!d.talk,
+    lastPress: d.lastPress || null,
+    counts: { ring: count('ring'), missed: count('missed'), answered: count('answered'), declined: count('declined') },
+    last: last ? { f: last.f, ts: last.ts, kind: last.kind } : null,
+  }));
+}
+
 function led(d: Door, s: DoorState, backToIdleMs = 0): void {
   if (d.ledT) { clearTimeout(d.ledT); d.ledT = null; }
   broadcaster.sendDeviceControl(d.id, ControlField.DoorState, s);
