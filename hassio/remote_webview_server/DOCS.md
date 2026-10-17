@@ -517,7 +517,7 @@ automation:
           timeout: 45
 ```
 
-Không muốn tự viết: Blueprint "Hiện camera lên màn hình Darboard" (chọn camera + màn bằng giao diện) và hướng dẫn đầy đủ ở repo
+Không muốn tự viết: Blueprint "Darboard: Hiện camera lên màn hình" (chọn camera + màn bằng giao diện) và hướng dẫn đầy đủ ở repo
 HA-Darboard-Client, `docs/HUONG-DAN-AUTOMATION-CAMERA.md`. **Đừng** đặt "URL hiển thị" của màn thành địa chỉ LAN của Home Assistant: trình duyệt
 của màn chạy trong add-on và địa chỉ LAN bị chặn.
 
