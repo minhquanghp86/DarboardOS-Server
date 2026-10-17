@@ -1,3 +1,10 @@
+## V2.9.174
+- **Darboard → "Màn hình": chuông cổng là một thiết bị của hệ thống** (hiển thị cùng các màn): `GET /screens/list` trả thêm
+  `doors`; trang hiện thẻ chuông với **ID để chép** (`esp32-<MAC>` — dùng cho automation Home Assistant), IP, cổng
+  MJPEG/ảnh, có mic/loa hay không, các màn được đổ chuông, trạng thái (trực tuyến / đang đổ chuông / đang nói chuyện),
+  thống kê **nhật ký 30 ngày** (nhỡ / đã nghe / từ chối) + lần bấm gần nhất, **xem trước trực tiếp** (dùng chung một kết
+  nối camera với Frigate/trang chuông) và lối mở nhật ký.
+
 ## V2.9.173
 - **Hình chuông cổng cho Frigate / Home Assistant qua HTTP** (MJPEG): `GET http://172.30.32.1:18080/door/video/<ID chuông>`
   — chỉ nhận từ mạng nội bộ, **dùng chung một kết nối** với trang chuông trên màn hình (`/call/video`). Nhờ vậy camera

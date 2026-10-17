@@ -469,6 +469,9 @@ khuếch đại MAX98357A, vòng LED WS2812, nút chuông, MOSFET mở khóa). K
   ```
   ID chuông xem ở Darboard → **Gọi** → ⚙ (hoặc nút chép ID ở tab **Màn hình**). Không cần khai camera này trong go2rtc.
   Xem kích thước thật: `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 <URL>`.
+- **Darboard → "Màn hình"** (2.9.174): chuông cổng hiện như một **thiết bị của hệ thống** — thẻ có tên, chấm trực tuyến,
+  **ID để chép** (`esp32-<MAC>`), IP, cổng MJPEG/ảnh, mic/loa, các màn được đổ chuông, thống kê nhật ký 30 ngày và
+  **xem trước trực tiếp**. Danh sách màn lấy từ `GET /screens/list` (mục `doors`).
 - Tự đổ chuông từ automation (vd cảm biến khác) — `rest_command` trong `configuration.yaml`:
   ```yaml
   rest_command:
