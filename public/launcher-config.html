@@ -157,7 +157,7 @@
   /* (17/10/2026) Khung anh/video rong hon + hien thi dung ty le (truoc bi cat & co lai) */
   .bub.med { padding: 0; overflow: hidden; background: var(--surface); width: min(560px, calc(100vw - 24px)); max-width: none; }
   .gcol .bub.med { max-width: none; }
-  .bub.med img, .bub.med video { display: block; width: 100%; height: auto; min-height: 0; max-height: 70vh; background: var(--surface-3); }
+  .bub.med img, .bub.med video { display: block; width: 100%; height: auto; min-height: 180px; max-height: 70vh; background: var(--surface-3); }
   .bub.med img, .bub.med video { object-fit: contain; }
   .bub.med img { cursor: zoom-in; }
   .bub .cap { padding: 7px 12px; }
@@ -1339,7 +1339,7 @@
     } else if (msg.media) {
       var md = msg.media, url = 'chat/media/' + md.file;
       if (md.kind === 'image') {
-        var im = el('img'); im.loading = 'lazy'; im.alt = 'Ảnh'; im.src = 'chat/media/' + (md.thumb || md.file);
+        var im = el('img'); im.loading = 'eager'; im.decoding = 'async'; im.alt = 'Ảnh'; im.src = 'chat/media/' + (md.thumb || md.file);
         im.onclick = function () { lightbox(url); };
         b.append(im);
       } else {
