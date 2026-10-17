@@ -455,18 +455,20 @@ khuếch đại MAX98357A, vòng LED WS2812, nút chuông, MOSFET mở khóa). K
   luồng **MJPEG**, chỉ nhận từ mạng nội bộ (Frigate, go2rtc, HA core). Nó dùng **chung một kết nối** với trang chuông trên
   màn hình, nên camera ESPHome (chỉ phục vụ **1 luồng**) không bị tranh chấp: cứ để Frigate đọc URL trên.
   ```yaml
-  # frigate/config.yml
+  # frigate/config.yaml
   cameras:
     chuong_cua:
       ffmpeg:
         inputs:
           - path: http://172.30.32.1:18080/door/video/<ID chuông>
-            roles: [detect, record]
+            input_args: preset-http-mjpeg-generic   # BẮT BUỘC: mặc định của Frigate là tham số RTSP
+            roles: [detect, record]                 # (-rtsp_transport tcp) -> ffmpeg thoát ngay với luồng HTTP
       detect:
-        width: 640      # đúng độ phân giải camera
-        height: 480
+        width: 800        # ĐÚNG bằng độ phân giải camera (kiểm bằng ffprobe), không thì detect sai
+        height: 600
   ```
   ID chuông xem ở Darboard → **Gọi** → ⚙ (hoặc nút chép ID ở tab **Màn hình**). Không cần khai camera này trong go2rtc.
+  Xem kích thước thật: `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 <URL>`.
 - Tự đổ chuông từ automation (vd cảm biến khác) — `rest_command` trong `configuration.yaml`:
   ```yaml
   rest_command:
