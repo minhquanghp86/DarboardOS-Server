@@ -20,6 +20,7 @@ Dự án gồm hai repo dùng cùng nhau:
 📖 **Hướng dẫn sử dụng đầy đủ** (cài từ đầu, dùng hằng ngày, tự động hoá, xử lý sự cố):
 [`hassio/remote_webview_server/DOCS.md`](hassio/remote_webview_server/DOCS.md) — cũng ở tab *Tài liệu* của addon.
 Nhật ký thay đổi từng phiên bản: [`CHANGELOG.md`](hassio/remote_webview_server/CHANGELOG.md).
+**Danh mục chức năng** (đối chiếu trực tiếp với mã, gồm cả firmware): [`docs/DANH-MUC-CHUC-NANG.md`](docs/DANH-MUC-CHUC-NANG.md).
 
 
 <p align="center">

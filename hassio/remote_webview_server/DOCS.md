@@ -617,6 +617,8 @@ Gọi từ tự động hoá:
 | `device` | `all` (mặc định) hoặc id màn hình (`esp32-…`, xem log addon). |
 | `camera` | Tên luồng go2rtc — thẻ kèm ảnh chụp camera đó. Hoặc `image`: URL ảnh http(s). |
 | `app` / `url` | Chạm vào thẻ thì mở ứng dụng trong menu (vd `cams`, `weather`) hoặc URL này. |
+| `arg` | Tham số kèm theo thẻ (chuyển tiếp cho ứng dụng / URL khi chạm). |
+| `missed` | `true` = đánh dấu là **cuộc gọi nhỡ** (thẻ đỏ trên màn khóa / màn hình chờ). |
 
 Thông báo được giữ trong **thanh kéo xuống** (mục *Thông báo*: chạm để mở, ✕ để xoá, *Xoá hết*); đồng hồ ở mép trên có
 chấm cam khi còn thông báo. Ô **Không làm phiền** trong thanh kéo xuống: thông báo `normal`/`high` chỉ vào danh sách,
