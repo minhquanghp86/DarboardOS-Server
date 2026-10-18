@@ -64,7 +64,7 @@ configuration:
     description: 'Shared album link (https://photos.app.goo.gl/…) for the photo frame / screensaver. Anyone with the link can view the album. Can also be pasted on the panel: Settings → Photo frame.'
   cast_enabled:
     name: 'Receive YouTube casts from phones'
-    description: 'Panels appear as TVs in the YouTube app's cast button (phone on the same WiFi). Toggle/rename per panel in Settings → Screen.'
+    description: "Panels appear as TVs in the YouTube app's cast button (phone on the same WiFi). Toggle/rename per panel in Settings → Screen."
   dial_port:
     name: 'DIAL port (HTTP)'
     description: 'HTTP port phones use to read panel info when casting. Change if it conflicts. SSDP always uses UDP 1900.'
