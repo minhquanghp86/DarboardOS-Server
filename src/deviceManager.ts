@@ -164,7 +164,7 @@ export type DeviceSession = {
   /** (25/09/2026) Hen gio cua menu — giu o SERVER nen van reo khi nguoi dung da chuyen trang. */
   timer?: { endsAt: number; label: string; handle: NodeJS.Timeout };
 
-  // (26/09/2026 OS-2) MOI UNG DUNG LA MOT TAB CHROMIUM RIENG — xem HA-Darboard-Client: docs/server-noi-bo/KE-HOACH-GIAO-DIEN-HE-DIEU-HANH.md muc 3.1.
+  // (26/09/2026 OS-2) MOI UNG DUNG LA MOT TAB CHROMIUM RIENG — xem DarboardOS-Client: docs/server-noi-bo/KE-HOACH-GIAO-DIEN-HE-DIEU-HANH.md muc 3.1.
   // `cdp`/`url` o tren LUON phan anh tab dang ACTIVE (dang hien tren man hinh — chi tab nay duoc Page.startScreencast).
   // Cac tab khac (Home Assistant ghim + toi da MAX_APP_TABS ung dung) van "am": JS chay binh thuong, radio/nhac phat
   // duoc, nhung KHONG duoc gui hinh — chuyen ve chi la doi con tro `cdp` + bat lai screencast, tuc thi, khong tai lai.
@@ -1208,7 +1208,7 @@ function isHaUrl(dev: DeviceSession, url: string): boolean {
 /**
  * (26/09/2026 OS-2) DIEM VAO DUY NHAT cho moi lenh "hien URL nay" tu phia thiet bi (OpenURL packet: nut/thuc the
  * "Go Home" VA thuc the "URL hien thi" deu di qua CUNG mot goi tin o tang firmware — khong the phan biet duoc,
- * xem HA-Darboard-Client: docs/server-noi-bo/KE-HOACH-GIAO-DIEN-HE-DIEU-HANH.md muc 4). Phan loai theo GOC: cung goc voi Home URL -> tab 'home'
+ * xem DarboardOS-Client: docs/server-noi-bo/KE-HOACH-GIAO-DIEN-HE-DIEU-HANH.md muc 4). Phan loai theo GOC: cung goc voi Home URL -> tab 'home'
  * (ghim); khac goc -> tab 'browser'. "Go Home" luon gui dung Home URL nen luon dua tab 'home' VE DUNG home_url,
  * ke ca khi tab do dang o mot trang con khac cua HA — dung yeu cau ban dau cua nut nay.
  */

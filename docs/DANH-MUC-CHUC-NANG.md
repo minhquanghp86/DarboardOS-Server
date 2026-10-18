@@ -1,8 +1,8 @@
 # DANH MỤC CHỨC NĂNG — HA Darboard
 
 > Cập nhật **18/10/2026** · add-on server **2.9.185** · firmware **fw-2026.10.27**
-> Dự án gồm **hai repo dùng chung một sản phẩm**: `HA-Darboard-Server` (máy chủ, repo này) và
-> `HA-Darboard-Client` (firmware ESPHome cho màn hình). Danh mục này liệt kê **đúng những gì đang có trong mã**,
+> Dự án gồm **hai repo dùng chung một sản phẩm**: `DarboardOS-Server` (máy chủ, repo này) và
+> `DarboardOS-Client` (firmware ESPHome cho màn hình). Danh mục này liệt kê **đúng những gì đang có trong mã**,
 > kèm **nơi cấu hình** và **tài liệu chi tiết** — không có mục nào chỉ nằm trên giấy.
 >
 > Cách tra: mỗi dòng ghi rõ *chức năng* · *ai có* (màn P4 / S3 / chuông) · *cấu hình ở đâu* · *đọc thêm*.
@@ -134,7 +134,7 @@ Thêm / ẩn / sắp xếp / đổi tên / đổi biểu tượng: Darboard → 
 
 **Cơ chế YAML**: `examples/*.yaml` là YAML chung (một file/loại màn, không cấu hình nhà riêng) — máy khách dùng
 `examples/rieng-cua-ban/*.yaml` gọi qua `packages` với `ref: fw-2026.10.27`, rồi nhập Wi-Fi/máy chủ/Home URL **sau khi nạp**.
-Chi tiết: [`HA-Darboard-Client/docs/YAML-CHUNG.md`](https://github.com/minhquanghp86/DarboardOS-Client/blob/main/docs/YAML-CHUNG.md).
+Chi tiết: [`DarboardOS-Client/docs/YAML-CHUNG.md`](https://github.com/minhquanghp86/DarboardOS-Client/blob/main/docs/YAML-CHUNG.md).
 
 **Khoá firmware theo MAC** (`mac_guard.h`, biến `allow_mac`): nạp sang thiết bị khác thì máy ngủ — chống nhân bản.
 `allow_mac` khai ở **YAML cục bộ** trên máy build (rỗng = không khoá).
@@ -180,7 +180,7 @@ Chi tiết: [`HA-Darboard-Client/docs/YAML-CHUNG.md`](https://github.com/minhqua
 | `README.md` | repo server | Tổng quan sản phẩm, tính năng, cài đặt |
 | `hassio/remote_webview_server/DOCS.md` | repo server | **Hướng dẫn sử dụng đầy đủ** (cài từ đầu, dùng hằng ngày, tự động hoá, xử lý sự cố) |
 | `CHANGELOG.md` | repo server | Nhật ký từng phiên bản |
-| `HA-Darboard-Client/README.md` | repo client | Firmware, component, tuỳ chọn từng component, cơ chế YAML |
+| `DarboardOS-Client/README.md` | repo client | Firmware, component, tuỳ chọn từng component, cơ chế YAML |
 | `docs/YAML-CHUNG.md`, `docs/HUONG-DAN-AUTOMATION-CAMERA.md` | repo client | Cấu hình YAML chung; 6 Blueprint + `rest_command` |
 | `docs/BAN-GIAO.md`, `docs/HOAN-THANH-DU-AN.md`, `docs/KHOI-PHUC-BAN-ON-DINH.md` | repo client | Bàn giao, tóm tắt vận hành, quay về bản ổn định |
 | `docs/mac-guard-2026-10-17-commandcode.md` | repo client | Khoá firmware theo MAC + cách cứu máy |

@@ -11,8 +11,8 @@ Dự án gồm hai phần, dùng cùng nhau:
 
 | Phần | Chạy ở đâu | Repo |
 |---|---|---|
-| **Máy chủ** (addon này) | Máy Home Assistant | [HA-Darboard-Server](https://github.com/minhquanghp86/DarboardOS-Server) |
-| **Firmware màn hình** (component ESPHome `remote_webview` + cấu hình mẫu) | Màn hình ESP32 | [HA-Darboard-Client](https://github.com/minhquanghp86/DarboardOS-Client) |
+| **Máy chủ** (addon này) | Máy Home Assistant | [DarboardOS-Server](https://github.com/minhquanghp86/DarboardOS-Server) |
+| **Firmware màn hình** (component ESPHome `remote_webview` + cấu hình mẫu) | Màn hình ESP32 | [DarboardOS-Client](https://github.com/minhquanghp86/DarboardOS-Client) |
 
 ## Để làm gì?
 
@@ -571,7 +571,7 @@ automation:
 ```
 
 Không muốn tự viết: Blueprint "Darboard: Hiện camera lên màn hình" (chọn camera + màn bằng giao diện) và hướng dẫn đầy đủ ở repo
-HA-Darboard-Client, `docs/HUONG-DAN-AUTOMATION-CAMERA.md`. **Đừng** đặt "URL hiển thị" của màn thành địa chỉ LAN của Home Assistant: trình duyệt
+DarboardOS-Client, `docs/HUONG-DAN-AUTOMATION-CAMERA.md`. **Đừng** đặt "URL hiển thị" của màn thành địa chỉ LAN của Home Assistant: trình duyệt
 của màn chạy trong add-on và địa chỉ LAN bị chặn.
 
 ## Thông báo từ Home Assistant (chuông cửa, nhắc việc…)
