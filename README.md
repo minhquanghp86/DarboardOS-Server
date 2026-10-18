@@ -181,7 +181,7 @@ nếu chạy cùng Frigate (Chrome ~1–1,7 GB cho 3 màn hình, ~3 nhân CPU kh
 
 ### Docker (ngoài Home Assistant)
 
-[`docker-compose.rwv.yml`](docker-compose.rwv.yml) — image `ghcr.io/minhquanghp86/ha-darboard-server:chrome-h264`,
+[`docker-compose.rwv.yml`](docker-compose.rwv.yml) — image `ghcr.io/minhquanghp86/darboardos-server:chrome-h264`,
 `network_mode: host`. Ngoài HA không có ingress: đặt `LAUNCHER_CONFIG_OPEN=1` nếu muốn lưu cấu hình menu từ
 `http://<máy>:18080/launcher-config.html` (mọi máy trong LAN đều sửa được — chỉ dùng trong mạng tin cậy). Tin nhắn
 phía HA, ảnh đại diện, Cài đặt thực thể cần token Home Assistant nên chỉ đầy đủ khi chạy dạng addon.
@@ -278,8 +278,8 @@ npm run test:integration   # server thật + Chromium thật + panel giả qua W
 
 1. Việc mới làm trên nhánh `feature/*`. Commit có chữ `[thu-may-that]` → GitHub Actions dựng image `chrome-h264` và
    ảnh addon tag `addon-test` từ nhánh đó. Chạy thử trên addon thật (từ 2.9.106 addon cài từ ảnh dựng sẵn, không còn
-   `ha apps rebuild`): `docker pull ghcr.io/minhquanghp86/ha-darboard-server:addon-test`, `docker tag` thành
-   `ghcr.io/minhquanghp86/ha-darboard-server:<version đang cài>`, rồi `ha apps restart`. Bỏ thử: `docker pull` lại đúng tag
+   `ha apps rebuild`): `docker pull ghcr.io/minhquanghp86/darboardos-server:addon-test`, `docker tag` thành
+   `ghcr.io/minhquanghp86/darboardos-server:<version đang cài>`, rồi `ha apps restart`. Bỏ thử: `docker pull` lại đúng tag
    version rồi `ha apps restart`.
 2. Thử xong, được duyệt → gộp `main`, tăng `version` trong `config.yaml`, đẩy → Actions dựng ảnh addon tag
    `<version>` (Supervisor tải đúng tag này) → **đợi Actions xong** → `ha store reload` rồi `ha apps update`. Xoá nhánh.

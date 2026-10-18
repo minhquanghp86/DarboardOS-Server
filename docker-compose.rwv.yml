@@ -6,7 +6,7 @@
 # Trong Home Assistant OS/Supervised hay dung addon (hassio/remote_webview_server) thay vi file nay.
 services:
   rwvserver:
-    image: ghcr.io/minhquanghp86/ha-darboard-server:chrome-h264   # chi co ban linux/amd64
+    image: ghcr.io/minhquanghp86/darboardos-server:chrome-h264   # chi co ban linux/amd64
     container_name: remote-webview-server
     restart: unless-stopped
     environment:
