@@ -1,4 +1,4 @@
-# HA Darboard Server — Remote WebView Server
+# HA Darboard Server — DarboardOS Server
 
 Biến màn hình cảm ứng **ESP32-P4 / ESP32-S3** thành **bảng điều khiển gắn tường kiểu điện thoại** cho Home Assistant.
 Một Chrome ẩn chạy trên máy chủ dựng trang web (dashboard HA, YouTube, camera, ứng dụng của dự án), gửi phần thay đổi
@@ -171,7 +171,7 @@ media player, cảm biến người…). **Ứng dụng Cài đặt** trên màn
 ### Home Assistant (khuyến nghị)
 
 1. Cài đặt → Ứng dụng (Add-on) → Cửa hàng → ⋮ → Kho lưu trữ → thêm `https://github.com/minhquanghp86/DarboardOS-Server`.
-2. Cài **Remote WebView Server**, khởi động. Mở trang **Darboard** trên thanh bên để chỉnh menu và nhắn tin.
+2. Cài **DarboardOS Server**, khởi động. Mở trang **Darboard** trên thanh bên để chỉnh menu và nhắn tin.
 3. Nạp firmware cho màn hình từ [DarboardOS-Client](https://github.com/minhquanghp86/DarboardOS-Client) (YAML trỏ
    tag `fw-…`), với `server: <ip-HA>:8081`.
 4. (Tuỳ chọn) Thêm `rest_command.panel_notify` để gửi thông báo — xem DOCS.md.

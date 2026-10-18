@@ -1,3 +1,9 @@
+## V2.9.186
+- **Đổi tên hiển thị** add-on và kho: "Remote WebView Server" → **"DarboardOS Server"** (slug `remote_webview_server` giữ nguyên,
+  dữ liệu add-on không đổi). Kho GitHub mới: `minhquanghp86/DarboardOS-Server`
+  (kho cũ `HA-Darboard-Server` đã ngừng dùng).
+- Đồng bộ `package.json` / `package-lock.json` = 2.9.186.
+
 ## V2.9.185
 - **Sửa lỗi tab "Tin nhắn" trong sidebar HA**: ảnh/video bị co bẹp dần khi có nhiều tin (điện thoại bẹp thành "2 vạch",
   máy tính bị cắt thành dải ngang).

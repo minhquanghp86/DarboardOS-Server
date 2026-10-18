@@ -9,4 +9,4 @@ Giấy phép Apache-2.0 của dự án (mục 6) **không cấp quyền dùng t�
 - Bản fork cần **đổi tên và biểu tượng**, đồng thời giữ nguyên các thông báo bản quyền và ghi công trong `LICENSE`,
   `LICENSE-MIT`, `NOTICE` (kể cả ghi công strange_v).
 
-Tên "Remote WebView Server" là tên dự án gốc của strange_v, không thuộc về dự án này.
+Tên "DarboardOS Server" là tên dự án gốc của strange_v, không thuộc về dự án này.

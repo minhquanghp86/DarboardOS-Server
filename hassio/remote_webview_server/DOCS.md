@@ -1,4 +1,4 @@
-# Remote WebView Server — biến màn hình ESP32 thành bảng điều khiển gắn tường
+# DarboardOS Server — biến màn hình ESP32 thành bảng điều khiển gắn tường
 
 ## Đây là gì?
 
@@ -28,7 +28,7 @@ Dự án gồm hai phần, dùng cùng nhau:
 
 ```
  ┌───────────── Máy Home Assistant (x86-64) ─────────────┐          ┌──── Màn hình ESP32 ────┐
- │  Addon Remote WebView Server                           │  WiFi    │  ESPHome +             │
+ │  Addon DarboardOS Server                           │  WiFi    │  ESPHome +             │
  │   Chrome ẩn ──► chụp khung ──► chia ô JPEG ──► WS :8081 ├─────────►│  remote_webview        │
  │        ▲                                              │  ảnh+tiếng│   giải mã, vẽ, phát loa │
  │        └───────── chạm / bấm / trạng thái ◄───────────┤◄─────────┤   gửi cảm ứng, giờ,     │
@@ -68,7 +68,7 @@ Màn hình ESP32-S3/P4 khác (có PSRAM, màn hình ESPHome hỗ trợ) thườn
 
 1. **Thêm kho addon**: Cài đặt → Addon → Cửa hàng addon → ⋮ → Kho lưu trữ → thêm
    `https://github.com/minhquanghp86/DarboardOS-Server`.
-2. **Cài addon "Remote WebView Server"** → Khởi động. Bật *Hiện trên thanh bên* nếu muốn (mục **Darboard**). Xem tab
+2. **Cài addon "DarboardOS Server"** → Khởi động. Bật *Hiện trên thanh bên* nếu muốn (mục **Darboard**). Xem tab
    *Nhật ký*: có dòng `WebSocket listening on :8081` là sẵn sàng.
 3. **Tạo tài khoản HA riêng cho màn hình** (khuyến nghị): Cài đặt → Người & Khu vực → Người → thêm người, *không* cho
    quyền quản trị. Màn hình sẽ đăng nhập bằng tài khoản này.
