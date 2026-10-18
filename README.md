@@ -24,7 +24,7 @@ Nhật ký thay đổi từng phiên bản: [`CHANGELOG.md`](hassio/remote_webvi
 
 
 <p align="center">
-  <img src="images/menu.png" width="49%" alt="Menu ứng dụng trên màn hình ESP32-P4">
+  <img src="images/menu.png" width="49%" alt="Menu ứng dụng của panel (xem trước trong trang Darboard)">
   <img src="images/weather.png" width="49%" alt="Ứng dụng Thời tiết">
   <img src="images/calendar.png" width="49%" alt="Lịch vạn niên">
   <img src="images/menu-panel.png" width="49%" alt="Trang Darboard trong Home Assistant">
