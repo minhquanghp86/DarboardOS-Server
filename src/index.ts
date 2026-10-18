@@ -185,7 +185,7 @@ wss.on("connection", async (ws, req) => {
 });
 
 // ── Health check + trang tĩnh nội bộ ─────────────────────────────────────────
-// (18/09/2026) cam.html (trang xem camera qua go2rtc MSE, xem docs/PUBLIC.md)
+// (18/09/2026) cam.html (trang xem camera qua go2rtc MSE)
 // PHẢI phục vụ ở đây, KHÔNG được đặt trong /config/www/ của Home Assistant.
 // Lý do: HA_PORT phục vụ /local/ tuyệt đối không cần đăng nhập — người dùng
 // này lộ HA ra internet qua Cloudflare Tunnel, nên bất kỳ file nào trong

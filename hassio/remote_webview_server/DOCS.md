@@ -102,21 +102,48 @@ Giọt nước ở giữa mép trên mọi trang hiện **giờ của chính mà
   trang web; ba nút tròn **Màn hình chờ** (bật: không tự tắt màn hình, rảnh thì hiện đồng hồ lớn; tắt: tắt màn hình sau *Sleep time*), **Tắt tiếng**, **Khử vọng mic**.
 - **Ứng dụng** chia ba nhóm:
 
+Bảng dưới là **toàn bộ ứng dụng có sẵn** (đúng theo `src/launcherApps.ts`). Thêm / ẩn / sắp xếp / đổi tên / đổi biểu tượng
+ở **Darboard → Menu ứng dụng**. Ứng dụng chỉ có trên màn đủ khả năng được ghi rõ ở cột *Làm gì*.
+
 | Nhóm | Ứng dụng | Làm gì |
 |---|---|---|
 | Nhà | Home Assistant | Dashboard HA (trang đặt trong thực thể *Home URL*) — đứng đầu dock |
-| | Camera P4 | Xem trực tiếp camera của màn hình P4 (go2rtc) |
-| | Camera nhà | Lưới ảnh tất cả camera trong go2rtc, cập nhật lần lượt vài giây/lần; chạm để xem trực tiếp |
-| | Solar | Trang giám sát điện mặt trời (solar.example.com) |
-| Giải trí | YouTube, TikTok | Xem video có tiếng |
-| | Nhạc | YouTube Music |
+| | Camera | Xem trực tiếp camera của chính panel (**chỉ P4**) — luồng riêng của panel qua `/api/cam/stream` |
+| | Frigate | Lưới ảnh các camera Frigate/go2rtc, cập nhật lần lượt vài giây/lần; chạm để xem trực tiếp |
+| | Sự kiện camera | Sự kiện Frigate theo ngày (người/xe…), xem lại ảnh và clip |
+| | Gọi | Gọi video giữa các màn có camera + mic, và với trình duyệt (tab **Gọi** trên Darboard) |
+| | Chuông cổng | Nhật ký chuông cổng 30 ngày (ảnh khách, cuộc nhỡ, đã mở cổng) |
+| | Thư viện | Ảnh trong thẻ SD của màn, xem kiểu thư viện ảnh (**màn có thẻ SD**) |
+| | Phòng | Điều khiển thiết bị HA theo phòng (đèn, công tắc…) |
+| | Điều khiển | Điều khiển TV / loa / media player của HA |
+| | Solar | Trang giám sát điện mặt trời — **mặc định để trống**, mở ra trang hướng dẫn; dán URL của bạn vào ô *Menu ứng dụng* |
+| Giải trí | YouTube | m.youtube.com (tự bỏ qua quảng cáo — xem mục YouTube) |
+| | YouTube TV | youtube.com/tv — vuốt = phím mũi tên, cử chỉ quay lại = Esc |
+| | YouTube Music | music.youtube.com |
+| | TikTok | tiktok.com |
 | | Radio | VOV1, VOV2, VOV3, VOV5 trực tiếp (cần ~10 giây để bắt đầu — máy chủ VOV giới hạn tốc độ tải) |
 | | Tin tức | VnExpress |
-| | Media | Trình duyệt media của Home Assistant |
-| Tiện ích | Thời tiết | Hiện tại, 24 giờ, 7 ngày, chất lượng không khí (Open-Meteo). Chạm tên nơi chốn → chọn 1 trong 34 tỉnh/thành, hoặc "Nhà (Home Assistant)" |
-| | Lịch | Lịch tháng âm dương, can chi, ngày lễ, giao thừa |
+| | VTVgo | vtvgo.vn |
+| | IPTV | Danh sách kênh M3U (xem mục IPTV) |
+| | Zing MP3 | zingmp3.vn |
+| | NhacCuaTui | nhaccuatui.com |
+| | Media | Trình duyệt media **riêng của dự án** (duyệt kho media HA, phát lên màn hoặc lên đầu phát HA) |
+| | Khung ảnh | Màn hình chờ dạng khung ảnh (ảnh trong Media › `photos`, hoặc album Google Photos) |
+| Tiện ích | Quản lý file | Thẻ SD của màn: duyệt, xem/phát, tải lên–xuống, đổi tên, tạo thư mục, xoá (**màn có thẻ SD**) |
+| | Tin nhắn | Nhắn tin nội bộ giữa Darboard và các màn (chữ, ảnh, video, tin nhắn thoại) |
+| | Thời tiết | Hiện tại, 24 giờ, 7 ngày, chất lượng không khí (Open-Meteo). Chạm tên nơi chốn → chọn 1 trong 34 tỉnh/thành, hoặc "Nhà (Home Assistant)" |
+| | Lịch vạn niên | Lịch tháng âm dương, can chi, ngày lễ, giao thừa |
 | | Hẹn giờ | Hẹn nhanh 1–60 phút. **Vẫn reo khi bạn đã chuyển trang**: hết giờ màn hình tự sáng, hiện báo thức toàn màn hình kèm chuông |
-| | Trình duyệt | Ô nhập địa chỉ web; địa chỉ nhập vào được ghi vào thực thể *URL hiển thị* của màn hình |
+| | Báo thức | Báo thức theo giờ, lặp theo ngày; giữ ở **máy chủ** nên reo đúng giờ kể cả khi màn tắt/mất kết nối |
+| | Việc cần làm | Danh sách việc cần làm dùng chung |
+| | Hôm nay | Tổng hợp trong ngày: lịch, thời tiết, việc cần làm (bản tin buổi sáng) |
+| | Bảng tin | Ghi chú của gia đình (`POST /board`) |
+| | Báo Mới | baomoi.com |
+| | Giá vàng | webgia.com |
+| | Xổ số | minhngoc.net.vn |
+| | Google Maps | Bản đồ / giao thông (URL lấy từ HA) |
+| | Chrome | Trình duyệt đầy đủ kèm thanh địa chỉ; địa chỉ nhập vào được ghi lại, mở lại đúng trang |
+| | Cài đặt | Đọc/ghi thực thể ESPHome của chính màn (độ sáng, âm lượng, màn hình chờ, âm thanh…) |
 
 ### Sắp xếp màn hình chính, thư mục
 
@@ -380,7 +407,7 @@ Trang **Darboard** (thanh bên Home Assistant) › **Quản lý file**:
 - Chạm ảnh/video để xem (mũi tên chuyển tệp kế). Menu ⋮ của từng tệp: **Tải về (tệp gốc)**, **Tải về dạng MP4**
   (video .mkv/.mov/.webm — máy chủ đổi nhanh, không nén lại hình; bản MP4 giữ tạm ở máy chủ tối đa 3 ngày / 3 GB),
   **Đổi tên**, **Xoá**. Nút **Chọn**: chọn nhiều để xoá hoặc tải về.
-- **Tải lên**: chọn tệp từ điện thoại / máy tính → tệp lên máy chủ trước, rồi chép dần vào thẻ (WiFi P4 ~1–2 MB/s;
+- **Tải lên**: chọn tệp từ điện thoại / máy tính → tệp lên máy chủ trước, rồi chép dần vào thẻ (WiFi P4 ~2 MB/s;
   phim 500 MB mất vài phút). Khi màn hình đang phát video, việc chép **tạm dừng** để video không giật. Bật **Tối ưu
   video cho màn hình** (mặc định) để đổi video sang MP4 720p H.264 + AAC — nên dùng cho video quay bằng điện thoại
   (HEVC/H.265 không phát được trên màn hình nếu không đổi). Mỗi tệp tối đa 4 GB (giới hạn FAT32).
@@ -469,9 +496,11 @@ khuếch đại MAX98357A, vòng LED WS2812, nút chuông, MOSFET mở khóa). K
   ```
   ID chuông xem ở Darboard → **Gọi** → ⚙ (hoặc nút chép ID ở tab **Màn hình**). Không cần khai camera này trong go2rtc.
   Xem kích thước thật: `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 <URL>`.
-- **Darboard → "Màn hình"** (2.9.174): chuông cổng hiện như một **thiết bị của hệ thống** — thẻ có tên, chấm trực tuyến,
-  **ID để chép** (`esp32-<MAC>`), IP, cổng MJPEG/ảnh, mic/loa, các màn được đổ chuông, thống kê nhật ký 30 ngày và
-  **xem trước trực tiếp**. Danh sách màn lấy từ `GET /screens/list` (mục `doors`).
+- **Darboard → Trang chủ** (2.9.175 — bản 2.9.174 đặt trong app "Màn hình" đã **sửa lại**): chuông cổng hiện như một
+  **thiết bị của hệ thống** ngay trên trang chủ — dòng tổng thành "N màn hình đang kết nối & M Chuông cửa", thẻ chuông nằm
+  cùng lưới **2 cột** với các thẻ màn. Thẻ có tên, chấm trực tuyến, **ID để chép** (`esp32-<MAC>`), IP, cổng MJPEG/ảnh,
+  mic/loa, các màn được đổ chuông, thống kê nhật ký 30 ngày; chạm thẻ → nhật ký chuông. Chuông **đã từng kết nối** vẫn hiện
+  thẻ khi đang offline (lưu id/tên/IP vào `/data/rwv-door.json`, khoá `known`). Danh sách lấy từ `GET /screens/list` (mục `doors`).
 - Tự đổ chuông từ automation (vd cảm biến khác) — `rest_command` trong `configuration.yaml`:
   ```yaml
   rest_command:
@@ -610,7 +639,19 @@ luôn gửi giá trị riêng của từng màn hình (trong YAML ESPHome) khi k
 | Cổng DevTools nội bộ (`debug_port`) | `9221` | Thường không cần đổi |
 | Nhận truyền YouTube (`cast_enabled`) | bật | Màn hình hiện trong nút Truyền của app YouTube |
 | Cổng DIAL (`dial_port`) | `56790` | HTTP cho điện thoại khi truyền (SSDP luôn UDP 1900) |
-| Cỡ ô, chất lượng JPEG, nhịp khung… | — | Dự phòng, xem trên |
+| Kích thước ô (`tile_size`) | `32` | Dự phòng — firmware gửi giá trị riêng |
+| Số ô cho khung đầy đủ (`full_frame_tile_count`) | `4` | Dự phòng |
+| Ngưỡng vùng đổi → khung đầy đủ (`full_frame_area_threshold`) | `0.5` | Dự phòng |
+| Chu kỳ khung đầy đủ (`full_frame_every`) | `50` | Dự phòng |
+| Gửi 1/n khung (`every_nth_frame`) | `1` | Dự phòng |
+| Nhịp khung tối thiểu ms (`min_frame_interval_ms`) | `80` | Dự phòng |
+| Chất lượng JPEG (`jpeg_quality`) | `85` | Dự phòng |
+| Giới hạn gói tin (`max_bytes_per_message`) | `61440` | Dự phòng — ô ảnh lớn hơn sẽ bị chia nhỏ |
+| Màn hình chờ sau giây (`screensaver_idle_s`) | `120` | `0` = tắt; chỉnh riêng từng màn trong Cài đặt |
+| Màn hình chờ dạng khung ảnh (`screensaver_photos`) | bật | Ảnh lấy từ Media › `photos` |
+| Album Google Photos (`gphotos_album`) | — | Album công khai cho khung ảnh |
+| Bản tin buổi sáng (`morning_briefing`, `morning_window`, `morning_tts`) | bật, `06:00-09:30`, tắt | Bản tin khi có người lần đầu trong khung giờ |
+| Biến môi trường khác | — | `GO2RTC_URL`, `MAX_APP_TABS`, `IDLE_TAB_CLOSE_MIN`, `LOW_MEM_MB`, `NET_HALF_HOLD_MS`, `LAUNCHER_CONFIG_OPEN`… (xem README) |
 
 **Sao lưu (2.9.105, 2.9.106):** addon cài từ ảnh dựng sẵn nên ảnh Docker không nằm trong bản sao lưu (khôi phục xong
 Supervisor tự tải lại ảnh). Bản sao lưu cũng **không chứa bộ đệm**: bộ đệm trang / mã JavaScript / GPU
@@ -625,7 +666,8 @@ chậm hơn một chút.
 | 8081 | WebSocket ảnh/tiếng/cảm ứng | Màn hình ESP32 |
 | 18080 | `/metrics`, trang ứng dụng (`/weather.html`, `/calendar.html`, `/cams.html`, `/radio.html`, `/timer.html`, `/cam.html`, `/chat.html`, `/alarm.html`, `/files.html`), Darboard | Trình duyệt của addon, mạng LAN, ingress HA |
 | 9222 | Chrome DevTools (chỉ khi bật) | Máy tính quản trị |
-| UDP 1900 + 56790 | Truyền YouTube (SSDP tìm thiết bị + DIAL) | Điện thoại trong mạng nhà |
+| 9221 | Chrome DevTools nội bộ (127.0.0.1) | Chỉ máy chủ |
+| UDP 1900 (SSDP) + TCP 56790 (DIAL) | Truyền YouTube (SSDP tìm thiết bị + DIAL) | Điện thoại trong mạng nhà |
 
 ## Hiệu năng đo thực tế (ESP32-P4 1024×600, WiFi)
 
@@ -656,10 +698,10 @@ chậm hơn một chút.
 | Màn hình không lên hình | Thực thể *WS Connected* = bật? `server:` đúng IP máy HA và cổng 8081? Nhật ký addon có `Client connected`? |
 | Đèn sáng nhưng trang trắng / đứng hình | Chạm vào màn hình; nếu vẫn vậy, bấm nút *Khởi động lại* của thiết bị trong ESPHome |
 | Trang đòi đăng nhập lại sau cập nhật | *Thư mục hồ sơ trình duyệt* phải nằm trong `/data` (mặc định `/data/pw-data`) |
-| Màn hình không tự tắt | *No Sleep* đang bật? *Video đang chạy* = bật (đang xem video)? *Sleep time* > 0? |
+| Màn hình không tự tắt | *Màn hình chờ* đang bật? *Video đang chạy* = bật (đang xem video)? *Sleep time* > 0? |
 | Không có tiếng | Cấu hình firmware có `speaker_id`? Âm lượng / nút *Tắt tiếng* trong menu? |
 | Menu không có thanh trượt / đồng hồ | Firmware màn hình cũ — nạp lại theo cấu hình mẫu mới nhất |
-| Camera nhà trống | Cần go2rtc ở cổng 1984 trên máy HA và đã có luồng camera |
+| Frigate trống | Cần go2rtc ở cổng 1984 trên máy HA và đã có luồng camera |
 | Thời tiết sai nơi | Chạm tên nơi chốn → chọn tỉnh/thành, hoặc sửa *Vị trí nhà* trong Cài đặt → Hệ thống → Chung của HA |
 | Darboard báo không lưu được / không gửi được tin | Mở trang từ thanh bên Home Assistant (không mở thẳng `http://…:18080`) |
 | Addon không cài được | Máy HA phải là x86-64; không hỗ trợ ARM (Raspberry Pi) |
@@ -686,7 +728,7 @@ chậm hơn một chút.
 - **Khung nửa độ phân giải theo thiết bị** (2.9.82–2.9.85, không cần cấu hình): firmware báo `half=1` (P4) hoặc
   `half=2` (S3). **S3** nhận khung nửa cho **mọi** video (giải mã phần mềm; YouTube 1,9 → ~14 hình/giây). **P4** nhận khung
   nửa cho YouTube TV nguồn ≤ 360p, và **tự động khi đường truyền nghẽn** (tồn đọng > ~96 KB, giữ `NET_HALF_HOLD_MS`
-  = 15 s rồi về đủ độ phân giải; `0` = tắt) — WiFi yếu thì hình mờ đi thay vì đứng hình. Dashboard không bao giờ mờ.
+  = 60 s rồi về đủ độ phân giải; `0` = tắt) — WiFi yếu thì hình mờ đi thay vì đứng hình. Dashboard không bao giờ mờ.
 - **Màn hình chờ sau (giây)** (`screensaver_idle_s`, mặc định `120`, `0` = tắt): không chạm bao lâu thì hiện đồng
   hồ lớn + ngày âm dương + thời tiết (tông tối 22h–6h, dịch chỗ mỗi phút chống lưu ảnh). Không hiện khi màn hình đã
   tắt đèn nền. **Như điện thoại** (2.9.87): không bao giờ vẽ đè lên video/camera đang phát — trước khi hiện, server hỏi

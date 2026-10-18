@@ -1,3 +1,20 @@
+## V2.9.185
+- **Sửa lỗi tab "Tin nhắn" trong sidebar HA**: ảnh/video bị co bẹp dần khi có nhiều tin (điện thoại bẹp thành "2 vạch",
+  máy tính bị cắt thành dải ngang).
+  - **Gốc rễ**: `.msgs` (danh sách tin) là flex-column nhưng thiếu `flex-shrink: 0`, nên khi nội dung vượt chiều cao thì
+    flex **nén item** thay vì để khung cuộn. Tin chữ không co được (có `line-height`), còn ảnh/media co được nên bẹp dần.
+  - **Sửa**: `.bub { flex: 0 0 auto }` + `.msgs > * { flex: 0 0 auto }` → khung cuộn, ảnh giữ nguyên kích thước.
+  - Kèm: đặt sẵn `width`/`height` gốc của media (từ `w`/`h`) để trình duyệt biết tỷ lệ ngay khi ảnh chưa tải xong; bỏ
+    `loading="lazy"` (iframe sidebar không kích hoạt lazy-load); khung media rộng `min(560px, 100vw - 24px)` +
+    `object-fit: contain` (không cắt ảnh).
+  - **2.9.176 → 2.9.184 là các bước thử trung gian** (đầu tiên sửa nhầm `chat.html`, rồi chỉnh dần `launcher-config.html`);
+    **2.9.185 mới là bản đúng gốc**. `chat.html` (app "Tin nhắn" trên màn P4) đã **hoàn nguyên** về bản gốc — app trên P4
+    vốn không bị lỗi này.
+- Đồng bộ phiên bản: `package.json` / `package-lock.json` lên **2.9.185** (trước đó lệch ở 2.9.175 làm đỏ `src/version.test.ts`).
+- Rà soát lại tài liệu (README.md, DOCS.md): phiên bản + tag firmware, tên/mặc định ứng dụng trong menu, bảng giao thức
+  WebSocket (thêm `MicFrame` loại 13), bảng tuỳ chọn add-on, bảng cổng (56790 là TCP), tham số kết nối, danh sách tệp
+  `/data`, `NET_HALF_HOLD_MS` (60 s), vị trí chuông cổng (trang chủ Darboard), số lượng test.
+
 ## V2.9.175
 - **Chuông cửa hiện ở TRANG CHÍNH Darboard** (sửa lại vị trí của 2.9.174 — KHÔNG đặt trong app "Màn hình"):
   - Dòng tổng thành "**N màn hình đang kết nối & M Chuông cửa.**"; phần chuông chỉ xuất hiện khi hệ thống **đã từng** có chuông.
@@ -72,7 +89,7 @@
 ## V2.9.164
 - Giấy phép (không đổi chức năng): giữ Apache-2.0 + MIT nhưng siết chặt — mọi file mã nguồn có tiêu đề SPDX (kiểm bằng
   `npm run check:spdx`); ảnh Docker kèm `LICENSE`, `NOTICE`, `THIRD-PARTY-NOTICES.md` trong `/licenses` và nhãn giấy phép;
-  `NOTICE` viết lại đầy đủ; thêm `THIRD-PARTY-NOTICES.md` (24 thư viện kèm toàn văn giấy phép, sinh bằng `npm run licenses`),
+  `NOTICE` viết lại đầy đủ; thêm `THIRD-PARTY-NOTICES.md` (22 thư viện kèm toàn văn giấy phép, sinh bằng `npm run licenses`),
   `TRADEMARKS.md` (tên / logo "Darboard" không cấp phép cho bản fork), `CONTRIBUTING.md`.
 - Ghi rõ **âm lịch** (`public/lunar.js`, thuật toán của Hồ Ngọc Đức) chỉ được dùng **cá nhân, phi thương mại**, không thuộc Apache-2.0.
 

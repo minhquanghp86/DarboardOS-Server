@@ -7,10 +7,10 @@ chính, dock, thanh trạng thái kéo xuống, thông báo, tin nhắn nội b�
 
 Dự án gồm hai repo dùng cùng nhau:
 
-| Repo | Vai trò | Phiên bản hiện tại (16/10/2026) |
+| Repo | Vai trò | Phiên bản hiện tại (18/10/2026) |
 |---|---|---|
-| **HA-Darboard-Server** (repo này) | Máy chủ — addon Home Assistant (hoặc container Docker) | **2.9.175** |
-| [HA-Darboard-Client](https://github.com/minhquanghp86/HA-Darboard-Client) | Firmware màn hình (ESPHome) + YAML mẫu chung (một file, nhiều thiết bị) | tag **`fw-2026.10.22`** |
+| **HA-Darboard-Server** (repo này) | Máy chủ — addon Home Assistant (hoặc container Docker) | **2.9.185** |
+| [HA-Darboard-Client](https://github.com/minhquanghp86/HA-Darboard-Client) | Firmware màn hình (ESPHome) + YAML mẫu chung (một file, nhiều thiết bị) | tag **`fw-2026.10.27`** |
 
 > Tài liệu bàn giao / báo cáo nội bộ được giữ riêng (không công khai).
 
@@ -25,7 +25,7 @@ Nhật ký thay đổi từng phiên bản: [`CHANGELOG.md`](hassio/remote_webvi
 <p align="center">
   <img src="images/menu.png" width="49%" alt="Menu ứng dụng trên màn hình ESP32-P4">
   <img src="images/weather.png" width="49%" alt="Ứng dụng Thời tiết">
-  <img src="images/calendar.png" width="49%" alt="Lịch âm dương">
+  <img src="images/calendar.png" width="49%" alt="Lịch vạn niên">
   <img src="images/menu-panel.png" width="49%" alt="Trang Darboard trong Home Assistant">
 </p>
 
@@ -72,9 +72,9 @@ Nhật ký thay đổi từng phiên bản: [`CHANGELOG.md`](hassio/remote_webvi
 | Nhóm | Ứng dụng |
 |---|---|
 | Liên lạc | **Gọi** (gọi video giữa các màn / với trình duyệt), **Chuông cổng** (nhật ký 30 ngày) |
-| Nhà | Home Assistant, **Camera** (chụp/quay của chính P4), **Frigate** (lưới camera go2rtc), **Thư viện** + **Quản lý file** (thẻ SD), Phòng, Điều khiển, Solar |
-| Giải trí | **IPTV**, YouTube, YouTube TV, YouTube Music, TikTok, Radio VOV, Tin tức, VTVgo, Zing MP3, NhacCuaTui, Media, Khung ảnh |
-| Tiện ích | **Tin nhắn**, **Báo thức**, Hẹn giờ, Thời tiết, Lịch âm dương, Việc cần làm, Hôm nay, Bảng tin, Báo Mới, Giá vàng, Xổ số, Google Maps, Trình duyệt, **Cài đặt** |
+| Nhà | Home Assistant, **Camera** (chụp/quay của chính P4), **Frigate** (lưới camera), **Sự kiện camera** (sự kiện Frigate theo ngày), **Thư viện** + **Quản lý file** (thẻ SD), Phòng, Điều khiển, Solar |
+| Giải trí | **IPTV**, YouTube, YouTube TV, YouTube Music, TikTok, **Radio** (VOV 1/2/3/5), Tin tức, VTVgo, Zing MP3, NhacCuaTui, Media, Khung ảnh |
+| Tiện ích | **Tin nhắn**, **Báo thức**, Hẹn giờ, Thời tiết, **Lịch vạn niên**, Việc cần làm, Hôm nay, Bảng tin, Báo Mới, Giá vàng, Xổ số, Google Maps, **Chrome**, **Cài đặt** |
 
 Ứng dụng **Camera** chỉ có trên màn có camera (**P4**). **Thư viện** + **Quản lý file** có trên màn có thẻ nhớ — **P4**
 (SDMMC) và **S3 4848S040** (thẻ SPI, component `sd_files`, từ 2.9.129). Thêm/ẩn/sắp xếp/đổi biểu tượng ở trang **Darboard**
@@ -106,7 +106,7 @@ trên thanh bên Home Assistant.
 - Thẻ **Quản lý file** trên trang Darboard (thanh bên HA, qua đăng nhập HA — dùng được cả ngoài nhà): duyệt thẻ, xem ảnh /
   phát video, **tải về** (tệp gốc hoặc **MP4** — máy chủ đổi .mkv sang MP4 trong vài giây, không nén lại hình), **tải lên**
   từ điện thoại / máy tính (tuỳ chọn **tối ưu video 720p** cho màn hình, nhận cả HEVC của điện thoại), đổi tên, tạo thư mục,
-  xoá nhiều. Chép vào thẻ ~0,7–0,85 MB/s, **tạm dừng khi màn hình đang phát video**. Chỉ liệt kê màn **đang có thẻ** (rút
+  xoá nhiều. Chép vào thẻ ~2 MB/s (WiFi của P4), **tạm dừng khi màn hình đang phát video**. Chỉ liệt kê màn **đang có thẻ** (rút
   thẻ ra thì màn đó biến khỏi danh sách); nhiều màn có thẻ thì có ô chọn màn, chỉ một màn thì ghi tên màn cạnh "Thẻ SD".
 
 ### IPTV + phát từ trang Darboard
@@ -118,8 +118,10 @@ trên thanh bên Home Assistant.
   **Dừng** và **Màn chính**; ô **tìm kênh** (gõ không dấu vẫn ra); chip **Yêu thích** (dùng chung mọi màn) · **Gần đây**
   (kênh phát từ Darboard + kênh xem trên màn) · **Tất cả** · từng danh sách, chọn nhóm; lưới thẻ kênh có logo và ngôi sao.
   Chạm thẻ → chọn **một màn** hoặc **Tất cả màn hình** để phát, hoặc **Xem trong trình duyệt**.
-- API: `GET /iptv/screens`, `GET /iptv/status`, `POST /iptv/cast {dev, ch, name?}` (`dev` = id màn hoặc `all`),
-  `POST /iptv/control {dev, act: "stop"|"home"}`.
+- API (trang Darboard): `GET /iptv/channels?refresh=1` (danh sách kênh), `GET /iptv/config` + `POST /iptv/config|/iptv/refresh`
+  (nguồn danh sách), `GET /iptv/screens` + `GET /iptv/status` (trạng thái từng màn), `POST /iptv/cast {dev, ch, name?}`
+  (`dev` = id màn hoặc `all`), `POST /iptv/control {dev, act: "stop"|"home"}`, `POST /iptv/fav`, `POST /iptv/recent`,
+  `POST /iptv/log`, `GET /iptv/sd`; proxy luồng `GET /iptv/p`, `GET /iptv/probe`.
 - Phát được HLS / MPEG-TS / FLV qua HTTP / `.mp4` / DASH + ClearKey; **không** phát DRM Widevine/PlayReady, `udp://`,
   `rtmp://`, H.265/MPEG-2. Máy chủ làm proxy luồng (`/iptv/p`) để gắn `Referer`/`User-Agent` riêng từng kênh và tránh CORS.
 
@@ -137,7 +139,7 @@ trên thanh bên Home Assistant.
   phiền), kèm ảnh camera go2rtc, chạm để mở ứng dụng/URL; lưu qua khởi động lại addon.
 - **Thông báo Telegram** (2.9.169): chuông cổng nhỡ / bị từ chối / mỗi lần bấm (kèm ảnh khách), cuộc gọi video nhỡ — add-on gửi thẳng
   bằng bot Telegram của bạn (Darboard → Gọi → ⚙).
-- **Chuông cổng Darboard** (ESP32-S3 CAM, firmware `fw-2026.10.16`): bấm nút → các màn đổ chuông (đè lên màn khóa) với
+- **Chuông cổng Darboard** (ESP32-S3 CAM, firmware `fw-2026.10.27`): bấm nút → các màn đổ chuông (đè lên màn khóa) với
   hình cổng trực tiếp, **Nói chuyện** hai chiều, **Mở khóa cổng**, Chụp ảnh; không ai nghe → thông báo "Cuộc gọi nhỡ" kèm
   ảnh; nhật ký ảnh 30 ngày (ứng dụng + tab trên trang Darboard); sự kiện HA `darboard_doorbell`; nhạc chuông từ
   `media/audio/chuong-cua.mp3` (2.9.141).
@@ -191,7 +193,7 @@ phía HA, ảnh đại diện, Cài đặt thực thể cần token Home Assista
 | `18080` (`health_port`) | `/metrics`, `/notify`, `/doorbell`, `/board`, các trang ứng dụng, Darboard (qua ingress) — **chỉ LAN** |
 | `9221` (`debug_port`) | Chrome DevTools nội bộ (127.0.0.1) |
 | `9222` (`debug_proxy_port`) | DevTools ra LAN — chỉ khi bật `expose_debug_proxy` |
-| UDP `1900` + `56790` (`dial_port`) | Truyền YouTube từ điện thoại (SSDP + DIAL) |
+| UDP `1900` (SSDP) + **TCP** `56790` (`dial_port`) | Truyền YouTube từ điện thoại (SSDP + DIAL) |
 
 ## Tuỳ chọn addon / biến môi trường
 
@@ -213,9 +215,12 @@ Addon tự đặt biến môi trường từ phần *Cấu hình*; chạy Docker
 | `LAUNCHER_CONFIG_OPEN` | — | `1` = cho lưu cấu hình menu không qua ingress (Docker) |
 | `CCR_ADAPTIVE`, `HALF_SCALE_VIDEO`, `IDLE_TAB_CLOSE_MIN`, `LOW_MEM_MB`… | xem mã | Tinh chỉnh nâng cao |
 
-Dữ liệu lưu trong `/data`: `launcher.json` (menu, màn hình chính), `rwv-chat/` (tin nhắn, tệp), `rwv-alarms.json`,
-`rwv-notices.json`, `rwv-sound.json`, `rwv-panel-prefs.json`, `rwv-board.json`, `rwv-weather-mini.json`,
-`rwv-tuning.json`, `pw-data/` (hồ sơ Chrome).
+Dữ liệu lưu trong `/data`:
+`launcher.json` (menu + màn hình chính), `mdi-cache.json` (biểu tượng), `rwv-chat/` (`chats.json`, `screens.json`, `media/`, `up/`),
+`rwv-alarms.json`, `rwv-notices.json`, `rwv-sound.json`, `rwv-panel-prefs.json`, `rwv-board.json`, `rwv-weather-mini.json`,
+`rwv-calendars.json`, `rwv-door.json` + `rwv-door/` (nhật ký chuông cổng), `rwv-telegram.json`, `rwv-iptv.json` + `rwv-iptv-cache/`,
+`rwv-lock-widgets.json`, `rwv-lock-bright.json`, `fm-mp4/` + `fm-tmp/` (đổi MP4, tải lên), `rwv-tuning.json` (tinh chỉnh nóng),
+`pw-data/` (hồ sơ Chrome).
 
 ## Giao thức WebSocket (tóm tắt)
 
@@ -230,13 +235,16 @@ Gói nhị phân, byte đầu là loại (khớp `src/protocol.ts` và `componen
 | 6 `CurrentURL` | server → màn hình | Trang đang hiện thực tế |
 | 7 `AudioFrame` | server → màn hình | PCM 16 kHz mono của trang |
 | 8 `SetDisplayURL` | server → màn hình | Người dùng nhập URL ở Trình duyệt |
-| 9 `DeviceControl` | server → màn hình | Độ sáng, âm lượng, Màn hình chờ, Im lặng, AEC, Trợ lý, đang phát media, màn hình chờ hiện/tắt, **phát âm** (loại), âm lượng Thông báo/Báo thức, Không làm phiền |
+| 9 `DeviceControl` | server → màn hình | Độ sáng, âm lượng, Màn hình chờ, Im lặng, AEC, Trợ lý, đang phát media, màn hình chờ hiện/tắt, **phát âm** (loại), âm lượng Thông báo/Báo thức, Không làm phiền, **gọi (Call)**, **mở cổng (Gate)**, **trạng thái cửa (DoorState)** |
 | 10 `DeviceState` | màn hình → server | Độ sáng, âm lượng, đèn nền, nút, **giờ của màn hình** |
 | 11 `RepaintRect` | màn hình → server | Xin vẽ lại một vùng |
-| 12 `DeviceEvent` | màn hình → server | Trợ lý giọng nói (trạng thái, chữ), **có người** (0/1) |
+| 12 `DeviceEvent` | màn hình → server | Trợ lý giọng nói (trạng thái, chữ), **có người** (0/1), **bấm chuông cổng**, **bấm nút trên bo** |
+| 13 `MicFrame` | màn hình → server | Mic của màn hình (nói chuyện 2 chiều: chuông cổng / gọi) |
 
-Tham số kết nối (`?id=&w=&h=&ts=&q=…&home=&audio=1&fb=1&half=&urlset=1&ctl=1&cam=&snd=1`) khai báo khả năng của
-màn hình (loa, framebuffer P4, khung nửa, camera, phát âm trên chip…).
+Tham số kết nối khai báo khả năng của màn hình (đọc trong `src/config.ts`):
+`?id=&w=&h=&ts=&r=&q=&home=&audio=1&fb=1&half=&urlset=1&ctl=1&cam=&sd=&snd=1&va=1&mic=1&fn=1`
+(loa, framebuffer P4, khung nửa, camera, thẻ SD, phát âm trên chip, trợ lý giọng nói, mic);
+nhóm tinh chỉnh dự phòng `fftc=&ffat=&ffe=&mfi=&enf=&mbpm=`; phía chuông cổng `door=1&mj=&sn=`.
 
 ## Phát triển
 
@@ -244,7 +252,7 @@ màn hình (loa, framebuffer P4, khung nửa, camera, phát âm trên chip…).
 npm ci
 npm run build        # TypeScript -> dist/ (+ bundle Shell bằng esbuild)
 npm run typecheck    # kiểm kiểu toàn bộ, kể cả file test
-npm run test:run     # unit test (244 test: giao thức, điều tiết, màn hình chờ, chat, báo thức, cử chỉ, menu, IPTV…)
+npm run test:run     # unit test (305 test / 44 file: giao thức, điều tiết, màn hình chờ, chat, báo thức, cử chỉ, menu, IPTV…)
 npm run test:integration   # server thật + Chromium thật + panel giả qua WebSocket (~1 phút)
 ```
 
@@ -252,8 +260,12 @@ npm run test:integration   # server thật + Chromium thật + panel giả qua W
   `frameProcessor.ts` (chia ô, JPEG), `adaptive.ts` (điều tiết), `broadcaster.ts`, `audioCapture.ts`, `inputRouter.ts` +
   `gestures.ts` (cử chỉ), `tabPolicy.ts` (URL → tab ứng dụng), `chat.ts`, `alarms.ts`, `sound.ts`, `notifications.ts`,
   `screensaver.ts`, `dial.ts` (truyền YouTube), `iptv.ts` (danh sách kênh M3U + proxy luồng + cast lên màn),
-  `fileManager.ts` (thẻ SD), `frigate.ts`, `camProxy.ts` + `go2rtcProxy.ts` (camera), `settingsModel.ts` (Cài đặt ↔ thực thể
-  ESPHome), `weatherMini.ts`, `panelPrefs.ts`, `launcher*.ts`.
+  `fileManager.ts` (thẻ SD), `frigate.ts`, `camProxy.ts` + `go2rtcProxy.ts`, `mkvLive.ts` (luồng camera dùng chung), `haApps.ts`,
+  `door.ts` + `doorbell.ts` (chuông cổng), `calls.ts` + `callBridge.ts` + `ringtone.ts` (gọi video), `screenCtl.ts` (Màn hình),
+  `lockWidgets.ts` (Màn khóa), `mediaLib.ts` (Media), `homeApi.ts` + `homeModel.ts` (Phòng/điều khiển), `haSettings.ts` +
+  `haLocation.ts` (đọc HA), `calendarSource.ts` (lịch), `photoFrame.ts` + `photoSource.ts` (khung ảnh), `today.ts` + `todayData.ts`
+  (Hôm nay), `board.ts` (Bảng tin), `telegram.ts` (thông báo Telegram), `settingsModel.ts` (Cài đặt ↔ thực thể ESPHome),
+  `weatherMini.ts`, `panelPrefs.ts`, `metrics.ts` + `tuning.ts` + `selfTest.ts` + `debugProxy.ts` (vận hành), `launcher*.ts`.
 - `src/shell/` — "hệ điều hành" tiêm vào mọi trang (màn hình chính, thanh trạng thái, màn hình chờ, Gần đây, thông
   báo, báo thức); đóng gói thành `dist/shell.bundle.js`.
 - `public/` — trang ứng dụng (`chat`, `alarm`, `camera`, `files`, `iptv`, `settings`, `weather`, `calendar`…) và trang
@@ -275,8 +287,8 @@ npm run test:integration   # server thật + Chromium thật + panel giả qua W
 ## Bảo mật
 
 - `health_port` (18080) chỉ dùng trong LAN; không đưa ra Internet. Trang Darboard đi qua ingress của HA (có đăng
-  nhập); lưu cấu hình, gửi tin phía HA chỉ nhận từ Supervisor. API màn hình (`/chat`, `/alarm`, `/api/cam`) chỉ nhận
-  từ chính trình duyệt của addon (127.0.0.1).
+  nhập); lưu cấu hình, gửi tin phía HA chỉ nhận từ Supervisor. API màn hình (`/chat`, `/alarm`, `/api/cam`, `/fm/*`) chỉ nhận từ
+  chính trình duyệt của addon (127.0.0.1) **hoặc từ trang Darboard qua ingress** (`172.30.32.2`).
 - **Không** đặt trang tự tạo trong `/config/www/` của HA nếu HA mở ra Internet: `/local/` phục vụ không cần đăng nhập
   (đã kiểm chứng qua Cloudflare Tunnel). Vì vậy các trang của dự án được phục vụ ở `health_port`.
 - Addon dùng token Supervisor (quyền `homeassistant_api`) để đọc vị trí nhà, người dùng/ảnh đại diện, thực thể của
@@ -284,7 +296,7 @@ npm run test:integration   # server thật + Chromium thật + panel giả qua W
 - Proxy DevTools (`expose_debug_proxy`) cho phép điều khiển trình duyệt, kể cả phiên HA — chỉ bật khi cần.
 - **Proxy luồng IPTV `/iptv/p` + `/iptv/probe`** (2.9.133) nhận cả **trang Darboard qua ingress** (đã đăng nhập HA), vẫn
   **bắt buộc mã phiên** — cần cho nút “Phát trong trình duyệt”. Đây là điểm cần rà lại (người đã đăng nhập HA có thể dùng
-  máy chủ để tải URL bất kỳ): xem ghi chú bảo mật nội bộ (P0-6).
+  máy chủ để tải URL bất kỳ) — ghi chú chi tiết nằm trong tài liệu nội bộ ở repo client (private).
 
 ## Ghi công và giấy phép
 
