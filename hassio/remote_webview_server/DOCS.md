@@ -11,8 +11,8 @@ Dự án gồm hai phần, dùng cùng nhau:
 
 | Phần | Chạy ở đâu | Repo |
 |---|---|---|
-| **Máy chủ** (addon này) | Máy Home Assistant | [HA-Darboard-Server](https://github.com/minhquanghp86/HA-Darboard-Server) |
-| **Firmware màn hình** (component ESPHome `remote_webview` + cấu hình mẫu) | Màn hình ESP32 | [HA-Darboard-Client](https://github.com/minhquanghp86/HA-Darboard-Client) |
+| **Máy chủ** (addon này) | Máy Home Assistant | [HA-Darboard-Server](https://github.com/minhquanghp86/DarboardOS-Server) |
+| **Firmware màn hình** (component ESPHome `remote_webview` + cấu hình mẫu) | Màn hình ESP32 | [HA-Darboard-Client](https://github.com/minhquanghp86/DarboardOS-Client) |
 
 ## Để làm gì?
 
@@ -67,13 +67,13 @@ Màn hình ESP32-S3/P4 khác (có PSRAM, màn hình ESPHome hỗ trợ) thườn
 ## Bắt đầu từ đâu
 
 1. **Thêm kho addon**: Cài đặt → Addon → Cửa hàng addon → ⋮ → Kho lưu trữ → thêm
-   `https://github.com/minhquanghp86/HA-Darboard-Server`.
+   `https://github.com/minhquanghp86/DarboardOS-Server`.
 2. **Cài addon "Remote WebView Server"** → Khởi động. Bật *Hiện trên thanh bên* nếu muốn (mục **Darboard**). Xem tab
    *Nhật ký*: có dòng `WebSocket listening on :8081` là sẵn sàng.
 3. **Tạo tài khoản HA riêng cho màn hình** (khuyến nghị): Cài đặt → Người & Khu vực → Người → thêm người, *không* cho
    quyền quản trị. Màn hình sẽ đăng nhập bằng tài khoản này.
 4. **Chuẩn bị firmware**: trong addon ESPHome tạo thiết bị mới, dán cấu hình mẫu của màn hình bạn từ thư mục
-   [`examples/`](https://github.com/minhquanghp86/HA-Darboard-Client/tree/main/examples) của repo firmware — **không phải sửa
+   [`examples/`](https://github.com/minhquanghp86/DarboardOS-Client/tree/main/examples) của repo firmware — **không phải sửa
    gì**: YAML mẫu là *một file cho mọi thiết bị* (không có IP, tên, Wi-Fi của nhà nào). Tên tự thêm 6 số MAC, Wi-Fi nhập qua
    mạng tạm `<tên>` (captive portal), địa chỉ máy chủ Darboard và Home URL **tự lấy từ Home Assistant** lần đầu kết nối, múi giờ
    do Home Assistant (≥ 2026.3) gửi. Đổi sau này ở các thực thể **HA Darboard server** / **Home URL** của thiết bị.

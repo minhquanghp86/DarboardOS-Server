@@ -85,7 +85,7 @@ COPY public ./public
 # nguoi nhan anh phai thay duoc LICENSE / NOTICE / THIRD-PARTY-NOTICES ngay trong anh (docker run ... ls /licenses).
 COPY LICENSE LICENSE-MIT LICENSE-OFL-BebasNeue.txt NOTICE THIRD-PARTY-NOTICES.md TRADEMARKS.md /licenses/
 LABEL org.opencontainers.image.licenses="Apache-2.0 AND MIT" \
-      org.opencontainers.image.source="https://github.com/minhquanghp86/HA-Darboard-Server" \
+      org.opencontainers.image.source="https://github.com/minhquanghp86/DarboardOS-Server" \
       org.opencontainers.image.vendor="minhquanghp86"
 
 # Create user data directory

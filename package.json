@@ -6,7 +6,7 @@
   "author": "minhquanghp86",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/minhquanghp86/HA-Darboard-Server.git"
+    "url": "git+https://github.com/minhquanghp86/DarboardOS-Server.git"
   },
   "scripts": {
     "dev": "tsx src/index.ts",

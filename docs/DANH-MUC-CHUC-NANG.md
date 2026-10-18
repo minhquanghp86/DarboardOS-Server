@@ -134,7 +134,7 @@ Thêm / ẩn / sắp xếp / đổi tên / đổi biểu tượng: Darboard → 
 
 **Cơ chế YAML**: `examples/*.yaml` là YAML chung (một file/loại màn, không cấu hình nhà riêng) — máy khách dùng
 `examples/rieng-cua-ban/*.yaml` gọi qua `packages` với `ref: fw-2026.10.27`, rồi nhập Wi-Fi/máy chủ/Home URL **sau khi nạp**.
-Chi tiết: [`HA-Darboard-Client/docs/YAML-CHUNG.md`](https://github.com/minhquanghp86/HA-Darboard-Client/blob/main/docs/YAML-CHUNG.md).
+Chi tiết: [`HA-Darboard-Client/docs/YAML-CHUNG.md`](https://github.com/minhquanghp86/DarboardOS-Client/blob/main/docs/YAML-CHUNG.md).
 
 **Khoá firmware theo MAC** (`mac_guard.h`, biến `allow_mac`): nạp sang thiết bị khác thì máy ngủ — chống nhân bản.
 `allow_mac` khai ở **YAML cục bộ** trên máy build (rỗng = không khoá).
