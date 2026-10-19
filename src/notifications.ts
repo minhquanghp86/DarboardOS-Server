@@ -27,6 +27,8 @@ export interface Notice {
   image?: string;
   video?: string;
   audio?: string;
+  /** (19/10/2026) So giay hien thi thong bao truoc khi thu gon. */
+  duration?: number;
   /** (01/10/2026) Tham so cho ung dung `app` khi cham (vd id cuoc tro chuyen cua Tin nhan). */
   arg?: string;
   /** (01/10/2026) Nguoi dung DA XEM tren chinh man hinh nay (cham the / mo thanh keo xuong). The noi tu hien khi khong
@@ -41,7 +43,7 @@ export const noticeKind = (n: Pick<Notice, 'app'>): 'chat' | 'nt' => (n.app === 
 
 export interface NotifyRequest {
   title?: unknown; message?: unknown; priority?: unknown; device?: unknown; app?: unknown; url?: unknown;
-  image?: unknown; video?: unknown; audio?: unknown; camera?: unknown; arg?: unknown; missed?: unknown;
+  image?: unknown; video?: unknown; audio?: unknown; camera?: unknown; duration?: unknown; arg?: unknown; missed?: unknown;
 }
 
 const str = (v: unknown, max: number): string => (typeof v === 'string' ? v.trim().slice(0, max) : '');
@@ -69,12 +71,14 @@ export function parseNotify(body: NotifyRequest, go2rtc: string):
     if (!/^[\w.-]+$/.test(camera)) return { ok: false, error: 'ten camera khong hop le' };
     image = `${go2rtc.replace(/\/$/, '')}/api/frame.jpeg?src=${encodeURIComponent(camera)}`;
   }
+  const durRaw = Number(body.duration);
+  const duration = Number.isFinite(durRaw) && durRaw > 0 ? Math.min(600, Math.round(durRaw)) : undefined;
   const app = str(body.app, 40);
   const arg = app ? str(body.arg, 64) : '';
   return {
     ok: true,
     device: str(body.device, 64) || 'all',
-    notice: { title, message, priority, ...(body.missed === true ? { missed: true } : {}), ...(app ? { app } : {}), ...(arg ? { arg } : {}), ...(url ? { url } : {}), ...(image ? { image } : {}), ...(video ? { video } : {}), ...(audio ? { audio } : {}) },
+    notice: { title, message, priority, ...(body.missed === true ? { missed: true } : {}), ...(app ? { app } : {}), ...(arg ? { arg } : {}), ...(url ? { url } : {}), ...(image ? { image } : {}), ...(video ? { video } : {}), ...(audio ? { audio } : {}), ...(duration ? { duration } : {}) },
   };
 }
 

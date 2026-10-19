@@ -1,3 +1,7 @@
+## V2.9.190
+- `POST /notify` nhận thêm `duration` (giây, 1–600): thời gian hiển thị thông báo trước khi thu gọn (mặc định 10 s).
+- `GET /devices`: danh sách màn hình đang kết nối (bỏ qua chuông cửa) để tích hợp Home Assistant dựng dropdown tự động.
+
 ## V2.9.189
 - **Thông báo có ảnh / video / âm thanh** qua `POST /notify` (thêm `video`, `audio`; `image` nhận cả đường dẫn nội bộ):
   - `POST /notify/upload` nhận file media (tối đa 64 MB), `GET /notify/media/<tên>` trả lại file cho panel.

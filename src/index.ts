@@ -283,6 +283,16 @@ http.createServer((req, res) => {
     return;
   }
 
+  // (19/10/2026) Danh sach MAN HINH dang ket noi (khong gom chuong cua) de component Home Assistant dung lam dropdown.
+  if (pathname === '/devices' && req.method === 'GET') {
+    const snap = metrics.snapshot() as { devices?: Array<{ id: string; config?: { friendlyName?: string } | null }> };
+    const screens = (snap.devices ?? [])
+      .filter((d) => d.id && d.config)
+      .map((d) => ({ id: d.id, name: d.config?.friendlyName || d.id }));
+    res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+    res.end(JSON.stringify({ ok: true, screens }));
+    return;
+  }
   // (26/09/2026 OS-5) Thong bao tu Home Assistant (rest_command) — xem DOCS.md "Thong bao".
   if (pathname === '/notify' && req.method === 'POST') {
     let body = '';

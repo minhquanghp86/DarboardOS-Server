@@ -62,7 +62,7 @@ interface DevState {
 /** Bao thuc dang reo: id, nhan, gio "HH:MM", phut bao lai (0 = khong), tm = hen gio, beep = keu bang WebAudio (firmware cu). */
 interface AlarmInfo { id: string; l: string; t: string; sz: number; tm: boolean; beep?: boolean }
 /** s = da xem tren man hinh nay; k = loai (chat = tin nhan, nt = thong bao thuong). Server < 2.9.94 khong gui. */
-interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'critical' | 'urgent'; ts: number; img: string | null; vid: string | null; aud: string | null; act: boolean;
+interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'critical' | 'urgent'; ts: number; img: string | null; vid: string | null; aud: string | null; dur: number | null; act: boolean;
   s?: boolean; k?: 'chat' | 'nt'; mc?: number }
 
 (function () {
@@ -933,7 +933,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     const box = el('div', 'ov'); box.appendChild(card);
     box.addEventListener('pointerdown', (e) => e.stopPropagation());
     root.appendChild(box); ovEl = box; ovNotice = n;
-    ovTimer = window.setTimeout(() => closeOverlay(true), 6000);
+    ovTimer = window.setTimeout(() => closeOverlay(true), (n.dur && n.dur > 0 ? n.dur : 10) * 1000);
   }
 
   function notify(n: Notice, sound: boolean): void {
