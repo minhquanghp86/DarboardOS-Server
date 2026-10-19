@@ -580,6 +580,12 @@ Gửi thông báo tới màn hình bằng một `rest_command`. Thêm vào `conf
 
 ```yaml
 rest_command:
+  # (19/10/2026) CÁCH KHUYẾN NGHỊ: dùng tích hợp Home Assistant (custom component)
+  #   custom_components/dashboard_os  ->  action dashboard_os.send
+  #   Có ô nhập đầy đủ: nội dung, tiêu đề, thời gian hiển thị (0 = không tự thoát),
+  #   thiết bị (dropdown tự đồng bộ từ add-on), ảnh/video/âm thanh, camera.
+  #   Cài: chép thư mục vào /config/custom_components/, khởi động lại HA,
+  #   Settings -> Devices & Services -> Add Integration -> DarboardOS.
   panel_notify:
     url: http://127.0.0.1:18080/notify      # 18080 = health_port của addon
     method: POST

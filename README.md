@@ -140,9 +140,12 @@ trên thanh bên Home Assistant.
   phiền), kèm ảnh camera go2rtc, chạm để mở ứng dụng/URL; lưu qua khởi động lại addon.
 - **Custom component `custom_components/dashboard_os/`**: action **`dashboard_os.send`** (Settings → Devices & Services →
   Add Integration → DarboardOS, địa chỉ mặc định `http://172.30.32.1:18080`). Có đầy đủ ô nhập trên giao diện:
-  `message`, `title`, `priority` (normal/high/critical/urgent), `device`, `image`, `video`, `audio`, `app`, `url`, `camera`.
-  `device` là **dropdown chọn màn hình do add-on cung cấp**; `camera` chọn từ thực thể camera của HA, `camera_stream` cho luồng go2rtc; `image`/`video`/`audio`
-  dùng **thư viện media của Home Assistant** (hoặc dán URL/đường dẫn trong /config).
+  `message`, `title`, `duration` (0–600 giây; **0 = không tự thoát, chạm màn hình để đóng**), `device`, `image`, `video`,
+  `audio`, `camera`, `camera_stream`. Mức ưu tiên luôn là `urgent` (mở khoá, bật đèn nền, phủ toàn màn hình).
+  `device` là **dropdown chỉ gồm màn hình do add-on báo về** (`GET /devices`), component đồng bộ mỗi 30 giây nên
+  thêm/bớt màn hình là dropdown tự đổi; `camera` chọn từ thực thể camera của HA, `camera_stream` cho luồng go2rtc;
+  `image`/`video`/`audio` dùng **thư viện media của Home Assistant** (hoặc dán URL/đường dẫn trong /config).
+  Hướng dẫn riêng: `custom_components/dashboard_os/README.md`.
   File local hoặc URL được tự tải lên add-on; `urgent` = mở khoá + bật đèn nền + phủ toàn màn hình 6 giây.
   (Entity `notify.dashboard_os` vẫn tồn tại cho `notify.send_message`.)
 - **Thông báo Telegram** (2.9.169): chuông cổng nhỡ / bị từ chối / mỗi lần bấm (kèm ảnh khách), cuộc gọi video nhỡ — add-on gửi thẳng
