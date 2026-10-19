@@ -1,3 +1,11 @@
+## V2.9.187
+- **Watchdog luồng camera**: `av_stream`/encoder của panel có thể treo lúc chạy (camera vẫn chụp ảnh nhưng H.264 ra 0 byte).
+  Khi đó Frigate mất nguồn ghi và app Camera trên panel mất hình xem trước — cả hai dùng chung một luồng qua `/cam/live`.
+  - Nếu cùng một màn hình mất luồng **3 lần trong 3 phút**, add-on tự bấm nút **Khởi động lại** của panel qua Home Assistant
+    (nghỉ 10 phút giữa hai lần để tránh vòng lặp).
+  - Log: `[cam-live] <id>: N lan mat luong trong 180s -> khoi dong lai panel`.
+- Đồng bộ `package.json` / `package-lock.json` = 2.9.187.
+
 ## V2.9.186
 - **Đổi tên hiển thị** add-on và kho: "Remote WebView Server" → **"DarboardOS Server"** (slug `remote_webview_server` giữ nguyên,
   dữ liệu add-on không đổi). Kho GitHub mới: `minhquanghp86/DarboardOS-Server`

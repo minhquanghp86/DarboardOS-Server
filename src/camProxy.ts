@@ -211,6 +211,31 @@ export function isInternalPeer(addr: string | undefined): boolean { return INTER
 
 // (14/10/2026) Mot ket noi /live cho moi thiet bi, chia cho Frigate + cuoc goi (src/mkvLive.ts).
 const liveHubs = new Map<string, LiveHub>();
+
+// (19/10/2026) Watchdog luong camera: av_stream cua panel co the treo (encoder khong ra khung) -> cung mot man hinh
+// loi lien tiep thi khoi dong lai panel (nut Khoi dong lai tren Home Assistant).
+const liveFails = new Map<string, number[]>();
+const liveRestartedAt = new Map<string, number>();
+let liveStallHook: ((dev: string) => void) | null = null;
+const LIVE_FAIL_WINDOW_MS = 180_000;
+const LIVE_FAIL_LIMIT = 3;
+const LIVE_RESTART_COOLDOWN_MS = 600_000;
+
+export function setLiveStallHook(fn: (dev: string) => void): void { liveStallHook = fn; }
+
+function noteLiveFailure(dev: string, why: string): void {
+  if (why === 'man chua ket noi') return;
+  const now = Date.now();
+  const arr = (liveFails.get(dev) || []).filter((t) => now - t < LIVE_FAIL_WINDOW_MS);
+  arr.push(now);
+  liveFails.set(dev, arr);
+  if (arr.length < LIVE_FAIL_LIMIT) return;
+  if (now - (liveRestartedAt.get(dev) || 0) < LIVE_RESTART_COOLDOWN_MS) return;
+  liveRestartedAt.set(dev, now);
+  liveFails.set(dev, []);
+  console.warn(`[cam-live] ${dev}: ${arr.length} lan mat luong trong ${LIVE_FAIL_WINDOW_MS / 1000}s -> khoi dong lai panel`);
+  liveStallHook?.(dev);
+}
 function hubOf(dev: string): LiveHub {
   let hub = liveHubs.get(dev);
   if (hub) return hub;
@@ -218,7 +243,7 @@ function hubOf(dev: string): LiveHub {
     const h = hosts.get(dev);
     if (!h) { setTimeout(() => hb.ended('man chua ket noi'), 0); return; }
     let finished = false;
-    const end = (why: string) => { if (!finished) { finished = true; hb.ended(why); } };
+    const end = (why: string) => { if (!finished) { finished = true; noteLiveFailure(dev, why); hb.ended(why); } };
     const up = http.request({ host: h.ip, port: AV_PORT, path: '/live', method: 'GET', headers: camAuth(h) }, (r) => {
       if (r.statusCode !== 200) { r.resume(); end(`HTTP ${r.statusCode}`); return; }
       r.on('data', (c: Buffer) => hb.data(c));

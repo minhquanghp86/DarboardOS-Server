@@ -14,13 +14,13 @@ import env from "env-var";
 import { makeConfigFromParams, setConfigFor, logDeviceConfig } from "./config.js";
 import { reloadAllLaunchers, broadcaster, ensureDeviceAsync, cleanupIdleAsync, requestStatsFromDevices, runAdaptiveTick, refreshDisplaysTick, markInteraction, screensaverTick, powerTick, iptvStatus, iptvControl, postNotify, repaintRect, onDeviceStatePacket, onDeviceEvent, anyTzOffset, postDoorbell, closeDoorbell, unlockDoorbell, dialHooks, YT_TV_URL, hostMem, pipelineStats } from './deviceManager.js';
 import type { DeviceSession } from './deviceManager.js';
-import { camFetch, handleCamLive, handleCamProxy, noteCameraHost } from './camProxy.js';
+import { camFetch, handleCamLive, handleCamProxy, noteCameraHost, setLiveStallHook } from './camProxy.js';
 import { handleGo2rtcHttp, handleGo2rtcUpgrade } from './go2rtcProxy.js';
 import { handleFileManager, setFileManagerHooks } from './fileManager.js';
 import { handleChatApi, requestOpenConv, setChatHooks, unreadForScreen } from './chat.js';
 import { castUrlToDevices, chatChanged, connectedScreens, isMediaPlaying, isUserViewing, setChatUnreadProvider, setNoticeArgHook, syncSoundToDevice } from './deviceManager.js';
 import { handleAlarmApi } from './alarms.js';
-import { getRegistry, haFetch, haGetRaw } from './haSettings.js';
+import { getRegistry, haFetch, haGetRaw, callService, getSettingsView } from './haSettings.js';
 import { findDeviceByMac, macFromDeviceId } from './settingsModel.js';
 import { InputRouter } from "./inputRouter.js";
 import { bootstrapAsync } from './browser.js';
@@ -196,6 +196,21 @@ wss.on("connection", async (ws, req) => {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // (25/09/2026) Them weather.html (ung dung "Thoi tiet" cua launcher) — cung nguyen tac: chi LAN, khong qua HA.
 // (25/09/2026) + cac ung dung launcher: camera nha, canh, lich am duong, radio, hen gio; lunar.js dung chung.
+
+// (19/10/2026) Luong camera treo (av_stream/encoder cua panel) -> khoi dong lai panel qua Home Assistant.
+setLiveStallHook(async (dev: string) => {
+  try {
+    const r = await getSettingsView(dev);
+    if (!r.ok) { console.warn(`[cam-live] ${dev}: khong doc duoc cai dat (${r.error})`); return; }
+    const it = r.view.items.find((x) => x.kind === 'button' && /khoi_dong_lai|restart/i.test(x.id));
+    if (!it) { console.warn(`[cam-live] ${dev}: khong tim thay nut khoi dong lai`); return; }
+    const ok = await callService({ domain: 'button', service: 'press', data: { entity_id: it.id } });
+    console.log(`[cam-live] ${dev}: da gui khoi dong lai panel (${it.id}) -> ${ok ? 'ok' : 'loi'}`);
+  } catch (e) {
+    console.warn(`[cam-live] ${dev}: khoi dong lai that bai: ${(e as Error).message}`);
+  }
+});
+
 const STATIC_PAGES = ['no-url.html', 'cam.html', 'camera.html', 'weather.html', 'cams.html', 'calendar.html', 'radio.html', 'timer.html', 'lunar.js',
   'launcher-config.html', 'os-home.html', 'ui.css', 'ui.js', 'settings.html', 'rooms.html', 'todo.html', 'remote.html', 'photos.html', 'today.html', 'board.html', 'doorbell.html',
   // (01/10/2026) Thu vien / Tep (the SD cua P4), Tin nhan noi bo, bieu tuong dung chung.
