@@ -1,3 +1,6 @@
+## V2.9.191
+- `duration: 0` = **không tự thu gọn** thông báo; chạm vào màn hình (nền hoặc thẻ) để đóng.
+
 ## V2.9.190
 - `POST /notify` nhận thêm `duration` (giây, 1–600): thời gian hiển thị thông báo trước khi thu gọn (mặc định 10 s).
 - `GET /devices`: danh sách màn hình đang kết nối (bỏ qua chuông cửa) để tích hợp Home Assistant dựng dropdown tự động.

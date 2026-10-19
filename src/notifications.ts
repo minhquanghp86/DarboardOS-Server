@@ -72,13 +72,13 @@ export function parseNotify(body: NotifyRequest, go2rtc: string):
     image = `${go2rtc.replace(/\/$/, '')}/api/frame.jpeg?src=${encodeURIComponent(camera)}`;
   }
   const durRaw = Number(body.duration);
-  const duration = Number.isFinite(durRaw) && durRaw > 0 ? Math.min(600, Math.round(durRaw)) : undefined;
+  const duration = Number.isFinite(durRaw) && durRaw >= 0 ? Math.min(600, Math.round(durRaw)) : undefined;
   const app = str(body.app, 40);
   const arg = app ? str(body.arg, 64) : '';
   return {
     ok: true,
     device: str(body.device, 64) || 'all',
-    notice: { title, message, priority, ...(body.missed === true ? { missed: true } : {}), ...(app ? { app } : {}), ...(arg ? { arg } : {}), ...(url ? { url } : {}), ...(image ? { image } : {}), ...(video ? { video } : {}), ...(audio ? { audio } : {}), ...(duration ? { duration } : {}) },
+    notice: { title, message, priority, ...(body.missed === true ? { missed: true } : {}), ...(app ? { app } : {}), ...(arg ? { arg } : {}), ...(url ? { url } : {}), ...(image ? { image } : {}), ...(video ? { video } : {}), ...(audio ? { audio } : {}), ...(duration !== undefined ? { duration } : {}) },
   };
 }
 

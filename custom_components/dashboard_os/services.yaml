@@ -17,11 +17,11 @@ send:
         text:
     duration:
       name: Thời gian hiển thị
-      description: Số giây hiển thị toàn màn hình trước khi thu gọn.
+      description: Số giây hiển thị toàn màn hình trước khi thu gọn. Nhập 0 = không tự thoát, chạm màn hình để đóng.
       default: 10
       selector:
         number:
-          min: 1
+          min: 0
           max: 600
           unit_of_measurement: giây
           mode: box

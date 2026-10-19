@@ -932,8 +932,12 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     row.appendChild(c); card.appendChild(row);
     const box = el('div', 'ov'); box.appendChild(card);
     box.addEventListener('pointerdown', (e) => e.stopPropagation());
+    // Cham vao bat ky dau (nen hay the) de dong; nut ben trong tu xu ly rieng.
+    box.addEventListener('click', (e) => { e.stopPropagation(); closeOverlay(true); });
+    card.addEventListener('click', (e) => { e.stopPropagation(); closeOverlay(true); });
     root.appendChild(box); ovEl = box; ovNotice = n;
-    ovTimer = window.setTimeout(() => closeOverlay(true), (n.dur && n.dur > 0 ? n.dur : 10) * 1000);
+    const seconds = n.dur === 0 ? 0 : (n.dur && n.dur > 0 ? n.dur : 10);
+    if (seconds > 0) ovTimer = window.setTimeout(() => closeOverlay(true), seconds * 1000);
   }
 
   function notify(n: Notice, sound: boolean): void {
