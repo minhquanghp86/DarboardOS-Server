@@ -28,26 +28,31 @@ send:
             - urgent
     device:
       name: Thiết bị
-      description: "all (mọi màn hình) hoặc mã thiết bị, ví dụ esp32-80f1b2d35fb5"
-      default: all
+      description: Chọn màn hình nhận thông báo. Bỏ trống = mọi màn hình.
       selector:
-        text:
+        device:
+          integration: esphome
     image:
       name: Ảnh
-      description: URL, hoặc đường dẫn file trong thư mục /config
-      example: /config/www/anh.jpg
+      description: Chọn từ thư viện media, hoặc dán URL / đường dẫn trong /config
       selector:
-        text:
+        media:
+          accept:
+            - image/*
     video:
       name: Video
-      description: URL hoặc đường dẫn file trong /config
+      description: Chọn từ thư viện media, hoặc dán URL / đường dẫn trong /config
       selector:
-        text:
+        media:
+          accept:
+            - video/*
     audio:
       name: Âm thanh
-      description: URL hoặc đường dẫn file trong /config
+      description: Chọn từ thư viện media, hoặc dán URL / đường dẫn trong /config
       selector:
-        text:
+        media:
+          accept:
+            - audio/*
     app:
       name: Ứng dụng mở khi chạm
       selector:

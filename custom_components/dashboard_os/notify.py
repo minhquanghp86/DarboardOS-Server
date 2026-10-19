@@ -75,6 +75,25 @@ class DashboardOSNotify(NotifyEntity):
     ) -> None:
         await self.send(message, title, kwargs.get("data") or {})
 
+    async def _resolve_device(self, value: str) -> str:
+        """Doi device_id cua Home Assistant thanh id firmware esp32-<mac>."""
+        if not value or value == "all":
+            return "all"
+        if value.startswith("esp32-"):
+            return value
+        from homeassistant.helpers import device_registry as dr
+
+        dev = dr.async_get(self.hass).async_get(value)
+        if dev is None:
+            return value
+        for domain, ident in dev.identifiers:
+            if domain == "esphome" and ident.lower().startswith("esp32-"):
+                return ident.lower()
+        for conn_type, conn_id in dev.connections:
+            if str(conn_type) == "mac":
+                return "esp32-" + conn_id.replace(":", "").replace("-", "").lower()
+        return value
+
     async def send(self, message: str, title: str | None, data: dict) -> None:
         if not isinstance(data, dict):
             data = {}
@@ -87,9 +106,11 @@ class DashboardOSNotify(NotifyEntity):
             "message": message or "",
             "priority": priority,
         }
-        for key in ("device", "app", "url", "camera"):
+        for key in ("app", "url", "camera"):
             if value := data.get(key):
                 payload[key] = value
+        if device := data.get("device"):
+            payload["device"] = await self._resolve_device(str(device))
 
         for key in ("image", "video", "audio"):
             if src := data.get(key):
@@ -111,6 +132,34 @@ class DashboardOSNotify(NotifyEntity):
             raise HomeAssistantError(f"Khong ket noi duoc DarboardOS: {err}") from err
 
     async def _to_url(self, src: str, kind: str) -> str | None:
+        if src.startswith("media-source://"):
+            try:
+                from homeassistant.components import media_source
+
+                item = await media_source.async_resolve_media(self.hass, src, None)
+                base = self.hass.config.internal_url or self.hass.config.external_url or ""
+                download = item.url if item.url.startswith(("http://", "https://")) else base + item.url
+                session = async_get_clientsession(self.hass)
+                async with session.get(download, timeout=aiohttp.ClientTimeout(total=180)) as got:
+                    if got.status >= 400:
+                        _LOGGER.warning("DarboardOS: tai media that bai HTTP %s", got.status)
+                        return None
+                    body = await got.read()
+                    ctype = got.headers.get("Content-Type", "application/octet-stream")
+                async with session.post(
+                    f"{self._base}/notify/upload",
+                    data=body,
+                    headers={"Content-Type": ctype, "X-Media-Kind": kind},
+                    timeout=aiohttp.ClientTimeout(total=180),
+                ) as sent:
+                    if sent.status >= 400:
+                        raise HomeAssistantError(f"Tai {kind} len that bai: HTTP {sent.status}")
+                    return (await sent.json()).get("url")
+            except HomeAssistantError:
+                raise
+            except Exception as err:
+                _LOGGER.warning("DarboardOS: khong doc duoc media-source %s: %s", src, err)
+                return None
         if src.startswith(("http://", "https://")):
             return src
         path = Path(src)

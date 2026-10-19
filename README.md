@@ -141,6 +141,8 @@ trên thanh bên Home Assistant.
 - **Custom component `custom_components/dashboard_os/`**: action **`dashboard_os.send`** (Settings → Devices & Services →
   Add Integration → DarboardOS, địa chỉ mặc định `http://172.30.32.1:18080`). Có đầy đủ ô nhập trên giao diện:
   `message`, `title`, `priority` (normal/high/critical/urgent), `device`, `image`, `video`, `audio`, `app`, `url`, `camera`.
+  `device` là **dropdown chọn màn hình ESPHome** (component tự đổi device_id -> `esp32-<mac>`); `image`/`video`/`audio`
+  dùng **thư viện media của Home Assistant** (hoặc dán URL/đường dẫn trong /config).
   File local hoặc URL được tự tải lên add-on; `urgent` = mở khoá + bật đèn nền + phủ toàn màn hình 6 giây.
   (Entity `notify.dashboard_os` vẫn tồn tại cho `notify.send_message`.)
 - **Thông báo Telegram** (2.9.169): chuông cổng nhỡ / bị từ chối / mỗi lần bấm (kèm ảnh khách), cuộc gọi video nhỡ — add-on gửi thẳng
