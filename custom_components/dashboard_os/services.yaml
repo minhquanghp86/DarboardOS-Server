@@ -1,6 +1,6 @@
 send:
   name: DarboardOS
-  description: Gửi thông báo tới màn hình DarboardOS.
+  description: Gửi thông báo ưu tiên cao (mở khoá, bật đèn nền, phủ toàn màn hình) tới màn hình DarboardOS.
   fields:
     message:
       name: Nội dung
@@ -15,38 +15,23 @@ send:
       example: "Cảnh báo"
       selector:
         text:
-    priority:
-      name: Mức ưu tiên
-      description: Khẩn cấp = mở khoá, bật đèn nền, phủ toàn màn hình rồi thu gọn sau 6 giây.
-      default: normal
+    duration:
+      name: Thời gian hiển thị
+      description: Số giây hiển thị toàn màn hình trước khi thu gọn.
+      default: 10
       selector:
-        select:
-          options:
-            - label: Bình thường
-              value: normal
-            - label: Cao (bật sáng + chuông)
-              value: high
-            - label: Nghiêm trọng (hiện cả khi Không làm phiền)
-              value: critical
-            - label: Khẩn cấp (mở khoá, phủ toàn màn hình)
-              value: urgent
+        number:
+          min: 1
+          max: 600
+          unit_of_measurement: giây
+          mode: box
     device:
       name: Thiết bị
-      description: Màn hình nhận thông báo (danh sách do add-on DarboardOS cung cấp).
-      default: all
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình.
       selector:
-        select:
-          options:
-            - label: "Tất cả màn hình"
-              value: "all"
-            - label: "7.0 Guition JC1060P470C"
-              value: "esp32-80f1b2d35fb5"
-            - label: "4.3 Guition JC4827w543"
-              value: "esp32-1cdbd49b2260"
-            - label: "4.0 Guition 4848S040"
-              value: "esp32-28372f8a0218"
-            - label: "Chuông cổng"
-              value: "esp32-1cdbd449ee60"
+        device:
+          integration: dashboard_os
+          multiple: true
     image:
       name: Ảnh
       description: Chọn từ thư viện media, hoặc dán URL / đường dẫn trong /config
@@ -76,6 +61,6 @@ send:
           domain: camera
     camera_stream:
       name: Đường dẫn luồng go2rtc
-      description: Tên luồng go2rtc nếu camera không có thực thể trong Home Assistant, ví dụ chuong_cua
+      description: Tên luồng go2rtc nếu camera không có thực thể, ví dụ chuong_cua
       selector:
         text:
