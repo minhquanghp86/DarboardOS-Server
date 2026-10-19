@@ -6,30 +6,54 @@ import mimetypes
 from pathlib import Path
 
 import aiohttp
+import voluptuous as vol
 
 from homeassistant.components.notify import NotifyEntity, NotifyEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 _LOGGER = logging.getLogger(__name__)
 
+SERVICE_NAME = "dashboard_os"
 PRIORITIES = {"normal", "high", "critical", "urgent"}
+
+SERVICE_SCHEMA = vol.Schema(
+    {
+        vol.Required("message"): cv.string,
+        vol.Optional("title", default=""): cv.string,
+        vol.Optional("data", default={}): dict,
+    }
+)
 
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    async_add_entities([DashboardOSNotify(hass, entry)])
+    entity = DashboardOSNotify(hass, entry)
+    async_add_entities([entity])
+
+    async def handle(call: ServiceCall) -> None:
+        await entity.send(
+            message=call.data.get("message", ""),
+            title=call.data.get("title") or None,
+            data=call.data.get("data") or {},
+        )
+
+    if not hass.services.has_service("notify", SERVICE_NAME):
+        hass.services.async_register(
+            "notify", SERVICE_NAME, handle, schema=SERVICE_SCHEMA
+        )
 
 
 class DashboardOSNotify(NotifyEntity):
     """Mot dich thong bao: notify.dashboard_os."""
 
-    _attr_name = "dashboard_os"
+    _attr_name = SERVICE_NAME
     _attr_supported_features = NotifyEntityFeature.TITLE
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -40,7 +64,13 @@ class DashboardOSNotify(NotifyEntity):
     async def async_send_message(
         self, message: str, title: str | None = None, **kwargs
     ) -> None:
-        data = kwargs.get("data") or {}
+        await self.send(message, title, kwargs.get("data") or {})
+
+    async def send(
+        self, message: str, title: str | None, data: dict
+    ) -> None:
+        if not isinstance(data, dict):
+            data = {}
         priority = str(data.get("priority", "normal")).lower()
         if priority not in PRIORITIES:
             priority = "normal"
@@ -89,16 +119,11 @@ class DashboardOSNotify(NotifyEntity):
             async with session.post(
                 f"{self._base}/notify/upload",
                 data=body,
-                headers={
-                    "Content-Type": ctype or "application/octet-stream",
-                    "X-Media-Kind": kind,
-                },
+                headers={"Content-Type": ctype or "application/octet-stream", "X-Media-Kind": kind},
                 timeout=aiohttp.ClientTimeout(total=180),
             ) as resp:
                 if resp.status >= 400:
-                    raise HomeAssistantError(
-                        f"Tai {kind} len that bai: HTTP {resp.status}"
-                    )
+                    raise HomeAssistantError(f"Tai {kind} len that bai: HTTP {resp.status}")
                 result = await resp.json()
                 return result.get("url")
         except aiohttp.ClientError as err:
