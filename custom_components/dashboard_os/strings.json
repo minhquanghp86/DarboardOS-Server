@@ -3,10 +3,63 @@
     "step": {
       "user": {
         "title": "DarboardOS",
-        "description": "Nhập địa chỉ của add-on DarboardOS (mặc định đúng với Home Assistant OS).",
-        "data": { "name": "Tên", "host": "Địa chỉ add-on" }
+        "description": "Address of the DarboardOS add-on (default is correct on Home Assistant OS).",
+        "data": {
+          "name": "Name",
+          "host": "Add-on address"
+        }
       }
     },
-    "abort": { "already_configured": "Add-on này đã được cấu hình." }
+    "abort": {
+      "already_configured": "This add-on is already configured."
+    }
+  },
+  "services": {
+    "send": {
+      "name": "DarboardOS",
+      "description": "Send a notification to DarboardOS screens.",
+      "fields": {
+        "message": {
+          "name": "Message",
+          "description": "Notification text."
+        },
+        "title": {
+          "name": "Title",
+          "description": "Notification title."
+        },
+        "priority": {
+          "name": "Priority",
+          "description": "urgent = unlock, backlight on, full-screen overlay for 6 seconds."
+        },
+        "device": {
+          "name": "Device",
+          "description": "all or a device id, e.g. esp32-80f1b2d35fb5"
+        },
+        "image": {
+          "name": "Image",
+          "description": "URL or a file path under /config"
+        },
+        "video": {
+          "name": "Video",
+          "description": "URL or a file path under /config"
+        },
+        "audio": {
+          "name": "Audio",
+          "description": "URL or a file path under /config"
+        },
+        "app": {
+          "name": "App to open on tap",
+          "description": "DarboardOS app id"
+        },
+        "url": {
+          "name": "URL to open on tap",
+          "description": "http(s) address"
+        },
+        "camera": {
+          "name": "Camera snapshot",
+          "description": "go2rtc camera name, e.g. chuong_cua"
+        }
+      }
+    }
   }
 }

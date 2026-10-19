@@ -20,4 +20,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if ok:
         hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
+        if hass.services.has_service(DOMAIN, "send"):
+            hass.services.async_remove(DOMAIN, "send")
     return ok

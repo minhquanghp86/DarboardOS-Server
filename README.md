@@ -138,10 +138,11 @@ trên thanh bên Home Assistant.
 
 - `POST /notify` (từ `rest_command` của HA): `normal` / `high` (bật sáng + chuông) / `critical` (hiện cả khi Không làm
   phiền), kèm ảnh camera go2rtc, chạm để mở ứng dụng/URL; lưu qua khởi động lại addon.
-- **Custom component `custom_components/dashboard_os/`**: đăng ký action **`notify.dashboard_os`** cho Home Assistant
-  (Settings → Devices & Services → Add Integration → DarboardOS, địa chỉ mặc định `http://172.30.32.1:18080`).
-  Nhận `message`, `title`, `data: {priority, device, image, video, audio, app, url, camera}`; file local hoặc URL
-  được tự tải lên add-on. `priority: urgent` = mở khoá + bật đèn nền + phủ toàn màn hình 6 giây.
+- **Custom component `custom_components/dashboard_os/`**: action **`dashboard_os.send`** (Settings → Devices & Services →
+  Add Integration → DarboardOS, địa chỉ mặc định `http://172.30.32.1:18080`). Có đầy đủ ô nhập trên giao diện:
+  `message`, `title`, `priority` (normal/high/critical/urgent), `device`, `image`, `video`, `audio`, `app`, `url`, `camera`.
+  File local hoặc URL được tự tải lên add-on; `urgent` = mở khoá + bật đèn nền + phủ toàn màn hình 6 giây.
+  (Entity `notify.dashboard_os` vẫn tồn tại cho `notify.send_message`.)
 - **Thông báo Telegram** (2.9.169): chuông cổng nhỡ / bị từ chối / mỗi lần bấm (kèm ảnh khách), cuộc gọi video nhỡ — add-on gửi thẳng
   bằng bot Telegram của bạn (Darboard → Gọi → ⚙).
 - **Chuông cổng Darboard** (ESP32-S3 CAM, firmware `fw-2026.10.27`): bấm nút → các màn đổ chuông (đè lên màn khóa) với

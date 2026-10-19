@@ -1,0 +1,63 @@
+send:
+  name: DarboardOS
+  description: Gửi thông báo tới màn hình DarboardOS.
+  fields:
+    message:
+      name: Nội dung
+      description: Nội dung thông báo.
+      required: true
+      example: "Cửa chính vừa mở lúc 22:15"
+      selector:
+        text:
+          multiline: true
+    title:
+      name: Tiêu đề
+      example: "Cảnh báo"
+      selector:
+        text:
+    priority:
+      name: Mức ưu tiên
+      description: urgent = mở khoá, bật đèn nền, phủ toàn màn hình rồi thu gọn sau 6 giây.
+      default: normal
+      selector:
+        select:
+          options:
+            - normal
+            - high
+            - critical
+            - urgent
+    device:
+      name: Thiết bị
+      description: "all (mọi màn hình) hoặc mã thiết bị, ví dụ esp32-80f1b2d35fb5"
+      default: all
+      selector:
+        text:
+    image:
+      name: Ảnh
+      description: URL, hoặc đường dẫn file trong thư mục /config
+      example: /config/www/anh.jpg
+      selector:
+        text:
+    video:
+      name: Video
+      description: URL hoặc đường dẫn file trong /config
+      selector:
+        text:
+    audio:
+      name: Âm thanh
+      description: URL hoặc đường dẫn file trong /config
+      selector:
+        text:
+    app:
+      name: Ứng dụng mở khi chạm
+      selector:
+        text:
+    url:
+      name: URL mở khi chạm
+      selector:
+        text:
+    camera:
+      name: Camera (ảnh chụp)
+      description: Tên camera go2rtc, ví dụ chuong_cua
+      selector:
+        text:

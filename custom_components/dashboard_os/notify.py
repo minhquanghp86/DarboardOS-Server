@@ -1,4 +1,4 @@
-"""notify.dashboard_os: gui thong bao toi man hinh DarboardOS."""
+"""dashboard_os.send: gui thong bao toi man hinh DarboardOS."""
 from __future__ import annotations
 
 import logging
@@ -17,16 +17,25 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .const import DOMAIN
+
 _LOGGER = logging.getLogger(__name__)
 
-SERVICE_NAME = "dashboard_os"
+SERVICE_SEND = "send"
 PRIORITIES = {"normal", "high", "critical", "urgent"}
 
 SERVICE_SCHEMA = vol.Schema(
     {
         vol.Required("message"): cv.string,
         vol.Optional("title", default=""): cv.string,
-        vol.Optional("data", default={}): dict,
+        vol.Optional("priority", default="normal"): vol.In(sorted(PRIORITIES)),
+        vol.Optional("device"): cv.string,
+        vol.Optional("image"): cv.string,
+        vol.Optional("video"): cv.string,
+        vol.Optional("audio"): cv.string,
+        vol.Optional("app"): cv.string,
+        vol.Optional("url"): cv.string,
+        vol.Optional("camera"): cv.string,
     }
 )
 
@@ -41,19 +50,19 @@ async def async_setup_entry(
         await entity.send(
             message=call.data.get("message", ""),
             title=call.data.get("title") or None,
-            data=call.data.get("data") or {},
+            data={k: v for k, v in call.data.items() if k not in ("message", "title") and v},
         )
 
-    if not hass.services.has_service("notify", SERVICE_NAME):
+    if not hass.services.has_service(DOMAIN, SERVICE_SEND):
         hass.services.async_register(
-            "notify", SERVICE_NAME, handle, schema=SERVICE_SCHEMA
+            DOMAIN, SERVICE_SEND, handle, schema=SERVICE_SCHEMA
         )
 
 
 class DashboardOSNotify(NotifyEntity):
-    """Mot dich thong bao: notify.dashboard_os."""
+    """Entity notify.dashboard_os (dung cho notify.send_message)."""
 
-    _attr_name = SERVICE_NAME
+    _attr_name = "dashboard_os"
     _attr_supported_features = NotifyEntityFeature.TITLE
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -66,9 +75,7 @@ class DashboardOSNotify(NotifyEntity):
     ) -> None:
         await self.send(message, title, kwargs.get("data") or {})
 
-    async def send(
-        self, message: str, title: str | None, data: dict
-    ) -> None:
+    async def send(self, message: str, title: str | None, data: dict) -> None:
         if not isinstance(data, dict):
             data = {}
         priority = str(data.get("priority", "normal")).lower()
