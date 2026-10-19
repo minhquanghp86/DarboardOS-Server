@@ -295,6 +295,45 @@ http.createServer((req, res) => {
     });
     return;
   }
+  // (19/10/2026) Media cho thong bao (anh / video / am thanh): component DarboardOS tren HA tai len, panel tai ve.
+  if (pathname === '/notify/upload' && req.method === 'POST') {
+    const chunks: Buffer[] = []; let size = 0, tooBig = false;
+    const limit = 64 * 1024 * 1024;
+    req.on('data', (c: Buffer) => { size += c.length; if (size > limit) { tooBig = true; req.destroy(); } else chunks.push(c); });
+    req.on('end', () => {
+      if (tooBig) { res.writeHead(413, { 'content-type': 'application/json' }); res.end('{"ok":false,"error":"qua 64 MB"}'); return; }
+      try {
+        const dir = path.join(fs.existsSync('/data') ? '/data' : path.join(process.cwd(), 'data'), 'notify-media');
+        fs.mkdirSync(dir, { recursive: true });
+        const ctype = String(req.headers['content-type'] || '').toLowerCase();
+        const ext = ctype.includes('mp4') ? '.mp4' : ctype.includes('webm') ? '.webm' : ctype.includes('quicktime') ? '.mov'
+          : ctype.includes('mpeg') && ctype.includes('audio') ? '.mp3' : ctype.includes('wav') ? '.wav'
+          : ctype.includes('ogg') ? '.ogg' : ctype.includes('png') ? '.png' : ctype.includes('webp') ? '.webp'
+          : ctype.includes('gif') ? '.gif' : '.jpg';
+        const name = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10) + ext;
+        fs.writeFileSync(path.join(dir, name), Buffer.concat(chunks));
+        res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ ok: true, url: '/notify/media/' + name }));
+        console.log(`[notify] media ${name} (${(size / 1024).toFixed(0)} KB)`);
+      } catch (e) {
+        res.writeHead(500, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: (e as Error).message }));
+      }
+    });
+    return;
+  }
+  if (pathname.startsWith('/notify/media/') && req.method === 'GET') {
+    const name = path.basename(pathname.slice('/notify/media/'.length));
+    const file = path.join(fs.existsSync('/data') ? '/data' : path.join(process.cwd(), 'data'), 'notify-media', name);
+    if (!/^[\w.-]+$/.test(name) || !fs.existsSync(file)) { res.writeHead(404); res.end('not found'); return; }
+    const ext = path.extname(name).toLowerCase();
+    const type = ext === '.mp4' ? 'video/mp4' : ext === '.webm' ? 'video/webm' : ext === '.mov' ? 'video/quicktime'
+      : ext === '.mp3' ? 'audio/mpeg' : ext === '.wav' ? 'audio/wav' : ext === '.ogg' ? 'audio/ogg'
+      : ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : ext === '.gif' ? 'image/gif' : 'image/jpeg';
+    res.writeHead(200, { 'content-type': type, 'cache-control': 'public, max-age=86400' });
+    fs.createReadStream(file).pipe(res);
+    return;
+  }
   // (27/09/2026) Chuong cua: HA goi POST /doorbell (LAN, nhu /notify); trang chuong goi /doorbell/unlock|close (chi
   // tu chinh panel). Mo cong chi chay thuc the HA da khai trong POST /doorbell.
   if (pathname === '/doorbell' || pathname.startsWith('/doorbell/')) {

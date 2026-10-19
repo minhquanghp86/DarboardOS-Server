@@ -62,7 +62,7 @@ interface DevState {
 /** Bao thuc dang reo: id, nhan, gio "HH:MM", phut bao lai (0 = khong), tm = hen gio, beep = keu bang WebAudio (firmware cu). */
 interface AlarmInfo { id: string; l: string; t: string; sz: number; tm: boolean; beep?: boolean }
 /** s = da xem tren man hinh nay; k = loai (chat = tin nhan, nt = thong bao thuong). Server < 2.9.94 khong gui. */
-interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'critical' | 'urgent'; ts: number; img: string | null; act: boolean;
+interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'critical' | 'urgent'; ts: number; img: string | null; vid: string | null; aud: string | null; act: boolean;
   s?: boolean; k?: 'chat' | 'nt'; mc?: number }
 
 (function () {
@@ -914,7 +914,13 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     txt.appendChild(el('div', 'ov-t', n.t || n.m));
     if (n.t && n.m) txt.appendChild(el('div', 'ov-m', n.m));
     card.append(noticeIcon(n, 'ov-ic'), txt);
-    if (n.img) { const im = el('img', 'ov-img'); im.src = n.img; card.appendChild(im); }
+    if (n.vid) {
+      const v = document.createElement('video'); v.className = 'ov-img'; v.src = n.vid;
+      v.controls = true; v.autoplay = true; v.playsInline = true; v.muted = true; card.appendChild(v);
+    } else if (n.aud) {
+      const a = document.createElement('audio'); a.className = 'ov-aud'; a.src = n.aud; a.controls = true; a.autoplay = true;
+      card.appendChild(a);
+    } else if (n.img) { const im = el('img', 'ov-img'); im.src = n.img; card.appendChild(im); }
     const row = el('div', 'ov-act');
     if (n.act) {
       const b = el('button', 'ov-btn', 'Mở');

@@ -1,0 +1,12 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "DarboardOS",
+        "description": "Address of the DarboardOS add-on (default is correct on Home Assistant OS).",
+        "data": { "name": "Name", "host": "Add-on address" }
+      }
+    },
+    "abort": { "already_configured": "This add-on is already configured." }
+  }
+}

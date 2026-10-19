@@ -1,0 +1,10 @@
+{
+  "domain": "dashboard_os",
+  "name": "DarboardOS",
+  "codeowners": ["@minhquanghp86"],
+  "config_flow": true,
+  "documentation": "https://github.com/minhquanghp86/DarboardOS-Server",
+  "iot_class": "local_push",
+  "requirements": [],
+  "version": "1.0.0"
+}

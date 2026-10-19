@@ -25,6 +25,8 @@ export interface Notice {
   url?: string;
   /** Anh kem theo (vd anh chup camera cong qua go2rtc). */
   image?: string;
+  video?: string;
+  audio?: string;
   /** (01/10/2026) Tham so cho ung dung `app` khi cham (vd id cuoc tro chuyen cua Tin nhan). */
   arg?: string;
   /** (01/10/2026) Nguoi dung DA XEM tren chinh man hinh nay (cham the / mo thanh keo xuong). The noi tu hien khi khong
@@ -39,7 +41,7 @@ export const noticeKind = (n: Pick<Notice, 'app'>): 'chat' | 'nt' => (n.app === 
 
 export interface NotifyRequest {
   title?: unknown; message?: unknown; priority?: unknown; device?: unknown; app?: unknown; url?: unknown;
-  image?: unknown; camera?: unknown; arg?: unknown; missed?: unknown;
+  image?: unknown; video?: unknown; audio?: unknown; camera?: unknown; arg?: unknown; missed?: unknown;
 }
 
 const str = (v: unknown, max: number): string => (typeof v === 'string' ? v.trim().slice(0, max) : '');
@@ -56,8 +58,12 @@ export function parseNotify(body: NotifyRequest, go2rtc: string):
   const priority: Priority = pr === 'urgent' ? 'urgent' : pr === 'high' || pr === 'critical' ? pr : 'normal';
   const url = str(body.url, 1024);
   if (url && !/^https?:\/\//i.test(url)) return { ok: false, error: 'url phai la http(s)' };
-  let image = str(body.image, 1024);
-  if (image && !/^https?:\/\//i.test(image)) return { ok: false, error: 'image phai la http(s)' };
+  let image = str(body.image, 2048);
+  if (image && !/^(https?:\/\/|\/notify\/media\/)/i.test(image)) return { ok: false, error: 'image phai la http(s) hoac /notify/media/...' };
+  const video = str(body.video, 2048);
+  if (video && !/^(https?:\/\/|\/notify\/media\/)/i.test(video)) return { ok: false, error: 'video phai la http(s) hoac /notify/media/...' };
+  const audio = str(body.audio, 2048);
+  if (audio && !/^(https?:\/\/|\/notify\/media\/)/i.test(audio)) return { ok: false, error: 'audio phai la http(s) hoac /notify/media/...' };
   const camera = str(body.camera, 64);
   if (!image && camera) {
     if (!/^[\w.-]+$/.test(camera)) return { ok: false, error: 'ten camera khong hop le' };
@@ -68,7 +74,7 @@ export function parseNotify(body: NotifyRequest, go2rtc: string):
   return {
     ok: true,
     device: str(body.device, 64) || 'all',
-    notice: { title, message, priority, ...(body.missed === true ? { missed: true } : {}), ...(app ? { app } : {}), ...(arg ? { arg } : {}), ...(url ? { url } : {}), ...(image ? { image } : {}) },
+    notice: { title, message, priority, ...(body.missed === true ? { missed: true } : {}), ...(app ? { app } : {}), ...(arg ? { arg } : {}), ...(url ? { url } : {}), ...(image ? { image } : {}), ...(video ? { video } : {}), ...(audio ? { audio } : {}) },
   };
 }
 

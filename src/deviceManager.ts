@@ -1520,7 +1520,7 @@ alarms.hooks = {
 };
 /** Gon cho Shell: id, tieu de, noi dung, uu tien, thoi diem, anh, co hanh dong khi cham khong. */
 function noticeForShell(n: Notice) {
-  return { id: n.id, t: n.title, m: n.message, p: n.priority, ts: n.ts, img: n.image ?? null, act: !!(n.app || n.url),
+  return { id: n.id, t: n.title, m: n.message, p: n.priority, ts: n.ts, img: n.image ?? null, vid: n.video ?? null, aud: n.audio ?? null, act: !!(n.app || n.url),
     s: !!n.seen, k: noticeKind(n), ...(n.missed ? { mc: 1 } : {}) };
 }
 

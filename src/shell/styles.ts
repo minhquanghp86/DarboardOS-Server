@@ -564,6 +564,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .ov-ic { width: clamp(56px, 16vmin, 120px); height: clamp(56px, 16vmin, 120px); }
 .ov-t { font-size: clamp(20px, 4.4vmin, 40px); font-weight: 700; line-height: 1.2; }
 .ov-m { font-size: clamp(16px, 3.2vmin, 30px); opacity: 0.9; line-height: 1.35; margin-top: 6px; }
+.ov-aud { width: 100%; }
 .ov-img { width: 100%; max-height: 42vh; object-fit: contain; border-radius: 12px; }
 .ov-act { display: flex; gap: 12px; justify-content: flex-end; }
 .ov-btn { font: inherit; font-size: clamp(15px, 2.8vmin, 24px); padding: 10px 22px; border-radius: 999px; border: 0;

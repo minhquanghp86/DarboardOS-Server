@@ -1,0 +1,12 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "DarboardOS",
+        "description": "Nhập địa chỉ của add-on DarboardOS (mặc định đúng với Home Assistant OS).",
+        "data": { "name": "Tên", "host": "Địa chỉ add-on" }
+      }
+    },
+    "abort": { "already_configured": "Add-on này đã được cấu hình." }
+  }
+}

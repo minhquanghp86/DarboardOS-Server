@@ -1,3 +1,11 @@
+## V2.9.189
+- **Thông báo có ảnh / video / âm thanh** qua `POST /notify` (thêm `video`, `audio`; `image` nhận cả đường dẫn nội bộ):
+  - `POST /notify/upload` nhận file media (tối đa 64 MB), `GET /notify/media/<tên>` trả lại file cho panel.
+  - Overlay `urgent` và thẻ thông báo phát `<video>` / `<audio>` (tự phát, có điều khiển).
+- **Custom component `custom_components/dashboard_os/`** (thư mục trong repo): đăng ký `notify.dashboard_os` cho Home Assistant.
+  Nhận `message`, `title` và `data: {priority, device, image, video, audio, app, url, camera}`; file local hoặc URL
+  được tự động tải lên add-on trước khi gửi.
+
 ## V2.9.188
 - **Thông báo ưu tiên cao `priority: "urgent"`** (dùng từ automation Home Assistant):
   - **Mở khoá** màn hình (tắt chế độ chờ) và **bật đèn nền** ngay.
