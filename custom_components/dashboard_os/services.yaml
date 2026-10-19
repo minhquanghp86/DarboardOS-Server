@@ -17,21 +17,36 @@ send:
         text:
     priority:
       name: Mức ưu tiên
-      description: urgent = mở khoá, bật đèn nền, phủ toàn màn hình rồi thu gọn sau 6 giây.
+      description: Khẩn cấp = mở khoá, bật đèn nền, phủ toàn màn hình rồi thu gọn sau 6 giây.
       default: normal
       selector:
         select:
           options:
-            - normal
-            - high
-            - critical
-            - urgent
+            - label: Bình thường
+              value: normal
+            - label: Cao (bật sáng + chuông)
+              value: high
+            - label: Nghiêm trọng (hiện cả khi Không làm phiền)
+              value: critical
+            - label: Khẩn cấp (mở khoá, phủ toàn màn hình)
+              value: urgent
     device:
       name: Thiết bị
-      description: Chọn màn hình nhận thông báo. Bỏ trống = mọi màn hình.
+      description: Màn hình nhận thông báo (danh sách do add-on DarboardOS cung cấp).
+      default: all
       selector:
-        device:
-          integration: esphome
+        select:
+          options:
+            - label: "Tất cả màn hình"
+              value: "all"
+            - label: "7.0 Guition JC1060P470C"
+              value: "esp32-80f1b2d35fb5"
+            - label: "4.3 Guition JC4827w543"
+              value: "esp32-1cdbd49b2260"
+            - label: "4.0 Guition 4848S040"
+              value: "esp32-28372f8a0218"
+            - label: "Chuông cổng"
+              value: "esp32-1cdbd449ee60"
     image:
       name: Ảnh
       description: Chọn từ thư viện media, hoặc dán URL / đường dẫn trong /config
@@ -53,16 +68,14 @@ send:
         media:
           accept:
             - audio/*
-    app:
-      name: Ứng dụng mở khi chạm
-      selector:
-        text:
-    url:
-      name: URL mở khi chạm
-      selector:
-        text:
     camera:
-      name: Camera (ảnh chụp)
-      description: Tên camera go2rtc, ví dụ chuong_cua
+      name: Camera
+      description: Chọn camera có trong Home Assistant (Frigate, go2rtc, Tapo…)
+      selector:
+        entity:
+          domain: camera
+    camera_stream:
+      name: Đường dẫn luồng go2rtc
+      description: Tên luồng go2rtc nếu camera không có thực thể trong Home Assistant, ví dụ chuong_cua
       selector:
         text:

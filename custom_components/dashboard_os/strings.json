@@ -28,12 +28,8 @@
           "description": "Notification title."
         },
         "priority": {
-          "name": "Priority",
-          "description": "urgent = unlock, backlight on, full-screen overlay for 6 seconds."
-        },
-        "device": {
-          "name": "Device",
-          "description": "all or a device id, e.g. esp32-80f1b2d35fb5"
+          "name": "Mức ưu tiên",
+          "description": "Khẩn cấp = mở khoá, bật đèn nền, phủ toàn màn hình rồi thu gọn sau 6 giây."
         },
         "image": {
           "name": "Image",
@@ -47,17 +43,13 @@
           "name": "Audio",
           "description": "URL or a file path under /config"
         },
-        "app": {
-          "name": "App to open on tap",
-          "description": "DarboardOS app id"
-        },
-        "url": {
-          "name": "URL to open on tap",
-          "description": "http(s) address"
-        },
         "camera": {
-          "name": "Camera snapshot",
-          "description": "go2rtc camera name, e.g. chuong_cua"
+          "name": "Camera",
+          "description": "Chọn camera có trong Home Assistant (Frigate, go2rtc, Tapo…)"
+        },
+        "camera_stream": {
+          "name": "Đường dẫn luồng go2rtc",
+          "description": "Tên luồng go2rtc nếu camera không có thực thể trong Home Assistant, ví dụ chuong_cua"
         }
       }
     }

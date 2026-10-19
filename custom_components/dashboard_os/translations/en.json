@@ -29,11 +29,7 @@
         },
         "priority": {
           "name": "Priority",
-          "description": "urgent = unlock, backlight on, full-screen overlay for 6 seconds."
-        },
-        "device": {
-          "name": "Device",
-          "description": "all or a device id, e.g. esp32-80f1b2d35fb5"
+          "description": "Urgent = unlock, backlight on, full-screen overlay for 6 seconds."
         },
         "image": {
           "name": "Image",
@@ -47,17 +43,13 @@
           "name": "Audio",
           "description": "URL or a file path under /config"
         },
-        "app": {
-          "name": "App to open on tap",
-          "description": "DarboardOS app id"
-        },
-        "url": {
-          "name": "URL to open on tap",
-          "description": "http(s) address"
-        },
         "camera": {
-          "name": "Camera snapshot",
-          "description": "go2rtc camera name, e.g. chuong_cua"
+          "name": "Camera",
+          "description": "Camera entity in Home Assistant (Frigate, go2rtc, Tapo...)"
+        },
+        "camera_stream": {
+          "name": "go2rtc stream",
+          "description": "go2rtc stream name if the camera has no entity, e.g. chuong_cua"
         }
       }
     }

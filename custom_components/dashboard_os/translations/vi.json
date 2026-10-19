@@ -29,11 +29,7 @@
         },
         "priority": {
           "name": "Mức ưu tiên",
-          "description": "urgent = mở khoá, bật đèn nền, phủ toàn màn hình 6 giây."
-        },
-        "device": {
-          "name": "Thiết bị",
-          "description": "all (mọi màn hình) hoặc mã thiết bị, ví dụ esp32-80f1b2d35fb5"
+          "description": "Khẩn cấp = mở khoá, bật đèn nền, phủ toàn màn hình rồi thu gọn sau 6 giây."
         },
         "image": {
           "name": "Ảnh",
@@ -47,17 +43,13 @@
           "name": "Âm thanh",
           "description": "URL hoặc đường dẫn file trong /config"
         },
-        "app": {
-          "name": "Ứng dụng mở khi chạm",
-          "description": "Mã ứng dụng DarboardOS"
-        },
-        "url": {
-          "name": "URL mở khi chạm",
-          "description": "Địa chỉ http(s)"
-        },
         "camera": {
-          "name": "Camera (ảnh chụp)",
-          "description": "Tên camera go2rtc, ví dụ chuong_cua"
+          "name": "Camera",
+          "description": "Chọn camera có trong Home Assistant (Frigate, go2rtc, Tapo…)"
+        },
+        "camera_stream": {
+          "name": "Đường dẫn luồng go2rtc",
+          "description": "Tên luồng go2rtc nếu camera không có thực thể trong Home Assistant, ví dụ chuong_cua"
         }
       }
     }

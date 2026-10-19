@@ -33,9 +33,8 @@ SERVICE_SCHEMA = vol.Schema(
         vol.Optional("image"): cv.string,
         vol.Optional("video"): cv.string,
         vol.Optional("audio"): cv.string,
-        vol.Optional("app"): cv.string,
-        vol.Optional("url"): cv.string,
         vol.Optional("camera"): cv.string,
+        vol.Optional("camera_stream"): cv.string,
     }
 )
 
@@ -106,11 +105,15 @@ class DashboardOSNotify(NotifyEntity):
             "message": message or "",
             "priority": priority,
         }
-        for key in ("app", "url", "camera"):
-            if value := data.get(key):
-                payload[key] = value
         if device := data.get("device"):
             payload["device"] = await self._resolve_device(str(device))
+        camera = str(data.get("camera") or "")
+        if camera.startswith("camera."):
+            camera = camera[7:]
+        if stream := data.get("camera_stream"):
+            camera = str(stream)
+        if camera:
+            payload["camera"] = camera
 
         for key in ("image", "video", "audio"):
             if src := data.get(key):
