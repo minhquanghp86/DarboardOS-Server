@@ -1,3 +1,11 @@
+## V2.9.188
+- **Thông báo ưu tiên cao `priority: "urgent"`** (dùng từ automation Home Assistant):
+  - **Mở khoá** màn hình (tắt chế độ chờ) và **bật đèn nền** ngay.
+  - **Phủ toàn màn hình** đè lên ứng dụng đang chạy, kể cả khi màn hình đang khoá: tiêu đề + nội dung + ảnh (nếu có) cỡ lớn.
+  - Sau **6 giây** (hoặc khi bấm) tự **thu gọn** thành thông báo nhỏ như hiện tại; vẫn lưu trong lịch sử thông báo.
+  - Không phụ thuộc DND; vẫn gửi qua `POST /notify` (thêm `"priority": "urgent"`).
+- `urgent` có nút **Mở** (mở app/URL đính kèm) và **Đóng**.
+
 ## V2.9.187
 - **Watchdog luồng camera**: `av_stream`/encoder của panel có thể treo lúc chạy (camera vẫn chụp ảnh nhưng H.264 ra 0 byte).
   Khi đó Frigate mất nguồn ghi và app Camera trên panel mất hình xem trước — cả hai dùng chung một luồng qua `/cam/live`.

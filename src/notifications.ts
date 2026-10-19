@@ -10,7 +10,7 @@
 //   high     — bat sang man hinh + chuong ngan, the giu 20 s; KHONG hien khi Khong lam phien.
 //   critical — (chuong cua, bao chay...) bat sang + chuong, the giu toi khi cham, hien CA KHI Khong lam phien.
 
-export type Priority = 'normal' | 'high' | 'critical';
+export type Priority = 'normal' | 'high' | 'critical' | 'urgent';
 
 export interface Notice {
   id: number;
@@ -53,7 +53,7 @@ export function parseNotify(body: NotifyRequest, go2rtc: string):
   const title = str(body.title, 80), message = str(body.message, 300);
   if (!title && !message) return { ok: false, error: 'can title hoac message' };
   const pr = str(body.priority, 10);
-  const priority: Priority = pr === 'high' || pr === 'critical' ? pr : 'normal';
+  const priority: Priority = pr === 'urgent' ? 'urgent' : pr === 'high' || pr === 'critical' ? pr : 'normal';
   const url = str(body.url, 1024);
   if (url && !/^https?:\/\//i.test(url)) return { ok: false, error: 'url phai la http(s)' };
   let image = str(body.image, 1024);
@@ -74,12 +74,12 @@ export function parseNotify(body: NotifyRequest, go2rtc: string):
 
 /** Co hien the noi khong (luon vao lich su du hien hay khong). */
 export function shouldPopup(n: Pick<Notice, 'priority'>, dnd: boolean): boolean {
-  return !dnd || n.priority === 'critical';
+  return n.priority === 'urgent' || !dnd || n.priority === 'critical';
 }
 
 /** Co bat sang man hinh (va keu chuong) khong. */
 export function shouldWake(n: Pick<Notice, 'priority'>, dnd: boolean): boolean {
-  return n.priority === 'critical' || (n.priority === 'high' && !dnd);
+  return n.priority === 'urgent' || n.priority === 'critical' || (n.priority === 'high' && !dnd);
 }
 
 /** Lich su thong bao cua MOT man hinh: toi da `max` muc, moi nhat truoc. */

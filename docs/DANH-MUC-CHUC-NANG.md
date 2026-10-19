@@ -118,7 +118,7 @@ Thêm / ẩn / sắp xếp / đổi tên / đổi biểu tượng: Darboard → 
 
 | Chức năng | Ghi chú | Cấu hình |
 |---|---|---|
-| `POST /notify` từ HA | Mức `normal` / `high` (bật sáng + chuông) / `critical` (hiện cả khi Không làm phiền); kèm ảnh camera; lưu qua khởi động lại | `rest_command.panel_notify` |
+| `POST /notify` từ HA | Mức `normal` / `high` (bật sáng + chuông) / `critical` (hiện cả khi Không làm phiền) / `urgent` (mở khoá, bật đèn nền, phủ toàn màn hình trên app đang chạy, tự thu gọn sau 6 s); kèm ảnh camera; lưu qua khởi động lại | `rest_command.panel_notify` |
 | `POST /board` | Ghi chú lên Bảng tin gia đình | `rest_command` |
 | `POST /doorbell` | Hiện camera toàn màn + nút mở cổng | `rest_command.darboard_hien_camera` |
 | **6 Blueprint** cho HA | Hiện camera · Thông báo · Cảnh báo an ninh · Nhắc lịch · Chào buổi sáng · Chuông cổng báo cả nhà | `examples/home-assistant/` |

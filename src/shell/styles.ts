@@ -554,4 +554,20 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   .page { padding-top: 4px; row-gap: 8px; }
   .page .app-ic { width: 48px; height: 48px; }
 }
+/* (19/10/2026) Thong bao URGENT: phu toan man hinh tren moi ung dung */
+.ov { position: fixed; inset: 0; z-index: 2147483000; display: flex; align-items: center; justify-content: center;
+      padding: 16px; box-sizing: border-box; background: rgba(0,0,0,0.62); animation: ov-fade 160ms ease-out; }
+.ov-card { width: min(760px, 100%); max-height: calc(100vh - 32px); overflow: auto; box-sizing: border-box;
+           display: flex; flex-direction: column; gap: clamp(10px, 2vmin, 18px);
+           padding: clamp(16px, 4vmin, 32px); border-radius: 18px; background: #1e1e22; color: #fff;
+           box-shadow: 0 24px 70px rgba(0,0,0,0.6), inset 0 0 0 2px rgba(239,68,68,0.85); }
+.ov-ic { width: clamp(56px, 16vmin, 120px); height: clamp(56px, 16vmin, 120px); }
+.ov-t { font-size: clamp(20px, 4.4vmin, 40px); font-weight: 700; line-height: 1.2; }
+.ov-m { font-size: clamp(16px, 3.2vmin, 30px); opacity: 0.9; line-height: 1.35; margin-top: 6px; }
+.ov-img { width: 100%; max-height: 42vh; object-fit: contain; border-radius: 12px; }
+.ov-act { display: flex; gap: 12px; justify-content: flex-end; }
+.ov-btn { font: inherit; font-size: clamp(15px, 2.8vmin, 24px); padding: 10px 22px; border-radius: 999px; border: 0;
+          background: #3b82f6; color: #fff; }
+.ov-btn.ghost { background: rgba(255,255,255,0.14); }
+@keyframes ov-fade { from { opacity: 0 } to { opacity: 1 } }
 `;

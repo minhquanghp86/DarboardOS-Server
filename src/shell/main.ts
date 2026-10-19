@@ -62,7 +62,7 @@ interface DevState {
 /** Bao thuc dang reo: id, nhan, gio "HH:MM", phut bao lai (0 = khong), tm = hen gio, beep = keu bang WebAudio (firmware cu). */
 interface AlarmInfo { id: string; l: string; t: string; sz: number; tm: boolean; beep?: boolean }
 /** s = da xem tren man hinh nay; k = loai (chat = tin nhan, nt = thong bao thuong). Server < 2.9.94 khong gui. */
-interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'critical'; ts: number; img: string | null; act: boolean;
+interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'critical' | 'urgent'; ts: number; img: string | null; act: boolean;
   s?: boolean; k?: 'chat' | 'nt'; mc?: number }
 
 (function () {
@@ -883,12 +883,8 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
       setTimeout(() => { try { ctx.close(); } catch { /* */ } }, 1500);
     } catch { /* khong co am thanh */ }
   }
-  function notify(n: Notice, sound: boolean): void {
-    window.__rwvLastNotice = n;
-    // (07/10/2026) Dang KHOA: giu man hinh khoa, the thong bao hien de len nhung chi de xem (cham roi xuong lop khoa ->
-    // goi y vuot len) — khong mo thang ung dung khi chua mo khoa.
-    const onLock = !!(saverEl && svOpts.lock);
-    hideToast(); if (!onLock) screensaver(false);
+  function toast(n: Notice, onLock: boolean): void {
+    hideToast();
     const t = el('div', 'toast ' + n.p); if (CFG.motion === 'full') t.classList.add('anim');
     if (onLock) t.classList.add('onlock');
     const txt = el('div', 'to-txt'); txt.append(el('div', 'to-t', n.t || n.m));
@@ -900,6 +896,47 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     t.addEventListener('click', (e) => { e.stopPropagation(); hideToast(); if (n.act) sendControl({ ntOpen: n.id }); });
     root.appendChild(t); toastEl = t;
     if (n.p !== 'critical') toastTimer = window.setTimeout(hideToast, n.p === 'high' ? 20000 : 8000);
+  }
+
+  // (19/10/2026) Thong bao URGENT: phu toan man hinh tren moi ung dung, tu thu gon sau 6 s (hoac khi cham).
+  let ovEl: HTMLElement | null = null, ovTimer = 0, ovNotice: Notice | null = null;
+  function closeOverlay(collapse: boolean): void {
+    clearTimeout(ovTimer);
+    if (!ovEl) return;
+    const n = ovNotice;
+    ovEl.remove(); ovEl = null; ovNotice = null;
+    if (collapse && n) toast(n, false);
+  }
+  function openOverlay(n: Notice): void {
+    closeOverlay(false); hideToast();
+    const card = el('div', 'ov-card ' + n.p);
+    const txt = el('div', 'ov-txt');
+    txt.appendChild(el('div', 'ov-t', n.t || n.m));
+    if (n.t && n.m) txt.appendChild(el('div', 'ov-m', n.m));
+    card.append(noticeIcon(n, 'ov-ic'), txt);
+    if (n.img) { const im = el('img', 'ov-img'); im.src = n.img; card.appendChild(im); }
+    const row = el('div', 'ov-act');
+    if (n.act) {
+      const b = el('button', 'ov-btn', 'Mở');
+      b.addEventListener('click', (e) => { e.stopPropagation(); closeOverlay(false); sendControl({ ntOpen: n.id }); });
+      row.appendChild(b);
+    }
+    const c = el('button', 'ov-btn ghost', 'Đóng');
+    c.addEventListener('click', (e) => { e.stopPropagation(); closeOverlay(true); });
+    row.appendChild(c); card.appendChild(row);
+    const box = el('div', 'ov'); box.appendChild(card);
+    box.addEventListener('pointerdown', (e) => e.stopPropagation());
+    root.appendChild(box); ovEl = box; ovNotice = n;
+    ovTimer = window.setTimeout(() => closeOverlay(true), 6000);
+  }
+
+  function notify(n: Notice, sound: boolean): void {
+    window.__rwvLastNotice = n;
+    // (07/10/2026) Dang KHOA: giu man hinh khoa, the thong bao hien de len nhung chi de xem.
+    const onLock = !!(saverEl && svOpts.lock);
+    if (n.p === 'urgent') { if (onLock) screensaver(false); openOverlay(n); if (sound) chime(true); return; }
+    hideToast(); if (!onLock) screensaver(false);
+    toast(n, onLock);
     if (sound) chime(n.p === 'critical');
   }
 

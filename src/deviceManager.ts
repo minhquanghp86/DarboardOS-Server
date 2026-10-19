@@ -1543,6 +1543,11 @@ export function postNotify(body: NotifyRequest): { ok: boolean; error?: string; 
     const wake = shouldWake(n, quiet);
     const screenOff = dev.devState ? !dev.devState.backlightOn : false;
     if (wake && dev.cfg.devControl) broadcaster.sendDeviceControl(id, ControlField.Brightness, userBrightness(dev));
+    // (19/10/2026) Thong bao URGENT: mo khoa man hinh (tat che do cho) de thay ngay tin nhan.
+    if (n.priority === 'urgent' && dev.cfg.devControl) {
+      broadcaster.sendDeviceControl(id, ControlField.Saver, 0);
+      broadcaster.sendDeviceControl(id, ControlField.Brightness, userBrightness(dev));
+    }
     // (16/10/2026) Cuoc goi nho khi dang man hinh cho / khoa: GIU man hinh cho — the "Cuộc gọi nhỡ" hien ngay tren do
     // (Shell, st.nt), khong bat the noi.
     const keepSaver = !!n.missed && dev.saverOn;
