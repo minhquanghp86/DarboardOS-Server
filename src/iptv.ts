@@ -319,15 +319,24 @@ const MAX_LIST_BYTES = 20 * 1024 * 1024;
 const MAX_LISTS = 20;
 /** Danh sach MAU khi chua cau hinh: kenh Viet Nam cong khai cua iptv-org (do 07/10: 82 kenh, 52 tra 200). */
 const SAMPLE: IptvList = { id: 'mau-vn', name: 'iptv-org — Việt Nam (mẫu)', url: 'https://iptv-org.github.io/iptv/countries/vn.m3u', on: true };
+/** (20/10/2026) Danh sach MAC DINH cua nha: co san ngay khi cai addon lan dau (khong can them tay). */
+const DEFAULT_LISTS: IptvList[] = [
+  { id: 'vmttv', name: 'VMTTV (vuminhthanh12)', url: 'https://raw.githubusercontent.com/vuminhthanh12/vuminhthanh12/main/vmttv', on: true },
+  { id: 'tvtonghop', name: 'TV tổng hợp (vuminhthanh12)', url: 'https://raw.githubusercontent.com/vuminhthanh12/vuminhthanh12/main/tv.m3u', on: false },
+  { id: 'viettel', name: 'Viettel IPTV (vuminhthanh12)', url: 'https://raw.githubusercontent.com/vuminhthanh12/vuminhthanh12/main/iptv_vittttttellll.m3u', on: false },
+  { id: 'sansat', name: 'Thể thao quốc tế — sansat (vuminhthanh12)', url: 'https://raw.githubusercontent.com/vuminhthanh12/vuminhthanh12/main/sport', on: false },
+  SAMPLE,
+];
+const DEFAULT_FAVS = ['cinemax hd', 'vtv1', 'vtv6', 'vtv2', 'vtv3', 'warner tv', 'axn hd', 'hbo'];
 
 let conf: IptvConfig | null = null;
 function config(): IptvConfig {
   if (conf) return conf;
   try {
     const j = JSON.parse(fs.readFileSync(CONF_FILE, 'utf8')) as Partial<IptvConfig>;
-    conf = { lists: Array.isArray(j.lists) ? j.lists : [SAMPLE], favs: Array.isArray(j.favs) ? j.favs : [],
+    conf = { lists: Array.isArray(j.lists) ? j.lists : DEFAULT_LISTS, favs: Array.isArray(j.favs) ? j.favs : DEFAULT_FAVS,
       recent: Array.isArray(j.recent) ? j.recent.filter((x): x is string => typeof x === 'string').slice(0, RECENT_MAX) : [] };
-  } catch { conf = { lists: [SAMPLE], favs: [], recent: [] }; }
+  } catch { conf = { lists: DEFAULT_LISTS, favs: DEFAULT_FAVS, recent: [] }; }
   return conf;
 }
 /** (16/10/2026) Ghi kenh vua xem len dau danh sach "Gần đây". */

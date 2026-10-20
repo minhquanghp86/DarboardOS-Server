@@ -1,3 +1,7 @@
+## V2.9.194
+- IPTV: **5 danh sách mặc định** có sẵn khi cài add-on lần đầu (VMTTV 538 kênh bật sẵn, TV tổng hợp, Viettel,
+  Sport quốc tế, iptv-org VN) + 8 kênh yêu thích mặc định. File `/data/rwv-iptv.json` vẫn được ưu tiên nếu đã có.
+
 ## V2.9.193
 - Mở rộng dải mép cả 4 phía (~1,6 lần): trên 30 px, dưới 38 px, trái/phải 34 px (tỉ lệ theo màn hình) — dễ vuốt hơn khi có vỏ nhựa.
 - Thanh trạng thái **bám theo ngón tay** cả khi kéo xuống lẫn kéo lên (thu lại theo tay), mọi chế độ chuyển động.
