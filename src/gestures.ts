@@ -56,11 +56,12 @@ export const backCommitPx = (pageW: number) => Math.max(60, Math.round(pageW * 0
 /** (08/10/2026) Dai mep (px trang). Cot loi: cham la bat dau cho cu chi. Mo rong: chi khi ngon tay lao vao tu ngoai vien. */
 export function edgeBands(pageW: number, pageH: number) {
   return {
-    top: Math.max(14, Math.round(pageH * 0.035)),                 // 600 -> 21, 480 -> 17 (keo thanh trang thai: khong doi)
-    bottom: Math.max(24, Math.round(pageH * 0.05)),               // 600 -> 30, 480 -> 24 (cu 24 / 19)
-    side: Math.max(20, Math.round(pageW * 0.025)),                // 1024 -> 26, 480 -> 20 (cu 18 / 12)
-    bottomExt: Math.max(40, Math.round(pageH * 0.09)),            // 600 -> 54, 480 -> 43
-    sideExt: Math.max(48, Math.round(pageW * 0.07)),              // 1024 -> 72, 480 -> 48
+    // (20/10/2026) Nguoi dung yeu cau rong hon: vo nhua can mep nen phai vuot sat moi an. Tang ~1,6 lan ca 4 phia.
+    top: Math.max(30, Math.round(pageH * 0.06)),                  // 480 -> 30, 600 -> 36
+    bottom: Math.max(38, Math.round(pageH * 0.08)),               // 480 -> 38, 600 -> 48
+    side: Math.max(34, Math.round(pageW * 0.045)),                // 480 -> 34, 800 -> 36, 1024 -> 46
+    bottomExt: Math.max(64, Math.round(pageH * 0.14)),            // 480 -> 67, 600 -> 84
+    sideExt: Math.max(80, Math.round(pageW * 0.11)),              // 480 -> 80, 800 -> 88, 1024 -> 113
   };
 }
 /** Dai mo rong: trong bay nhieu ms sau khi cham phai chay vao trong it nhat bay nhieu px (~0,17 px/ms tro len). */

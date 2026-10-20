@@ -1110,10 +1110,10 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     /** Cu chi keo tu mep tren do server nhan dien: y = vi tri ngon tay (px trang). */
     gesture(phase: 'start' | 'move' | 'end', y: number) {
       const h = fullH();
-      if (phase === 'start') { hideToast(); tick(); gStartVisible = shadeVisible; gLastY = y; if (CFG.motion !== 'full') { openShade(false); } return; }
-      if (phase === 'move') { gLastY = y; if (CFG.motion === 'full') setVisible(Math.max(gStartVisible, y), false); return; }
+      // (20/10/2026) Bang trang thai bam theo ngon tay ca khi keo xuong lan keo len (thu lai), moi che do chuyen dong.
+      if (phase === 'start') { hideToast(); tick(); gStartVisible = shadeVisible; gLastY = y; return; }
+      if (phase === 'move') { gLastY = y; setVisible(Math.max(0, Math.min(h, y)), false); return; }
       // end: qua 1/3 chieu cao thi mo han, khong thi dong
-      if (CFG.motion !== 'full') return;
       if (Math.max(gStartVisible, gLastY) > h / 3) openShade(true); else closeShade(true);
     },
     open() { openShade(true); },
