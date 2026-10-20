@@ -1,3 +1,8 @@
+## V2.9.192
+- Tắt **overscroll history navigation** của Chromium (`--overscroll-history-navigation=0`,
+  `--disable-features=...OverscrollHistoryNavigation`): hết hiện tượng vuốt ngang trong vùng mép làm trang
+  nhảy về `about:blank` (màn hình trắng chỉ còn thanh trạng thái) trên mọi app và mọi panel.
+
 ## V2.9.191
 - `duration: 0` = **không tự thu gọn** thông báo; chạm vào màn hình (nền hoặc thẻ) để đóng.
 

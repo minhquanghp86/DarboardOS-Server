@@ -47,7 +47,10 @@ async function startHeadlessIfNeededAsync(): Promise<void> {
     '--force-device-scale-factor=1',
     '--headless=new',
     '--enable-features=VaapiVideoDecoder',
-    '--disable-features=UseChromeOSDirectVideoDecoder',
+    // (20/10/2026) Tat dieu huong lich su bang vuot ngang: Chromium coi cu chi keo tu vung mep trai
+    // la "back"; trang khong co lich su -> about:blank (man hinh trang chi con thanh trang thai).
+    '--disable-features=UseChromeOSDirectVideoDecoder,OverscrollHistoryNavigation',
+    '--overscroll-history-navigation=0',
     '--disable-background-timer-throttling',
     '--disable-backgrounding-occluded-windows',
     '--disable-renderer-backgrounding',
