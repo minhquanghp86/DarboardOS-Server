@@ -1,3 +1,7 @@
+## V2.9.195
+- IPTV: nút **"Mặc định"** trong màn hình Danh sách kênh + `POST /iptv/reset` — khôi phục 5 danh sách mặc định
+  và 8 kênh yêu thích (bấm 2 lần để xác nhận, giữ nguyên lịch sử "Gần đây").
+
 ## V2.9.194
 - IPTV: **5 danh sách mặc định** có sẵn khi cài add-on lần đầu (VMTTV 538 kênh bật sẵn, TV tổng hợp, Viettel,
   Sport quốc tế, iptv-org VN) + 8 kênh yêu thích mặc định. File `/data/rwv-iptv.json` vẫn được ưu tiên nếu đã có.

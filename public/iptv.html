@@ -239,6 +239,7 @@
     <button class="ib" id="lsBack" type="button" aria-label="Quay lại kênh" title="Quay lại kênh"></button>
     <h1>Danh sách kênh</h1>
     <button class="rwv-btn" id="lsRefresh" type="button" title="Tải lại mọi danh sách"></button>
+    <button class="rwv-btn" id="lsReset" type="button" title="Khôi phục 5 danh sách mặc định">Mặc định</button>
     <button class="rwv-btn primary" id="lsAdd" type="button"></button>
   </header>
   <main class="lst" id="lsBody" aria-label="Danh sách kênh"></main>
@@ -700,6 +701,15 @@
   $('lsRefresh').addEventListener('click', function () {
     busy('Đang tải lại các danh sách…');
     api('/iptv/refresh', null).then(function (j) { S.cfg = j.lists || []; busy(''); renderLists(); toast('Đã tải lại danh sách kênh'); load(false); })
+      .catch(function (e) { busy(''); toast(e.message); });
+  });
+  var resetArm = 0;
+  $('lsReset').addEventListener('click', function () {
+    var now = Date.now();
+    if (now - resetArm > 3000) { resetArm = now; toast('Bấm lần nữa để khôi phục mặc định'); return; }
+    resetArm = 0;
+    busy('Đang khôi phục danh sách mặc định…');
+    api('/iptv/reset', null).then(function (j) { S.cfg = j.lists || []; busy(''); renderLists(); toast('Đã khôi phục 5 danh sách mặc định'); load(true); })
       .catch(function (e) { busy(''); toast(e.message); });
   });
   $('listsBtn').addEventListener('click', openLists);

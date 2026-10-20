@@ -750,6 +750,15 @@ export function handleIptvApi(req: http.IncomingMessage, res: http.ServerRespons
     return true;
   }
   if (p === '/iptv/config' && req.method === 'GET') { configView().then((v) => json(res, 200, v)).catch((e) => json(res, 500, { ok: false, error: (e as Error).message })); return true; }
+  // (20/10/2026) Khoi phuc danh sach MAC DINH (5 list nha + 8 kenh yeu thich) khi nguoi dung lo xoa.
+  if (p === '/iptv/reset' && req.method === 'POST') {
+    const keepRecent = conf ? conf.recent : [];
+    conf = { lists: DEFAULT_LISTS.map((l) => ({ ...l })), favs: [...DEFAULT_FAVS], recent: keepRecent };
+    saveConfig();
+    console.log(`[iptv] khoi phuc mac dinh: ${conf.lists.length} danh sach, ${conf.favs.length} yeu thich`);
+    configView(true).then((v) => json(res, 200, v)).catch((e) => json(res, 500, { ok: false, error: (e as Error).message }));
+    return true;
+  }
   if (p === '/iptv/refresh' && req.method === 'POST') { configView(true).then((v) => json(res, 200, v)).catch((e) => json(res, 500, { ok: false, error: (e as Error).message })); return true; }
   if (p === '/iptv/config' && req.method === 'POST') {
     // (07/10/2026) Luu tu trang Darboard HOAC tu chinh ung dung IPTV tren panel (them / xoa danh sach nhu app that) — trang
