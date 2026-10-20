@@ -1,3 +1,7 @@
+## V2.9.196
+- Darboard → IPTV: thêm nút **"Mặc định"** cạnh "Tải lại kênh" (bấm 2 lần để xác nhận) — khôi phục 5 danh sách
+  mặc định + 8 kênh yêu thích. Trước đó nút này chỉ có trong app IPTV trên panel.
+
 ## V2.9.195
 - IPTV: nút **"Mặc định"** trong màn hình Danh sách kênh + `POST /iptv/reset` — khôi phục 5 danh sách mặc định
   và 8 kênh yêu thích (bấm 2 lần để xác nhận, giữ nguyên lịch sử "Gần đây").

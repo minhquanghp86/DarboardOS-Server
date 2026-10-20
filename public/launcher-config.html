@@ -711,7 +711,7 @@
     <p>Thêm danh sách kênh M3U — đường link, hoặc tệp đặt trong thư mục media của Home Assistant. Mỗi thay đổi lưu ngay.</p>
   </header>
   <section class="card">
-    <div class="card-head"><h2>Danh sách</h2><span class="count" id="ivCount"></span><button class="btn" id="ivRefresh" type="button"></button></div>
+    <div class="card-head"><h2>Danh sách</h2><span class="count" id="ivCount"></span><button class="btn" id="ivRefresh" type="button"></button><button class="btn" id="ivReset" type="button">Mặc định</button></div>
     <div id="ivLists"></div>
     <button class="add" id="ivAdd" type="button"></button>
   </section>
@@ -2077,6 +2077,7 @@
     $('ivCount').textContent = T.loaded ? T.lists.length + ' danh sách · ' + total + ' kênh' : '';
     $('ivAdd').disabled = T.busy || T.lists.length >= 20;
     $('ivRefresh').disabled = T.busy || !T.lists.some(function (l) { return l.on; });
+    $('ivReset').disabled = T.busy;
     $('ivSave').disabled = T.busy;
   }
   function load(refresh) {
@@ -2179,6 +2180,22 @@
   $('ivAdd').append(svg('playlist-plus'), el('span', '', 'Thêm danh sách'));
   $('ivAdd').onclick = function () { openForm(-1); };
   $('ivRefresh').append(svg('refresh'), el('span', '', 'Tải lại kênh'));
+  // (20/10/2026) Khoi phuc 5 danh sach mac dinh (bam 2 lan trong 3 s).
+  var ivResetArm = 0;
+  $('ivReset').onclick = function () {
+    var now = Date.now();
+    if (now - ivResetArm > 3000) {
+      ivResetArm = now; $('ivReset').textContent = 'Bấm lần nữa';
+      status('Bấm lần nữa để khôi phục 5 danh sách mặc định.');
+      setTimeout(function () { if (ivResetArm) { ivResetArm = 0; $('ivReset').textContent = 'Mặc định'; } }, 3000);
+      return;
+    }
+    ivResetArm = 0; $('ivReset').textContent = 'Mặc định';
+    T.busy = true; render(); status('Đang khôi phục danh sách mặc định…');
+    api('reset', null).then(function (j) { T.lists = j.lists || []; status('Đã khôi phục 5 danh sách mặc định.', 'ok'); loadChannels(false); })
+      .catch(function (e) { status(e.message, 'err'); })
+      .then(function () { T.busy = false; render(); });
+  };
   $('ivRefresh').onclick = function () { load(true); };
 
   // Huong dan: dung DOM (khong innerHTML).
