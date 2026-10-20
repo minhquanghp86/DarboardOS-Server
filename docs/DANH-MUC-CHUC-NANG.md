@@ -89,7 +89,8 @@ Thêm / ẩn / sắp xếp / đổi tên / đổi biểu tượng: Darboard → 
 | **YouTube không quảng cáo** | Mặc định BẬT; kiểm mỗi 1,5 s, bấm "Bỏ qua" hoặc tua hết; YouTube TV tự chọn "chế độ khách" | Cài đặt → YouTube (từng màn) |
 | YouTube TV điều khiển bằng cử chỉ | Vuốt = phím mũi tên, cử chỉ quay lại = Esc | — |
 | **Truyền YouTube từ điện thoại** (DIAL/SSDP) | Tên màn đổi được trong Cài đặt | `cast_enabled`, `dial_port` |
-| **IPTV** — danh sách M3U | Tự cập nhật 6 giờ/lần; mất mạng dùng bản đã lưu; chip Yêu thích/Gần đây/Tất cả | Danh sách kênh trên Darboard |
+| **IPTV** — danh sách M3U | Tự cập nhật 6 giờ/lần; nút **Tải lại kênh** buộc tải ngay; mất mạng dùng bản đã lưu; chip Yêu thích/Gần đây/Tất cả | Danh sách kênh trên Darboard |
+| **IPTV — danh sách mặc định** | 5 list có sẵn khi cài add-on (VMTTV 538 kênh bật sẵn, TV tổng hợp, Viettel, Sport quốc tế, iptv-org VN) + 8 kênh yêu thích; nút **Mặc định** (bấm 2 lần) hoặc `POST /iptv/reset` để khôi phục khi lỡ xoá | Trang Darboard → IPTV và app IPTV trên panel |
 | Phát kênh lên một màn hoặc **tất cả màn** | Proxy luồng để gắn Referer/User-Agent riêng | API `/iptv/cast`, `/iptv/p` |
 | Radio VOV 1/2/3/5, Zing MP3, NhacCuaTui, TikTok, VnExpress, VTVgo, Media, Khung ảnh | Ứng dụng web sẵn có | Menu ứng dụng |
 
