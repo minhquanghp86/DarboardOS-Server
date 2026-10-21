@@ -14,7 +14,7 @@
  *   POST /control/input {dev, kind, x, y}
  */
 import http from 'node:http';
-import { screenShot } from './deviceManager.js';
+import { screenShot, screenTouch } from './deviceManager.js';
 
 function isLocal(req: http.IncomingMessage): boolean { return /^(::ffff:)?127\.0\.0\.1$|^::1$/.test(req.socket.remoteAddress || ''); }
 function fromIngress(req: http.IncomingMessage): boolean {
@@ -24,6 +24,14 @@ function fromIngress(req: http.IncomingMessage): boolean {
 function json(res: http.ServerResponse, code: number, body: unknown): void {
   res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
   res.end(JSON.stringify(body));
+}
+function readJson(req: http.IncomingMessage, max: number): Promise<any> {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', (c) => { body += c; if (body.length > max) { req.destroy(); reject(new Error('quá lớn')); } });
+    req.on('end', () => { try { resolve(JSON.parse(body || '{}')); } catch { reject(new Error('JSON không hợp lệ')); } });
+    req.on('error', reject);
+  });
 }
 
 export function handleControlApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL): boolean {
@@ -39,6 +47,16 @@ export function handleControlApi(req: http.IncomingMessage, res: http.ServerResp
       res.writeHead(200, { 'content-type': 'image/jpeg', 'cache-control': 'no-store', 'content-length': b.length });
       res.end(b);
     }).catch(() => json(res, 504, { ok: false, error: 'Không chụp được màn hình.' }));
+    return true;
+  }
+
+  if (p === '/control/input' && req.method === 'POST') {
+    readJson(req, 2048).then(async (b) => {
+      const kind = String(b?.kind ?? '');
+      if (kind !== 'down' && kind !== 'move' && kind !== 'up') throw new Error('kind không hợp lệ');
+      const err = await screenTouch(String(b?.dev ?? ''), kind, Number(b?.x) || 0, Number(b?.y) || 0);
+      json(res, err ? 400 : 200, err ? { ok: false, error: err } : { ok: true });
+    }).catch((e) => json(res, 400, { ok: false, error: (e as Error).message }));
     return true;
   }
 

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Control · Darboard</title>
+<style>
+  :root { color-scheme: dark; --bg:#0b0f14; --line:#1d2733; --txt:#e8eef6; --dim:#93a4b8; --pri:#0ea5e9; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--txt); font:14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; overscroll-behavior:none; }
+  body { display:flex; flex-direction:column; }
+  header { display:flex; align-items:center; gap:10px; padding:8px 12px; border-bottom:1px solid var(--line); flex:0 0 auto; }
+  header .name { font-weight:600; }
+  header .dot { width:8px; height:8px; border-radius:50%; background:#ef4444; }
+  header .dot.on { background:#22c55e; }
+  header .stats { margin-left:auto; color:var(--dim); font-size:12px; font-variant-numeric: tabular-nums; }
+  .btn { border:1px solid var(--line); background:#131b24; color:var(--txt); border-radius:9px; padding:7px 11px; font:inherit; cursor:pointer; }
+  .btn:active { background:#1b2632; }
+  main { flex:1 1 auto; display:flex; align-items:center; justify-content:center; min-height:0; padding:10px; }
+  #stage { position:relative; background:#000; border-radius:10px; overflow:hidden; touch-action:none; user-select:none;
+           box-shadow:0 8px 30px rgba(0,0,0,.5); max-width:100%; max-height:100%; }
+  #frame { display:block; width:100%; height:100%; }
+  #stage:not(.ready) #frame { opacity:0; }
+  #msg { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; color:var(--dim); padding:20px; }
+  #stage.ready #msg { display:none; }
+  #touch { position:absolute; inset:0; }
+  .hint { color:var(--dim); font-size:12px; padding:0 12px 8px; text-align:center; }
+</style>
+</head>
+<body>
+<header>
+  <span class="dot" id="dot"></span>
+  <span class="name" id="name">Đang tải…</span>
+  <span class="stats" id="stats"></span>
+</header>
+<header style="border-top:0;padding-top:0">
+  <button class="btn" id="bHome">Màn hình chính</button>
+  <button class="btn" id="bWake">Đánh thức</button>
+  <button class="btn" id="bReload">Tải lại</button>
+  <button class="btn" id="bPause" style="margin-left:auto">Tạm dừng</button>
+</header>
+<main>
+  <div id="stage"><img id="frame" alt=""><div id="touch"></div><div id="msg">Đang kết nối…</div></div>
+</main>
+<div class="hint">Chạm / vuốt / kéo trực tiếp trên khung hình để điều khiển màn hình.</div>
+<script>
+(function () {
+  var dev = new URLSearchParams(location.search).get('dev') || '';
+  var stage = document.getElementById('stage'), img = document.getElementById('frame'),
+      touch = document.getElementById('touch'), msg = document.getElementById('msg'),
+      dot = document.getElementById('dot'), nameEl = document.getElementById('name'), stats = document.getElementById('stats');
+  var W = 0, H = 0, paused = false, busy = false, timer = 0, last = 0, frames = 0, fpsAt = 0, fps = 0, lat = 0;
+
+  if (!dev) { msg.textContent = 'Thiếu ?dev= trên địa chỉ.'; return; }
+
+  function api(path, body) {
+    return fetch(path, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {}).then(function (r) { return r.json().catch(function () { return {}; }); });
+  }
+
+  api('/screens/info?id=' + encodeURIComponent(dev)).then(function (r) {
+    if (!r || !r.ok) { msg.textContent = 'Không tìm thấy màn hình.'; return; }
+    var s = r.screen;
+    W = s.w; H = s.h;
+    nameEl.textContent = s.name || dev;
+    dot.classList.toggle('on', !!s.online);
+    sizeStage();
+    tick();
+  }).catch(function () { msg.textContent = 'Không kết nối được add-on.'; });
+
+  function sizeStage() {
+    var box = stage.parentElement.getBoundingClientRect();
+    if (!W || !H) return;
+    var pad = 0, k = Math.min((box.width - pad) / W, (box.height - pad) / H);
+    stage.style.width = Math.round(W * k) + 'px';
+    stage.style.height = Math.round(H * k) + 'px';
+  }
+  addEventListener('resize', sizeStage);
+
+  function tick() {
+    clearTimeout(timer);
+    if (paused) return;
+    if (!busy) {
+      busy = true;
+      var t0 = performance.now();
+      fetch('/control/frame?dev=' + encodeURIComponent(dev), { cache: 'no-store' })
+        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
+        .then(function (b) {
+          var u = URL.createObjectURL(b);
+          img.onload = function () { URL.revokeObjectURL(u); };
+          img.src = u; stage.classList.add('ready'); dot.classList.add('on');
+          lat = Math.round(performance.now() - t0); frames++;
+          var now = performance.now(); if (!fpsAt) fpsAt = now;
+          if (now - fpsAt >= 1000) { fps = Math.round(frames * 1000 / (now - fpsAt)); frames = 0; fpsAt = now; }
+          stats.textContent = fps + ' fps · ' + lat + ' ms';
+        })
+        .catch(function (e) { dot.classList.remove('on'); stats.textContent = 'lỗi: ' + e.message; })
+        .then(function () { busy = false; });
+    }
+    timer = setTimeout(tick, 180);
+  }
+
+  document.getElementById('bPause').onclick = function () {
+    paused = !paused; this.textContent = paused ? 'Tiếp tục' : 'Tạm dừng'; if (!paused) tick();
+  };
+  document.getElementById('bHome').onclick = function () { api('/screens/act', { id: dev, act: 'app', app: '__system' }); };
+  document.getElementById('bWake').onclick = function () { api('/screens/act', { id: dev, act: 'wake' }); };
+  document.getElementById('bReload').onclick = function () { api('/screens/act', { id: dev, act: 'reload' }); };
+
+  // ── Thao tác cham/vuot/keo tha ──────────────────────────────────────────────
+  var downAt = 0, lastMove = 0;
+  function pt(e) {
+    var r = touch.getBoundingClientRect();
+    return { x: Math.round((e.clientX - r.left) * W / r.width), y: Math.round((e.clientY - r.top) * H / r.height) };
+  }
+  function send(kind, p) { return api('/control/input', { dev: dev, kind: kind, x: p.x, y: p.y }); }
+  touch.addEventListener('pointerdown', function (e) {
+    e.preventDefault(); touch.setPointerCapture(e.pointerId); downAt = Date.now(); send('down', pt(e));
+  });
+  touch.addEventListener('pointermove', function (e) {
+    if (!touch.hasPointerCapture || !touch.hasPointerCapture(e.pointerId)) return;
+    var now = Date.now(); if (now - lastMove < 16) return; lastMove = now;
+    send('move', pt(e));
+  });
+  function up(e) {
+    if (touch.hasPointerCapture && touch.hasPointerCapture(e.pointerId)) touch.releasePointerCapture(e.pointerId);
+    send('up', pt(e));
+  }
+  touch.addEventListener('pointerup', up);
+  touch.addEventListener('pointercancel', up);
+  touch.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+})();
+</script>
+</body>
+</html>

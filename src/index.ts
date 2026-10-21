@@ -218,6 +218,8 @@ const STATIC_PAGES = ['no-url.html', 'cam.html', 'camera.html', 'weather.html', 
   'files.html', 'chat.html', 'icons.js', 'alarm.html',
   // (07/10/2026) IPTV (src/iptv.ts). (08/10/2026) Su kien camera Frigate (src/frigate.ts).
   'iptv.html', 'events.html', 'media.html', 'call-test.html', 'door.html', 'call.html', 'call-web.html', 'call-ui.js', 'call-ui.css', 'door-log.html',
+  // (21/10/2026) Trang dieu khien man hinh tu Darboard (src/controlApi.ts).
+  'control.html',
   'screens.html'];   // (16/10/2026) Darboard → Màn hình
 const staticCache = new Map<string, Buffer>();
 for (const name of STATIC_PAGES) {
