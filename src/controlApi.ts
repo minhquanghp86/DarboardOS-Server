@@ -40,8 +40,9 @@ function readJson(req: http.IncomingMessage, max: number): Promise<any> {
 // (21/10/2026) Page.startScreencast KHONG phat khung khi cua so Chromium chay an (tab cua panel),
 // nen dung vong chup: do that 1 khung ~49 ms -> nhip 60 ms ~ 15 fps, du muot de thao tac.
 const wss = new WebSocketServer({ noServer: true, perMessageDeflate: false });
-const FRAME_GAP_MS = 60;
-const QUALITY = 55;
+const FRAME_GAP_MS = 55;
+const QUALITY = 35;
+const SCALE = 0.75;   // khung nho hon -> ma hoa/giai ma nhanh, do tre thap (dien thoai hien thi nho hon man that)
 
 export function handleControlUpgrade(req: http.IncomingMessage, socket: Duplex, head: Buffer): boolean {
   const url = new URL(req.url || '/', 'http://x');
@@ -57,18 +58,20 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 async function startLive(ws: WebSocket, id: string): Promise<void> {
   const dev = getDeviceSession(id);
   if (!dev) { try { ws.close(4004, 'no device'); } catch { /* ignore */ } return; }
-  let closed = false;
+  console.log(`[control] live ${id}: bat dau`);
+  let closed = false, sent = 0, fpsAt = Date.now();
   ws.on('close', () => { closed = true; });
   ws.on('error', () => { closed = true; });
   while (!closed && ws.readyState === WebSocket.OPEN) {
     const t0 = Date.now();
     try {
       const r = await dev.cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: QUALITY }) as { data: string };
-      if (ws.readyState === WebSocket.OPEN) ws.send(Buffer.from(r.data, 'base64'), { binary: true });
+      if (ws.readyState === WebSocket.OPEN) { ws.send(Buffer.from(r.data, 'base64'), { binary: true }); sent++; }
     } catch { closed = true; break; }
     const spent = Date.now() - t0;
     if (spent < FRAME_GAP_MS) await sleep(FRAME_GAP_MS - spent);
   }
+  console.log(`[control] live ${id}: ket thuc — ${sent} khung / ${Math.round((Date.now() - fpsAt) / 1000)} s`);
   try { ws.close(); } catch { /* ignore */ }
 }
 
@@ -85,6 +88,38 @@ export function handleControlApi(req: http.IncomingMessage, res: http.ServerResp
       res.writeHead(200, { 'content-type': 'image/jpeg', 'cache-control': 'no-store', 'content-length': b.length });
       res.end(b);
     }).catch(() => json(res, 504, { ok: false, error: 'Không chụp được màn hình.' }));
+    return true;
+  }
+
+  // MJPEG: trinh duyet tu ve tung khung trong <img> — khong can WebSocket, di qua ingress HA on dinh.
+  if (p === '/control/stream' && req.method === 'GET') {
+    const id = url.searchParams.get('dev') || '';
+    const d = getDeviceSession(id);
+    if (!d) { json(res, 404, { ok: false, error: 'Màn hình không kết nối.' }); return true; }
+    res.writeHead(200, {
+      'content-type': 'multipart/x-mixed-replace; boundary=frame',
+      'cache-control': 'no-store, no-transform', 'connection': 'keep-alive', 'x-accel-buffering': 'no',
+    });
+    let closed = false, sent = 0, t0 = Date.now();
+    req.on('close', () => { closed = true; });
+    void (async () => {
+      console.log(`[control] stream ${id}: bat dau`);
+      while (!closed) {
+        const t = Date.now();
+        try {
+          const r = await d.cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: QUALITY }) as { data: string };
+          const b = Buffer.from(r.data, 'base64');
+          if (closed) break;
+          res.write(`--frame\r\nContent-Type: image/jpeg\r\nContent-Length: ${b.length}\r\n\r\n`);
+          res.write(b); res.write('\r\n');
+          sent++;
+        } catch { break; }
+        const spent = Date.now() - t;
+        if (spent < FRAME_GAP_MS) await sleep(FRAME_GAP_MS - spent);
+      }
+      console.log(`[control] stream ${id}: ket thuc — ${sent} khung / ${Math.round((Date.now() - t0) / 1000)} s`);
+      try { res.end(); } catch { /* ignore */ }
+    })();
     return true;
   }
 

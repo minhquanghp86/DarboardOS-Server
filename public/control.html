@@ -55,7 +55,7 @@
   var stage = document.getElementById('stage'), img = document.getElementById('frame'),
       touch = document.getElementById('touch'), msg = document.getElementById('msg'),
       dot = document.getElementById('dot'), nameEl = document.getElementById('name'), stats = document.getElementById('stats');
-  var W = 0, H = 0, ws = null, paused = false, frames = 0, fpsAt = 0, fps = 0;
+  var W = 0, H = 0, paused = false, frames = 0, fpsAt = 0, fps = 0;
   var pollTimer = 0, pollBusy = false;
 
   if (!dev) { msg.textContent = 'Thiếu ?dev= trên địa chỉ.'; return; }
@@ -81,32 +81,39 @@
     frames++;
     var now = performance.now(); if (!fpsAt) fpsAt = now;
     if (now - fpsAt >= 1000) { fps = Math.round(frames * 1000 / (now - fpsAt)); frames = 0; fpsAt = now; }
-    stats.textContent = fps + ' fps';
+    stats.textContent = (ws ? 'WS ' : 'HTTP ') + fps + ' fps';
   }
 
-  // WebSocket screencast (mượt); lỗi thì quay lại chụp ảnh từng khung
-  var wsUrl = new URL('control/ws?dev=' + encodeURIComponent(dev), location.href);
-  wsUrl.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  // Khung hinh: MJPEG (trinh duyet tu cap nhat <img>, on dinh qua ingress HA).
+  // Neu 4 s khong co khung nao thi quay lai cach chup tung anh.
+  var got = 0, pollTimer = 0, pollBusy = false;
+  function countFrame() {
+    frames++;
+    var now = performance.now(); if (!fpsAt) fpsAt = now;
+    if (now - fpsAt >= 1000) { fps = Math.round(frames * 1000 / (now - fpsAt)); frames = 0; fpsAt = now; }
+    stats.textContent = (pollTimer ? 'HTTP ' : 'MJPEG ') + fps + ' fps';
+  }
+  img.onload = function () { got++; stage.classList.add('ready'); dot.classList.add('on'); countFrame(); };
+  img.onerror = function () { dot.classList.remove('on'); };
 
+  function show(blob) {
+    var u = URL.createObjectURL(blob);
+    img.onload = function () { URL.revokeObjectURL(u); if (!W) { W = img.naturalWidth; H = img.naturalHeight; sizeStage(); } countFrame(); };
+    img.src = u;
+  }
+  function startStream() {
+    img.src = 'control/stream?dev=' + encodeURIComponent(dev) + '&t=' + Date.now();
+    setTimeout(function () { if (!got) startPoll(); }, 5000);
+  }
   function startPoll() {
-    clearTimeout(pollTimer);
-    if (paused) return;
-    if (pollBusy) { pollTimer = setTimeout(startPoll, 200); return; }
+    clearTimeout(pollTimer); pollTimer = 1;
+    if (paused || pollBusy) { pollTimer = setTimeout(startPoll, 200); return; }
     pollBusy = true;
     fetch('control/frame?dev=' + encodeURIComponent(dev), { cache: 'no-store' })
       .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
-      .then(function (b) { show(b); stats.textContent = fps + ' fps · tải lại'; })
+      .then(function (b) { show(b); })
       .catch(function (e) { dot.classList.remove('on'); stats.textContent = 'lỗi: ' + e.message; })
       .then(function () { pollBusy = false; pollTimer = setTimeout(startPoll, 180); });
-  }
-  function startLive() {
-    try { ws = new WebSocket(wsUrl.href); } catch (e) { startPoll(); return; }
-    ws.binaryType = 'arraybuffer';
-    var opened = false;
-    ws.onopen = function () { opened = true; };
-    ws.onmessage = function (e) { if (!paused && e.data && e.data.byteLength) show(new Blob([e.data], { type: 'image/jpeg' })); };
-    ws.onclose = function () { dot.classList.remove('on'); ws = null; if (!paused) startPoll(); };
-    ws.onerror = function () { if (!opened) { try { ws.close(); } catch (_) {} } };
   }
 
   api('screens/info?id=' + encodeURIComponent(dev)).then(function (r) {
@@ -114,7 +121,7 @@
     else nameEl.textContent = dev;
   }).catch(function () { nameEl.textContent = dev; });
 
-  startLive();
+  startStream();
 
   // ── Thao tác cham/vuot/keo tha ──────────────────────────────────────────────
   function pt(e) {
@@ -146,8 +153,8 @@
   document.getElementById('kRecent').onclick = function () { key('recents'); };
   document.getElementById('bPause').onclick = function () {
     paused = !paused; this.textContent = paused ? 'Xem' : 'Dừng';
-    if (paused) { clearTimeout(pollTimer); if (ws) { try { ws.close(); } catch (_) {} ws = null; } }
-    else { startLive(); }
+    if (paused) { clearTimeout(pollTimer); img.src = 'data:image/gif;base64,R0lGODlhAQABAAAAACw='; }
+    else { got = 0; startStream(); }
   };
 })();
 </script>

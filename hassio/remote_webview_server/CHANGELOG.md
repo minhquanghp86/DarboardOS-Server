@@ -1,3 +1,8 @@
+## V2.9.199
+- Control: khung hình chuyển sang **MJPEG** (`GET /control/stream`) — trình duyệt tự vẽ từng khung, không
+  cần WebSocket nên qua ingress HA ổn định: **~17 fps** (trước 3–4 fps). Vẫn giữ `GET /control/frame`
+  làm dự phòng khi MJPEG không nhận được khung sau 5 giây. Nhãn trên đầu trang hiện rõ `MJPEG`/`HTTP`.
+
 ## V2.9.198
 - Control: khung hình mượt hơn nhờ **CDP screencast qua WebSocket** (tới ~14 fps thay vì ~4 fps khi chụp
   từng ảnh; vẫn tự quay lại cách chụp ảnh nếu WebSocket lỗi).
