@@ -60,7 +60,7 @@ type Choice<T> = [string, T];
 export const IDLE_CHOICES: Choice<number>[] = [['Tắt', 0], ['30 giây', 30], ['1 phút', 60], ['2 phút', 120], ['5 phút', 300], ['10 phút', 600],
   ['15 phút', 900], ['30 phút', 1800]];
 const BRIGHT_CHOICES: Choice<number>[] = [['Giữ nguyên', 0], ['5%', 5], ['10%', 10], ['20%', 20], ['30%', 30], ['50%', 50]];
-const QUALITY_CHOICES: Choice<number>[] = [['20%', 20], ['30%', 30], ['40%', 40], ['50%', 50], ['60%', 60], ['70%', 70], ['80%', 80], ['90%', 90]];
+const QUALITY_CHOICES: Choice<number>[] = [['Tự động', 0], ['20%', 20], ['30%', 30], ['40%', 40], ['50%', 50], ['60%', 60], ['70%', 70], ['80%', 80], ['90%', 90]];
 const CLOCK_CHOICES: Choice<ClockSize>[] = [['Vừa', 'm'], ['Lớn', 'l'], ['Rất lớn', 'xl']];
 const INTERVAL_CHOICES: Choice<number>[] = [['15 giây', 15], ['30 giây', 30], ['1 phút', 60], ['2 phút', 120], ['5 phút', 300]];
 const EFFECT_CHOICES: Choice<PhotoEffect>[] = [['Mờ dần', 'fade'], ['Trượt', 'slide'], ['Thu phóng', 'zoom'], ['Không', 'none']];
@@ -101,7 +101,7 @@ export class PanelPrefsStore {
       case 'rwv.lock_bright': pick(BRIGHT_CHOICES, (x) => ({ lockBrightness: x })); break;
       case 'rwv.quality': {
         const n = Math.round(Number(v));
-        if (Number.isFinite(n) && n >= 20 && n <= 90) patch = { qualityPct: n };
+        if (Number.isFinite(n) && n >= 0 && n <= 90) patch = { qualityPct: n };   // 0 = tự động
         break;
       }
       case 'rwv.clock_size': pick(CLOCK_CHOICES, (x) => ({ clockSize: x })); break;
@@ -165,8 +165,8 @@ export class PanelPrefsStore {
       ({ id, kind: 'switch', group: 'panel', sec, label: lab, hint, on, value: '' });
     const list: PanelPrefItem[] = [
       // (21/10/2026) Chat luong anh gui tu server — dat dau danh sach (truoc nhom man hinh / do sang).
-      sel('rwv.quality', 'screen', 'Chất lượng hình ảnh', QUALITY_CHOICES, this.qualityPct(dev) ?? 40, '40%',
-        'Cao hơn = nét hơn nhưng tốn băng thông; 40% đang dùng cho khung đầy đủ 1024×600'),
+      sel('rwv.quality', 'screen', 'Chất lượng hình ảnh', QUALITY_CHOICES, this.qualityPct(dev) ?? 0, 'Tự động',
+        'Tự động = server tự cân theo mạng và thời gian giải mã; đặt % để cố định (cao hơn = nét hơn, tốn băng thông)'),
       // (07/10/2026) Nhom "Màn hình khóa": gom moi thu cua man hinh cho / khoa (thoi gian, do sang, dong ho, thoi tiet, anh).
       sw('rwv.lock', 'lock', 'Khóa màn hình', this.lockMode(dev), 'Vuốt lên để mở · chạm nhầm không mở'),
       sel('rwv.saver_idle', 'lock', 'Khóa / màn hình chờ sau', IDLE_CHOICES, idle, idle < 60 ? `${idle} giây` : `${Math.round(idle / 60)} phút`),

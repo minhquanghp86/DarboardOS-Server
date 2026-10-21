@@ -1,3 +1,7 @@
+## V2.9.203
+- Cài đặt **Chất lượng hình ảnh**: thêm lựa chọn **"Tự động"** (giá trị 0) — bỏ mức đặt tay, trả lại bộ điều tiết
+  thích nghi (server tự cân theo băng thông và thời gian giải mã).
+
 ## V2.9.202
 - Darboard → **Cài đặt từng màn hình**: thêm nhóm **"Chất lượng hình ảnh"** ở trên cùng (trước "Màn hình & Độ sáng"),
   chọn 20–90%. Đổi là áp dụng **ngay** phía server (không nối lại WebSocket, không tải lại trang), lưu vào

@@ -1656,7 +1656,8 @@ async function applySetting(dev: DeviceSession, sid: string, v: unknown): Promis
     // Doi nguon / album / kieu hien thi: ap dung ngay o lan doi anh ke tiep; album moi -> tai danh sach ngay.
     if (ok && sid === 'rwv.quality') {
       // (21/10/2026) Ap dung ngay, khong can noi lai WS / khoi dong lai man.
-      const q = panelPrefs.qualityPct(dev.deviceId);
+      const q0 = panelPrefs.qualityPct(dev.deviceId);
+      const q = q0 && q0 > 0 ? q0 : undefined;   // 0 = tự động
       dev.qualityOverride = q;
       dev.lastAppliedQuality = undefined;
       if (q != null) {
@@ -1664,6 +1665,8 @@ async function applySetting(dev: DeviceSession, sid: string, v: unknown): Promis
         dev.lastAppliedQuality = q;
         metrics.onAdaptiveChange(dev.deviceId, q, dev.tunedMinFrameIntervalMs ?? dev.cfg.minFrameInterval, 'nguoi dung dat');
         console.log(`[quality] ${dev.deviceId}: dat q=${q} (trang Darboard)`);
+      } else {
+        console.log(`[quality] ${dev.deviceId}: TU DONG (bo muc dat tay)`);
       }
     }
     if (ok && (sid === 'rwv.gphotos_url' || sid === 'rwv.photo_source')) {
@@ -3177,7 +3180,7 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     lastBacklogLogMs: undefined,
     tunedMinFrameIntervalMs: Math.max(cfg.minFrameInterval, SAFE_START_INTERVAL_MS),
     // (21/10/2026) Nho chat luong nguoi dung da dat (luu trong /data/rwv-panel-prefs.json).
-    qualityOverride: panelPrefs.qualityPct(id),
+    qualityOverride: panelPrefs.qualityPct(id) || undefined,   // 0 = tu dong
     lastInputMs: undefined,
     consecutiveFrameErrors: 0, // Cải tiến: tracking lỗi liên tiếp
     recentFrameMs: [], passthroughFrames: 0, passthroughOn: false,
