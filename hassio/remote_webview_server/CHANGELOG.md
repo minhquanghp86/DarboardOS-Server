@@ -1,3 +1,9 @@
+## V2.9.198
+- Control: khung hình mượt hơn nhờ **CDP screencast qua WebSocket** (tới ~14 fps thay vì ~4 fps khi chụp
+  từng ảnh; vẫn tự quay lại cách chụp ảnh nếu WebSocket lỗi).
+- Control: thêm **3 phím điều hướng** dưới cùng — Trở lại / Màn hình chính / Gần đây (như phím Android),
+  để không phải vuốt từ mép (trùng cử chỉ vuốt của điện thoại). Khung hình thu nhỏ chừa lề, không chạm mép.
+
 ## V2.9.197
 - Darboard → Màn hình: thêm nút **"Điều khiển"** trong thẻ *Thao tác nhanh*. Mở tab điều khiển riêng:
   xem màn hình liên tục (~5 fps, thay cho ảnh xem trước 4 giây) và **chạm / vuốt / kéo-thả** trực tiếp

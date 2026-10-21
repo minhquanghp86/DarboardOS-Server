@@ -4158,6 +4158,22 @@ export async function screenTouch(id: string, kind: 'down' | 'move' | 'up', x: n
   return null;
 }
 
+/** (21/10/2026) Phien thiet bi theo id — cho lop HTTP/WebSocket ben ngoai (trang Control). */
+export function getDeviceSession(id: string): DeviceSession | undefined { return devices.get(id); }
+
+/** (21/10/2026) 3 phim dieu huong tu trang Control: home / back / recents (nhu phim Android). */
+export async function screenKey(id: string, key: string): Promise<string | null> {
+  const dev = devices.get(id);
+  if (!dev) return 'Không có màn hình này.';
+  if (dev.saverOn) { dev.locked = false; setSaver(dev, false); }
+  dev.lastTouchMs = Date.now();
+  if (key === 'home') goOsHome(dev);
+  else if (key === 'back') goBack(dev);
+  else if (key === 'recents') openRecents(dev);
+  else return 'Phím không hợp lệ.';
+  return null;
+}
+
 /** Tim <video>/<audio> "chinh" cua trang: cai dang chay, khong thi cai dai nhat. */
 const PICK_MEDIA_JS = `const ms = [...document.querySelectorAll('video,audio')];
   const m = ms.find((x) => !x.paused && !x.ended) || ms.slice().sort((a, b) => (b.duration || 0) - (a.duration || 0))[0];`;

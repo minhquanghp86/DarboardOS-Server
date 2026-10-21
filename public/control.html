@@ -2,29 +2,36 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0b0f14">
 <title>Control · Darboard</title>
 <style>
   :root { color-scheme: dark; --bg:#0b0f14; --line:#1d2733; --txt:#e8eef6; --dim:#93a4b8; --pri:#0ea5e9; }
   * { box-sizing: border-box; }
-  html, body { margin:0; height:100%; background:var(--bg); color:var(--txt); font:14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; overscroll-behavior:none; }
-  body { display:flex; flex-direction:column; }
-  header { display:flex; align-items:center; gap:10px; padding:8px 12px; border-bottom:1px solid var(--line); flex:0 0 auto; }
-  header .name { font-weight:600; }
-  header .dot { width:8px; height:8px; border-radius:50%; background:#ef4444; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--txt); font:14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+    overscroll-behavior:none; -webkit-tap-highlight-color: transparent; }
+  body { display:flex; flex-direction:column; height:100dvh; }
+  header { display:flex; align-items:center; gap:8px; padding:6px 10px; border-bottom:1px solid var(--line); flex:0 0 auto; }
+  header .name { font-weight:600; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  header .dot { width:8px; height:8px; border-radius:50%; background:#ef4444; flex:0 0 auto; }
   header .dot.on { background:#22c55e; }
-  header .stats { margin-left:auto; color:var(--dim); font-size:12px; font-variant-numeric: tabular-nums; }
-  .btn { border:1px solid var(--line); background:#131b24; color:var(--txt); border-radius:9px; padding:7px 11px; font:inherit; cursor:pointer; }
-  .btn:active { background:#1b2632; }
-  main { flex:1 1 auto; display:flex; align-items:center; justify-content:center; min-height:0; padding:10px; }
+  header .stats { margin-left:auto; color:var(--dim); font-size:11px; font-variant-numeric: tabular-nums; white-space:nowrap; }
+  header .btn { border:1px solid var(--line); background:#131b24; color:var(--txt); border-radius:8px; padding:5px 9px; font:inherit; font-size:12px; }
+  main { flex:1 1 auto; display:flex; align-items:center; justify-content:center; min-height:0; padding:12px; }
   #stage { position:relative; background:#000; border-radius:10px; overflow:hidden; touch-action:none; user-select:none;
-           box-shadow:0 8px 30px rgba(0,0,0,.5); max-width:100%; max-height:100%; }
+           box-shadow:0 8px 30px rgba(0,0,0,.5); }
   #frame { display:block; width:100%; height:100%; }
   #stage:not(.ready) #frame { opacity:0; }
-  #msg { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; color:var(--dim); padding:20px; }
+  #msg { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; color:var(--dim); padding:16px; font-size:13px; }
   #stage.ready #msg { display:none; }
   #touch { position:absolute; inset:0; }
-  .hint { color:var(--dim); font-size:12px; padding:0 12px 8px; text-align:center; }
+  nav { flex:0 0 auto; display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding:8px 10px calc(8px + env(safe-area-inset-bottom));
+        border-top:1px solid var(--line); background:#0e141b; }
+  nav button { appearance:none; border:1px solid var(--line); background:#151e28; color:var(--txt); border-radius:12px;
+               padding:10px 4px; font:inherit; display:flex; flex-direction:column; align-items:center; gap:4px; touch-action:manipulation; }
+  nav button:active { background:#1e2a37; transform:scale(.97); }
+  nav button svg { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+  nav button span { font-size:11px; color:var(--dim); }
 </style>
 </head>
 <body>
@@ -32,92 +39,95 @@
   <span class="dot" id="dot"></span>
   <span class="name" id="name">Đang tải…</span>
   <span class="stats" id="stats"></span>
-</header>
-<header style="border-top:0;padding-top:0">
-  <button class="btn" id="bHome">Màn hình chính</button>
-  <button class="btn" id="bWake">Đánh thức</button>
-  <button class="btn" id="bReload">Tải lại</button>
-  <button class="btn" id="bPause" style="margin-left:auto">Tạm dừng</button>
+  <button class="btn" id="bPause">Dừng</button>
 </header>
 <main>
   <div id="stage"><img id="frame" alt=""><div id="touch"></div><div id="msg">Đang kết nối…</div></div>
 </main>
-<div class="hint">Chạm / vuốt / kéo trực tiếp trên khung hình để điều khiển màn hình.</div>
+<nav>
+  <button id="kBack"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg><span>Trở lại</span></button>
+  <button id="kHome"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M3.5 12h.01M20.5 12h.01M12 3.5v.01M12 20.5v.01"/></svg><span>Màn hình chính</span></button>
+  <button id="kRecent"><svg viewBox="0 0 24 24"><rect x="4" y="7" width="12" height="12" rx="2"/><path d="M8 5.5h9.5A2.5 2.5 0 0 1 20 8v8.5"/></svg><span>Gần đây</span></button>
+</nav>
 <script>
 (function () {
   var dev = new URLSearchParams(location.search).get('dev') || '';
   var stage = document.getElementById('stage'), img = document.getElementById('frame'),
       touch = document.getElementById('touch'), msg = document.getElementById('msg'),
       dot = document.getElementById('dot'), nameEl = document.getElementById('name'), stats = document.getElementById('stats');
-  var W = 0, H = 0, paused = false, busy = false, timer = 0, last = 0, frames = 0, fpsAt = 0, fps = 0, lat = 0;
+  var W = 0, H = 0, ws = null, paused = false, frames = 0, fpsAt = 0, fps = 0;
+  var pollTimer = 0, pollBusy = false;
 
   if (!dev) { msg.textContent = 'Thiếu ?dev= trên địa chỉ.'; return; }
 
   function api(path, body) {
-    return fetch(path, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {}).then(function (r) { return r.json().catch(function () { return {}; }); });
+    return fetch(path, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {})
+      .then(function (r) { return r.json().catch(function () { return {}; }); });
   }
-
-  api('screens/info?id=' + encodeURIComponent(dev)).then(function (r) {
-    if (!r || !r.ok) { msg.textContent = 'Không tìm thấy màn hình.'; return; }
-    var s = r.screen;
-    W = s.w; H = s.h;
-    nameEl.textContent = s.name || dev;
-    dot.classList.toggle('on', !!s.online);
-    sizeStage();
-    tick();
-  }).catch(function () { msg.textContent = 'Không kết nối được add-on.'; });
-
   function sizeStage() {
-    var box = stage.parentElement.getBoundingClientRect();
     if (!W || !H) return;
-    var pad = 0, k = Math.min((box.width - pad) / W, (box.height - pad) / H);
+    var box = stage.parentElement.getBoundingClientRect();
+    var k = Math.min((box.width - 24) / W, (box.height - 24) / H);
     stage.style.width = Math.round(W * k) + 'px';
     stage.style.height = Math.round(H * k) + 'px';
   }
   addEventListener('resize', sizeStage);
 
-  function tick() {
-    clearTimeout(timer);
-    if (paused) return;
-    if (!busy) {
-      busy = true;
-      var t0 = performance.now();
-      fetch('control/frame?dev=' + encodeURIComponent(dev), { cache: 'no-store' })
-        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
-        .then(function (b) {
-          var u = URL.createObjectURL(b);
-          img.onload = function () { URL.revokeObjectURL(u); if (!W) { W = img.naturalWidth; H = img.naturalHeight; sizeStage(); } };
-          img.src = u; stage.classList.add('ready'); dot.classList.add('on');
-          lat = Math.round(performance.now() - t0); frames++;
-          var now = performance.now(); if (!fpsAt) fpsAt = now;
-          if (now - fpsAt >= 1000) { fps = Math.round(frames * 1000 / (now - fpsAt)); frames = 0; fpsAt = now; }
-          stats.textContent = fps + ' fps · ' + lat + ' ms';
-        })
-        .catch(function (e) { dot.classList.remove('on'); stats.textContent = 'lỗi: ' + e.message; })
-        .then(function () { busy = false; });
-    }
-    timer = setTimeout(tick, 180);
+  function show(blob) {
+    var u = URL.createObjectURL(blob);
+    img.onload = function () { URL.revokeObjectURL(u); if (!W) { W = img.naturalWidth; H = img.naturalHeight; sizeStage(); } };
+    img.src = u;
+    stage.classList.add('ready'); dot.classList.add('on');
+    frames++;
+    var now = performance.now(); if (!fpsAt) fpsAt = now;
+    if (now - fpsAt >= 1000) { fps = Math.round(frames * 1000 / (now - fpsAt)); frames = 0; fpsAt = now; }
+    stats.textContent = fps + ' fps';
   }
 
-  document.getElementById('bPause').onclick = function () {
-    paused = !paused; this.textContent = paused ? 'Tiếp tục' : 'Tạm dừng'; if (!paused) tick();
-  };
-  document.getElementById('bHome').onclick = function () { api('screens/act', { id: dev, act: 'app', app: '__system' }); };
-  document.getElementById('bWake').onclick = function () { api('screens/act', { id: dev, act: 'wake' }); };
-  document.getElementById('bReload').onclick = function () { api('screens/act', { id: dev, act: 'reload' }); };
+  // WebSocket screencast (mượt); lỗi thì quay lại chụp ảnh từng khung
+  var wsUrl = new URL('control/ws?dev=' + encodeURIComponent(dev), location.href);
+  wsUrl.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+
+  function startPoll() {
+    clearTimeout(pollTimer);
+    if (paused) return;
+    if (pollBusy) { pollTimer = setTimeout(startPoll, 200); return; }
+    pollBusy = true;
+    fetch('control/frame?dev=' + encodeURIComponent(dev), { cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
+      .then(function (b) { show(b); stats.textContent = fps + ' fps · tải lại'; })
+      .catch(function (e) { dot.classList.remove('on'); stats.textContent = 'lỗi: ' + e.message; })
+      .then(function () { pollBusy = false; pollTimer = setTimeout(startPoll, 180); });
+  }
+  function startLive() {
+    try { ws = new WebSocket(wsUrl.href); } catch (e) { startPoll(); return; }
+    ws.binaryType = 'arraybuffer';
+    var opened = false;
+    ws.onopen = function () { opened = true; };
+    ws.onmessage = function (e) { if (!paused && e.data && e.data.byteLength) show(new Blob([e.data], { type: 'image/jpeg' })); };
+    ws.onclose = function () { dot.classList.remove('on'); ws = null; if (!paused) startPoll(); };
+    ws.onerror = function () { if (!opened) { try { ws.close(); } catch (_) {} } };
+  }
+
+  api('screens/info?id=' + encodeURIComponent(dev)).then(function (r) {
+    if (r && r.ok) { W = r.screen.w; H = r.screen.h; nameEl.textContent = r.screen.name || dev; if (r.screen.online) dot.classList.add('on'); sizeStage(); }
+    else nameEl.textContent = dev;
+  }).catch(function () { nameEl.textContent = dev; });
+
+  startLive();
 
   // ── Thao tác cham/vuot/keo tha ──────────────────────────────────────────────
-  var downAt = 0, lastMove = 0;
   function pt(e) {
     var r = touch.getBoundingClientRect();
     return { x: Math.round((e.clientX - r.left) * W / r.width), y: Math.round((e.clientY - r.top) * H / r.height) };
   }
   function send(kind, p) { return api('control/input', { dev: dev, kind: kind, x: p.x, y: p.y }); }
+  var lastMove = 0;
   touch.addEventListener('pointerdown', function (e) {
-    e.preventDefault(); touch.setPointerCapture(e.pointerId); downAt = Date.now(); send('down', pt(e));
+    e.preventDefault(); touch.setPointerCapture(e.pointerId); send('down', pt(e));
   });
   touch.addEventListener('pointermove', function (e) {
-    if (!touch.hasPointerCapture || !touch.hasPointerCapture(e.pointerId)) return;
+    if (touch.hasPointerCapture && !touch.hasPointerCapture(e.pointerId)) return;
     var now = Date.now(); if (now - lastMove < 16) return; lastMove = now;
     send('move', pt(e));
   });
@@ -128,6 +138,17 @@
   touch.addEventListener('pointerup', up);
   touch.addEventListener('pointercancel', up);
   touch.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+
+  // 3 phím điều hướng (thay cho vuốt mép — tránh trùng cử chỉ của điện thoại)
+  function key(k) { api('control/key', { dev: dev, key: k }); }
+  document.getElementById('kHome').onclick = function () { key('home'); };
+  document.getElementById('kBack').onclick = function () { key('back'); };
+  document.getElementById('kRecent').onclick = function () { key('recents'); };
+  document.getElementById('bPause').onclick = function () {
+    paused = !paused; this.textContent = paused ? 'Xem' : 'Dừng';
+    if (paused) { clearTimeout(pollTimer); if (ws) { try { ws.close(); } catch (_) {} ws = null; } }
+    else { startLive(); }
+  };
 })();
 </script>
 </body>

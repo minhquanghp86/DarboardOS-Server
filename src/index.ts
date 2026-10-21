@@ -39,7 +39,7 @@ import { startDebugProxy } from './debugProxy.js';
 import { startWeatherMini } from './weatherMini.js';
 import { handleIptvApi, setIptvHooks } from './iptv.js';
 import { handleScreenCtlApi, setScreenCtlHooks } from './screenCtl.js';
-import { handleControlApi } from './controlApi.js';
+import { handleControlApi, handleControlUpgrade } from './controlApi.js';
 import { handleTelegramApi } from './telegram.js';
 import { handleMediaApi } from './mediaLib.js';
 import { endCall, handleCallApi, handleCallUpgrade, onMicFrame } from './callBridge.js';
@@ -439,7 +439,7 @@ http.createServer((req, res) => {
   }
 
   res.writeHead(200); res.end('ok');
-}).on('upgrade', (req, socket, head) => { if (!handleCallUpgrade(req, socket, head) && !handleCallsUpgrade(req, socket, head) && !handleGo2rtcUpgrade(req, socket, head)) socket.destroy(); }).listen(HEALTH_PORT);
+}).on('upgrade', (req, socket, head) => { if (!handleCallUpgrade(req, socket, head) && !handleCallsUpgrade(req, socket, head) && !handleGo2rtcUpgrade(req, socket, head) && !handleControlUpgrade(req, socket, head)) socket.destroy(); }).listen(HEALTH_PORT);
 
 setInterval(() => cleanupIdleAsync(), 60_000);
 
