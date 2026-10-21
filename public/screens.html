@@ -715,6 +715,8 @@
     var qa = card('Thao tác nhanh', 'gesture-tap', '#0ea5e9'), g = el('div', 'acts');
     var off = !d.online;
     g.append(
+      // (21/10/2026) Mo tab dieu khien: xem man hinh lien tuc + cham/vuot/keo tha tu Darboard.
+      actBtn('Điều khiển', 'monitor-dashboard', function () { window.open('control.html?dev=' + encodeURIComponent(S.id), '_blank', 'noopener'); }, '', off),
       actBtn(d.saver ? 'Mở màn hình' : 'Đánh thức', 'lock-open-variant-outline', function () { act({ act: 'wake' }, 'Đã mở màn hình'); }, '', off),
       actBtn('Màn hình chờ', 'power-sleep', function () { act({ act: 'saver' }, 'Đã chuyển màn hình chờ'); }, '', off || d.saver),
       actBtn('Khóa màn hình', 'lock-outline', function () { act({ act: 'lock' }, 'Đã khóa màn hình'); }, '', off || (d.saver && d.locked)),

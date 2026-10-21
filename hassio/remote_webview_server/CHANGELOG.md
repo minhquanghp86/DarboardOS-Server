@@ -1,3 +1,9 @@
+## V2.9.197
+- Darboard → Màn hình: thêm nút **"Điều khiển"** trong thẻ *Thao tác nhanh*. Mở tab điều khiển riêng:
+  xem màn hình liên tục (~5 fps, thay cho ảnh xem trước 4 giây) và **chạm / vuốt / kéo-thả** trực tiếp
+  lên khung hình — thao tác được gửi xuống đúng tab Chromium của màn hình. Kèm nút "Màn hình chính",
+  "Đánh thức", "Tải lại", "Tạm dừng". Bản đầu cho ESP32-P4, các màn khác dùng cùng một trang theo `?dev=`.
+
 ## V2.9.196
 - Darboard → IPTV: thêm nút **"Mặc định"** cạnh "Tải lại kênh" (bấm 2 lần để xác nhận) — khôi phục 5 danh sách
   mặc định + 8 kênh yêu thích. Trước đó nút này chỉ có trong app IPTV trên panel.
