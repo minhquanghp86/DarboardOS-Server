@@ -431,6 +431,14 @@
   .hm-scr .si svg { width: 14px; height: 14px; fill: currentColor; }
   .hm-scr .si .red { color: var(--danger); font-weight: 600; }
 
+  /* (21/10/2026) Nut "Điều khiển" nhanh trên thẻ rút gọn (mở tab control.html?dev=). */
+  .hm-scr .s { position: relative; }
+  .hm-scr .s .sctl { position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 9px; border: 1px solid var(--line); background: var(--bg); color: var(--muted); cursor: pointer; }
+  .hm-scr .s .sctl svg { width: 16px; height: 16px; fill: currentColor; }
+  .hm-scr .s .sctl:hover { color: var(--text); border-color: color-mix(in srgb, var(--primary) 45%, var(--line)); }
+  .hm-scr .sn { padding-right: 34px; }
+
   /* (16/10/2026) IPTV moi: tim + chip + luoi the kenh */
   .iv-top { display: flex; gap: 10px; align-items: center; position: sticky; top: 52px; z-index: 3; padding: 4px 0; background: var(--bg); }
   .iv-search { flex: 1; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px; border-radius: 12px; background: var(--surface);
@@ -1159,6 +1167,18 @@
         if (s.nu) si.append(item('bell-badge-outline', String(s.nu)));
         if (s.dnd) si.append(item('moon-waning-crescent', 'Im lặng'));
         a.append(n, mk('div', 'sa', st + ' · ' + (s.app ? s.app.l : '—')), si);
+        if (s.online) {
+          var ctl = mk('span', 'sctl'); ctl.setAttribute('role', 'button'); ctl.tabIndex = 0;
+          ctl.title = 'Điều khiển ' + (s.name || s.id); ctl.setAttribute('aria-label', ctl.title);
+          ctl.append(svg('monitor-dashboard'));
+          var openCtl = function (ev) {
+            ev.preventDefault(); ev.stopPropagation();
+            window.open('control.html?dev=' + encodeURIComponent(s.id), '_blank', 'noopener');
+          };
+          ctl.onclick = openCtl;
+          ctl.onkeydown = function (ev) { if (ev.key === 'Enter' || ev.key === ' ') openCtl(ev); };
+          a.append(ctl);
+        }
         return a;
       }));
       // (17/10/2026) CHUÔNG CỬA — thiết bị của hệ thống, thẻ riêng (đã từng kết nối là hiện, kể cả đang offline).

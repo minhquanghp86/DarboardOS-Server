@@ -1,3 +1,7 @@
+## V2.9.201
+- Darboard → Trang chủ: thẻ rút gọn mỗi màn có thêm nút **Điều khiển** (icon màn hình, góc phải) — mở thẳng
+  tab điều khiển của màn đó, không cần vào trang Màn hình.
+
 ## V2.9.200
 - Control: ưu tiên **WebSocket** (nhanh nhất, đi qua ingress HA), tự chuyển MJPEG rồi mới tới chụp ảnh nếu
   không nhận được khung. Nhãn đầu trang hiện rõ `WS` / `MJPEG` / `HTTP`.
