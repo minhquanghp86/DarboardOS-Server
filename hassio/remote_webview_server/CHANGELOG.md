@@ -1,3 +1,7 @@
+## V2.9.205
+- Chất lượng đặt tay: **khoá chất lượng nhưng nhịp khung vẫn để bộ điều tiết tự lo** (nghẽn thì giãn nhịp,
+  hết nghẽn thì rút lại) — trước đó bỏ qua cả vòng điều tiết nên nhịp đứng im, dễ giật khi mạng yếu.
+
 ## V2.9.204
 - Sửa lỗi: đổi **Chất lượng hình ảnh** trong Cài đặt báo "Không đổi được cài đặt" — trang gửi **nhãn chữ**
   ("60%", "Tự động") còn server đọc như số. Giờ nhận cả nhãn và số.

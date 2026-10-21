@@ -4007,13 +4007,20 @@ export function runAdaptiveTick(): void {
     );
     device.backlogSkipPeak = 0;
     if (device.qualityOverride != null) {
-      // (21/10/2026) Nguoi dung dat chat luong -> khong cho bo dieu tiet ghi de.
-      adaptiveStates.set(m.id, { ...res.state, quality: device.qualityOverride });
-      if (device.lastAppliedQuality !== device.qualityOverride) {
-        device.lastAppliedQuality = device.qualityOverride;
-        device.processor.setTuning({ jpegQuality: device.qualityOverride });
-        metrics.onAdaptiveChange(m.id, device.qualityOverride, res.state.minFrameIntervalMs, 'nguoi dung dat');
-        console.log(`[quality] ${m.id}: nguoi dung dat q=${device.qualityOverride}`);
+      // (21/10/2026) Nguoi dung dat chat luong -> KHOA chat luong, nhung NHIP KHUNG van de bo dieu tiet
+      // lo (nghen thi gian nhip, het nghen thi rut lai) — truoc day bo qua ca vong nen nhip bi dung im.
+      const qo = device.qualityOverride;
+      adaptiveStates.set(m.id, { ...res.state, quality: qo });
+      if (device.lastAppliedQuality !== qo) {
+        device.lastAppliedQuality = qo;
+        device.processor.setTuning({ jpegQuality: qo });
+        metrics.onAdaptiveChange(m.id, qo, res.state.minFrameIntervalMs, 'nguoi dung dat');
+        console.log(`[quality] ${m.id}: nguoi dung dat q=${qo}`);
+      }
+      if (device.tunedMinFrameIntervalMs !== res.state.minFrameIntervalMs) {
+        device.tunedMinFrameIntervalMs = res.state.minFrameIntervalMs;
+        metrics.onAdaptiveChange(m.id, qo, res.state.minFrameIntervalMs, res.reason);
+        console.log(`[adaptive] ${m.id}: ${res.reason} (chat luong giu q=${qo})`);
       }
       continue;
     }
