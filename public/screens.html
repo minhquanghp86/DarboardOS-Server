@@ -945,6 +945,8 @@
 
   // ── Nhom: Cai dat (giong ung dung Cai dat tren man) ──
   var CATS = [
+    // (21/10/2026) Nhóm chất lượng ảnh gui tu server — dat TRUOC "Màn hình & Độ sáng".
+    { id: 'quality', t: 'Chất lượng hình ảnh', ic: 'image-quality', c: '#0ea5e9' },
     { id: 'display', t: 'Màn hình & Độ sáng', ic: 'brightness-6', c: '#0a84ff' },
     { id: 'sound', t: 'Âm thanh', ic: 'volume-high', c: '#ff375f' },
     { id: 'lock', t: 'Màn hình khóa', ic: 'lock', c: '#30d158' },
@@ -1001,11 +1003,11 @@
     if (!S.set.ok) out.push(el('div', 'card empty', 'Không đọc được cài đặt từ Home Assistant: ' + (S.set.error || '') + ' Các cài đặt của Darboard bên dưới vẫn dùng được.'));
     var groups = {};
     haItems().forEach(function (it) { if (it.hide) return; var c = it.cat || 'other'; (groups[c] = groups[c] || []).push(it); });
-    panelItems().forEach(function (it) { var c = it.cat || (it.sec === 'screen' ? 'home' : 'other'); (groups[c] = groups[c] || []).push(it); });
+    panelItems().forEach(function (it) { var c = it.id === 'rwv.quality' ? 'quality' : (it.cat || (it.sec === 'screen' ? 'home' : 'other')); (groups[c] = groups[c] || []).push(it); });
     var grid = el('div', 'sgrid');
     CATS.forEach(function (c) {
       var items = groups[c.id]; if (!items || !items.length) return;
-      var det = el('details', 'card'); if (openCats[c.id] !== false && (openCats[c.id] || ['display', 'sound', 'lock'].indexOf(c.id) >= 0)) det.open = true;
+      var det = el('details', 'card'); if (openCats[c.id] !== false && (openCats[c.id] || ['quality', 'display', 'sound', 'lock'].indexOf(c.id) >= 0)) det.open = true;
       det.addEventListener('toggle', function () { openCats[c.id] = det.open; try { sessionStorage.setItem('rwv_scr_open', JSON.stringify(openCats)); } catch (e) { /* */ } });
       var sm = el('summary', 'ch'), ic = el('span', 'ic'); ic.style.background = c.c; ic.append(svg(c.ic));
       sm.append(ic, el('h2', '', c.t), el('span', 'x', items.length + ' mục'), svg('chevron-right', 'chev'));

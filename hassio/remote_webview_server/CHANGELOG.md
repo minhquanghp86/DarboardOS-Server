@@ -1,3 +1,8 @@
+## V2.9.202
+- Darboard → **Cài đặt từng màn hình**: thêm nhóm **"Chất lượng hình ảnh"** ở trên cùng (trước "Màn hình & Độ sáng"),
+  chọn 20–90%. Đổi là áp dụng **ngay** phía server (không nối lại WebSocket, không tải lại trang), lưu vào
+  `rwv-panel-prefs.json` nên nhớ sau khi khởi động lại. Khi người dùng đặt mức, bộ điều tiết tự động *không* ghi đè.
+
 ## V2.9.201
 - Darboard → Trang chủ: thẻ rút gọn mỗi màn có thêm nút **Điều khiển** (icon màn hình, góc phải) — mở thẳng
   tab điều khiển của màn đó, không cần vào trang Màn hình.

@@ -101,6 +101,10 @@ export type DeviceSession = {
   //      dieu khien thi tuong minh da ha tai xong.
   // Nay `cfg` bat bien; moi dieu tiet nam o day.
   tunedMinFrameIntervalMs?: number;
+  /** (21/10/2026) Nguoi dung dat chat luong JPEG (20..90). Co gia tri -> bo qua bo dieu tiet, dung dung muc nay. */
+  qualityOverride?: number;
+  /** Muc chat luong da ap dung gan nhat (tranh setTuning lap lai). */
+  lastAppliedQuality?: number;
 
   // (17/09/2026) Thoi diem cuoi cung nhan su kien cham tu thiet bi.
   // Do muot CHI thuc su quan trong khi nguoi dung DANG thao tac — vuot, cuon,
@@ -1650,6 +1654,18 @@ async function applySetting(dev: DeviceSession, sid: string, v: unknown): Promis
       setSaverPhotosSwitch(dev, !!v).catch(() => { });
     }
     // Doi nguon / album / kieu hien thi: ap dung ngay o lan doi anh ke tiep; album moi -> tai danh sach ngay.
+    if (ok && sid === 'rwv.quality') {
+      // (21/10/2026) Ap dung ngay, khong can noi lai WS / khoi dong lai man.
+      const q = panelPrefs.qualityPct(dev.deviceId);
+      dev.qualityOverride = q;
+      dev.lastAppliedQuality = undefined;
+      if (q != null) {
+        dev.processor.setTuning({ jpegQuality: q });
+        dev.lastAppliedQuality = q;
+        metrics.onAdaptiveChange(dev.deviceId, q, dev.tunedMinFrameIntervalMs ?? dev.cfg.minFrameInterval, 'nguoi dung dat');
+        console.log(`[quality] ${dev.deviceId}: dat q=${q} (trang Darboard)`);
+      }
+    }
     if (ok && (sid === 'rwv.gphotos_url' || sid === 'rwv.photo_source')) {
       dev.saverNav = undefined;
       albumItems(panelPrefs.albumUrl(GPHOTOS_ALBUM)).then((l) => console.log(`[photos] album Google Photos: ${l.length} anh`)).catch(() => { });
@@ -3160,6 +3176,8 @@ export async function ensureDeviceAsync(id: string, cfg: DeviceConfig): Promise<
     pendingB64: undefined, throttleTimer: undefined, lastProcessedMs: undefined,
     lastBacklogLogMs: undefined,
     tunedMinFrameIntervalMs: Math.max(cfg.minFrameInterval, SAFE_START_INTERVAL_MS),
+    // (21/10/2026) Nho chat luong nguoi dung da dat (luu trong /data/rwv-panel-prefs.json).
+    qualityOverride: panelPrefs.qualityPct(id),
     lastInputMs: undefined,
     consecutiveFrameErrors: 0, // Cải tiến: tracking lỗi liên tiếp
     recentFrameMs: [], passthroughFrames: 0, passthroughOn: false,
@@ -3985,6 +4003,17 @@ export function runAdaptiveTick(): void {
       now
     );
     device.backlogSkipPeak = 0;
+    if (device.qualityOverride != null) {
+      // (21/10/2026) Nguoi dung dat chat luong -> khong cho bo dieu tiet ghi de.
+      adaptiveStates.set(m.id, { ...res.state, quality: device.qualityOverride });
+      if (device.lastAppliedQuality !== device.qualityOverride) {
+        device.lastAppliedQuality = device.qualityOverride;
+        device.processor.setTuning({ jpegQuality: device.qualityOverride });
+        metrics.onAdaptiveChange(m.id, device.qualityOverride, res.state.minFrameIntervalMs, 'nguoi dung dat');
+        console.log(`[quality] ${m.id}: nguoi dung dat q=${device.qualityOverride}`);
+      }
+      continue;
+    }
     adaptiveStates.set(m.id, res.state);
     if (!res.changed) continue;
     device.processor.setTuning({ jpegQuality: res.state.quality });
