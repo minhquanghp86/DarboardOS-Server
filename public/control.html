@@ -57,7 +57,7 @@
     return fetch(path, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {}).then(function (r) { return r.json().catch(function () { return {}; }); });
   }
 
-  api('/screens/info?id=' + encodeURIComponent(dev)).then(function (r) {
+  api('screens/info?id=' + encodeURIComponent(dev)).then(function (r) {
     if (!r || !r.ok) { msg.textContent = 'Không tìm thấy màn hình.'; return; }
     var s = r.screen;
     W = s.w; H = s.h;
@@ -82,11 +82,11 @@
     if (!busy) {
       busy = true;
       var t0 = performance.now();
-      fetch('/control/frame?dev=' + encodeURIComponent(dev), { cache: 'no-store' })
+      fetch('control/frame?dev=' + encodeURIComponent(dev), { cache: 'no-store' })
         .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
         .then(function (b) {
           var u = URL.createObjectURL(b);
-          img.onload = function () { URL.revokeObjectURL(u); };
+          img.onload = function () { URL.revokeObjectURL(u); if (!W) { W = img.naturalWidth; H = img.naturalHeight; sizeStage(); } };
           img.src = u; stage.classList.add('ready'); dot.classList.add('on');
           lat = Math.round(performance.now() - t0); frames++;
           var now = performance.now(); if (!fpsAt) fpsAt = now;
@@ -102,9 +102,9 @@
   document.getElementById('bPause').onclick = function () {
     paused = !paused; this.textContent = paused ? 'Tiếp tục' : 'Tạm dừng'; if (!paused) tick();
   };
-  document.getElementById('bHome').onclick = function () { api('/screens/act', { id: dev, act: 'app', app: '__system' }); };
-  document.getElementById('bWake').onclick = function () { api('/screens/act', { id: dev, act: 'wake' }); };
-  document.getElementById('bReload').onclick = function () { api('/screens/act', { id: dev, act: 'reload' }); };
+  document.getElementById('bHome').onclick = function () { api('screens/act', { id: dev, act: 'app', app: '__system' }); };
+  document.getElementById('bWake').onclick = function () { api('screens/act', { id: dev, act: 'wake' }); };
+  document.getElementById('bReload').onclick = function () { api('screens/act', { id: dev, act: 'reload' }); };
 
   // ── Thao tác cham/vuot/keo tha ──────────────────────────────────────────────
   var downAt = 0, lastMove = 0;
@@ -112,7 +112,7 @@
     var r = touch.getBoundingClientRect();
     return { x: Math.round((e.clientX - r.left) * W / r.width), y: Math.round((e.clientY - r.top) * H / r.height) };
   }
-  function send(kind, p) { return api('/control/input', { dev: dev, kind: kind, x: p.x, y: p.y }); }
+  function send(kind, p) { return api('control/input', { dev: dev, kind: kind, x: p.x, y: p.y }); }
   touch.addEventListener('pointerdown', function (e) {
     e.preventDefault(); touch.setPointerCapture(e.pointerId); downAt = Date.now(); send('down', pt(e));
   });
