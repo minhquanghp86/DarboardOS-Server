@@ -100,8 +100,13 @@ export class PanelPrefsStore {
       case 'rwv.lw_cam': if (typeof v === 'boolean') patch = { lwCam: v }; break;
       case 'rwv.lock_bright': pick(BRIGHT_CHOICES, (x) => ({ lockBrightness: x })); break;
       case 'rwv.quality': {
-        const n = Math.round(Number(v));
-        if (Number.isFinite(n) && n >= 0 && n <= 90) patch = { qualityPct: n };   // 0 = tự động
+        // UI gui NHAN ("60%", "Tự động"); API gui so. Chap nhan ca hai.
+        if (typeof v === 'number' && Number.isFinite(v)) {
+          const n = Math.round(v);
+          if (n >= 0 && n <= 90) patch = { qualityPct: n };   // 0 = tự động
+        } else {
+          pick(QUALITY_CHOICES, (x) => ({ qualityPct: x }));
+        }
         break;
       }
       case 'rwv.clock_size': pick(CLOCK_CHOICES, (x) => ({ clockSize: x })); break;

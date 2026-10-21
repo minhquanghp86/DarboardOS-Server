@@ -1,3 +1,7 @@
+## V2.9.204
+- Sửa lỗi: đổi **Chất lượng hình ảnh** trong Cài đặt báo "Không đổi được cài đặt" — trang gửi **nhãn chữ**
+  ("60%", "Tự động") còn server đọc như số. Giờ nhận cả nhãn và số.
+
 ## V2.9.203
 - Cài đặt **Chất lượng hình ảnh**: thêm lựa chọn **"Tự động"** (giá trị 0) — bỏ mức đặt tay, trả lại bộ điều tiết
   thích nghi (server tự cân theo băng thông và thời gian giải mã).
