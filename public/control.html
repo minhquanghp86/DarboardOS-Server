@@ -84,34 +84,51 @@
     stats.textContent = (ws ? 'WS ' : 'HTTP ') + fps + ' fps';
   }
 
-  // Khung hinh: MJPEG (trinh duyet tu cap nhat <img>, on dinh qua ingress HA).
-  // Neu 4 s khong co khung nao thi quay lai cach chup tung anh.
-  var got = 0, pollTimer = 0, pollBusy = false;
+  // Khung hinh: WebSocket (nhanh nhat) -> MJPEG -> chup tung anh.
+  var got = 0, ws = null, pollTimer = 0, pollBusy = false, mode = '';
   function countFrame() {
     frames++;
     var now = performance.now(); if (!fpsAt) fpsAt = now;
     if (now - fpsAt >= 1000) { fps = Math.round(frames * 1000 / (now - fpsAt)); frames = 0; fpsAt = now; }
-    stats.textContent = (pollTimer ? 'HTTP ' : 'MJPEG ') + fps + ' fps';
+    stats.textContent = mode + ' ' + fps + ' fps';
   }
-  img.onload = function () { got++; stage.classList.add('ready'); dot.classList.add('on'); countFrame(); };
+  function ready() { stage.classList.add('ready'); dot.classList.add('on'); got++; countFrame(); }
+  img.onload = function () { if (mode !== 'WS') { if (!W) { W = img.naturalWidth; H = img.naturalHeight; sizeStage(); } ready(); } };
   img.onerror = function () { dot.classList.remove('on'); };
 
-  function show(blob) {
+  function showBlob(blob) {
     var u = URL.createObjectURL(blob);
-    img.onload = function () { URL.revokeObjectURL(u); if (!W) { W = img.naturalWidth; H = img.naturalHeight; sizeStage(); } countFrame(); };
+    img.onload = function () { URL.revokeObjectURL(u); if (!W) { W = img.naturalWidth; H = img.naturalHeight; sizeStage(); } ready(); };
     img.src = u;
   }
-  function startStream() {
-    img.src = 'control/stream?dev=' + encodeURIComponent(dev) + '&t=' + Date.now();
-    setTimeout(function () { if (!got) startPoll(); }, 5000);
+
+  function startWs() {
+    mode = 'WS';
+    var u = new URL('control/ws?dev=' + encodeURIComponent(dev), location.href);
+    u.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    try { ws = new WebSocket(u.href); } catch (e) { startStream(); return; }
+    ws.binaryType = 'arraybuffer';
+    ws.onmessage = function (e) { if (e.data && e.data.byteLength) showBlob(new Blob([e.data], { type: 'image/jpeg' })); };
+    ws.onerror = function () { };
+    ws.onclose = function () { ws = null; if (!paused && got < 2) startStream(); };
+    setTimeout(function () { if (!got) { try { ws && ws.close(); } catch (_) {} if (!got) startStream(); } }, 3500);
   }
+
+  function startStream() {
+    mode = 'MJPEG';
+    img.onload = function () { if (!W) { W = img.naturalWidth; H = img.naturalHeight; sizeStage(); } ready(); };
+    img.src = 'control/stream?dev=' + encodeURIComponent(dev) + '&t=' + Date.now();
+    setTimeout(function () { if (got < 2) startPoll(); }, 4000);
+  }
+
   function startPoll() {
-    clearTimeout(pollTimer); pollTimer = 1;
-    if (paused || pollBusy) { pollTimer = setTimeout(startPoll, 200); return; }
+    mode = 'HTTP'; clearTimeout(pollTimer); pollTimer = 1;
+    if (paused) return;
+    if (pollBusy) { pollTimer = setTimeout(startPoll, 200); return; }
     pollBusy = true;
     fetch('control/frame?dev=' + encodeURIComponent(dev), { cache: 'no-store' })
       .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
-      .then(function (b) { show(b); })
+      .then(function (b) { showBlob(b); })
       .catch(function (e) { dot.classList.remove('on'); stats.textContent = 'lỗi: ' + e.message; })
       .then(function () { pollBusy = false; pollTimer = setTimeout(startPoll, 180); });
   }
@@ -121,7 +138,7 @@
     else nameEl.textContent = dev;
   }).catch(function () { nameEl.textContent = dev; });
 
-  startStream();
+  startWs();
 
   // ── Thao tác cham/vuot/keo tha ──────────────────────────────────────────────
   function pt(e) {
@@ -153,8 +170,8 @@
   document.getElementById('kRecent').onclick = function () { key('recents'); };
   document.getElementById('bPause').onclick = function () {
     paused = !paused; this.textContent = paused ? 'Xem' : 'Dừng';
-    if (paused) { clearTimeout(pollTimer); img.src = 'data:image/gif;base64,R0lGODlhAQABAAAAACw='; }
-    else { got = 0; startStream(); }
+    if (paused) { clearTimeout(pollTimer); try { ws && ws.close(); } catch (_) {} }
+    else { got = 0; startWs(); }
   };
 })();
 </script>

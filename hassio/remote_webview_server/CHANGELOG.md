@@ -1,3 +1,7 @@
+## V2.9.200
+- Control: ưu tiên **WebSocket** (nhanh nhất, đi qua ingress HA), tự chuyển MJPEG rồi mới tới chụp ảnh nếu
+  không nhận được khung. Nhãn đầu trang hiện rõ `WS` / `MJPEG` / `HTTP`.
+
 ## V2.9.199
 - Control: khung hình chuyển sang **MJPEG** (`GET /control/stream`) — trình duyệt tự vẽ từng khung, không
   cần WebSocket nên qua ingress HA ổn định: **~17 fps** (trước 3–4 fps). Vẫn giữ `GET /control/frame`
