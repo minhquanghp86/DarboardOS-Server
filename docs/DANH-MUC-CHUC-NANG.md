@@ -111,6 +111,7 @@ Thêm / ẩn / sắp xếp / đổi tên / đổi biểu tượng: Darboard → 
 |---|---|
 | **Trang chủ** | Thẻ rút gọn từng màn + **thẻ chuông cổng** trên cùng lưới 2 cột; lưới biểu tượng ứng dụng (Màn hình, Tin nhắn có huy hiệu chưa đọc, IPTV, Quản lý file, Màn khóa, Chuông cổng, Gọi, Menu ứng dụng) |
 | **Màn hình** | Điều khiển + cài đặt từng màn từ xa: ảnh màn đang hiển thị, trạng thái (mạng, pin, độ sáng, âm lượng, ứng dụng, thông báo, cuộc gọi nhỡ), thao tác (đánh thức, màn hình chờ, khóa, về màn chính/HA, tải lại, khởi động lại), trình phát, mở/đóng ứng dụng, gửi thông báo, đọc to |
+| **Điều khiển màn hình** | Nút **Điều khiển** trong thẻ *Thao tác nhanh* mở tab riêng: xem màn hình trực tiếp (~18 fps qua WebSocket, tự chuyển MJPEG rồi chụp ảnh nếu lỗi), chạm/vuốt/kéo-thả bằng chuột hoặc cảm ứng, 3 phím **Trở lại / Màn hình chính / Gần đây** |
 | **Màn khóa** | Ô xem trước 6 chỉ số năng lượng + chọn cảm biến từng dòng; lịch Google / iCal |
 | **Menu ứng dụng** | Ô xem trước menu trên màn; bật/tắt, sắp xếp, đổi tên, biểu tượng, màu, thêm ứng dụng |
 | **Tin nhắn / IPTV / Quản lý file / Gọi** | Như các mục D–H ở trên |
