@@ -107,7 +107,7 @@
   //  - WS dong khi MOI bat dau (chua du 5 s) -> coi la WS khong dung duoc qua duong nay, chuyen MJPEG luon;
   //  - WS dang chay tot ma dut -> thu noi lai WS (giu khung cu), qua 2 lan van dut thi chuyen MJPEG;
   //  - khong co khung > 1,5 s -> coi nhu treo, xu ly nhu tren.
-  var lastFrameAt = 0, reconnectTimer = 0, wsTries = 0, wsAt = 0, wsDrops = 0, preferStream = false, streamTries = 0, wsHb = 0;
+  var lastFrameAt = 0, reconnectTimer = 0, wsTries = 0, wsAt = 0, wsDrops = 0, preferStream = false, streamTries = 0, wsHb = 0, sseAbort = null, sseTries = 0;
   function scheduleWs(delay) {
     if (paused) return;
     clearTimeout(reconnectTimer);
@@ -163,6 +163,44 @@
     setTimeout(function () { if (got < 2) startPoll(); }, 4000);
   }
 
+  function startSse() {
+    mode = 'SSE'; clearTimeout(reconnectTimer); clearTimeout(pollTimer);
+    if (sseAbort) { try { sseAbort.abort(); } catch (e) {} }
+    sseAbort = new AbortController();
+    var buf = '';
+    fetch('control/sse?dev=' + encodeURIComponent(dev), { signal: sseAbort.signal, cache: 'no-store' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        var reader = r.body.getReader();
+        var dec = new TextDecoder();
+        function pump() {
+          return reader.read().then(function (x) {
+            if (x.done) { if (got < 2) startPoll(); return; }
+            buf += dec.decode(x.value, { stream: true });
+            var i;
+            while ((i = buf.indexOf('\n\n')) >= 0) {
+              var ev = buf.slice(0, i); buf = buf.slice(i + 2);
+              var m = /data: ([A-Za-z0-9+/=]+)/.exec(ev);
+              if (m) {
+                try {
+                  var bin = atob(m[1]); var arr = new Uint8Array(bin.length);
+                  for (var k = 0; k < bin.length; k++) arr[k] = bin.charCodeAt(k);
+                  showBlob(new Blob([arr], { type: 'image/jpeg' }));
+                } catch (e) {}
+              }
+            }
+            return pump();
+          });
+        }
+        return pump();
+      })
+      .catch(function (e) {
+        if (e && e.name === 'AbortError') return;
+        dot.classList.remove('on');
+        if (++sseTries <= 2) setTimeout(startSse, 500); else startPoll();
+      });
+  }
+
   function startPoll() {
     mode = 'HTTP'; clearTimeout(pollTimer); pollTimer = 1;
     if (paused) return;
@@ -194,12 +232,12 @@
 
   // (22/10/2026) Do that 22/10: di qua HA ingress thi WebSocket chi song vai khung (ingress dong), con MJPEG
   // thi chay ~18 fps lien tuc. Vao bang ingress -> dung MJPEG luon, khoi mat 1-3 s dau de thu WS.
-  // (22/10/2026) KHOI PHUC cach cua 2.9.199 — ban do nguoi dung bao "fps cao, khong mat ket noi":
-  // qua HA ingress / ten mien thi dung MJPEG truc tiep (trinh duyet tu cap nhat <img>), KHONG dung WebSocket
-  // (WS qua ingress bi dong sau vai khung) va KHONG polling deu (bi 429). Vao bang IP (LAN/Tailscale) thi WS.
-  if (/[?&]mjpeg/.test(location.search) || location.pathname.indexOf('/api/hassio_ingress/') >= 0) {
-    preferStream = true;
-    startWs();          // preferStream -> startStream() (MJPEG)
+  // (22/10/2026) Qua HA ingress / ten mien: Cloudflare dem multipart (MJPEG) va dong WebSocket -> dung SSE
+  // (text/event-stream) — day la kenh duy nhat Cloudflare stream on dinh. Vao bang IP (LAN/Tailscale) thi WS.
+  if (/[?&]mjpeg/.test(location.search)) {
+    preferStream = true; startWs();          // MJPEG (tuong thich cu)
+  } else if (location.pathname.indexOf('/api/hassio_ingress/') >= 0) {
+    startSse();
   } else {
     startWs();
   }
@@ -234,7 +272,7 @@
   document.getElementById('kRecent').onclick = function () { key('recents'); };
   document.getElementById('bPause').onclick = function () {
     paused = !paused; this.textContent = paused ? 'Xem' : 'Dừng';
-    if (paused) { clearTimeout(pollTimer); try { ws && ws.close(); } catch (_) {} }
+    if (paused) { clearTimeout(pollTimer); try { ws && ws.close(); } catch (_) {} try { sseAbort && sseAbort.abort(); } catch (_) {} }
     else { got = 0; startWs(); }
   };
 })();

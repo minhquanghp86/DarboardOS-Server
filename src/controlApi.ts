@@ -176,6 +176,40 @@ export function handleControlApi(req: http.IncomingMessage, res: http.ServerResp
     return true;
   }
 
+  // (22/10/2026) SSE (text/event-stream): Cloudflare + HA ingress stream duoc SSE on dinh, trong khi
+  // multipart/x-mixed-replace bi dem va WebSocket bi dong sau vai khung. Moi khung = 1 dong base64 JPEG.
+  if (p === '/control/sse' && req.method === 'GET') {
+    const id = url.searchParams.get('dev') || '';
+    const d = getDeviceSession(id);
+    if (!d) { json(res, 404, { ok: false, error: 'Màn hình không kết nối.' }); return true; }
+    res.writeHead(200, {
+      'content-type': 'text/event-stream; charset=utf-8',
+      'cache-control': 'no-store, no-transform', 'connection': 'keep-alive', 'x-accel-buffering': 'no',
+    });
+    res.write('retry: 2000\n\n');
+    let closed = false, sent = 0, n = 0, t0 = Date.now();
+    req.on('close', () => { closed = true; });
+    void (async () => {
+      while (!closed) {
+        const t = Date.now();
+        try {
+          const r = await d.cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: QUALITY }) as { data: string };
+          if (closed) break;
+          n++;
+          res.write(`id: ${n}\ndata: ${r.data}\n\n`);
+          sent++;
+        } catch { break; }
+        // Chong ton dong: bo khung thay vi xep hang vo han khi dien thoai/mang cham.
+        if (res.writableLength > 1_000_000) { await sleep(50); continue; }
+        const spent = Date.now() - t;
+        if (spent < FRAME_GAP_MS) await sleep(FRAME_GAP_MS - spent);
+      }
+      console.log(`[control] sse ${id}: ket thuc — ${sent} khung / ${Math.round((Date.now() - t0) / 1000)} s`);
+      try { res.end(); } catch { /* ignore */ }
+    })();
+    return true;
+  }
+
   if (p === '/control/input' && req.method === 'POST') {
     readJson(req, 2048).then(async (b) => {
       const kind = String(b?.kind ?? '');

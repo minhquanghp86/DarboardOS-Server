@@ -1,3 +1,8 @@
+## V2.9.214
+- **Điều khiển qua Cloudflare/tên miền: dùng SSE (text/event-stream)** — kênh duy nhất Cloudflare stream ổn định
+  (MJPEG bị đệm, WebSocket bị đóng sau vài khung, polling bị 429). Mỗi khung = 1 dòng base64 JPEG, ~14 fps.
+- Vào bằng IP LAN/Tailscale vẫn dùng WebSocket (~18 fps).
+
 ## V2.9.213
 - **Điều khiển (WS): heartbeat hai chiều** — client gửi `p` mỗi 2 s, server `ping` mỗi 3 s để proxy
   (HA ingress / Cloudflare) không đóng kết nối WebSocket khi chỉ truyền một chiều khung hình.
