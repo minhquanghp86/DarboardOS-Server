@@ -55,24 +55,61 @@ export function handleControlUpgrade(req: http.IncomingMessage, socket: Duplex, 
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+// (22/10/2026) MOT vong chup cho MOI THIET BI, chia khung cho MOI socket dang xem.
+// Truoc day moi ket noi mo mot vong chup rieng -> mo 2 tab la 2 vong tranh CPU, nhip tut va
+// vong kia co the loi/ngat. Nay: vong chup chi chay khi co it nhat 1 nguoi xem, tat khi het.
+type LiveEntry = { peers: Set<WebSocket>; run: Promise<void> | null; stop: boolean };
+const live = new Map<string, LiveEntry>();
+
+function pumpLive(id: string): void {
+  const e = live.get(id);
+  if (!e || e.run) return;
+  e.stop = false;
+  e.run = (async () => {
+    const dev = getDeviceSession(id);
+    if (!dev) {
+      for (const ws of e.peers) { try { ws.close(4004, 'no device'); } catch { /* ignore */ } }
+      live.delete(id);
+      return;
+    }
+    let sent = 0;
+    const t0 = Date.now();
+    while (!e.stop && e.peers.size > 0) {
+      const t = Date.now();
+      try {
+        const r = await dev.cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: QUALITY }) as { data: string };
+        const buf = Buffer.from(r.data, 'base64');
+        for (const ws of e.peers) {
+          if (ws.readyState !== WebSocket.OPEN) { e.peers.delete(ws); continue; }
+          try { ws.send(buf, { binary: true }); sent++; } catch { e.peers.delete(ws); }
+        }
+      } catch (err) {
+        console.warn(`[control] live ${id}: loi chup khung (${(err as Error).message}) -> dung vong`);
+        break;
+      }
+      const spent = Date.now() - t;
+      if (spent < FRAME_GAP_MS) await sleep(FRAME_GAP_MS - spent);
+    }
+    e.run = null;
+    console.log(`[control] live ${id}: dung vong — ${sent} khung / ${Math.round((Date.now() - t0) / 1000)} s`);
+    if (e.peers.size === 0) live.delete(id);
+  })();
+}
+
 async function startLive(ws: WebSocket, id: string): Promise<void> {
   const dev = getDeviceSession(id);
   if (!dev) { try { ws.close(4004, 'no device'); } catch { /* ignore */ } return; }
-  console.log(`[control] live ${id}: bat dau`);
-  let closed = false, sent = 0, fpsAt = Date.now();
-  ws.on('close', () => { closed = true; });
-  ws.on('error', () => { closed = true; });
-  while (!closed && ws.readyState === WebSocket.OPEN) {
-    const t0 = Date.now();
-    try {
-      const r = await dev.cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: QUALITY }) as { data: string };
-      if (ws.readyState === WebSocket.OPEN) { ws.send(Buffer.from(r.data, 'base64'), { binary: true }); sent++; }
-    } catch { closed = true; break; }
-    const spent = Date.now() - t0;
-    if (spent < FRAME_GAP_MS) await sleep(FRAME_GAP_MS - spent);
-  }
-  console.log(`[control] live ${id}: ket thuc — ${sent} khung / ${Math.round((Date.now() - fpsAt) / 1000)} s`);
-  try { ws.close(); } catch { /* ignore */ }
+  let e = live.get(id);
+  if (!e) { e = { peers: new Set(), run: null, stop: false }; live.set(id, e); }
+  e.peers.add(ws);
+  console.log(`[control] live ${id}: +1 nguoi xem (${e.peers.size})`);
+  const drop = () => {
+    e!.peers.delete(ws);
+    if (e!.peers.size === 0) e!.stop = true;
+  };
+  ws.on('close', drop);
+  ws.on('error', drop);
+  pumpLive(id);
 }
 
 export function handleControlApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL): boolean {

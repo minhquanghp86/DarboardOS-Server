@@ -1,3 +1,10 @@
+## V2.9.207
+- **Sửa lỗi tab Điều khiển đứng hình sau vài giây** (mọi màn): WebSocket bị đóng giữa chừng mà trang chỉ
+  chuyển sang MJPEG khi *chưa* có khung nào → đang xem thì đứng im, thao tác như không được nhận.
+  Nay trang có **watchdog 1,5 s** + **tự nối lại** (giữ khung cuối trong lúc nối).
+- Server: **một vòng chụp khung cho mỗi thiết bị, chia cho mọi người xem** (trước đây mỗi tab mở một vòng
+  riêng, mở 2 tab là tranh CPU và tụt nhịp). Đo: 2 client cùng 18 fps, độ trễ chạm 7–10 ms.
+
 ## V2.9.206
 - **Sunton 800×480 (S3): fps khi phát video 4 → 16,5–17,4** — thiết bị `half_scale_video` được ép **nửa khung
   (400×240) khi tab YouTube / YouTube TV / IPTV đang phát**, UI tĩnh vẫn gửi khung đầy đủ 800×480 (nét).

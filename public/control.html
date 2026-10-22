@@ -102,17 +102,42 @@
     img.src = u;
   }
 
+  // (22/10/2026) WATCHDOG + TU NOI LAI: WS co the bi dong giua chung (ingress/HA, mang di dong,
+  // trinh duyet treo tab). Truoc day chi chuyen sang MJPEG khi CHUA co khung nao -> dang xem ngon
+  // tu nhien dung hinh va tuong la khong nhan thao tac. Nay: khong co khung > 1,5 s thi tu noi lai.
+  var lastFrameAt = 0, reconnectTimer = 0, wsTries = 0;
+  function scheduleWs(delay) {
+    if (paused) return;
+    clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(function () { if (!paused) startWs(); }, delay == null ? 400 : delay);
+  }
   function startWs() {
-    mode = 'WS';
+    mode = 'WS'; clearTimeout(reconnectTimer);
+    lastFrameAt = performance.now();
     var u = new URL('control/ws?dev=' + encodeURIComponent(dev), location.href);
     u.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     try { ws = new WebSocket(u.href); } catch (e) { startStream(); return; }
     ws.binaryType = 'arraybuffer';
-    ws.onmessage = function (e) { if (e.data && e.data.byteLength) showBlob(new Blob([e.data], { type: 'image/jpeg' })); };
+    ws.onopen = function () { wsTries = 0; };
+    ws.onmessage = function (e) {
+      if (e.data && e.data.byteLength) { lastFrameAt = performance.now(); showBlob(new Blob([e.data], { type: 'image/jpeg' })); }
+    };
     ws.onerror = function () { };
-    ws.onclose = function () { ws = null; if (!paused && got < 2) startStream(); };
-    setTimeout(function () { if (!got) { try { ws && ws.close(); } catch (_) {} if (!got) startStream(); } }, 3500);
+    ws.onclose = function () {
+      if (ws) ws = null;
+      if (paused) return;
+      // Chua co khung nao -> thu MJPEG; da co khung -> noi lai WS (giu khung cu tren man).
+      if (got < 2) startStream(); else scheduleWs(Math.min(2000, 400 * (++wsTries)));
+    };
+    setTimeout(function () { if (!got) { try { ws && ws.close(); } catch (_) {} } }, 3500);
   }
+  setInterval(function () {
+    if (paused || mode !== 'WS' || !ws) return;
+    if (performance.now() - lastFrameAt > 1500) {
+      try { ws.close(); } catch (_) { }
+      scheduleWs(200);
+    }
+  }, 700);
 
   function startStream() {
     mode = 'MJPEG';
