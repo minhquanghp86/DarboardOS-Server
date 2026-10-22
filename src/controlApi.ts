@@ -19,6 +19,14 @@ import { WebSocket, WebSocketServer } from 'ws';
 import { getDeviceSession, screenKey, screenShot, screenTouch } from './deviceManager.js';
 
 function isLocal(req: http.IncomingMessage): boolean { return /^(::ffff:)?127\.0\.0\.1$|^::1$/.test(req.socket.remoteAddress || ''); }
+/**
+ * (22/10/2026) Mo cong 18080 ra LAN/Tailscale: trinh duyet trong nha (192.168.x / 10.x / 172.16-31.x)
+ * goi thang cong nay thi khong qua ingress HA -> WS chay lien tuc. Gioi han trong mang noi bo.
+ */
+function isLan(req: http.IncomingMessage): boolean {
+  const ip = (req.socket.remoteAddress || '').replace(/^::ffff:/, '');
+  return /^10\./.test(ip) || /^192\.168\./.test(ip) || /^172\.(1[6-9]|2\d|3[01])\./.test(ip);
+}
 function fromIngress(req: http.IncomingMessage): boolean {
   if (process.env.LAUNCHER_CONFIG_OPEN === '1') return true;
   return (req.socket.remoteAddress || '').replace(/^::ffff:/, '') === '172.30.32.2';
@@ -47,7 +55,7 @@ const SCALE = 0.75;   // khung nho hon -> ma hoa/giai ma nhanh, do tre thap (die
 export function handleControlUpgrade(req: http.IncomingMessage, socket: Duplex, head: Buffer): boolean {
   const url = new URL(req.url || '/', 'http://x');
   if (!url.pathname.endsWith('/control/ws')) return false;
-  if (!isLocal(req) && !fromIngress(req)) { socket.destroy(); return true; }
+  if (!isLocal(req) && !fromIngress(req) && !isLan(req)) { socket.destroy(); return true; }
   const dev = url.searchParams.get('dev') || '';
   wss.handleUpgrade(req, socket, head, (ws) => void startLive(ws, dev));
   return true;
@@ -115,7 +123,7 @@ async function startLive(ws: WebSocket, id: string): Promise<void> {
 export function handleControlApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL): boolean {
   const p = url.pathname;
   if (!p.startsWith('/control/')) return false;
-  if (!isLocal(req) && !fromIngress(req)) { json(res, 403, { ok: false, error: 'Chỉ dùng được từ trang Darboard.' }); return true; }
+  if (!isLocal(req) && !fromIngress(req) && !isLan(req)) { json(res, 403, { ok: false, error: 'Chỉ dùng được từ trang Darboard.' }); return true; }
 
   if (p === '/control/frame' && req.method === 'GET') {
     const dev = url.searchParams.get('dev') || url.searchParams.get('id') || '';

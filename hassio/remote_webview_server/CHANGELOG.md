@@ -1,3 +1,10 @@
+## V2.9.210
+- **Điều khiển: mở cổng trực tiếp 18080** (LAN/Tailscale). Nguyên nhân gốc: qua HA ingress, WebSocket bị đóng
+  sau vài khung, MJPEG bị đệm → trang phải polling liên tục và **bị 429**. Mở thẳng cổng thì WS chạy ~18 fps.
+  - Add-on công bố `18080/tcp` ra host; nút **Điều khiển** trên Darboard tự mở `http://<ip-ha>:18080/control.html?dev=…`.
+  - API control + screens cho phép nguồn từ mạng nội bộ (10/172.16-31/192.168).
+- Điều khiển khi vẫn qua ingress: giãn nhịp polling và **tự lùi khi gặp 429** (tối đa 3 s) thay vì dồn dập.
+
 ## V2.9.209
 - **Điều khiển: chẩn đoán + tự chọn đường truyền.** Nhãn giờ hiện **`nhận/vẽ` fps** (vd `MJPEG 18/17 fps`);
   nếu quá 1,5 s không vẽ được khung nào sẽ hiện đỏ **`· ĐỨNG 3s`**.

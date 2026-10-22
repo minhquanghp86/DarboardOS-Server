@@ -1,5 +1,5 @@
 name: "DarboardOS Server"
-version: "2.9.209"
+version: "2.9.210"
 slug: "remote_webview_server"
 # (02/10/2026) Anh dung san tren ghcr (CI tag = version). Truoc day addon build tai may HA tu build.yaml + Dockerfile,
 # va Supervisor xuat ca anh Docker (~1,1 GB sau nen) vao moi ban sao luu; anh keo ve thi khong. build.yaml/Dockerfile
@@ -20,6 +20,11 @@ homeassistant_api: true
 # mau, them ung dung). Ingress buoc dang nhap HA; server chi cho LUU tu dia chi ingress (src/launcherApi.ts).
 ingress: true
 ingress_port: 18080
+# (22/10/2026) Mo them cong truc tiep tren LAN/Tailscale: trang Dieu khien (control.html) can
+# WebSocket lien tuc — qua ingress HA thi WS bi dong sau vai khung va MJPEG bi dem -> trang phai
+# polling va bi 429. Vao thang http://<ip-ha>:18080/... thi WS chay ~18 fps.
+ports:
+  18080/tcp: 18080
 ingress_entry: launcher-config.html
 # (01/10/2026) Trang thanh ben gio co hai the: Tin nhan (noi bo voi cac man hinh) + Menu ung dung -> ten "Darboard".
 panel_icon: mdi:tablet-dashboard

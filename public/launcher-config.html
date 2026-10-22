@@ -830,6 +830,18 @@
 </dialog>
 
 <script>
+  /* (22/10/2026) Dieu khien can WebSocket lien tuc: qua ingress HA thi WS bi dong sau vai khung,
+     MJPEG bi dem -> phai polling va bi 429. Mo thang cong 18080 tren LAN/Tailscale. */
+  function ctrlUrl(id) {
+    var u = 'control.html?dev=' + encodeURIComponent(id);
+    try {
+      if (location.pathname.indexOf('/api/hassio_ingress/') >= 0) {
+        return location.protocol + '//' + location.hostname + ':18080/' + u;
+      }
+    } catch (e) { }
+    return u;
+  }
+
 (function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
@@ -1173,7 +1185,7 @@
           ctl.append(svg('monitor-dashboard'));
           var openCtl = function (ev) {
             ev.preventDefault(); ev.stopPropagation();
-            window.open('control.html?dev=' + encodeURIComponent(s.id), '_blank', 'noopener');
+            window.open(ctrlUrl(s.id), '_blank', 'noopener');
           };
           ctl.onclick = openCtl;
           ctl.onkeydown = function (ev) { if (ev.key === 'Enter' || ev.key === ' ') openCtl(ev); };

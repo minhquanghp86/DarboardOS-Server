@@ -312,6 +312,18 @@
 <div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
 
 <script>
+  /* (22/10/2026) Dieu khien can WebSocket lien tuc: qua ingress HA thi WS bi dong sau vai khung,
+     MJPEG bi dem -> phai polling va bi 429. Mo thang cong 18080 tren LAN/Tailscale. */
+  function ctrlUrl(id) {
+    var u = 'control.html?dev=' + encodeURIComponent(id);
+    try {
+      if (location.pathname.indexOf('/api/hassio_ingress/') >= 0) {
+        return location.protocol + '//' + location.hostname + ':18080/' + u;
+      }
+    } catch (e) { }
+    return u;
+  }
+
 (function () {
   'use strict';
   var IC = window.RwvIcons || {};
@@ -716,7 +728,7 @@
     var off = !d.online;
     g.append(
       // (21/10/2026) Mo tab dieu khien: xem man hinh lien tuc + cham/vuot/keo tha tu Darboard.
-      actBtn('Điều khiển', 'monitor-dashboard', function () { window.open('control.html?dev=' + encodeURIComponent(S.id), '_blank', 'noopener'); }, '', off),
+      actBtn('Điều khiển', 'monitor-dashboard', function () { window.open(ctrlUrl(S.id), '_blank', 'noopener'); }, '', off),
       actBtn(d.saver ? 'Mở màn hình' : 'Đánh thức', 'lock-open-variant-outline', function () { act({ act: 'wake' }, 'Đã mở màn hình'); }, '', off),
       actBtn('Màn hình chờ', 'power-sleep', function () { act({ act: 'saver' }, 'Đã chuyển màn hình chờ'); }, '', off || d.saver),
       actBtn('Khóa màn hình', 'lock-outline', function () { act({ act: 'lock' }, 'Đã khóa màn hình'); }, '', off || (d.saver && d.locked)),
