@@ -40,6 +40,9 @@ export class DeviceBroadcaster {
   // da THUC SU roi khoi server — dung de uoc luong bang thong that cua duong truyen.
   private _sentBytes = new WeakMap<WebSocket, number>();
   private _stall = new WeakMap<WebSocket, StallTrack>();
+  // (22/10/2026) Dem goi am thanh da gui theo tung thiet bi — de /metrics do duoc
+  // "goi am thanh" cung nhu "u dong khung" (backlogBytes) khi kiem tra suc khoe.
+  private _audioPackets = new Map<string, number>();
 
   constructor() {
     const t = setInterval(() => this._checkStalls(), STALL_CHECK_MS);
@@ -100,6 +103,7 @@ export class DeviceBroadcaster {
     if ((this._clients.get(id)?.size ?? 0) === 0) {
       this._clients.delete(id);
       this._state.delete(id);
+      this._audioPackets.delete(id);
     }
     console.log(`[broadcaster] Client disconnected from device ${id}, total clients: ${this._clients.get(id)?.size ?? 0}`);
     metrics.setClientCount(id, this._clients.get(id)?.size ?? 0);
@@ -236,11 +240,24 @@ export class DeviceBroadcaster {
     const peers = this._clients.get(id);
     if (!peers || peers.size === 0) return;
     const pkt = buildAudioFramePacket(pcm);
+    let any = false;
     for (const ws of peers) {
       if (ws.readyState !== WebSocket.OPEN) continue;
       if (ws.bufferedAmount > AUDIO_HIGH_WATER) continue;
-      try { this._send(ws, pkt); } catch { }
+      try { this._send(ws, pkt); any = true; } catch { }
     }
+    if (any) this._audioPackets.set(id, (this._audioPackets.get(id) ?? 0) + 1);
+  }
+
+  /**
+   * (22/10/2026) So lieu duong truyen cho /metrics: u dong khung (tong bufferedAmount cac socket
+   * cua thiet bi) va so goi am thanh da gui. Doc TRUC TIEP luc goi nen la gia tri thoi diem.
+   */
+  public transportStats(id: string): { backlogBytes: number; audioPackets: number } {
+    const peers = this._clients.get(id);
+    let backlog = 0;
+    if (peers) for (const ws of peers) if (ws.readyState === WebSocket.OPEN) backlog += ws.bufferedAmount;
+    return { backlogBytes: backlog, audioPackets: this._audioPackets.get(id) ?? 0 };
   }
 
   /** (25/09/2026) Thanh truot trong menu -> thiet bi. Gui THANG (4 byte), khong xep sau hang doi khung hinh. */
