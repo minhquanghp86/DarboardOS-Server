@@ -3427,8 +3427,12 @@ async function flushPending(dev: DeviceSession): Promise<void> {
         const fullW = dev.cfg.width, fullH = dev.cfg.height;
         const halfW = Math.ceil(fullW / 2), halfH = Math.ceil(fullH / 2);
         let halfJpeg: Buffer | undefined;
+        // (22/10/2026) Sunton: video khong can net tung diem -> tran q40 (tuning videoQCap) giup giam byte/khung
+        // va thoi gian giai ma; bo dieu tiet van tu do ha/giu chat luong cho khung TINH (UI).
+        const videoQCap = tuning().videoQCap ?? 40;
+        const baseQ = Math.min(dev.processor.tuning.jpegQuality, videoQCap);
         for (const factor of [1, 0.75, 0.55]) {
-          const q = Math.max(20, Math.round(dev.processor.tuning.jpegQuality * factor));
+          const q = Math.max(20, Math.round(baseQ * factor));
           const b = await sharp(imgBuf).resize(halfW, halfH).jpeg({ quality: q, chromaSubsampling: '4:2:0' }).toBuffer();
           if (b.length <= capBytes) { halfJpeg = b; break; }
         }

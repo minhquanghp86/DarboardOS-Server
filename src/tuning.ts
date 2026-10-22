@@ -40,6 +40,9 @@ export type Tuning = {
   /** (07/10/2026) false = tab IPTV KHONG dung chinh sach khung nua do phan giai cua YouTube TV (gui khung day du tru khi
    *  duong truyen nghen). Mac dinh (khong dat) = co, nhu YouTube TV. */
   iptvHalf?: boolean;
+  /** (22/10/2026) Tran chat luong JPEG khi PHAT VIDEO tren thiet bi half=2 (Sunton 800x480: giai ma cham).
+   *  Do that: q40 van du net cho video, byte/khung giam ~35%. Mac dinh 40. */
+  videoQCap?: number;
   /** (15/10/2026) Giu khung nua do phan giai bao lau sau lan nghen cuoi (mac dinh NET_HALF_HOLD_MS = 60 s). */
   netHalfHoldMs?: number;
   /** (15/10/2026) Bao lau sau khi VUA bat khung nua vi nghen, bo dieu tiet KHONG gian nhip vi ton dong (khung nua da giam
@@ -72,6 +75,7 @@ export function sanitizeTuning(j: unknown): Tuning {
   const pf = num(o.probeFloorTtlMs, 0, 600_000); if (pf !== undefined) t.probeFloorTtlMs = Math.round(pf);
   const nh = num(o.netHalfHoldMs, 0, 600_000); if (nh !== undefined) t.netHalfHoldMs = Math.round(nh);
   const hg = num(o.halfGraceMs, 0, 60_000); if (hg !== undefined) t.halfGraceMs = Math.round(hg);
+  const vq = num(o.videoQCap, 20, 90); if (vq !== undefined) t.videoQCap = Math.round(vq);
   const a = num(o.fullFrameAreaThreshold, 0.05, 1); if (a !== undefined) t.fullFrameAreaThreshold = a;
   return t;
 }
