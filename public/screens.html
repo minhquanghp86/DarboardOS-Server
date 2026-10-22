@@ -317,7 +317,9 @@
   function ctrlUrl(id) {
     var u = 'control.html?dev=' + encodeURIComponent(id);
     try {
-      if (location.pathname.indexOf('/api/hassio_ingress/') >= 0) {
+      // (22/10/2026) Chi doi sang cong 18080 khi dang vao bang IP (LAN/Tailscale). Vao bang ten mien
+      // (Cloudflare) thi khong doi duoc — chi co 8123/443 ra ngoai, doi sang :18080 se timeout.
+      if (/^\d+\.\d+\.\d+\.\d+$/.test(location.hostname) && location.pathname.indexOf('/api/hassio_ingress/') >= 0) {
         return location.protocol + '//' + location.hostname + ':18080/' + u;
       }
     } catch (e) { }

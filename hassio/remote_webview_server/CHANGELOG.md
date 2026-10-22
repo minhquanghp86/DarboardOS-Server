@@ -1,3 +1,10 @@
+## V2.9.211
+- **Điều khiển qua tên miền (Cloudflare/ingress)**: bỏ hẳn WS và MJPEG (proxy cắt luồng: *Cannot write to closing
+  transport*), dùng **polling 250 ms** + tự lùi khi 429. Nút Điều khiển **chỉ chuyển sang cổng 18080 khi đang vào
+  bằng IP** (LAN/Tailscale); vào bằng tên miền thì giữ nguyên đường dẫn — trước đó bị timeout vì `:18080` không ra ngoài.
+- Nhãn chẩn đoán `nhận/vẽ fps` + `· ĐỨNG n s`, lỗi kèm header để biết ai trả 429.
+- Sửa: trang HTML được cache trong RAM lúc khởi động nên bản vá không có hiệu lực tới khi restart add-on.
+
 ## V2.9.210
 - **Điều khiển: mở cổng trực tiếp 18080** (LAN/Tailscale). Nguyên nhân gốc: qua HA ingress, WebSocket bị đóng
   sau vài khung, MJPEG bị đệm → trang phải polling liên tục và **bị 429**. Mở thẳng cổng thì WS chạy ~18 fps.

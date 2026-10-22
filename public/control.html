@@ -56,7 +56,7 @@
       touch = document.getElementById('touch'), msg = document.getElementById('msg'),
       dot = document.getElementById('dot'), nameEl = document.getElementById('name'), stats = document.getElementById('stats');
   var W = 0, H = 0, paused = false, frames = 0, fpsAt = 0, fps = 0;
-  var pollTimer = 0, pollBusy = false, pollGap = 300;
+  var pollTimer = 0, pollBusy = false, pollGap = 250;
 
   if (!dev) { msg.textContent = 'Thiếu ?dev= trên địa chỉ.'; return; }
 
@@ -160,12 +160,19 @@
     if (pollBusy) { pollTimer = setTimeout(startPoll, 200); return; }
     pollBusy = true;
     fetch('control/frame?dev=' + encodeURIComponent(dev), { cache: 'no-store' })
-      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
+      .then(function (r) {
+        // (22/10/2026) Hien them header 'server' de biet 429 do ai tra ve (Cloudflare / HA / add-on).
+        if (!r.ok) {
+          var sv = r.headers.get('server') || r.headers.get('x-powered-by') || '';
+          throw new Error('HTTP ' + r.status + (sv ? ' [' + sv + ']' : ''));
+        }
+        return r.blob();
+      })
       .then(function (b) { showBlob(b); })
       .catch(function (e) {
         dot.classList.remove('on');
         // (22/10/2026) 429 = qua nhieu yeu cau (ingress HA chan) -> gian nhip dan, toi da 3 s.
-        pollGap = /429/.test(e.message) ? Math.min(3000, pollGap * 2) : 300;
+        pollGap = /429/.test(e.message) ? Math.min(3000, pollGap * 2) : 250;
         stats.textContent = 'lỗi: ' + e.message + ' · thử lại sau ' + (pollGap / 1000).toFixed(1) + 's';
       })
       .then(function () { pollBusy = false; pollTimer = setTimeout(startPoll, pollGap); });
@@ -178,10 +185,15 @@
 
   // (22/10/2026) Do that 22/10: di qua HA ingress thi WebSocket chi song vai khung (ingress dong), con MJPEG
   // thi chay ~18 fps lien tuc. Vao bang ingress -> dung MJPEG luon, khoi mat 1-3 s dau de thu WS.
-  if (location.pathname.indexOf('/api/hassio_ingress/') >= 0 || /[?&]mjpeg/.test(location.search)) {
-    preferStream = true;
+  // (22/10/2026) Qua HA ingress: WS bi dong sau vai khung, MJPEG bi proxy cat ("Cannot write to closing
+  // transport") -> di thang duong polling (1 request/350 ms) la on dinh nhat. Van co watchdog + backoff 429.
+  if (location.pathname.indexOf('/api/hassio_ingress/') >= 0) {
+    startPoll();
+  } else if (/[?&]mjpeg/.test(location.search)) {
+    preferStream = true; startWs();
+  } else {
+    startWs();
   }
-  startWs();
 
   // ── Thao tác cham/vuot/keo tha ──────────────────────────────────────────────
   function pt(e) {
