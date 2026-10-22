@@ -63,6 +63,22 @@ export function handleControlUpgrade(req: http.IncomingMessage, socket: Duplex, 
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+/**
+ * (22/10/2026) Chup khung co timeout. Khi thiet bi dang phat video nang, lenh CDP captureScreenshot co the
+ * treo (xep sau screencast) -> vong SSE/WS se dung im vinh vien va trang bao "0/0 · DUNG". Nay treo > timeout
+ * thi bo khung do va thu lai o vong sau (khong dung vong, khong ngat ket noi).
+ */
+function captureJpeg(d: { cdp: { send: (...a: any[]) => Promise<any> } }, timeoutMs = 700): Promise<string | null> {
+  return new Promise((resolve) => {
+    let done = false;
+    const t = setTimeout(() => { if (!done) { done = true; resolve(null); } }, timeoutMs);
+    d.cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: QUALITY })
+      .then((r: any) => { if (!done) { done = true; clearTimeout(t); resolve((r as { data?: string })?.data ?? null); } })
+      .catch(() => { if (!done) { done = true; clearTimeout(t); resolve(null); } });
+  });
+}
+
+
 // (22/10/2026) MOT vong chup cho MOI THIET BI, chia khung cho MOI socket dang xem.
 // Truoc day moi ket noi mo mot vong chup rieng -> mo 2 tab la 2 vong tranh CPU, nhip tut va
 // vong kia co the loi/ngat. Nay: vong chup chi chay khi co it nhat 1 nguoi xem, tat khi het.
@@ -85,8 +101,9 @@ function pumpLive(id: string): void {
     while (!e.stop && e.peers.size > 0) {
       const t = Date.now();
       try {
-        const r = await dev.cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: QUALITY }) as { data: string };
-        const buf = Buffer.from(r.data, 'base64');
+        const data = await captureJpeg(dev);
+        if (!data) { await sleep(FRAME_GAP_MS); continue; }
+        const buf = Buffer.from(data, 'base64');
         for (const ws of e.peers) {
           if (ws.readyState !== WebSocket.OPEN) { e.peers.delete(ws); continue; }
           try { ws.send(buf, { binary: true }); sent++; } catch { e.peers.delete(ws); }
@@ -158,9 +175,10 @@ export function handleControlApi(req: http.IncomingMessage, res: http.ServerResp
       while (!closed) {
         const t = Date.now();
         try {
-          const r = await d.cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: QUALITY }) as { data: string };
-          const b = Buffer.from(r.data, 'base64');
+          const data = await captureJpeg(d);
           if (closed) break;
+          if (!data) { await sleep(FRAME_GAP_MS); continue; }
+          const b = Buffer.from(data, 'base64');
           // (22/10/2026) Chong ton dong khi dien thoai/mang cham: bo khung thay vi xep hang vo han.
           if (res.writableLength > 1_000_000) { await sleep(50); continue; }
           res.write(`--frame\r\nContent-Type: image/jpeg\r\nContent-Length: ${b.length}\r\n\r\n`);
@@ -193,11 +211,9 @@ export function handleControlApi(req: http.IncomingMessage, res: http.ServerResp
       while (!closed) {
         const t = Date.now();
         try {
-          const r = await d.cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: QUALITY }) as { data: string };
+          const data = await captureJpeg(d);
           if (closed) break;
-          n++;
-          res.write(`id: ${n}\ndata: ${r.data}\n\n`);
-          sent++;
+          if (data) { n++; res.write(`id: ${n}\ndata: ${data}\n\n`); sent++; }
         } catch { break; }
         // Chong ton dong: bo khung thay vi xep hang vo han khi dien thoai/mang cham.
         if (res.writableLength > 1_000_000) { await sleep(50); continue; }

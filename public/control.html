@@ -115,7 +115,7 @@
   //  - WS dong khi MOI bat dau (chua du 5 s) -> coi la WS khong dung duoc qua duong nay, chuyen MJPEG luon;
   //  - WS dang chay tot ma dut -> thu noi lai WS (giu khung cu), qua 2 lan van dut thi chuyen MJPEG;
   //  - khong co khung > 1,5 s -> coi nhu treo, xu ly nhu tren.
-  var lastFrameAt = 0, reconnectTimer = 0, wsTries = 0, wsAt = 0, wsDrops = 0, preferStream = false, streamTries = 0, wsHb = 0, sseAbort = null, sseTries = 0;
+  var lastFrameAt = 0, reconnectTimer = 0, wsTries = 0, wsAt = 0, wsDrops = 0, preferStream = false, streamTries = 0, wsHb = 0, sseAbort = null, sseTries = 0, sseWatch = 0;
   function scheduleWs(delay) {
     if (paused) return;
     clearTimeout(reconnectTimer);
@@ -176,6 +176,15 @@
     if (sseAbort) { try { sseAbort.abort(); } catch (e) {} }
     sseAbort = new AbortController();
     var buf = '';
+    // (22/10/2026) WATCHDOG: neu luong im lang (khong loi/khong dong) > 1,5 s thi tu ngat va noi lai
+    // — xu ly truong hop "SSE 0/0 · DUNG n s" do server treo lenh capture.
+    var lastSseFrame = performance.now();
+    clearInterval(sseWatch);
+    sseWatch = setInterval(function () {
+      if (mode === 'SSE' && performance.now() - lastSseFrame > 1500) {
+        try { sseAbort && sseAbort.abort(); } catch (e) {}
+      }
+    }, 700);
     fetch('control/sse?dev=' + encodeURIComponent(dev), { signal: sseAbort.signal, cache: 'no-store' })
       .then(function (r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -190,6 +199,7 @@
               var ev = buf.slice(0, i); buf = buf.slice(i + 2);
               var m = /data: ([A-Za-z0-9+/=]+)/.exec(ev);
               if (m) {
+                lastSseFrame = performance.now();
                 try {
                   var bin = atob(m[1]); var arr = new Uint8Array(bin.length);
                   for (var k = 0; k < bin.length; k++) arr[k] = bin.charCodeAt(k);
@@ -203,9 +213,10 @@
         return pump();
       })
       .catch(function (e) {
-        if (e && e.name === 'AbortError') return;
+        clearInterval(sseWatch);
+        if (e && e.name === 'AbortError') { setTimeout(startSse, 300); return; }
         dot.classList.remove('on');
-        if (++sseTries <= 2) setTimeout(startSse, 500); else startPoll();
+        if (++sseTries <= 3) setTimeout(startSse, 500); else startPoll();
       });
   }
 

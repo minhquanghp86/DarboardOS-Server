@@ -1,3 +1,8 @@
+## V2.9.217
+- **Điều khiển: hết treo khung (`0/0 · DUNG`)** — lệnh chụp khung CDP có thể treo khi thiết bị đang phát video nặng,
+  làm vòng SSE/WS đứng im. Nay **timeout 700 ms** (bỏ khung treo, vòng vẫn chạy) + trang có **watchdog 1,5 s**
+  tự ngắt và nối lại nếu luồng im lặng. Đo khi P4 đang phát YouTube: **17,4 fps / 30 s, 0 khe > 1,5 s**.
+
 ## V2.9.216
 - **Điều khiển: nút "Mở khoá" + tự mở khoá khi vào trang.** Màn hình khóa (nền trắng ban ngày) che tab
   YouTube/ứng dụng nên nhìn như "trắng màn" — giờ trang Điều khiển tự gửi `unlock` lúc mở, và có nút Mở khoá.
