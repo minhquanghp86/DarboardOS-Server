@@ -4230,6 +4230,7 @@ export async function screenKey(id: string, key: string): Promise<string | null>
   if (key === 'home') goOsHome(dev);
   else if (key === 'back') goBack(dev);
   else if (key === 'recents') openRecents(dev);
+  else if (key === 'unlock') { /* da mo khoa o tren (dev.saverOn) — chi do man hinh cho */ }
   else return 'Phím không hợp lệ.';
   return null;
 }

@@ -1,3 +1,7 @@
+## V2.9.216
+- **Điều khiển: nút "Mở khoá" + tự mở khoá khi vào trang.** Màn hình khóa (nền trắng ban ngày) che tab
+  YouTube/ứng dụng nên nhìn như "trắng màn" — giờ trang Điều khiển tự gửi `unlock` lúc mở, và có nút Mở khoá.
+
 ## V2.9.215
 - **Điều khiển: chạm tin cậy** — `down`/`up` giờ **retry tới 2 lần** (timeout 4 s, nháy đỏ khi lỗi),
   còn `move` tiết chế **60 ms** và bỏ qua nếu đang gửi — tránh lũ ~60 req/s làm Cloudflare/ingress giới hạn
