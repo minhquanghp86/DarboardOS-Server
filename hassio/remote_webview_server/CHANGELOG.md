@@ -1,3 +1,7 @@
+## V2.9.213
+- **Điều khiển (WS): heartbeat hai chiều** — client gửi `p` mỗi 2 s, server `ping` mỗi 3 s để proxy
+  (HA ingress / Cloudflare) không đóng kết nối WebSocket khi chỉ truyền một chiều khung hình.
+
 ## V2.9.212
 - **Điều khiển: quay lại đúng cách của 2.9.199 (bản chạy tốt)** — qua HA ingress / tên miền dùng **MJPEG trực tiếp**
   (`<img>` tự cập nhật), không dùng WebSocket (bị ingress đóng sau vài khung) và không polling đều (bị 429).

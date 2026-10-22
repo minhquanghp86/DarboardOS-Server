@@ -117,6 +117,12 @@ async function startLive(ws: WebSocket, id: string): Promise<void> {
   };
   ws.on('close', drop);
   ws.on('error', drop);
+  // (22/10/2026) Heartbeat: proxy (HA ingress / Cloudflare) co the dong WS khi chi mot chieu nhan du lieu.
+  // Client gui 'p' moi 2 s; o day chi tieu thu de khong xep hang.
+  ws.on('message', () => {});
+  const hb = setInterval(() => { if (ws.readyState === WebSocket.OPEN) ws.ping(); }, 3000);
+  hb.unref?.();
+  ws.on('close', () => clearInterval(hb));
   pumpLive(id);
 }
 

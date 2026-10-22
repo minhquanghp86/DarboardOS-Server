@@ -107,7 +107,7 @@
   //  - WS dong khi MOI bat dau (chua du 5 s) -> coi la WS khong dung duoc qua duong nay, chuyen MJPEG luon;
   //  - WS dang chay tot ma dut -> thu noi lai WS (giu khung cu), qua 2 lan van dut thi chuyen MJPEG;
   //  - khong co khung > 1,5 s -> coi nhu treo, xu ly nhu tren.
-  var lastFrameAt = 0, reconnectTimer = 0, wsTries = 0, wsAt = 0, wsDrops = 0, preferStream = false, streamTries = 0;
+  var lastFrameAt = 0, reconnectTimer = 0, wsTries = 0, wsAt = 0, wsDrops = 0, preferStream = false, streamTries = 0, wsHb = 0;
   function scheduleWs(delay) {
     if (paused) return;
     clearTimeout(reconnectTimer);
@@ -127,7 +127,11 @@
     u.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     try { ws = new WebSocket(u.href); } catch (e) { preferStream = true; startStream(); return; }
     ws.binaryType = 'arraybuffer';
-    ws.onopen = function () { wsTries = 0; };
+    ws.onopen = function () {
+      wsTries = 0;
+      // (22/10/2026) Giữ kết nối WS qua proxy: gửi 1 tin nhắn nhỏ mỗi 2 s.
+      clearInterval(wsHb); wsHb = setInterval(function () { try { ws && ws.readyState === 1 && ws.send('p'); } catch (e) {} }, 2000);
+    };
     ws.onmessage = function (e) {
       if (e.data && e.data.byteLength) { lastFrameAt = performance.now(); showBlob(new Blob([e.data], { type: 'image/jpeg' })); }
     };
