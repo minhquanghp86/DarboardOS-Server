@@ -282,8 +282,11 @@ http.createServer((req, res) => {
 
   // (14/09/2026) /metrics: số liệu thật để đo hiệu năng (GĐ0)
   if (pathname.startsWith('/metrics')) {
+    const snap = metrics.snapshot();
+    // (22/10/2026) Bo sung so lieu duong truyen theo thoi diem: u dong khung + so goi am thanh.
+    const devices = (snap.devices as Array<{ id: string }>).map((d) => ({ ...d, ...broadcaster.transportStats(d.id) }));
     res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
-    res.end(JSON.stringify({ ...metrics.snapshot(), host: hostMem(), pipeline: pipelineStats() }, null, 2));
+    res.end(JSON.stringify({ ...snap, devices, host: hostMem(), pipeline: pipelineStats() }, null, 2));
     return;
   }
 

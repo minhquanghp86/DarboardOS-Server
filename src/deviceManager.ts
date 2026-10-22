@@ -3360,7 +3360,7 @@ async function flushPending(dev: DeviceSession): Promise<void> {
       // lon xen giua, 20 fps, loa vap 68 lan) — moi lan tat lai phai gui ca khung net.
       if (tvTab && imgBuf.length > 2 * (dev.cfg.maxBytesPerMessage - FRAME_HEADER_BYTES - TILE_HEADER_BYTES)) dev.tvBigMs = nowMs;
       const tooBigFull = tvTab && dev.tvBigMs !== undefined && nowMs - dev.tvBigMs < 10_000;
-      const halfSend = halfProbe && (HALF_SCALE_VIDEO || dev.cfg.halfVideo || netHalf || tooBigFull ||
+      let halfSend = halfProbe && (HALF_SCALE_VIDEO || dev.cfg.halfVideo || netHalf || tooBigFull ||
         (dev.videoSrcH != null && dev.videoSrcH > 0 && dev.videoSrcH <= YT_TV_HALF_MAX_H));
       // (24/09/2026) NHIP CAO CHUA DU: mot tab dashboard co anh dong NHO cung lam Chrome phat khung lien tuc ->
       // ca man hinh bi gui nua do phan giai, giao dien mo han (nguoi dung bao ngay). Phai co PHAN LON man hinh
@@ -3406,6 +3406,21 @@ async function flushPending(dev: DeviceSession): Promise<void> {
         }
       } else {
         dev.prevThumb = undefined;
+      }
+      // (22/10/2026) Sunton 800x480 (S3, giai ma JPEG phan mem 45-79 ms/khung -> 2,5-7 fps):
+      // voi thiet bi bat half_scale_video (half=2) ma van dang gui khung day du, EP nua khung
+      // khi DANG PHAT VIDEO (tab YouTube/YouTube TV/IPTV hoac co <video> chiem man hinh).
+      // UI tinh van gui khung day du nen chu/giao dien van net. Firmware phong x2 (PPA o P4,
+      // phan mem o S3) — xem remote_webview.cpp:236.
+      const VIDEO_TAB_KINDS = new Set(['youtube', 'yttv', 'iptv', 'media', 'music', 'tiktok', 'vtvgo', 'phim']);
+      if (dev.cfg.halfVideo && !dev.cfg.rotation) {
+        if (VIDEO_TAB_KINDS.has(activeKind ?? '') || (dev.videoElArea ?? 0) >= HALF_VIDEO_EL_AREA) {
+          halfSend = true;
+          halfWanted = true;
+        } else if (!netHalf) {
+          // UI tinh: LUON khung day du de chu/net (truoc day bat/tat xen ke -> chu mo tung luc).
+          halfWanted = false;
+        }
       }
       if (!sharpRefresh && halfSend && halfWanted && !dev.cfg.rotation) {
         const capBytes = dev.cfg.maxBytesPerMessage - FRAME_HEADER_BYTES - TILE_HEADER_BYTES;
