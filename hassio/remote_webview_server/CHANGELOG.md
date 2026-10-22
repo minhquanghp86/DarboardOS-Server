@@ -1,3 +1,11 @@
+## V2.9.206
+- **Sunton 800×480 (S3): fps khi phát video 4 → 16,5–17,4** — thiết bị `half_scale_video` được ép **nửa khung
+  (400×240) khi tab YouTube / YouTube TV / IPTV đang phát**, UI tĩnh vẫn gửi khung đầy đủ 800×480 (nét).
+  Trước đây nửa khung bật/tắt xen kẽ vì phụ thuộc ngưỡng fps mà S3 không bao giờ đạt.
+- Thêm trần chất lượng khi phát video: `{"videoQCap": 40}` trong `/data/rwv-tuning.json` (mặc định 40).
+- `/metrics` thêm **`backlogBytes`** (ứ đọng khung) và **`audioPackets`** (số gói âm thanh) để đo sức khỏe.
+- Đo A/B `esp_new_jpeg` (không đổi fps, tốn thêm RAM) → không dùng.
+
 ## V2.9.205
 - Chất lượng đặt tay: **khoá chất lượng nhưng nhịp khung vẫn để bộ điều tiết tự lo** (nghẽn thì giãn nhịp,
   hết nghẽn thì rút lại) — trước đó bỏ qua cả vòng điều tiết nên nhịp đứng im, dễ giật khi mạng yếu.
