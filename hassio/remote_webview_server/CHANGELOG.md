@@ -1,3 +1,7 @@
+## V2.9.218
+- **Điều khiển: giảm nốt treo khung** — nâng timeout chụp khung lên 1200 ms + lùi nhẹ 150 ms khi bỏ khung
+  (trước 700 ms dễ bỏ nhầm khung khi CDP chậm thoáng qua). Watchdog trang nâng lên 2 s cho khớp.
+
 ## V2.9.217
 - **Điều khiển: hết treo khung (`0/0 · DUNG`)** — lệnh chụp khung CDP có thể treo khi thiết bị đang phát video nặng,
   làm vòng SSE/WS đứng im. Nay **timeout 700 ms** (bỏ khung treo, vòng vẫn chạy) + trang có **watchdog 1,5 s**

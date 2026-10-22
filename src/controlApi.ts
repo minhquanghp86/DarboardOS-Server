@@ -68,7 +68,7 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
  * treo (xep sau screencast) -> vong SSE/WS se dung im vinh vien va trang bao "0/0 · DUNG". Nay treo > timeout
  * thi bo khung do va thu lai o vong sau (khong dung vong, khong ngat ket noi).
  */
-function captureJpeg(d: { cdp: { send: (...a: any[]) => Promise<any> } }, timeoutMs = 700): Promise<string | null> {
+function captureJpeg(d: { cdp: { send: (...a: any[]) => Promise<any> } }, timeoutMs = 1200): Promise<string | null> {
   return new Promise((resolve) => {
     let done = false;
     const t = setTimeout(() => { if (!done) { done = true; resolve(null); } }, timeoutMs);
@@ -102,7 +102,7 @@ function pumpLive(id: string): void {
       const t = Date.now();
       try {
         const data = await captureJpeg(dev);
-        if (!data) { await sleep(FRAME_GAP_MS); continue; }
+        if (!data) { await sleep(150); continue; }
         const buf = Buffer.from(data, 'base64');
         for (const ws of e.peers) {
           if (ws.readyState !== WebSocket.OPEN) { e.peers.delete(ws); continue; }
@@ -177,7 +177,7 @@ export function handleControlApi(req: http.IncomingMessage, res: http.ServerResp
         try {
           const data = await captureJpeg(d);
           if (closed) break;
-          if (!data) { await sleep(FRAME_GAP_MS); continue; }
+          if (!data) { await sleep(150); continue; }
           const b = Buffer.from(data, 'base64');
           // (22/10/2026) Chong ton dong khi dien thoai/mang cham: bo khung thay vi xep hang vo han.
           if (res.writableLength > 1_000_000) { await sleep(50); continue; }
@@ -213,7 +213,7 @@ export function handleControlApi(req: http.IncomingMessage, res: http.ServerResp
         try {
           const data = await captureJpeg(d);
           if (closed) break;
-          if (data) { n++; res.write(`id: ${n}\ndata: ${data}\n\n`); sent++; }
+          if (data) { n++; res.write(`id: ${n}\ndata: ${data}\n\n`); sent++; } else { await sleep(150); }
         } catch { break; }
         // Chong ton dong: bo khung thay vi xep hang vo han khi dien thoai/mang cham.
         if (res.writableLength > 1_000_000) { await sleep(50); continue; }
