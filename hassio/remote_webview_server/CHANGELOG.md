@@ -1,3 +1,8 @@
+## V2.9.215
+- **Điều khiển: chạm tin cậy** — `down`/`up` giờ **retry tới 2 lần** (timeout 4 s, nháy đỏ khi lỗi),
+  còn `move` tiết chế **60 ms** và bỏ qua nếu đang gửi — tránh lũ ~60 req/s làm Cloudflare/ingress giới hạn
+  rồi kéo theo cả `down`/`up` bị rớt (hiện tượng "bấm không ăn vài giây một lần").
+
 ## V2.9.214
 - **Điều khiển qua Cloudflare/tên miền: dùng SSE (text/event-stream)** — kênh duy nhất Cloudflare stream ổn định
   (MJPEG bị đệm, WebSocket bị đóng sau vài khung, polling bị 429). Mỗi khung = 1 dòng base64 JPEG, ~14 fps.

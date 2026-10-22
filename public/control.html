@@ -60,9 +60,16 @@
 
   if (!dev) { msg.textContent = 'Thiếu ?dev= trên địa chỉ.'; return; }
 
-  function api(path, body) {
-    return fetch(path, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {})
-      .then(function (r) { return r.json().catch(function () { return {}; }); });
+  function api(path, body, retries) {
+    retries = retries || 0;
+    var ctl = new AbortController();
+    var to = setTimeout(function () { ctl.abort(); }, 4000);
+    return fetch(path, body
+        ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: ctl.signal }
+        : { signal: ctl.signal })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { code: r.status, j: j }; }); })
+      .catch(function () { return { code: 0, err: true }; })
+      .finally(function () { clearTimeout(to); });
   }
   function sizeStage() {
     if (!W || !H) return;
@@ -247,19 +254,38 @@
     var r = touch.getBoundingClientRect();
     return { x: Math.round((e.clientX - r.left) * W / r.width), y: Math.round((e.clientY - r.top) * H / r.height) };
   }
-  function send(kind, p) { return api('control/input', { dev: dev, kind: kind, x: p.x, y: p.y }); }
-  var lastMove = 0;
+  // (22/10/2026) CHAM TIN CAY: down/up phai luon den noi (retry 2 lan, timeout 4 s);
+  // move tiet che 60 ms va bo qua neu dang gui — tranh lu 60 req/s lam Cloudflare/ingress gioi han,
+  // keo theo ca down/up bi rot (hien tuong "bam khong an va vai giay").
+  var inputBusy = false, lastMove = 0;
+  function flashDot() { dot.classList.remove('on'); setTimeout(function () { dot.classList.add('on'); }, 250); }
+  function send(kind, p, retry) {
+    if (kind === 'move') {
+      var now = Date.now(); if (now - lastMove < 60) return; lastMove = now;
+      if (inputBusy) return;
+      inputBusy = true;
+      return api('control/input', { dev: dev, kind: kind, x: p.x, y: p.y })
+        .finally(function () { inputBusy = false; });
+    }
+    var done = api('control/input', { dev: dev, kind: kind, x: p.x, y: p.y });
+    done.then(function (r) {
+      if ((r.code && r.code >= 400) || r.err) {
+        flashDot();
+        if ((retry || 0) < 2) setTimeout(function () { send(kind, p, (retry || 0) + 1); }, 200);
+      }
+    });
+    return done;
+  }
   touch.addEventListener('pointerdown', function (e) {
-    e.preventDefault(); touch.setPointerCapture(e.pointerId); send('down', pt(e));
+    e.preventDefault(); touch.setPointerCapture(e.pointerId); send('down', pt(e), 0);
   });
   touch.addEventListener('pointermove', function (e) {
     if (touch.hasPointerCapture && !touch.hasPointerCapture(e.pointerId)) return;
-    var now = Date.now(); if (now - lastMove < 16) return; lastMove = now;
     send('move', pt(e));
   });
   function up(e) {
     if (touch.hasPointerCapture && touch.hasPointerCapture(e.pointerId)) touch.releasePointerCapture(e.pointerId);
-    send('up', pt(e));
+    send('up', pt(e), 0);
   }
   touch.addEventListener('pointerup', up);
   touch.addEventListener('pointercancel', up);
