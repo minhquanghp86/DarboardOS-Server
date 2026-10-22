@@ -1,3 +1,10 @@
+## V2.9.212
+- **Điều khiển: quay lại đúng cách của 2.9.199 (bản chạy tốt)** — qua HA ingress / tên miền dùng **MJPEG trực tiếp**
+  (`<img>` tự cập nhật), không dùng WebSocket (bị ingress đóng sau vài khung) và không polling đều (bị 429).
+  MJPEG đứt thì thử lại MJPEG 1 lần rồi mới rơi xuống chụp từng ảnh.
+- Vào bằng **IP LAN/Tailscale** thì vẫn dùng WebSocket (~18 fps) và nút Điều khiển tự mở cổng `:18080`
+  (add-on chạy host network nên cổng này đã sẵn sàng, không cần publish).
+
 ## V2.9.211
 - **Điều khiển qua tên miền (Cloudflare/ingress)**: bỏ hẳn WS và MJPEG (proxy cắt luồng: *Cannot write to closing
   transport*), dùng **polling 250 ms** + tự lùi khi 429. Nút Điều khiển **chỉ chuyển sang cổng 18080 khi đang vào

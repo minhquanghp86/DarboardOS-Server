@@ -107,7 +107,7 @@
   //  - WS dong khi MOI bat dau (chua du 5 s) -> coi la WS khong dung duoc qua duong nay, chuyen MJPEG luon;
   //  - WS dang chay tot ma dut -> thu noi lai WS (giu khung cu), qua 2 lan van dut thi chuyen MJPEG;
   //  - khong co khung > 1,5 s -> coi nhu treo, xu ly nhu tren.
-  var lastFrameAt = 0, reconnectTimer = 0, wsTries = 0, wsAt = 0, wsDrops = 0, preferStream = false;
+  var lastFrameAt = 0, reconnectTimer = 0, wsTries = 0, wsAt = 0, wsDrops = 0, preferStream = false, streamTries = 0;
   function scheduleWs(delay) {
     if (paused) return;
     clearTimeout(reconnectTimer);
@@ -149,7 +149,12 @@
   function startStream() {
     mode = 'MJPEG'; clearTimeout(reconnectTimer);
     img.onload = function () { if (!W) { W = img.naturalWidth; H = img.naturalHeight; sizeStage(); } ready(); };
-    img.onerror = function () { dot.classList.remove('on'); if (mode === 'MJPEG') startPoll(); };
+    img.onerror = function () {
+      dot.classList.remove('on');
+      // (22/10/2026) MJPEG dut: thu lai MJPEG (2.9.199 lam vay va on dinh), 2 lan moi xuong polling.
+      if (mode !== 'MJPEG') return;
+      if (++streamTries <= 2) setTimeout(startStream, 500); else startPoll();
+    };
     img.src = 'control/stream?dev=' + encodeURIComponent(dev) + '&t=' + Date.now();
     setTimeout(function () { if (got < 2) startPoll(); }, 4000);
   }
@@ -185,12 +190,12 @@
 
   // (22/10/2026) Do that 22/10: di qua HA ingress thi WebSocket chi song vai khung (ingress dong), con MJPEG
   // thi chay ~18 fps lien tuc. Vao bang ingress -> dung MJPEG luon, khoi mat 1-3 s dau de thu WS.
-  // (22/10/2026) Qua HA ingress: WS bi dong sau vai khung, MJPEG bi proxy cat ("Cannot write to closing
-  // transport") -> di thang duong polling (1 request/350 ms) la on dinh nhat. Van co watchdog + backoff 429.
-  if (location.pathname.indexOf('/api/hassio_ingress/') >= 0) {
-    startPoll();
-  } else if (/[?&]mjpeg/.test(location.search)) {
-    preferStream = true; startWs();
+  // (22/10/2026) KHOI PHUC cach cua 2.9.199 — ban do nguoi dung bao "fps cao, khong mat ket noi":
+  // qua HA ingress / ten mien thi dung MJPEG truc tiep (trinh duyet tu cap nhat <img>), KHONG dung WebSocket
+  // (WS qua ingress bi dong sau vai khung) va KHONG polling deu (bi 429). Vao bang IP (LAN/Tailscale) thi WS.
+  if (/[?&]mjpeg/.test(location.search) || location.pathname.indexOf('/api/hassio_ingress/') >= 0) {
+    preferStream = true;
+    startWs();          // preferStream -> startStream() (MJPEG)
   } else {
     startWs();
   }
