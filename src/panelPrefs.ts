@@ -25,6 +25,9 @@ export interface PanelPrefs {
   lwEnergy?: boolean; lwCal?: boolean; lwCam?: boolean;
   /** (21/10/2026) Chat luong JPEG nguoi dung dat (20..90). Khong co = de bo dieu tiet tu chon. */
   qualityPct?: number;
+  /** (22/10/2026) Khoang "dem" theo gio dia phuong cua thiet bi: man hinh cho CHI hien dong ho, khong hien anh.
+   *  from == to => tat che do dem (hien anh ca ngay). from > to => vat qua nua dem (vd 21 -> 6). */
+  nightFrom?: number; nightTo?: number;
 }
 export type ClockSize = 'm' | 'l' | 'xl';
 export type PhotoEffect = 'fade' | 'slide' | 'zoom' | 'none';
@@ -36,7 +39,7 @@ export interface PanelPrefItem {
   id: string; kind: 'switch' | 'select' | 'text'; label: string; hint: string; on: boolean; value: string;
   options?: string[]; maxLength?: number; group: 'panel'; sec: PrefSec;
   /** (08/10/2026) Cai dat kieu iOS (public/settings.html): muc lon + nhom con — xem settingsModel.SettingCat. */
-  cat?: 'lock' | 'wall' | 'camera' | 'cast'; sub?: string;
+  cat?: 'lock' | 'wall' | 'camera' | 'cast' | 'display'; sub?: string;
 }
 /** (08/10/2026) Cho tung muc cua addon trong ung dung Cai dat kieu iOS: [muc lon, nhom con]. */
 const PLACE: Record<string, [NonNullable<PanelPrefItem['cat']>, string]> = {
@@ -44,6 +47,8 @@ const PLACE: Record<string, [NonNullable<PanelPrefItem['cat']>, string]> = {
   'rwv.clock_size': ['lock', 'Hiển thị'], 'rwv.wx_detail': ['lock', 'Hiển thị'],
   'rwv.lw_energy': ['lock', 'Widget'], 'rwv.lw_cal': ['lock', 'Widget'], 'rwv.lw_cam': ['lock', 'Widget'],
   'rwv.saver_photos': ['wall', 'Ảnh nền màn hình khóa'], 'rwv.photo_interval': ['wall', 'Ảnh nền màn hình khóa'],
+  'rwv.night_from': ['wall', 'Ảnh nền màn hình khóa'], 'rwv.night_to': ['wall', 'Ảnh nền màn hình khóa'],
+  'rwv.quality': ['display', 'Hình ảnh'],
   'rwv.photo_effect': ['wall', 'Trình chiếu'], 'rwv.photo_fit': ['wall', 'Trình chiếu'], 'rwv.photo_order': ['wall', 'Trình chiếu'],
   'rwv.photo_source': ['wall', 'Nguồn ảnh'], 'rwv.gphotos_url': ['wall', 'Nguồn ảnh'],
   'rwv.photo_clock': ['wall', 'Trên ảnh'], 'rwv.photo_info': ['wall', 'Trên ảnh'],
@@ -61,6 +66,7 @@ export const IDLE_CHOICES: Choice<number>[] = [['Tắt', 0], ['30 giây', 30], [
   ['15 phút', 900], ['30 phút', 1800]];
 const BRIGHT_CHOICES: Choice<number>[] = [['Giữ nguyên', 0], ['5%', 5], ['10%', 10], ['20%', 20], ['30%', 30], ['50%', 50]];
 const QUALITY_CHOICES: Choice<number>[] = [['Tự động', 0], ['20%', 20], ['30%', 30], ['40%', 40], ['50%', 50], ['60%', 60], ['70%', 70], ['80%', 80], ['90%', 90]];
+const NIGHT_CHOICES: Choice<number>[] = Array.from({ length: 25 }, (_, i) => (i === 24 ? ['Cả ngày (tắt đêm)', 24] : [`${String(i).padStart(2, '0')}:00`, i]) as Choice<number>);
 const CLOCK_CHOICES: Choice<ClockSize>[] = [['Vừa', 'm'], ['Lớn', 'l'], ['Rất lớn', 'xl']];
 const INTERVAL_CHOICES: Choice<number>[] = [['15 giây', 15], ['30 giây', 30], ['1 phút', 60], ['2 phút', 120], ['5 phút', 300]];
 const EFFECT_CHOICES: Choice<PhotoEffect>[] = [['Mờ dần', 'fade'], ['Trượt', 'slide'], ['Thu phóng', 'zoom'], ['Không', 'none']];
@@ -114,6 +120,8 @@ export class PanelPrefsStore {
         if (typeof v === 'string' && v.trim().length <= 40) patch = { castName: v.replace(/[\u0000-\u001f<>&]/g, '').trim() };
         break;
       case 'rwv.saver_idle': pick(IDLE_CHOICES, (x) => ({ saverIdleS: x })); break;
+      case 'rwv.night_from': pick(NIGHT_CHOICES, (x) => ({ nightFrom: x })); break;
+      case 'rwv.night_to': pick(NIGHT_CHOICES, (x) => ({ nightTo: x })); break;
       case 'rwv.photo_interval': pick(INTERVAL_CHOICES, (x) => ({ photoIntervalS: x })); break;
       case 'rwv.photo_effect': pick(EFFECT_CHOICES, (x) => ({ photoEffect: x })); break;
       case 'rwv.photo_fit': pick(FIT_CHOICES, (x) => ({ photoFit: x })); break;
@@ -133,6 +141,11 @@ export class PanelPrefsStore {
   saverPhotos(dev: string, addonDefault: boolean): boolean { return this.get(dev).saverPhotos ?? addonDefault; }
   morning(dev: string, addonDefault: boolean): boolean { return this.get(dev).morning ?? addonDefault; }
   saverIdleS(dev: string, addonDefault: number): number { return this.get(dev).saverIdleS ?? addonDefault; }
+  /** (22/10/2026) Khoang dem cua man hinh (gio dia phuong). 24 = tat che do dem. Mac dinh 22 -> 6. */
+  night(dev: string): { from: number; to: number } {
+    const p = this.get(dev);
+    return { from: p.nightFrom ?? 22, to: p.nightTo ?? 6 };
+  }
   lockMode(dev: string): boolean { return this.get(dev).lockMode ?? false; }
   /** (21/10/2026) Chat luong JPEG nguoi dung dat; undefined = de bo dieu tiet tu chon. */
   qualityPct(dev: string): number | undefined { return this.get(dev).qualityPct; }
@@ -184,6 +197,10 @@ export class PanelPrefsStore {
       sw('rwv.lw_cal', 'lock', 'Lịch sắp tới', this.lockWidgets(dev).cal, 'Sự kiện 3 ngày tới từ lịch Home Assistant'),
       sw('rwv.lw_cam', 'lock', 'Camera phát hiện', this.lockWidgets(dev).cam, 'Lần Frigate thấy người / xe gần nhất trong 1 giờ'),
       sw('rwv.saver_photos', 'lock', 'Hiện ảnh nền', this.saverPhotos(dev, d.saverPhotos), 'Khung ảnh số · đêm chỉ đồng hồ'),
+      // (22/10/2026) Khoang dem: trong khoang nay man hinh cho CHI hien dong ho (khong anh). Tat = hien ca ngay.
+      sel('rwv.night_from', 'lock', 'Đêm: tắt ảnh từ', NIGHT_CHOICES, this.night(dev).from, this.night(dev).from === 24 ? 'Cả ngày (tắt đêm)' : `${String(this.night(dev).from).padStart(2, '0')}:00`),
+      sel('rwv.night_to', 'lock', 'Đêm: tắt ảnh đến', NIGHT_CHOICES, this.night(dev).to, this.night(dev).to === 24 ? 'Cả ngày (tắt đêm)' : `${String(this.night(dev).to).padStart(2, '0')}:00`,
+        'Trong khoảng này màn hình chờ chỉ hiện đồng hồ (ban đêm) · chọn “Cả ngày” để luôn có ảnh'),
       sel('rwv.photo_interval', 'lock', 'Đổi ảnh sau', INTERVAL_CHOICES, f.intervalS, `${f.intervalS} giây`),
       sw('rwv.morning', 'screen', 'Chào buổi sáng', this.morning(dev, d.morning), 'Camera thấy người buổi sáng → mở “Hôm nay”'),
       sw('rwv.cast', 'screen', 'Nhận truyền YouTube', this.cast(dev, d.cast ?? true), 'Hiện trong nút truyền của app YouTube (cùng WiFi)'),

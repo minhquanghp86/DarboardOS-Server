@@ -56,6 +56,15 @@ export function deviceHour(nowMs: number, tzOffsetMin: number): number {
 /** Ban dem (22h-6h): man hinh cho chi dong ho tong am toi, khong anh (it anh sang trong phong ngu). */
 export const isNightHour = (h: number) => h >= 22 || h < 6;
 
+/**
+ * (22/10/2026) Khoang dem CAU HINH DUOC theo tung man hinh (gio dia phuong cua thiet bi).
+ * from > to: vat qua nua dem (vd 21 -> 6). from === to hoac from >= 24: TAT che do dem (luon hien anh).
+ */
+export function nightNow(h: number, from: number, to: number): boolean {
+  if (from === to || from >= 24 || to >= 24) return false;
+  return from < to ? (h >= from && h < to) : (h >= from || h < to);
+}
+
 /** Anh ke tiep cho man hinh cho: ngau nhien, khong lap lai anh vua hien. */
 export function nextSaverPhoto(files: string[], prev: string | null, rand: () => number = Math.random): string | null {
   if (!files.length) return null;

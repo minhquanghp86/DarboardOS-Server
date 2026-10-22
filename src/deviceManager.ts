@@ -24,7 +24,7 @@ import { buildLauncherApps, listAllApps, GROUP_TITLES, LOCAL_ORIGIN, LAUNCHER_CA
 import { createRequire } from "node:module";
 import { getWeatherMini, onWeatherMiniUpdate } from "./weatherMini.js";
 import { SerialQueue, appKeyForUrl, ghostUrlFor, nowPlaying, parseMeminfo, pickEvictions, pickIdleCloses, recentsList, tabBudget } from "./tabPolicy.js";
-import { SCREENSAVER_IDLE_S, SCREENSAVER_PHOTOS, deviceHour, isNightHour, shouldShowSaver } from "./screensaver.js";
+import { SCREENSAVER_IDLE_S, SCREENSAVER_PHOTOS, deviceHour, nightNow, shouldShowSaver } from "./screensaver.js";
 import { listPhotos } from "./homeApi.js";
 import { panelPrefs } from "./panelPrefs.js";
 import { Nav, albumItems, caption, photoUrl, refKey, sourceList, step } from "./photoSource.js";
@@ -3919,7 +3919,9 @@ function saverPhotoTick(d: DeviceSession, now: number): void {
  */
 async function saverPhotoStep(d: DeviceSession, dir: 1 | -1, manual: boolean): Promise<void> {
   const f = panelPrefs.frame(d.deviceId, GPHOTOS_ALBUM);
-  const night = isNightHour(deviceHour(Date.now(), d.devState?.tzOffsetMin ?? 420));
+  // (22/10/2026) Khoang dem theo cai dat cua tung man hinh (truoc day cung 22h-6h cho moi man).
+  const ng = panelPrefs.night(d.deviceId);
+  const night = nightNow(deviceHour(Date.now(), d.devState?.tzOffsetMin ?? 420), ng.from, ng.to);
   if (night && !manual) { if (d.saverPhoto) { d.saverPhoto = null; showSaverPhoto(d, null); } return; }
   const album = f.source === 'folder' ? [] : await albumItems(f.album);
   const list = sourceList(listPhotos().files, album, f.source);

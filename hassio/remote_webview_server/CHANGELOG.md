@@ -1,3 +1,10 @@
+## V2.9.208
+- **Khoảng giờ ban đêm cấu hình được, theo TỪNG màn hình**: màn hình chờ trong khoảng này chỉ hiện đồng hồ,
+  không hiện ảnh (mặc định 22:00 → 06:00 như trước, giờ địa phương của thiết bị). Có ở cả **Darboard → cài đặt
+  từng màn** (nhóm *Hình nền & Khung ảnh*) và **ứng dụng Cài đặt trên chính màn hình**.
+  - "Đêm: tắt ảnh từ" / "Đêm: tắt ảnh đến" (0–23 giờ, vắt qua nửa đêm được), chọn **"Cả ngày (tắt đêm)"** để luôn có ảnh.
+- Sửa: mục *Chất lượng hình ảnh* thiếu nhóm trong ứng dụng Cài đặt kiểu iOS (nay nằm ở *Màn hình & Độ sáng → Hình ảnh*).
+
 ## V2.9.207
 - **Sửa lỗi tab Điều khiển đứng hình sau vài giây** (mọi màn): WebSocket bị đóng giữa chừng mà trang chỉ
   chuyển sang MJPEG khi *chưa* có khung nào → đang xem thì đứng im, thao tác như không được nhận.

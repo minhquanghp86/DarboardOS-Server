@@ -20,7 +20,7 @@ describe("cai dat addon theo tung man hinh", () => {
   it("chao buoi sang + thoi gian cho", () => {
     const p = new PanelPrefsStore(null);
     expect(p.items("esp32-0a0b0c0d0002", D).filter((i) => i.sec === "screen").map((i) => [i.id, i.on, i.value])).toEqual([
-      ["rwv.morning", true, ""], ["rwv.cast", true, ""], ["rwv.yt_skip_ads", true, ""], ["rwv.yttv_guest", true, ""],
+      ["rwv.quality", true, "Tự động"], ["rwv.morning", true, ""], ["rwv.cast", true, ""], ["rwv.yt_skip_ads", true, ""], ["rwv.yttv_guest", true, ""],
       ["rwv.cast_name", true, "Darboard 0002"]]);
     expect(p.set("a", "rwv.morning", false)).toBe(true);
     expect(p.morning("a", true)).toBe(false);
@@ -41,7 +41,7 @@ describe("man hinh khoa (07/10/2026)", () => {
     expect(p.items("a", D).filter((i) => i.sec === "lock").map((i) => [i.id, i.value || i.on])).toEqual([
       ["rwv.lock", false], ["rwv.saver_idle", "2 phút"], ["rwv.lock_bright", "Giữ nguyên"], ["rwv.clock_size", "Lớn"],
       ["rwv.wx_detail", true], ["rwv.lw_energy", true], ["rwv.lw_cal", true], ["rwv.lw_cam", true],
-      ["rwv.saver_photos", true], ["rwv.photo_interval", "1 phút"]]);
+      ["rwv.saver_photos", true], ["rwv.night_from", "22:00"], ["rwv.night_to", "06:00"], ["rwv.photo_interval", "1 phút"]]);
   });
   it("(08/10/2026) widget man khoa: mac dinh bat ca ba, tat rieng tung loai theo man hinh", () => {
     const p = new PanelPrefsStore(null);
@@ -105,5 +105,7 @@ describe("(08/10/2026) Cai dat kieu iOS — muc cua addon", () => {
     const items = p.items("a", D);
     for (const i of items) { expect(i.cat, i.id).toBeTruthy(); expect(i.sub, i.id).toBeTruthy(); }
     expect(items.filter((i) => i.cat === "lock").map((i) => i.sub)).toEqual(["Khóa", "Khóa", "Khóa", "Hiển thị", "Hiển thị", "Widget", "Widget", "Widget"]);
+    // (22/10/2026) khoang dem nam trong muc "Ảnh nền màn hình khóa"
+    expect(items.filter((i) => i.cat === "wall").map((i) => i.id)).toContain("rwv.night_from");
   });
 });
