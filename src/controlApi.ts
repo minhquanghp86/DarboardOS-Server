@@ -147,6 +147,8 @@ export function handleControlApi(req: http.IncomingMessage, res: http.ServerResp
           const r = await d.cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: QUALITY }) as { data: string };
           const b = Buffer.from(r.data, 'base64');
           if (closed) break;
+          // (22/10/2026) Chong ton dong khi dien thoai/mang cham: bo khung thay vi xep hang vo han.
+          if (res.writableLength > 1_000_000) { await sleep(50); continue; }
           res.write(`--frame\r\nContent-Type: image/jpeg\r\nContent-Length: ${b.length}\r\n\r\n`);
           res.write(b); res.write('\r\n');
           sent++;

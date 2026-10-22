@@ -1,3 +1,10 @@
+## V2.9.209
+- **Điều khiển: chẩn đoán + tự chọn đường truyền.** Nhãn giờ hiện **`nhận/vẽ` fps** (vd `MJPEG 18/17 fps`);
+  nếu quá 1,5 s không vẽ được khung nào sẽ hiện đỏ **`· ĐỨNG 3s`**.
+- Qua **HA ingress** trang dùng **MJPEG ngay** (đo thật: WebSocket qua ingress chỉ sống vài khung, MJPEG chạy
+  ~18 fps liên tục); WS vẫn dùng khi mở trực tiếp. WS đứt 2 lần hoặc sống < 5 s → tự chuyển MJPEG.
+- MJPEG chống ứ: bỏ khung khi bộ đệm > 1 MB (mạng điện thoại chậm không làm trễ tích luỹ).
+
 ## V2.9.208
 - **Khoảng giờ ban đêm cấu hình được, theo TỪNG màn hình**: màn hình chờ trong khoảng này chỉ hiện đồng hồ,
   không hiện ảnh (mặc định 22:00 → 06:00 như trước, giờ địa phương của thiết bị). Có ở cả **Darboard → cài đặt

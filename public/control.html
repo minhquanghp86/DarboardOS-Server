@@ -73,50 +73,59 @@
   }
   addEventListener('resize', sizeStage);
 
-  function show(blob) {
-    var u = URL.createObjectURL(blob);
-    img.onload = function () { URL.revokeObjectURL(u); if (!W) { W = img.naturalWidth; H = img.naturalHeight; sizeStage(); } };
-    img.src = u;
-    stage.classList.add('ready'); dot.classList.add('on');
-    frames++;
-    var now = performance.now(); if (!fpsAt) fpsAt = now;
-    if (now - fpsAt >= 1000) { fps = Math.round(frames * 1000 / (now - fpsAt)); frames = 0; fpsAt = now; }
-    stats.textContent = (ws ? 'WS ' : 'HTTP ') + fps + ' fps';
-  }
+  // (22/10/2026) Dem ca 2 chieu: khung NHAN DUOC (rx) va khung VE DUOC (draw). Neu rx cao ma draw thap
+  // -> trinh duyet khong ve kip (blob/img); rx thap -> duong truyen/server. Label hien "WS 17/3 fps".
+  var rxn = 0, drn = 0, rxAt = 0, drAt = 0, rxFps = 0, drFps = 0, lastDrawAt = 0;
+  setInterval(function () {
+    var now = performance.now();
+    if (!rxAt) rxAt = now; if (!drAt) drAt = now;
+    rxFps = Math.round(rxn * 1000 / Math.max(1, now - rxAt)); rxn = 0; rxAt = now;
+    drFps = Math.round(drn * 1000 / Math.max(1, now - drAt)); drn = 0; drAt = now;
+    var stall = lastDrawAt && now - lastDrawAt > 1500 ? ' · DUNG ' + Math.round((now - lastDrawAt) / 1000) + 's' : '';
+    stats.textContent = mode + ' ' + rxFps + '/' + drFps + ' fps' + stall;
+    stats.style.color = stall ? '#ff453a' : '';
+  }, 1000);
 
-  // Khung hinh: WebSocket (nhanh nhat) -> MJPEG -> chup tung anh.
   var got = 0, ws = null, pollTimer = 0, pollBusy = false, mode = '';
-  function countFrame() {
-    frames++;
-    var now = performance.now(); if (!fpsAt) fpsAt = now;
-    if (now - fpsAt >= 1000) { fps = Math.round(frames * 1000 / (now - fpsAt)); frames = 0; fpsAt = now; }
-    stats.textContent = mode + ' ' + fps + ' fps';
+  function ready() {
+    stage.classList.add('ready'); dot.classList.add('on'); got++;
+    drn++; lastDrawAt = performance.now();
   }
-  function ready() { stage.classList.add('ready'); dot.classList.add('on'); got++; countFrame(); }
   img.onload = function () { if (mode !== 'WS') { if (!W) { W = img.naturalWidth; H = img.naturalHeight; sizeStage(); } ready(); } };
   img.onerror = function () { dot.classList.remove('on'); };
 
   function showBlob(blob) {
+    rxn++;
     var u = URL.createObjectURL(blob);
     img.onload = function () { URL.revokeObjectURL(u); if (!W) { W = img.naturalWidth; H = img.naturalHeight; sizeStage(); } ready(); };
     img.src = u;
   }
 
-  // (22/10/2026) WATCHDOG + TU NOI LAI: WS co the bi dong giua chung (ingress/HA, mang di dong,
-  // trinh duyet treo tab). Truoc day chi chuyen sang MJPEG khi CHUA co khung nao -> dang xem ngon
-  // tu nhien dung hinh va tuong la khong nhan thao tac. Nay: khong co khung > 1,5 s thi tu noi lai.
-  var lastFrameAt = 0, reconnectTimer = 0, wsTries = 0;
+  // (22/10/2026) WATCHDOG + TU NOI LAI + TU CHUYEN MJPEG.
+  // Do that 22/10: WebSocket qua HA ingress chi song vai khung roi bi dong (log: 4 khung / 0 s, lap lai),
+  // trong khi MJPEG qua ingress chay 17,8 fps lien tuc. Nay:
+  //  - WS dong khi MOI bat dau (chua du 5 s) -> coi la WS khong dung duoc qua duong nay, chuyen MJPEG luon;
+  //  - WS dang chay tot ma dut -> thu noi lai WS (giu khung cu), qua 2 lan van dut thi chuyen MJPEG;
+  //  - khong co khung > 1,5 s -> coi nhu treo, xu ly nhu tren.
+  var lastFrameAt = 0, reconnectTimer = 0, wsTries = 0, wsAt = 0, wsDrops = 0, preferStream = false;
   function scheduleWs(delay) {
     if (paused) return;
     clearTimeout(reconnectTimer);
     reconnectTimer = setTimeout(function () { if (!paused) startWs(); }, delay == null ? 400 : delay);
   }
+  function wsFailed() {
+    // WS vua dut: neu no moi song duoc < 5 s hoac da dut >= 2 lan -> doi han sang MJPEG.
+    wsDrops++;
+    if (preferStream || wsDrops >= 2 || performance.now() - wsAt < 5000) { preferStream = true; startStream(); return; }
+    scheduleWs(300);
+  }
   function startWs() {
+    if (preferStream) { startStream(); return; }
     mode = 'WS'; clearTimeout(reconnectTimer);
-    lastFrameAt = performance.now();
+    lastFrameAt = performance.now(); wsAt = lastFrameAt;
     var u = new URL('control/ws?dev=' + encodeURIComponent(dev), location.href);
     u.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    try { ws = new WebSocket(u.href); } catch (e) { startStream(); return; }
+    try { ws = new WebSocket(u.href); } catch (e) { preferStream = true; startStream(); return; }
     ws.binaryType = 'arraybuffer';
     ws.onopen = function () { wsTries = 0; };
     ws.onmessage = function (e) {
@@ -126,8 +135,7 @@
     ws.onclose = function () {
       if (ws) ws = null;
       if (paused) return;
-      // Chua co khung nao -> thu MJPEG; da co khung -> noi lai WS (giu khung cu tren man).
-      if (got < 2) startStream(); else scheduleWs(Math.min(2000, 400 * (++wsTries)));
+      wsFailed();
     };
     setTimeout(function () { if (!got) { try { ws && ws.close(); } catch (_) {} } }, 3500);
   }
@@ -135,13 +143,13 @@
     if (paused || mode !== 'WS' || !ws) return;
     if (performance.now() - lastFrameAt > 1500) {
       try { ws.close(); } catch (_) { }
-      scheduleWs(200);
     }
   }, 700);
 
   function startStream() {
-    mode = 'MJPEG';
+    mode = 'MJPEG'; clearTimeout(reconnectTimer);
     img.onload = function () { if (!W) { W = img.naturalWidth; H = img.naturalHeight; sizeStage(); } ready(); };
+    img.onerror = function () { dot.classList.remove('on'); if (mode === 'MJPEG') startPoll(); };
     img.src = 'control/stream?dev=' + encodeURIComponent(dev) + '&t=' + Date.now();
     setTimeout(function () { if (got < 2) startPoll(); }, 4000);
   }
@@ -163,6 +171,11 @@
     else nameEl.textContent = dev;
   }).catch(function () { nameEl.textContent = dev; });
 
+  // (22/10/2026) Do that 22/10: di qua HA ingress thi WebSocket chi song vai khung (ingress dong), con MJPEG
+  // thi chay ~18 fps lien tuc. Vao bang ingress -> dung MJPEG luon, khoi mat 1-3 s dau de thu WS.
+  if (location.pathname.indexOf('/api/hassio_ingress/') >= 0 || /[?&]mjpeg/.test(location.search)) {
+    preferStream = true;
+  }
   startWs();
 
   // ── Thao tác cham/vuot/keo tha ──────────────────────────────────────────────
