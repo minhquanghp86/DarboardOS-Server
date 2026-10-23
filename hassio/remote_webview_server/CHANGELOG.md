@@ -1,3 +1,8 @@
+## V2.9.221
+- **Vuốt nhanh trên màn 480×480 hết bị "nuốt"**: trước đây `touchEnd` (up) gửi ngay trong khi các `touchMove`
+  còn đang gộp/bay → Chrome nhận touchEnd trước touchMove nên vuốt nhanh thành chạm. Nay dùng **hàng đợi thứ tự**
+  `down → move(gộp) → up`; move vẫn gộp vị trí mới nhất để không lũ request.
+
 ## V2.9.220
 - **Khôi phục vuốt/điều hướng ngang-dọc** ở tab Điều khiển (mất từ 2.9.215). Thay vì bỏ sự kiện move khi
   đang gửi (làm vuốt thành chạm), giờ **gộp move**: luôn gửi vị trí mới nhất, tối đa 1 request đang bay →

@@ -266,26 +266,35 @@
     var r = touch.getBoundingClientRect();
     return { x: Math.round((e.clientX - r.left) * W / r.width), y: Math.round((e.clientY - r.top) * H / r.height) };
   }
-  // (23/10/2026) GOM MOVE (khong bo duong keo): down/up van retry 2 lan de "bam an".
-  // move chi cho toi da 1 request dang bay + luon gui VI TRI MOI NHAT khi request xong — giu duong
-  // vuot muot ma khong lu 60 req/s (nguyen nhan 429 cua ban 2.9.215 la bo move khi dang gui -> vuot
-  // thanh cham, mat dieu huong ngang/doc).
-  var lastMove = 0, moveQueue = null, moveBusy = false;
-  function pumpMove() {
-    if (moveBusy || !moveQueue) return;
-    moveBusy = true;
-    var p = moveQueue; moveQueue = null;
-    api('control/input', { dev: dev, kind: 'move', x: p.x, y: p.y })
-      .finally(function () { moveBusy = false; pumpMove(); });
+  // (23/10/2026) HANG DOI THU TU: down -> (move gom) -> up. Phai giu thu tu de Chrome khong nhan
+  // touchEnd som hon touchMove (lam vuot nhanh thanh cham). Move gom: chi giu 1 move cho (vi tri moi nhat).
+  var lastMove = 0, q = [], qBusy = false;
+  function drainQ() {
+    if (qBusy || !q.length) return;
+    qBusy = true;
+    var op = q.shift();
+    api('control/input', { dev: dev, kind: op.kind, x: op.x, y: op.y })
+      .finally(function () { qBusy = false; drainQ(); });
+  }
+  function enq(kind, x, y) {
+    if (kind === 'move') {
+      // gom: thay doi vi tri cua move cuoi neu chua gui
+      for (var i = q.length - 1; i >= 0; i--) if (q[i].kind === 'move') { q[i].x = x; q[i].y = y; return; }
+      q.push({ kind: kind, x: x, y: y });
+    } else {
+      q.push({ kind: kind, x: x, y: y });
+    }
+    drainQ();
   }
   function flashDot() { dot.classList.remove('on'); setTimeout(function () { dot.classList.add('on'); }, 250); }
   function send(kind, p, retry) {
     if (kind === 'move') {
       var now = Date.now(); if (now - lastMove < 33) return; lastMove = now;
-      moveQueue = p;
-      pumpMove();
+      enq('move', p.x, p.y);
       return;
     }
+    if (kind === 'up') { enq('up', p.x, p.y); return; }
+    // down: gui ngay (retry 2 lan) de mo dau gesture; move/up theo sau qua hang doi.
     var done = api('control/input', { dev: dev, kind: kind, x: p.x, y: p.y });
     done.then(function (r) {
       if ((r.code && r.code >= 400) || r.err) {
