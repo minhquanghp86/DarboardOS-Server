@@ -1,3 +1,8 @@
+## V2.9.224
+- **Sửa "chạm 1 lần thành chạm giữ"**: bỏ xếp hàng đợi tuần tự (mỗi lệnh chờ lệnh trước ~100-250 ms qua
+  Cloudflare làm `touchEnd` bị đẩy xa `touchStart`). Nay gửi **ngay, không chờ** theo thứ tự phát (như bản
+  2.9.199), chỉ tiết chế `move` 33 ms để không lũ request.
+
 ## V2.9.223
 - **Điều hướng vuốt ổn định trên mọi màn** (P4 và các màn khác): đưa cả `down` (touchStart) vào cùng hàng đợi
   thứ tự với `move`/`up` — trước đây `down` gửi ngoài hàng đợi, có thể tới sau `move` khiến Chrome bỏ vuốt.
