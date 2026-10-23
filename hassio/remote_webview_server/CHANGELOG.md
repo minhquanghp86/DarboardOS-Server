@@ -1,3 +1,8 @@
+## V2.9.219
+- **Sửa cảm ứng sai trên màn hình xoay 180°** ở tab Điều khiển: trước đây toạ độ chạm bị xoay thêm một lần
+  (ảnh xem trước là Chrome chưa xoay nhưng lại áp `mapPointForRotation`) → chạm Frigate mở Tin tức, chạm Phòng
+  mở YouTube TV. Nay gửi toạ độ nguyên vẹn.
+
 ## V2.9.218
 - **Điều khiển: giảm nốt treo khung** — nâng timeout chụp khung lên 1200 ms + lùi nhẹ 150 ms khi bỏ khung
   (trước 700 ms dễ bỏ nhầm khung khi CDP chậm thoáng qua). Watchdog trang nâng lên 2 s cho khớp.
