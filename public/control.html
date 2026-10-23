@@ -266,18 +266,25 @@
     var r = touch.getBoundingClientRect();
     return { x: Math.round((e.clientX - r.left) * W / r.width), y: Math.round((e.clientY - r.top) * H / r.height) };
   }
-  // (22/10/2026) CHAM TIN CAY: down/up phai luon den noi (retry 2 lan, timeout 4 s);
-  // move tiet che 60 ms va bo qua neu dang gui — tranh lu 60 req/s lam Cloudflare/ingress gioi han,
-  // keo theo ca down/up bi rot (hien tuong "bam khong an va vai giay").
-  var inputBusy = false, lastMove = 0;
+  // (23/10/2026) GOM MOVE (khong bo duong keo): down/up van retry 2 lan de "bam an".
+  // move chi cho toi da 1 request dang bay + luon gui VI TRI MOI NHAT khi request xong — giu duong
+  // vuot muot ma khong lu 60 req/s (nguyen nhan 429 cua ban 2.9.215 la bo move khi dang gui -> vuot
+  // thanh cham, mat dieu huong ngang/doc).
+  var lastMove = 0, moveQueue = null, moveBusy = false;
+  function pumpMove() {
+    if (moveBusy || !moveQueue) return;
+    moveBusy = true;
+    var p = moveQueue; moveQueue = null;
+    api('control/input', { dev: dev, kind: 'move', x: p.x, y: p.y })
+      .finally(function () { moveBusy = false; pumpMove(); });
+  }
   function flashDot() { dot.classList.remove('on'); setTimeout(function () { dot.classList.add('on'); }, 250); }
   function send(kind, p, retry) {
     if (kind === 'move') {
-      var now = Date.now(); if (now - lastMove < 60) return; lastMove = now;
-      if (inputBusy) return;
-      inputBusy = true;
-      return api('control/input', { dev: dev, kind: kind, x: p.x, y: p.y })
-        .finally(function () { inputBusy = false; });
+      var now = Date.now(); if (now - lastMove < 33) return; lastMove = now;
+      moveQueue = p;
+      pumpMove();
+      return;
     }
     var done = api('control/input', { dev: dev, kind: kind, x: p.x, y: p.y });
     done.then(function (r) {

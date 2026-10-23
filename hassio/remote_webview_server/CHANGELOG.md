@@ -1,3 +1,8 @@
+## V2.9.220
+- **Khôi phục vuốt/điều hướng ngang-dọc** ở tab Điều khiển (mất từ 2.9.215). Thay vì bỏ sự kiện move khi
+  đang gửi (làm vuốt thành chạm), giờ **gộp move**: luôn gửi vị trí mới nhất, tối đa 1 request đang bay →
+  đường vuốt mượt mà không gây lũ request (nguyên nhân 429).
+
 ## V2.9.219
 - **Sửa cảm ứng sai trên màn hình xoay 180°** ở tab Điều khiển: trước đây toạ độ chạm bị xoay thêm một lần
   (ảnh xem trước là Chrome chưa xoay nhưng lại áp `mapPointForRotation`) → chạm Frigate mở Tin tức, chạm Phòng
