@@ -11,7 +11,7 @@ import { DeviceConfig, deviceConfigsEqual } from "./config.js";
 import { getRoot } from "./cdpRoot.js";
 import { FrameProcessor } from "./frameProcessor.js";
 import { DeviceBroadcaster } from "./broadcaster.js";
-import { hash32, mapPointForRotation } from "./util.js";
+import { hash32 } from "./util.js";
 import { metrics } from "./metrics.js";
 import { AdaptiveState, DEFAULT_ADAPTIVE_CFG, LinkEstimate, decideAdaptive, initialAdaptiveState, updateLinkEstimate } from "./adaptive.js";
 import { SelfTestRunner } from "./selfTest.js";
@@ -4202,12 +4202,15 @@ export async function screenShot(id: string): Promise<Buffer | null> {
 /**
  * (21/10/2026) Cham/vuot tu trang Control (Darboard) — gui thang xuong tab Chromium cua man.
  * x,y theo khung hinh dang thay (pixel cua anh chup), cung he voi cfg.width/height khi rotation = 0.
+ *
+ * (23/10/2026) KHONG ap mapPointForRotation: anh xem truoc (control/frame = Page.captureScreenshot) la
+ * Chrome CHUA xoay, nen toa do cham cung phai gui NGUYEN VAN (khong xoay). Truoc day xoay them mot lan
+ * -> man xoay 180 bi "cheo": cham Frigate mo Tin tuc, cham Phong mo YouTube TV.
  */
 export async function screenTouch(id: string, kind: 'down' | 'move' | 'up', x: number, y: number): Promise<string | null> {
   const dev = devices.get(id);
   if (!dev) return 'Không có màn hình này.';
-  const p = mapPointForRotation(x, y, dev.cfg.width, dev.cfg.height, dev.cfg.rotation);
-  const points = [{ x: p.x, y: p.y, radiusX: 1, radiusY: 1, force: 1, id: 1 }];
+  const points = [{ x, y, radiusX: 1, radiusY: 1, force: 1, id: 1 }];
   try {
     if (kind === 'down') await dev.cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: points });
     else if (kind === 'move') await dev.cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: points });
