@@ -1,3 +1,7 @@
+## V2.9.223
+- **Điều hướng vuốt ổn định trên mọi màn** (P4 và các màn khác): đưa cả `down` (touchStart) vào cùng hàng đợi
+  thứ tự với `move`/`up` — trước đây `down` gửi ngoài hàng đợi, có thể tới sau `move` khiến Chrome bỏ vuốt.
+
 ## V2.9.222
 - **YouTube TV hiển thị đầy màn hình**: nguyên nhân menu youtube.com/tv (giao diện ytlr) co nhỏ là do viewport
   cũ 800×480/1280×720 — trang chỉ render đầy ở **1920×1080**. Nay tab YouTube TV dùng viewport 1920×1080 rồi
