@@ -1,3 +1,8 @@
+## V2.9.225
+- **Vuốt điều hướng YouTube TV trên tab Điều khiển** (giống panel thật): giao diện youtube.com/tv chỉ nhận **phím
+  mũi tên**, nên khi thả tay sau cú vuốt, server chuyển hướng/distance thành `ArrowUp/Down/Left/Right` (như
+  `_tvGesture` của panel thật). Đã test: vuốt trên P4 → 56% khung hình đổi (menu chuyển).
+
 ## V2.9.224
 - **Sửa "chạm 1 lần thành chạm giữ"**: bỏ xếp hàng đợi tuần tự (mỗi lệnh chờ lệnh trước ~100-250 ms qua
   Cloudflare làm `touchEnd` bị đẩy xa `touchStart`). Nay gửi **ngay, không chờ** theo thứ tự phát (như bản

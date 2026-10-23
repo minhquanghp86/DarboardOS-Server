@@ -45,6 +45,7 @@ import { lockWidgetsFor, refreshLockWidgets } from "./lockWidgets.js";
 import { getHaLocation, haLocationCached } from "./haLocation.js";
 import { HomeLayout, resolveLayout } from "./homeLayout.js";
 import { ControlField, DeviceEventKind, DeviceStateInfo, Encoding, VoiceState, FRAME_HEADER_BYTES, TILE_HEADER_BYTES, parseDeviceStatePacket } from "./protocol.js";
+import { tvSwipeKeys, TV_KEY_CODE } from "./gestures.js";
 
 // ── Type-safe interface cho CDP root (thay thế cast `any`) ────────────────────
 interface CDPRoot {
@@ -4220,9 +4221,18 @@ export async function screenShot(id: string): Promise<Buffer | null> {
  * Chrome CHUA xoay, nen toa do cham cung phai gui NGUYEN VAN (khong xoay). Truoc day xoay them mot lan
  * -> man xoay 180 bi "cheo": cham Frigate mo Tin tuc, cham Phong mo YouTube TV.
  */
+// (23/10/2026) Tab YouTube TV chi dieu huong bang PHIM MUI TEN (giao dien TV). Panel that da duoc
+// inputRouter._tvGesture doi vuot -> phim; Control thi chua. Luu moc vuot theo tung thiet bi.
+const tvTouchStart = new Map<string, { x0: number; y0: number; x: number; y: number }>();
+
 export async function screenTouch(id: string, kind: 'down' | 'move' | 'up', x: number, y: number): Promise<string | null> {
   const dev = devices.get(id);
   if (!dev) return 'Không có màn hình này.';
+  const tvTab = dev.tabs.get(dev.activeTabKey)?.kind === 'yttv';
+  if (tvTab) {
+    if (kind === 'down') tvTouchStart.set(id, { x0: x, y0: y, x, y });
+    else if (kind === 'move') { const t = tvTouchStart.get(id); if (t) { t.x = x; t.y = y; } }
+  }
   const points = [{ x, y, radiusX: 1, radiusY: 1, force: 1, id: 1 }];
   try {
     if (kind === 'down') await dev.cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: points });
@@ -4230,6 +4240,20 @@ export async function screenTouch(id: string, kind: 'down' | 'move' | 'up', x: n
     else await dev.cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   } catch (e) {
     return `Không gửi được thao tác: ${(e as Error).message}`;
+  }
+  // (23/10/2026) YouTube TV: tha tay sau cu vuot -> phim mui ten (nhu _tvGesture cua panel that).
+  if (tvTab && kind === 'up') {
+    const t = tvTouchStart.get(id);
+    tvTouchStart.delete(id);
+    if (t) {
+      for (const key of tvSwipeKeys(t.x - t.x0, t.y - t.y0)) {
+        const code = TV_KEY_CODE[key];
+        const ev = { key, code: key, windowsVirtualKeyCode: code, nativeVirtualKeyCode: code };
+        dev.cdp.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...ev }).catch(() => { });
+        dev.cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', ...ev }).catch(() => { });
+        await new Promise((r) => setTimeout(r, 70));
+      }
+    }
   }
   return null;
 }
