@@ -271,6 +271,9 @@ interface Tab {
   frozen?: boolean;
   /** (30/09/2026) Chat luong JPEG screencast DANG dung cua tab (doi khi phat video — xem videoScreencastQuality). */
   scQuality?: number;
+  /** (23/10/2026) Viewport thuc su cua tab (yttv 1920x1080 de youtube.com/tv render day; khac cfg -> resize truoc khi gui). */
+  vw?: number;
+  vh?: number;
 }
 
 // (23/09/2026) SUA LOI: "man ngu tu bat lai nhung khong hien gi, phai vuot
@@ -2779,8 +2782,13 @@ async function createTab(dev: DeviceSession, key: string, kind: string, pinned: 
     console.warn(`[device] ⚠️ Khong dang ky duoc binding cho tab "${key}" (${dev.deviceId}):`, e);
   }
 
-  const vpOk = await setupStableViewport(session, dev.cfg.width, dev.cfg.height);
-  if (!vpOk) console.warn(`[device] ⚠️ Viewport mismatch ${dev.cfg.width}x${dev.cfg.height} (tab "${key}")`);
+  // (23/10/2026) YouTube TV: viewport 1920x1080 (chuan TV) de youtube.com/tv render day man.
+  // Khung se duoc resize ve kich thuoc man o flushPending().
+  const vpW = kind === 'yttv' ? 1920 : dev.cfg.width;
+  const vpH = kind === 'yttv' ? 1080 : dev.cfg.height;
+  const vpOk = await setupStableViewport(session, vpW, vpH);
+  tab.vw = vpW; tab.vh = vpH;
+  if (!vpOk) console.warn(`[device] ⚠️ Viewport mismatch ${vpW}x${vpH} (tab "${key}")`);
 
   await verifyCodecSupport(session);
 
@@ -3283,7 +3291,12 @@ async function flushPending(dev: DeviceSession): Promise<void> {
       // Với format jpeg, Chrome gửi JPEG data trực tiếp.
       // sharp vẫn được dùng để rotation (nếu có) và decode sang raw RGBA cho FrameProcessor.
       // Nếu KHÔNG có rotation: giảm 1 bước decode (bỏ qua ensureAlpha vẫn hoạt động với JPEG).
-      const imgBuf = Buffer.from(b64, 'base64');
+      let imgBuf = Buffer.from(b64, 'base64');
+      // (23/10/2026) Tab co viewport khac man (yttv 1920x1080) -> thu nho ve kich thuoc man truoc khi xu ly.
+      const at = dev.tabs.get(dev.activeTabKey);
+      if (at?.vw && at.vh && (at.vw !== dev.cfg.width || at.vh !== dev.cfg.height)) {
+        imgBuf = await sharp(imgBuf).resize(dev.cfg.width, dev.cfg.height, { fit: 'fill' }).jpeg({ quality: 92, chromaSubsampling: '4:2:0' }).toBuffer();
+      }
       const h32 = hash32(imgBuf);
       if (dev.prevFrameHash === h32) {
         metrics.onFrameSkipped(dev.deviceId);

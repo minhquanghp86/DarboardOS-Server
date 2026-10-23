@@ -1,3 +1,8 @@
+## V2.9.222
+- **YouTube TV hiển thị đầy màn hình**: nguyên nhân menu youtube.com/tv (giao diện ytlr) co nhỏ là do viewport
+  cũ 800×480/1280×720 — trang chỉ render đầy ở **1920×1080**. Nay tab YouTube TV dùng viewport 1920×1080 rồi
+  **thu nhỏ về đúng kích thước màn** trước khi gửi (menu lẫn video đều đầy; fps giữ nguyên ~16 trên Sunton).
+
 ## V2.9.221
 - **Vuốt nhanh trên màn 480×480 hết bị "nuốt"**: trước đây `touchEnd` (up) gửi ngay trong khi các `touchMove`
   còn đang gộp/bay → Chrome nhận touchEnd trước touchMove nên vuốt nhanh thành chạm. Nay dùng **hàng đợi thứ tự**
