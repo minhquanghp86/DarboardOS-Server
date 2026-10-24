@@ -2172,6 +2172,11 @@ async function openAppNow(dev: DeviceSession, key: string): Promise<void> {
     await navigateTab(dev, tab, ghostUrlFor(ghost?.url, spec.url) ?? spec.url);
   } else {
     await activateTab(dev, key);
+    // (24/10/2026) Camera/Thu vien/Goi: goc xoay co the doi sau khi tab da mo -> nap lai URL de cap nhat ?rot=
+    const spec2 = resolveAppSpec(dev, key);
+    if (spec2 && (key === 'camera' || key === 'gallery' || key === 'call') && tab.url !== spec2.url) {
+      await navigateTab(dev, tab, spec2.url);
+    }
   }
   evictIfNeeded(dev);
 }
