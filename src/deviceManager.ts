@@ -11,7 +11,7 @@ import { DeviceConfig, deviceConfigsEqual } from "./config.js";
 import { getRoot } from "./cdpRoot.js";
 import { FrameProcessor } from "./frameProcessor.js";
 import { DeviceBroadcaster } from "./broadcaster.js";
-import { hash32 } from "./util.js";
+import { hash32, needsServerRotate } from "./util.js";
 import { metrics } from "./metrics.js";
 import { AdaptiveState, DEFAULT_ADAPTIVE_CFG, LinkEstimate, decideAdaptive, initialAdaptiveState, updateLinkEstimate } from "./adaptive.js";
 import { SelfTestRunner } from "./selfTest.js";
@@ -309,7 +309,7 @@ export function requestFullFrameFor(dev: DeviceSession): void {
  */
 function videoScreencastQuality(dev: DeviceSession, fps: number, nowMs: number): void {
   const tab = dev.tabs.get(dev.activeTabKey);
-  if (!tab || !tab.screencastOn || dev.cfg.rotation || PASSTHROUGH_MIN_FPS <= 0) return;
+  if (!tab || !tab.screencastOn || needsServerRotate(dev.cfg.rotation, dev.cfg.drot) || PASSTHROUGH_MIN_FPS <= 0) return;
   const base = dev.cfg.maxBytesPerMessage >= 131072 ? dev.cfg.jpegQuality : SCREENCAST_JPEG_QUALITY;
   const low = dev.cfg.jpegQuality;
   if (base === low) return;
@@ -3492,7 +3492,7 @@ async function flushPending(dev: DeviceSession): Promise<void> {
       const why = (dev.slowWhy ??= { fps: 0, big: 0, dims: 0, sharp: 0, lastBytes: 0, lastW: 0, lastH: 0 });
       why.lastBytes = imgBuf.length;
       let slowReason: 'fps' | 'big' | 'dims' | 'sharp' = sharpRefresh ? 'sharp' : 'fps';
-      if (fps >= PASSTHROUGH_MIN_FPS && !dev.cfg.rotation) {
+      if (fps >= PASSTHROUGH_MIN_FPS && !needsServerRotate(dev.cfg.rotation, dev.cfg.drot)) {
         slowReason = 'big';
         const capBytes = dev.cfg.maxBytesPerMessage - FRAME_HEADER_BYTES - TILE_HEADER_BYTES;
         // (30/09/2026) NEN LAI CHO VUA. Do 30/09 (P4, YouTube, Chrome nen q40): khung Chrome TB ~28 KB, rat nhieu khung
@@ -3563,7 +3563,7 @@ async function flushPending(dev: DeviceSession): Promise<void> {
         dev.lowqBigRun = 0;
       }
       let img = sharp(imgBuf);
-      if (dev.cfg.rotation) img = img.rotate(dev.cfg.rotation);
+      if (needsServerRotate(dev.cfg.rotation, dev.cfg.drot)) img = img.rotate(dev.cfg.rotation);
       const { data, info } = await img.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
       const _tEnc = Date.now();
       const out = await dev.processor.processFrameAsync({ data, width: info.width, height: info.height });
@@ -4191,7 +4191,7 @@ export function screenDetail(id: string) {
   return {
     ...screenSummary(dev),
     cap: { cam: hasCamera, sd: hasSd, spk: !!dev.cfg.audioEnabled, mic: !!dev.cfg.micCall, snd: canPlay(dev), voice: !!dev.cfg.voice,
-      rot: dev.cfg.rotation ?? 0 },
+      rot: dev.cfg.rotation ?? 0, drot: !!dev.cfg.drot },
     tabs: [...dev.tabs.values()].sort((a, b) => b.lastUsed - a.lastUsed).map((t) => ({
       k: t.key, l: t.label, kind: t.kind, active: t.key === dev.activeTabKey, playing: t.mediaPlaying, pinned: t.pinned, used: t.lastUsed,
     })),

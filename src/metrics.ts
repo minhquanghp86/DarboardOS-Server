@@ -16,6 +16,8 @@ export type DeviceMetricsConfig = {
   maxBytesPerMessage: number;
   minFrameInterval: number;
   rotation: number;
+  /** (24/10/2026) firmware tu xoay tile (?drot=1) — xem DeviceConfig.drot. */
+  drot?: boolean;
 };
 
 export type FrameProcessorStats = {
