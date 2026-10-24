@@ -62,11 +62,6 @@ export type DeviceConfig = {
   micCall: boolean;
   /** (14/10/2026) Ten than thien ESPHome (?fn=) — dung khi khong tra duoc ten trong so dang ky HA (vd P4 di cap: MAC khac). */
   friendlyName: string;
-  // (24/10/2026) ?drot=1: firmware TU XOAY tile khi ve (PPA o P4). Voi huong 90/270 server KHONG xoay anh nua —
-  // gui nguyen khung 600x1024 cua Chrome -> giu duoc duong tat passthrough. Firmware cu khong gui co nay thi
-  // server van xoay nhu truoc (khong doi hanh vi cua 4 man dang chay). Co dinh theo firmware, KHONG dua vao
-  // deviceConfigsEqual() (giong halfScale/audioEnabled).
-  drot: boolean;
   /** (14/10/2026) Chuong cong (?door=1): khong man hinh; mj = cong MJPEG, sn = cong anh chup (esp32_camera_web_server). */
   door: boolean;
   mjPort: number;
@@ -180,7 +175,6 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
   const devControl = params.get("ctl") === "1";
   const voice = params.get("va") === "1";
   const micCall = params.get("mic") === "1";
-  const drot = params.get("drot") === "1";
   const friendlyName = (params.get("fn") || "").slice(0, 60);
   const door = params.get("door") === "1";
   const mjPort = Math.max(0, Math.min(65535, parseInt(params.get("mj") || "0", 10) || 0));
@@ -212,7 +206,6 @@ export function makeConfigFromParams(params: URLSearchParams): DeviceConfig {
     devControl,
     voice,
     micCall,
-    drot,
     friendlyName,
     door,
     mjPort,
@@ -253,7 +246,6 @@ export function logDeviceConfig(id: string, cfg: DeviceConfig): void {
     ["jpegQuality", cfg.jpegQuality],
     ["maxBytesPerMessage", cfg.maxBytesPerMessage],
     ["rotation", cfg.rotation],
-    ["drot", cfg.drot ? "1" : "0"],
     ["audioEnabled", cfg.audioEnabled ? "1" : "0"],
   ];
 

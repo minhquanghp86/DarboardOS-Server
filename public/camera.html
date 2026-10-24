@@ -40,16 +40,6 @@
   .shutter.video .core { background: var(--rec); }
   .shutter.recording .core { width: 40%; height: 40%; border-radius: 8px; background: var(--rec); }
   .shutter:disabled { opacity: .5; }
-  /* (24/10/2026) Man xoay doc 90/270: viewport la 600x1024 -> cot dieu khien ben phai chiem mat 1/6 be ngang,
-     video con lai bi bop. Chuyen thanh thanh NGANG o day man nhu camera dien thoai cam doc. */
-  @media (max-aspect-ratio: 1/1) {
-    .bar { top: auto; left: 0; right: 0; bottom: 0; width: auto; height: clamp(92px, 13vh, 132px);
-      flex-direction: row; padding: 0 clamp(14px, 4vw, 26px);
-      background: linear-gradient(to top, rgba(0,0,0,.72), rgba(0,0,0,0)); }
-    .thumb { width: clamp(48px, 8vmin, 62px); height: clamp(48px, 8vmin, 62px); }
-    .shutter { width: clamp(64px, 11vmin, 84px); height: clamp(64px, 11vmin, 84px); }
-    .modes { flex-direction: row; }
-  }
   .modes { display: flex; flex-direction: column; gap: 6px; }
   .modes button { font: inherit; font-weight: 700; font-size: 13px; letter-spacing: .3px; color: rgba(255,255,255,.7); background: none;
     border: none; padding: 6px 10px; border-radius: 999px; cursor: pointer; }
