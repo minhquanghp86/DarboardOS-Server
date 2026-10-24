@@ -190,5 +190,29 @@
   // ---- Thu vien: ung dung files.html (01/10/2026) — xem / phat / xoa; nut quay lai ve Camera ----
   $('thumb').onclick = () => { location.href = rel('/files.html?view=gallery&from=camera' + (DEV ? '&dev=' + encodeURIComponent(DEV) : '')); };
 </script>
+<script data-rot-fix>
+/* (24/10/2026) Panel xoay 90/270: khung anh da duoc server xoay, nhung video la luong NGANG co dinh
+   nen hien bi nghieng. Xoay noi dung video -rot va doi chieu rong/cao de lap day khung doc. */
+(function () {
+  var rot = Number(new URLSearchParams(location.search).get('rot') || 0) % 360;
+  if (rot !== 90 && rot !== 270) return;
+  var deg = -rot;
+  function apply() {
+    var els = document.querySelectorAll('#phat, #mjpeg, #anh');
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      el.style.position = 'fixed';
+      el.style.left = '50%';
+      el.style.top = '50%';
+      el.style.width = window.innerHeight + 'px';
+      el.style.height = window.innerWidth + 'px';
+      el.style.transformOrigin = '50% 50%';
+      el.style.transform = 'translate(-50%,-50%) rotate(' + deg + 'deg)';
+    }
+  }
+  apply();
+  window.addEventListener('resize', apply);
+})();
+</script>
 </body>
 </html>
