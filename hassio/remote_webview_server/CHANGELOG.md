@@ -1,3 +1,8 @@
+## V2.9.228
+- **App Camera theo góc xoay panel (90/270)**: video preview xoay bù `-rot` (hết nghiêng), thanh nút chuyển xuống
+  **đáy màn hình** với bố cục `Ảnh/Video — nút chụp (giữa) — Thư viện (phải)`. Trang nhận `?rot=` từ server;
+  mở lại app sau khi đổi góc xoay sẽ tự nạp URL mới.
+
 ## V2.9.225
 - **Vuốt điều hướng YouTube TV trên tab Điều khiển** (giống panel thật): giao diện youtube.com/tv chỉ nhận **phím
   mũi tên**, nên khi thả tay sau cú vuốt, server chuyển hướng/distance thành `ArrowUp/Down/Left/Right` (như

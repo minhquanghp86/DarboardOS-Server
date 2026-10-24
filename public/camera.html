@@ -64,7 +64,12 @@
   body.portrait .bar { top: auto !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
     width: auto !important; height: clamp(92px, 16vh, 150px); flex-direction: row !important;
     align-items: center; justify-content: space-around; transform: rotate(0deg); }
-  body.portrait .modes { flex-direction: row !important; }
+  /* (24/10/2026) Doc: che do (Anh/Video) ben trai, NUT CHUP giua man hinh, Thu vien ben phai. */
+  body.portrait .bar { justify-content: space-between !important; padding: 0 clamp(10px, 2vw, 22px); }
+  body.portrait .modes { flex-direction: row !important; order: 1; }
+  body.portrait .shutter { position: absolute !important; left: 50% !important; margin: 0 !important;
+    transform: translateX(-50%) !important; top: 50% !important; translate: 0 -50%; }
+  body.portrait .thumb { order: 3; }
   body.portrait .top { right: clamp(10px, 3vw, 20px) !important; left: auto !important; }
 </style>
 </head>
