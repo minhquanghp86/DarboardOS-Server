@@ -275,10 +275,13 @@ function backoffInterval(cur: number, cfg: AdaptiveCfg): number {
 /** San hoi phuc = max(tran thiet bi yeu cau, nguong tranh nghen + mot buoc, nhip toi thieu ma bang thong chiu duoc). */
 function recoverFloorOf(out: AdaptiveState, sample: AdaptiveSample, cfg: AdaptiveCfg): number {
   const baseIntervalMs = out.baseIntervalMs ?? out.minFrameIntervalMs;
-  return Math.max(
+  const floor = Math.max(
     out.probeFloorMs != null ? Math.max(baseIntervalMs, out.probeFloorMs + cfg.intervalStepMs) : baseIntervalMs,
     bandwidthFloorMs(sample, cfg),
   );
+  // (27/10/2026) San hoi phuc KHONG duoc vuot tran nhip cau hinh. Truoc day no bo qua maxIntervalMs nen mot lan
+  // nghen o 200 ms lam panel nho (tran 100 ms) ket vinh vien o 200 ms -> 5 fps du decode chi 55 ms.
+  return Math.min(cfg.maxIntervalMs, floor);
 }
 
 export function adaptiveBudgetMs(state: AdaptiveState, cfg: AdaptiveCfg): number {

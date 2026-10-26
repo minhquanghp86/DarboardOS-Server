@@ -1,3 +1,8 @@
+## V2.9.254
+- **Sàn hồi phục nhịp khung không được vượt trần cấu hình.** `recoverFloorOf()` trước đây bỏ qua `maxIntervalMs`,
+  nên sau MỘT lần nghẽn ở 200 ms panel nhỏ (trần 100 ms) kẹt vĩnh viễn ở 200 ms → 5 fps dù decode chỉ 55 ms.
+  Nay `Math.min(cfg.maxIntervalMs, floor)` → nhịp luôn về ≤100 ms sau hồi phục.
+
 ## V2.9.253
 - **Chất lượng đặt trong UI giờ đi tới encoder thật.** Trước đây đường video (`videoScreencastQuality`) luôn dùng
   hằng số 90 (vì panel 480×272 khai gói 64 KB < ngưỡng 128 KB) và bỏ qua `qualityOverride` → đặt q40/q50/q60 đều
