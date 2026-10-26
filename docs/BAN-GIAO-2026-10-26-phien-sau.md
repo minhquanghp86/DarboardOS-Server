@@ -101,3 +101,23 @@ Kết quả tốt: khung đổi **trong khoảng thời lượng kéo** (vd 31/1
 - Đừng gộp cử chỉ tới lúc nhả tay → mất cảm giác kéo.
 - Đừng đo fps từ localhost rồi kết luận cho người dùng (đường ingress/4G khác hoàn toàn).
 - `appliedQuality` mới là chất lượng thật; `cfg.jpegQuality` chỉ là trần.
+
+## 6. CẬP NHẬT CUỐI PHIÊN (đọc mục này trước mục 1)
+
+Đã làm thêm sau khi viết mục 1:
+- YAML panel 480×272: `jpeg_quality: 65` (đã OTA, backup `.bak-20261026-q80`).
+- Server **2.9.250**: với panel nhỏ đặt `minQuality = maxQuality = cfg.jpegQuality`.
+- Server **2.9.251**: nâng thẳng `res.state.quality` lên `cfg.jpegQuality` khi `pinQuality`.
+
+**Vẫn chưa có tác dụng** — đo sau 2.9.251 vẫn `appliedQuality = 40`. Suy đoán: điều kiện
+`device.cfg.width <= 480 && device.cfg.height <= 272` **không khớp** lúc chạy (field/đơn vị khác 480×272,
+có thể là kích thước khung gửi hoặc chưa có khi khởi tạo).
+
+**Việc cần làm (theo thứ tự):**
+1. Log thực tế `device.cfg.width`, `device.cfg.height`, `device.cfg.maxBytesPerMessage` tại chỗ dựng `cfgA`
+   (`src/deviceManager.ts` ~4040) để biết giá trị thật, rồi sửa điều kiện `pinQuality` cho khớp
+   (hoặc nhận diện bằng `cfg.maxBytesPerMessage === 65536 && !cfg.halfVideo`).
+2. Đo lại: `appliedQ` phải = 65, `recentFrameBytes` ~12-20 KB, `interval` 50-75 ms.
+3. Đường **chắc chắn chạy được ngay** (không cần code): Darboard UI → panel 480×272 → Cài đặt →
+   **"Chất lượng hình ảnh" = 65** (thay vì "Tự động"). Nhánh này gọi `processor.setTuning({jpegQuality:65})`
+   + `lastAppliedQuality = 65` ngay lập tức (`src/deviceManager.ts` ~1689, pref `rwv.quality`).
