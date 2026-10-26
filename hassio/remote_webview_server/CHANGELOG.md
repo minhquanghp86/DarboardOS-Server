@@ -1,3 +1,9 @@
+## V2.9.242
+- **Điều khiển YouTube TV: phím mũi tên phát ngay khi kéo.** Giao diện youtube.com/tv chỉ nhận phím mũi tên, và
+  trước đây server chỉ đổi cú vuốt thành phím **khi nhả tay** (`kind === 'up'`) → trên các panel đang ở tab YouTube TV
+  (480×480, 480×272) giữ tay kéo không thấy gì, nhả tay mới nhảy. Nay cứ vuốt quá **40 px** là bắn phím tương ứng
+  ngay trong lúc kéo và lấy mốc mới → điều hướng live như panel thật. `up` vẫn xử lý phần dư cuối cùng.
+
 ## V2.9.241
 - **Bỏ hẳn việc bỏ qua chụp khung khi đang thao tác.** 2.9.240 cho SSE dùng chung `latestFrame`, nhưng trong
   `pumpLive` vẫn còn `if (inputBusy) continue` → **không chụp khung nào** trong lúc giữ tay kéo, mà SSE lại đọc

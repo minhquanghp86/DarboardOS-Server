@@ -4288,8 +4288,28 @@ async function screenTouchInner(id: string, kind: 'down' | 'move' | 'up', x: num
   if (!dev) return 'Không có màn hình này.';
   const tvTab = dev.tabs.get(dev.activeTabKey)?.kind === 'yttv';
   if (tvTab) {
-    if (kind === 'down') tvTouchStart.set(id, { x0: x, y0: y, x, y });
-    else if (kind === 'move') { const t = tvTouchStart.get(id); if (t) { t.x = x; t.y = y; } }
+    if (kind === 'down') {
+      tvTouchStart.set(id, { x0: x, y0: y, x, y });
+    } else if (kind === 'move') {
+      const t = tvTouchStart.get(id);
+      if (t) {
+        t.x = x; t.y = y;
+        // (26/10/2026) youtube.com/tv chi nhan PHIM MUI TEN; truoc day chi doi o 'up' -> giu tay keo khong
+        // thay gi, nha tay moi nhay (nguoi dung bao tren 480x480/480x272). Nay cu vuot qua 40px la ban phim
+        // ngay trong luc keo, va lay moc moi -> dieu huong live nhu tren panel that.
+        const dx = x - t.x0, dy = y - t.y0, TH = 40;
+        if (Math.abs(dx) >= TH || Math.abs(dy) >= TH) {
+          const key = Math.abs(dx) >= Math.abs(dy)
+            ? (dx > 0 ? 'ArrowRight' : 'ArrowLeft')
+            : (dy > 0 ? 'ArrowDown' : 'ArrowUp');
+          const code = TV_KEY_CODE[key];
+          const ev = { key, code: key, windowsVirtualKeyCode: code, nativeVirtualKeyCode: code };
+          void dev.cdp.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...ev }).catch(() => { });
+          void dev.cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', ...ev }).catch(() => { });
+          t.x0 = x; t.y0 = y;
+        }
+      }
+    }
   }
   const points = [{ x, y, radiusX: 1, radiusY: 1, force: 1, id: 1 }];
   try {
