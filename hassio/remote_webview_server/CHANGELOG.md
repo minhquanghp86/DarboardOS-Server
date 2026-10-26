@@ -1,3 +1,8 @@
+## V2.9.245
+- **Tắt tạm chế độ half-scale**: panel S3 (đặc biệt 800×480) thỉnh thoảng vẽ ảnh như **co 1/4**. Nguyên nhân là
+  khung nửa kích thước (`halfScale: true`) lệch cờ so với khung đầy. Băng thông LAN còn dư nên tắt hẳn chế độ này
+  (`HALF_ENABLED = false`) để ưu tiên hiển thị đúng; có thể bật lại khi tìm ra đúng chỗ lệch cờ.
+
 ## V2.9.244
 - **Mọi cử chỉ kéo đều theo tay trên tất cả panel (kể cả màn hình khoá).** Bỏ hết các chốt `CFG.motion === 'full'`
   vốn chỉ bật kéo-live cho P4: (1) thẻ ứng dụng ở màn hình Gần đây, (2) bong bóng "Quay lại" khi vuốt mép,

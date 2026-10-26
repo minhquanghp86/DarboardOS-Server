@@ -3394,7 +3394,10 @@ async function flushPending(dev: DeviceSession): Promise<void> {
       // Hysteresis: bat khi nhip >= HALF_ON_FPS, chi tat khi < HALF_OFF_FPS. Do that lan dau voi mot nguong 8 fps:
       // nhip den lai do chinh server dieu tiet (~8 fps) nen bat/tat lien tuc quanh nguong.
       const netHalf = dev.netHalfUntilMs !== undefined && nowMs < dev.netHalfUntilMs;
-      let halfWanted = dev.halfOn ? fps >= HALF_OFF_FPS : fps >= HALF_ON_FPS;
+      // (26/10/2026) TAM TAT half-scale: thinh thoang panel S3 ve anh nhu co 1/4 (co chuong hop lech giua
+      // khung half + co halfScale). Bang thong LAN du, uu tien dung hinh.
+      const HALF_ENABLED = false;
+      let halfWanted = HALF_ENABLED && (dev.halfOn ? fps >= HALF_OFF_FPS : fps >= HALF_ON_FPS);
       // (30/09/2026) Thiet bi half=2 (S3): KHONG xet nhip. Do that 30/09: S3 giai ma cham -> server gian nhip con ~2,5 fps
       // = dung nguong HALF_ON_FPS -> nua do phan giai bat/tat lien tuc, xen khung day du 24-65 KB (5,6 fps). Chi con
       // dieu kien <video> dang phat / phan lon man hinh doi (ben duoi, giu HALF_SUSTAIN_MS).
