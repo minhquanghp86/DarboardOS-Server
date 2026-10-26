@@ -1,3 +1,9 @@
+## V2.9.250
+- **Panel ≤480×272: ghim chất lượng đúng `jpeg_quality` (hết kẹt q40).** Bộ điều chỉnh không nhận được mẫu decode
+  (`recentMedianDecodeMs = 0`) nên đứng nguyên ở sàn `minQuality = 40`, khiến YouTube mờ dù YAML đặt q70/q80.
+  Nay với màn rất nhỏ, `minQuality = maxQuality = cfg.jpegQuality` → luôn phát đúng chất lượng đã cấu hình.
+  Panel 480×272 đặt `jpeg_quality: 65` (cân bằng nét / fps).
+
 ## V2.9.249
 - **480×272: tắt half-scale để ảnh nét hơn.** Màn nhỏ đang nhận khung **nửa độ phân giải** (240×136) rồi phóng lên
   → YouTube rất mờ. Nay panel ≤480×272 luôn nhận khung **đủ 480×272** (diện tích nhỏ nên băng thông vẫn nhẹ).

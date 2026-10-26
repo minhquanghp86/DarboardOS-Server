@@ -4036,8 +4036,12 @@ export function runAdaptiveTick(): void {
     const fbProfile = device.cfg.fbBands || device.cfg.halfVideo
       ? { decodeBudgetRatio: 1.3, maxBacklogBytes: 196_608, intervalBackoffFactor: 1.5,
           intervalStepMs: 17, goodStreakNeeded: 1, cooldownMs: 5_000 } : {};
+    // (26/10/2026) Panel RAT NHO (<=480x272): ghim chat luong dung bang cfg.jpegQuality. Truoc day bo dieu chinh
+    // khong nhan duoc mau decode (dec=0) nen dung mai o san 40 -> YouTube mo, tang q trong YAML vo ich.
+    const pinQuality = device.cfg.width <= 480 && device.cfg.height <= 272;
     const cfgA = {
-      ...DEFAULT_ADAPTIVE_CFG, maxQuality: device.cfg.jpegQuality, ...fbProfile,
+      ...DEFAULT_ADAPTIVE_CFG, maxQuality: device.cfg.jpegQuality,
+      ...(pinQuality ? { minQuality: device.cfg.jpegQuality } : {}), ...fbProfile,
       ...(tun.maxBacklogBytes !== undefined ? { maxBacklogBytes: tun.maxBacklogBytes } : {}),
       ...(tun.decodeBudgetRatio !== undefined ? { decodeBudgetRatio: tun.decodeBudgetRatio } : {}),
       ...(tun.intervalBackoffFactor !== undefined ? { intervalBackoffFactor: tun.intervalBackoffFactor } : {}),
