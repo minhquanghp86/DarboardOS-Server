@@ -495,7 +495,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
       card.addEventListener('pointerdown', (e) => { sy = e.clientY; dy = 0; drag = true; });
       card.addEventListener('pointermove', (e) => {
         if (!drag) return; dy = e.clientY - sy;
-        if (canClose && dy < -10 && CFG.motion === 'full') card.style.transform = `translateY(${dy}px)`;
+        if (canClose && dy < -10) card.style.transform = `translateY(${dy}px)`;   // (26/10/2026) moi panel deu keo theo tay
       });
       const end = () => {
         if (!drag) return; drag = false;
@@ -528,12 +528,12 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     if (phase === 'end') { backEl.classList.remove('on', 'armed'); backEl.style.transform = ''; return; }
     const thr = Math.max(60, Math.round(window.innerWidth * 0.08));
     const armed = d >= thr;
-    if (phase === 'move' && CFG.motion !== 'full' && armed === backEl.classList.contains('armed')) return;
+    // (26/10/2026) bo chan theo motion: bong bong phai chay theo ngon tay o moi panel
     backEl.classList.add('on');
     backEl.classList.toggle('armed', armed);
     backEl.classList.toggle('right', side === 'right');
     backEl.style.top = Math.max(8, Math.min(window.innerHeight - 60, y - 26)) + 'px';
-    const off = (CFG.motion === 'full' ? Math.min(d, thr) : thr) * 0.5;
+    const off = Math.min(d, thr) * 0.5;
     backEl.style.transform = `translateX(${side === 'left' ? off : -off}px)`;
   }
 
@@ -545,11 +545,11 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     const thrRecents = Math.max(90, Math.round(window.innerHeight * 0.15));
     const hint = d >= thrRecents ? 'Giữ: Gần đây · Thả: Màn hình chính' : d > 50 ? 'Thả: Màn hình chính' : '';
     const changed = homeHint.textContent !== hint || !homeBar.classList.contains('on');
-    if (!changed && CFG.motion !== 'full') return;          // S3: chi ve lai khi goi y doi
+    // (26/10/2026) bo chan: thanh phai nhac theo tay o moi panel
     setText(homeHint, hint);
     homeBar.classList.add('on');
     homeBar.classList.toggle('armed', d >= thrRecents);
-    const lift = CFG.motion === 'full' ? Math.min(d, thrRecents * 1.3) * 0.5 : 0;
+    const lift = Math.min(d, thrRecents * 1.3) * 0.5;
     homeBar.style.transform = `translateX(-50%) translateY(${-lift}px)`;
   }
 
@@ -728,7 +728,8 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     // touch-action: none (styles) — neu khong trinh duyet coi vuot la cuon trang va huy (pointercancel).
     let sx = 0, sy = 0, lx = 0, ly = 0, t0 = 0, swiped = false, down = false;
     const drag = (dy: number) => {
-      if (saverEl && svOpts.lock && CFG.motion === 'full') saverEl.style.transform = dy < 0 ? `translateY(${Math.round(dy * 0.5)}px)` : '';
+      // (26/10/2026) man hinh khoa: keo theo tay o MOI panel (truoc day chi motion === 'full')
+      if (saverEl && svOpts.lock) saverEl.style.transform = dy < 0 ? `translateY(${Math.round(dy * 0.5)}px)` : '';
     };
     saverEl.addEventListener('pointerdown', (e) => {
       e.preventDefault(); e.stopPropagation(); sx = lx = e.clientX; sy = ly = e.clientY; t0 = Date.now(); swiped = false; down = true;

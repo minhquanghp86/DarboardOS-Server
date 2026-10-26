@@ -1,3 +1,9 @@
+## V2.9.244
+- **Mọi cử chỉ kéo đều theo tay trên tất cả panel (kể cả màn hình khoá).** Bỏ hết các chốt `CFG.motion === 'full'`
+  vốn chỉ bật kéo-live cho P4: (1) thẻ ứng dụng ở màn hình Gần đây, (2) bong bóng "Quay lại" khi vuốt mép,
+  (3) thanh vuốt lên (Màn hình chính / Gần đây), (4) **màn hình khoá** (kéo lên để mở khoá). Các hiệu ứng *chuyển
+  trang* (animation) vẫn giữ nguyên theo mức motion để không nặng máy.
+
 ## V2.9.243
 - **Màn hình chính: kéo theo tay trên panel S3.** Pager chỉ cập nhật vị trí khi `ctx.motion === 'full'`; các panel
   S3 đặt motion thấp nên **không vẽ theo tay**, chỉ nhảy khi nhả (đo thật: 480×480 đổi khung tại 245 ms, 480×272 tại
