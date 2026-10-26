@@ -4096,6 +4096,11 @@ export function runAdaptiveTick(): void {
       now
     );
     device.backlogSkipPeak = 0;
+    // (26/10/2026) Panel nho: nang chat luong NGAY trong state (bo dieu chinh khoi tao o san 40 va chi ha duoc,
+    // khong tu len vi khong co mau decode) -> Youtube van mo du YAML dat q65.
+    if (pinQuality && res.state.quality < device.cfg.jpegQuality) {
+      res.state.quality = device.cfg.jpegQuality;
+    }
     if (device.qualityOverride != null) {
       // (21/10/2026) Nguoi dung dat chat luong -> KHOA chat luong, nhung NHIP KHUNG van de bo dieu tiet
       // lo (nghen thi gian nhip, het nghen thi rut lai) — truoc day bo qua ca vong nen nhip bi dung im.

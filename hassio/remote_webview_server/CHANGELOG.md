@@ -1,3 +1,8 @@
+## V2.9.251
+- **Sửa tiếp việc panel nhỏ kẹt q40.** 2.9.250 chỉ đặt `minQuality` nhưng state của bộ điều chỉnh đã khởi tạo sẵn ở
+  sàn 40 và chỉ có thể hạ, nên không bao giờ vươn lên. Nay nâng thẳng trong state:
+  `if (pinQuality && quality < cfg.jpegQuality) quality = cfg.jpegQuality` → panel ≤480×272 phát đúng q65.
+
 ## V2.9.250
 - **Panel ≤480×272: ghim chất lượng đúng `jpeg_quality` (hết kẹt q40).** Bộ điều chỉnh không nhận được mẫu decode
   (`recentMedianDecodeMs = 0`) nên đứng nguyên ở sàn `minQuality = 40`, khiến YouTube mờ dù YAML đặt q70/q80.
