@@ -4320,10 +4320,22 @@ async function screenTouchInner(id: string, kind: 'down' | 'move' | 'up', x: num
     }
   }
   const points = [{ x, y, radiusX: 1, radiusY: 1, force: 1, id: 1 }];
+  // (26/10/2026) youtube.com/tv: CHI gui phim mui ten. Truoc day van ban ca chuoi cham tho (touchStart/Move/End)
+  // ROI them phim -> trang nhan 2 nguon su kien cung luc => 'loan, khong nhay, sai' (nguoi dung bao tren 800x480).
   try {
-    if (kind === 'down') await dev.cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: points });
-    else if (kind === 'move') await dev.cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: points });
-    else await dev.cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    if (!tvTab) {
+      if (kind === 'down') await dev.cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: points });
+      else if (kind === 'move') await dev.cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: points });
+      else await dev.cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    } else if (kind === 'up') {
+      // Cham (khong di chuyen) van phai chon duoc: gui 1 tap ngan
+      const t = tvTouchStart.get(id);
+      const moved = t ? Math.hypot(x - t.x0, y - t.y0) : 999;
+      if (moved < 24) {
+        await dev.cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: points });
+        await dev.cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      }
+    }
   } catch (e) {
     return `Không gửi được thao tác: ${(e as Error).message}`;
   }

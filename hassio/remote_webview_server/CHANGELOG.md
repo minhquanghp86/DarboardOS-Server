@@ -1,3 +1,8 @@
+## V2.9.247
+- **YouTube TV (800×480): hết "loạn" khi chạm/vuốt.** Trước đây với tab `yttv` server vẫn bắn **chuỗi chạm thô**
+  (touchStart/Move/End) **rồi** thêm phím mũi tên → trang nhận 2 nguồn sự kiện cùng lúc nên nhảy sai/không nhạy.
+  Nay tab YouTube TV **chỉ gửi phím mũi tên**; chạm không di chuyển thì gửi 1 tap ngắn để vẫn chọn được mục.
+
 ## V2.9.246
 - **Sửa tận gốc lỗi "co 1/4" + bật lại half-scale.** 2.9.245 chỉ tắt tạm half-scale (giảm byte/khung khi phát video,
   tắt hẳn sẽ hại fps S3). Nguyên nhân thật: khi chuyển **half → full**, server không ép gửi lại khung đầy đủ, panel
