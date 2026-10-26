@@ -121,3 +121,40 @@ có thể là kích thước khung gửi hoặc chưa có khi khởi tạo).
 3. Đường **chắc chắn chạy được ngay** (không cần code): Darboard UI → panel 480×272 → Cài đặt →
    **"Chất lượng hình ảnh" = 65** (thay vì "Tự động"). Nhánh này gọi `processor.setTuning({jpegQuality:65})`
    + `lastAppliedQuality = 65` ngay lập tức (`src/deviceManager.ts` ~1689, pref `rwv.quality`).
+
+## 7. ĐIỀU TRA CHẤT LƯỢNG KHÔNG CÓ TÁC DỤNG (26/10, cuối phiên)
+
+### Số đo (panel 480×272, YouTube đang phát, mỗi mức 3-5 phút)
+| Đặt | fps | Nhịp | Decode | Byte/khung |
+|---|---|---|---|---|
+| q60 | 6.6 | 150-200 ms | 58.3 ms | 16.4 KB |
+| q50 | 9.8 | 100 ms | 59.3 ms | 18.7 KB |
+| q40 | 9.8 | 100 ms | 59.2 ms | 18.3 KB |
+
+→ Byte/khung **không** giảm theo q (thậm chí q40 > q60). Chất lượng đặt trong UI **không tới encoder**.
+
+### Đã tìm được chỗ nghi phạm chính
+`src/deviceManager.ts` ~312 `videoScreencastQuality()`:
+```ts
+const base = dev.cfg.maxBytesPerMessage >= 131072 ? dev.cfg.jpegQuality : SCREENCAST_JPEG_QUALITY; // = 90
+const low  = dev.cfg.jpegQuality;
+if (base === low) return;
+```
+- Panel 480×272 có `maxBytesPerMessage = 65536` (< 131072) ⇒ **base luôn = hằng số 90**, không phải chất lượng người
+  dùng đặt.
+- `low` chỉ lấy `cfg.jpegQuality` (YAML = 65), **không** lấy `dev.qualityOverride` (giá trị UI 40/50) — nên mức người
+  dùng chọn không đi vào đường video.
+
+### Việc cần làm (phiên sau)
+1. Cho `base`/`low` dùng **chất lượng hiệu lực**: `dev.qualityOverride ?? dev.cfg.jpegQuality`, và hạ ngưỡng
+   131072 → 65536 (panel nhỏ 64 KB vẫn đủ).
+2. Đo lại q30/q50/q70 trong cùng 1 cảnh để chứng minh byte/khung thay đổi đơn điệu (q30 < q50 < q70).
+3. Sau đó mới kết luận trần fps thật. Hiện tại 9.8 fps là mốc **có thể còn dư địa** nếu video đang thực sự chạy q90
+   (q90 ≠ q50 đã đặt).
+
+### Mốc so sánh 3 panel S3 (cùng lúc)
+```
+480×272 full-res  130k px  decode 59 ms
+480×480 half      57k px   decode 37.5 ms
+800×480 half      ...      (chưa đo khi phát)
+```
