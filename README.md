@@ -333,3 +333,4 @@ kèm toàn bộ giấy phép trong `/licenses`.
   gỡ / thay phần âm lịch hoặc xin phép tác giả thuật toán. Ảnh Docker còn chứa Google Chrome theo điều khoản riêng của Google.
 - **Tên, logo** "HA Darboard" / "Darboard" không được cấp phép dùng cho bản fork — xem [`TRADEMARKS.md`](TRADEMARKS.md).
 - **Đóng góp** theo [`CONTRIBUTING.md`](CONTRIBUTING.md) (Apache-2.0 mục 5, mã phải có nguồn gốc rõ ràng).
+- **Bàn giao phiên 26/10/2026 (đọc trước)**: [`docs/BAN-GIAO-2026-10-26-phien-sau.md`](docs/BAN-GIAO-2026-10-26-phien-sau.md) — trạng thái 2.9.249 + việc dở (480×272 kẹt q40).
