@@ -1,3 +1,8 @@
+## V2.9.255
+- **Trả ngưỡng passthrough về 128 KB.** 2.9.253 hạ xuống 64 KB làm panel 480×272 rơi vào đường tắt (Chrome đẩy
+  khung theo nhịp render ~60 fps) → panel quá tải, nhịp tự giãn về 200 ms và fps sụt 9.8 → 5.0. Giữ nguyên phần
+  "chất lượng UI đi tới encoder" (2.9.253) nhưng không đổi ngưỡng passthrough.
+
 ## V2.9.254
 - **Sàn hồi phục nhịp khung không được vượt trần cấu hình.** `recoverFloorOf()` trước đây bỏ qua `maxIntervalMs`,
   nên sau MỘT lần nghẽn ở 200 ms panel nhỏ (trần 100 ms) kẹt vĩnh viễn ở 200 ms → 5 fps dù decode chỉ 55 ms.

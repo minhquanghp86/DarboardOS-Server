@@ -320,7 +320,7 @@ function videoScreencastQuality(dev: DeviceSession, fps: number, nowMs: number):
   const effQ = effectiveJpegQuality(dev);
   const base = dev.qualityOverride != null
     ? effQ
-    : (dev.cfg.maxBytesPerMessage >= 65536 ? dev.cfg.jpegQuality : SCREENCAST_JPEG_QUALITY);
+    : (dev.cfg.maxBytesPerMessage >= 131072 ? dev.cfg.jpegQuality : SCREENCAST_JPEG_QUALITY);
   const low = effQ;
   if (base === low) {
     // Van phai EP dung muc: screencast co the dang chay o 90 (chat luong khoi tao) du dich la q nguoi dung dat.
@@ -2915,8 +2915,9 @@ async function onTabCrashed(dev: DeviceSession, tab: Tab): Promise<void> {
     if (!active) setTimeout(() => freezeTab(dev, tab), 5000);  // tab nen: chay lai roi dong bang nhu cu
     return;
   }
-  // (27/10/2026) Nguong 128 KB -> 64 KB (panel 480x272 khai 64 KB) va uu tien chat luong nguoi dung dat.
-  const canPassthrough = PASSTHROUGH_MIN_FPS > 0 && dev.cfg.maxBytesPerMessage >= 65536;
+  // (27/10/2026) GIU nguong 128 KB: ha xuong 64 KB tung lam panel nho roi vao duong TAT (Chrome day khung 60 fps)
+  // -> qua tai, nhip tut ve 200 ms / 5 fps. Chi uu tien chat luong nguoi dung dat.
+  const canPassthrough = PASSTHROUGH_MIN_FPS > 0 && dev.cfg.maxBytesPerMessage >= 131072;
   const q = dev.qualityOverride ?? (canPassthrough ? dev.cfg.jpegQuality : SCREENCAST_JPEG_QUALITY);
   for (let attempt = 1; attempt <= 6 && !tab.screencastOn && dev.activeTabKey === tab.key; attempt++) {
     await new Promise((r) => setTimeout(r, 500 * attempt));
