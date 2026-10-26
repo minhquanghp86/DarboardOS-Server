@@ -4130,10 +4130,11 @@ export function runAdaptiveTick(): void {
     // (27/10/2026) Panel nho: bo dieu tiet KHONG nhan duoc mau decode cua panel nay (khong co dong [adaptive] nao)
     // nen sau moi lan khoi dong lai no ket o 200 ms du decode chi ~52 ms -> 5 fps. Khi bo dieu tiet DUNG YEN
     // (khong tu thay doi) thi ep nhip 100 ms; con khi no chu dong giam toc (changed=true, co nghen) thi ton trong.
-    if (pinQuality && !res.changed && res.state.minFrameIntervalMs > 100) {
-      res.state.minFrameIntervalMs = 100;
+    const smallIntervalMs = Math.max(60, parseInt(process.env.SMALL_PANEL_INTERVAL_MS ?? '100', 10) || 100);
+    if (pinQuality && !res.changed && res.state.minFrameIntervalMs > smallIntervalMs) {
+      res.state.minFrameIntervalMs = smallIntervalMs;
       res.changed = true;
-      res.reason = 'panel nho: ep nhip 100 ms (bo dieu tiet dung yen)';
+      res.reason = `panel nho: ep nhip ${smallIntervalMs} ms (bo dieu tiet dung yen)`;
     }
     if (device.qualityOverride != null) {
       // (21/10/2026) Nguoi dung dat chat luong -> KHOA chat luong, nhung NHIP KHUNG van de bo dieu tiet

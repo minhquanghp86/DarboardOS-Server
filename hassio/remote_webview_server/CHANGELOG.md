@@ -1,3 +1,6 @@
+## V2.9.257
+- **Nhịp panel nhỏ điều chỉnh được qua `SMALL_PANEL_INTERVAL_MS`** (mặc định 100 ms) để thử nghiệm 85/75 ms.
+
 ## V2.9.256
 - **Panel nhỏ không còn kẹt 200 ms sau khi khởi động lại.** Bộ điều tiết không nhận được mẫu decode của panel
   480×272 (không có dòng `[adaptive]` nào), nên sau restart nó đứng yên ở 200 ms dù decode chỉ ~52 ms → 5 fps.
