@@ -4130,8 +4130,10 @@ export function runAdaptiveTick(): void {
     // (27/10/2026) Panel nho: bo dieu tiet KHONG nhan duoc mau decode cua panel nay (khong co dong [adaptive] nao)
     // nen sau moi lan khoi dong lai no ket o 200 ms du decode chi ~52 ms -> 5 fps. Khi bo dieu tiet DUNG YEN
     // (khong tu thay doi) thi ep nhip 100 ms; con khi no chu dong giam toc (changed=true, co nghen) thi ton trong.
-    const smallIntervalMs = Math.max(60, parseInt(process.env.SMALL_PANEL_INTERVAL_MS ?? '75', 10) || 75);
-    if (pinQuality && !res.changed && res.state.minFrameIntervalMs > smallIntervalMs) {
+    const smallIntervalMs = Math.max(60, parseInt(process.env.SMALL_PANEL_INTERVAL_MS ?? '80', 10) || 80);
+    // (27/10/2026) EP cung (khong chi khi dung yen): do lai cho thay bo dieu tiet tu noi 75 -> 100 lam fps tut,
+    // trong khi decode 56 ms van duoi 80% ngan sach. Nghen that thi backlog se lo ra qua fps/backlogBytes.
+    if (pinQuality && res.state.minFrameIntervalMs > smallIntervalMs) {
       res.state.minFrameIntervalMs = smallIntervalMs;
       res.changed = true;
       res.reason = `panel nho: ep nhip ${smallIntervalMs} ms (bo dieu tiet dung yen)`;

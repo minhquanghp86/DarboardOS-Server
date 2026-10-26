@@ -1,3 +1,7 @@
+## V2.9.260
+- **Panel nhỏ: ép cứng nhịp 80 ms** (bỏ điều kiện "chỉ khi bộ điều tiết đứng yên"). Đo: decode 56 ms vẫn dưới 80%
+  ngân sách ở 80 ms; trước đó bộ điều tiết tự nới 75 → 100 ms làm fps tụt.
+
 ## V2.9.259
 - **Panel nhỏ: nhịp ép 85 → 75 ms** (thử nghiệm, ~13 fps lý thuyết).
 
