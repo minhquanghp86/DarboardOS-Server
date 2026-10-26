@@ -1,3 +1,9 @@
+## V2.9.231
+- **Thẻ Điều khiển: ưu tiên thao tác chạm/vuốt.** Mỗi khung JPEG 19-53 KB (base64 +33%) nên ở 15-25 fps luồng
+  stream chiếm 0,5-1,4 MB/s; trên ingress/WiFi các POST `/control/input` bị nghẽn phía sau → **vuốt không ăn,
+  không mở khoá được màn hình, thao tác gần như vô tác dụng**. Nay trong ~800 ms sau mỗi lệnh chạm/vuốt,
+  luồng khung hạ xuống ~3 fps để lệnh điều khiển đi trước. Đồng thời `SCALE 0.75 → 0.65` (khung nhỏ ~35% byte).
+
 ## V2.9.230
 - **Thẻ Điều khiển mượt hơn**: bỏ khoảng nghỉ cố định 55 ms giữa 2 khung (`FRAME_GAP_MS`). Đo thật: `captureScreenshot`
   tốn 50-68 ms (Chromium software render; P4 đang phát YouTube) nên nhịp chỉ còn **8-10 fps**; bỏ gap → **~14.7 fps (P4)**,

@@ -53,7 +53,14 @@ const wss = new WebSocketServer({ noServer: true, perMessageDeflate: false });
 // chup quyet dinh; chong ton dong van co san (SSE/MJPEG: writableLength > 1 MB; WS: bufferedAmount).
 const FRAME_GAP_MS = 0;
 const QUALITY = 35;
-const SCALE = 0.75;   // khung nho hon -> ma hoa/giai ma nhanh, do tre thap (dien thoai hien thi nho hon man that)
+const SCALE = 0.65;   // 0.75 -> 0.65 (26/10/2026): khung nho ~35% byte, dien thoai qua ingress/WiFi nhe hon
+// (26/10/2026) UU TIEN THAO TAC: moi khung JPEG 19-53 KB (base64 +33%) nen o 15-25 fps luong stream chiem
+// 0,5-1,4 MB/s. Tren duong ingress/WiFi, cac POST /control/input bi nghen phia sau -> vuot khong an
+// (khong mo khoa duoc man hinh). Trong ~800 ms sau moi lenh cham/vuot, ha luong khung xuong ~3 fps
+// de lenh dieu khien di truoc.
+const INPUT_PRIORITY_MS = 800;
+const inputAt = new Map<string, number>();
+function inputBusy(id: string): boolean { return Date.now() - (inputAt.get(id) || 0) < INPUT_PRIORITY_MS; }
 
 export function handleControlUpgrade(req: http.IncomingMessage, socket: Duplex, head: Buffer): boolean {
   const url = new URL(req.url || '/', 'http://x');
@@ -102,6 +109,7 @@ function pumpLive(id: string): void {
     let sent = 0;
     const t0 = Date.now();
     while (!e.stop && e.peers.size > 0) {
+      if (inputBusy(id)) { await sleep(300); continue; }
       const t = Date.now();
       try {
         const data = await captureJpeg(dev);
@@ -178,6 +186,7 @@ export function handleControlApi(req: http.IncomingMessage, res: http.ServerResp
     void (async () => {
       console.log(`[control] stream ${id}: bat dau`);
       while (!closed) {
+        if (inputBusy(id)) { await sleep(300); continue; }
         const t = Date.now();
         try {
           const data = await captureJpeg(d);
@@ -214,6 +223,7 @@ export function handleControlApi(req: http.IncomingMessage, res: http.ServerResp
     req.on('close', () => { closed = true; });
     void (async () => {
       while (!closed) {
+        if (inputBusy(id)) { await sleep(300); continue; }
         const t = Date.now();
         try {
           const data = await captureJpeg(d);
@@ -235,7 +245,9 @@ export function handleControlApi(req: http.IncomingMessage, res: http.ServerResp
     readJson(req, 2048).then(async (b) => {
       const kind = String(b?.kind ?? '');
       if (kind !== 'down' && kind !== 'move' && kind !== 'up') throw new Error('kind không hợp lệ');
-      const err = await screenTouch(String(b?.dev ?? ''), kind, Number(b?.x) || 0, Number(b?.y) || 0);
+      const devId = String(b?.dev ?? '');
+      inputAt.set(devId, Date.now());
+      const err = await screenTouch(devId, kind, Number(b?.x) || 0, Number(b?.y) || 0);
       json(res, err ? 400 : 200, err ? { ok: false, error: err } : { ok: true });
     }).catch((e) => json(res, 400, { ok: false, error: (e as Error).message }));
     return true;
