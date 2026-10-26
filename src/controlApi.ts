@@ -253,29 +253,34 @@ export function handleControlApi(req: http.IncomingMessage, res: http.ServerResp
     return true;
   }
 
-  // (26/10/2026) GOP CA CU CHI VAO 1 POST. Truoc day moi diem cham la 1 POST: vuot = down + ~9 move + up
-  // = 11 lan di qua mang (qua ten mien cong khai ~150-250 ms/lan) -> cu vuot mat 1,5-2 s, cam giac "vo tac dung".
-  // Nay client gom diem (x,y,t) roi gui 1 lan; server phat lai tung diem theo nhip that.
+  // (26/10/2026) GUI THEO TUNG DOAN (segment) trong luc dang keo: van LIVE (khong phai doi nha tay) nhung
+  // gop nhieu diem vao 1 request. Do that: 1 lenh CDP ton ~26 ms (p90 33 ms) o server; cong RTT ten mien
+  // cong khai ~200 ms. Gui 60 request/giay thi hang doi sau hang giay -> keo giat. Doan 60 ms => ~16 req/s.
+  // Body: { dev, points:[{x,y,t}], start?:bool, end?:bool }.
   if (p === '/control/gesture' && req.method === 'POST') {
     readJson(req, 16384).then(async (b) => {
       const devId = String(b?.dev ?? '');
       const pts = Array.isArray(b?.points) ? b.points : [];
+      const start = b?.start === true;
+      const end = b?.end === true;
       if (!devId || pts.length === 0) { json(res, 400, { ok: false, error: 'thiếu points' }); return; }
       inputAt.set(devId, Date.now());
       let prevT = 0;
       for (let i = 0; i < pts.length; i++) {
         const x = Number(pts[i]?.x) || 0, y = Number(pts[i]?.y) || 0;
         const t = Number(pts[i]?.t) || 0;
-        if (i > 0 && t > prevT) await sleep(Math.min(600, t - prevT));   // giu nhip that, tran 600ms/diem (long-press van an)
+        if (i > 0 && t > prevT) await sleep(Math.min(600, t - prevT));
         prevT = Math.max(prevT, t);
-        const kind: 'down' | 'move' | 'up' = i === 0 ? 'down' : 'move';
-        const err = await screenTouch(devId, kind, x, y);
+        const err = await screenTouch(devId, i === 0 && start ? 'down' : 'move', x, y);
         if (err) { json(res, 400, { ok: false, error: err }); return; }
       }
-      const last = pts[pts.length - 1];
-      const err = await screenTouch(devId, 'up', Number(last?.x) || 0, Number(last?.y) || 0);
+      if (end) {
+        const last = pts[pts.length - 1];
+        const err = await screenTouch(devId, 'up', Number(last?.x) || 0, Number(last?.y) || 0);
+        if (err) { json(res, 400, { ok: false, error: err }); return; }
+      }
       inputAt.set(devId, Date.now());
-      json(res, err ? 400 : 200, err ? { ok: false, error: err } : { ok: true });
+      json(res, 200, { ok: true });
     }).catch((e) => json(res, 400, { ok: false, error: (e as Error).message }));
     return true;
   }

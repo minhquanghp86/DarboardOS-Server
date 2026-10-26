@@ -275,30 +275,41 @@
   // (26/10/2026) TRA LAI GUI LIVE tung diem (nhu 2.9.224): keo/vuot phai thay phan hoi NGAY trong luc
   // dang giu tay. Ban gop 1 POST chi gui khi nha tay -> mat cam giac keo thuc te (nguoi dung bao).
   // Chong tre: gui ngay khong cho phan hoi; move tiet che 16 ms (~60 diem/giay).
-  var lastMove = 0;
-  function send(kind, p) {
-    if (kind === 'move') {
-      var now = Date.now();
-      if (now - lastMove < 16) return;
-      lastMove = now;
-    }
-    api('control/input', { dev: dev, kind: kind, x: p.x, y: p.y });
+  // (26/10/2026) KEO LIVE THEO TUNG DOAN 60 ms: van thay phan hoi ngay khi dang keo, nhung gop ~4 diem
+  // vao 1 POST (thay vi 1 POST/diem). Ly do: 1 lenh CDP ~26 ms o server + ~200 ms RTT ten mien cong khai;
+  // gui 60 request/giay se day hang doi sau hang giay -> giat.
+  var acc = null, lastT = 0, lastSend = 0, segStart = 0;
+  function flush(end) {
+    if (!acc || acc.length === 0) { acc = null; return; }
+    var pts = acc; acc = null;
+    api('control/gesture', { dev: dev, points: pts, end: !!end });
+    lastSend = Date.now();
   }
   touch.addEventListener('pointerdown', function (e) {
     e.preventDefault();
     try { touch.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ }
-    lastMove = 0;
-    send('down', pt(e));
+    var p = pt(e);
+    segStart = Date.now(); lastT = 0; lastSend = 0;
+    acc = null;
+    api('control/gesture', { dev: dev, points: [{ x: p.x, y: p.y, t: 0 }], start: true });
+    lastSend = Date.now();
   });
   touch.addEventListener('pointermove', function (e) {
     if (touch.hasPointerCapture && !touch.hasPointerCapture(e.pointerId)) return;
-    send('move', pt(e));
+    var now = Date.now(), rel = now - segStart;
+    if (rel - lastT < 16) return;
+    lastT = rel;
+    var p = pt(e);
+    (acc || (acc = [])).push({ x: p.x, y: p.y, t: rel });
+    if (now - lastSend >= 60) flush(false);
   });
   function up(e) {
     if (touch.hasPointerCapture && touch.hasPointerCapture(e.pointerId)) {
       try { touch.releasePointerCapture(e.pointerId); } catch (x) { /* ignore */ }
     }
-    send('up', pt(e));
+    var p = pt(e);
+    (acc || (acc = [])).push({ x: p.x, y: p.y, t: Date.now() - segStart });
+    flush(true);
   }
   touch.addEventListener('pointerup', up);
   touch.addEventListener('pointercancel', up);

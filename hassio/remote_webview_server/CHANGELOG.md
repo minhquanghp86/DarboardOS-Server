@@ -1,3 +1,10 @@
+## V2.9.234
+- **Kéo/vuốt live theo từng đoạn 60 ms.** Đo thật: mỗi lệnh `Input.dispatchTouchEvent` tốn ~26 ms ở server
+  (p90 33 ms) + ~200 ms RTT qua tên miền công khai. Bản 2.9.233 gửi 1 POST mỗi điểm (~60 request/giây) →
+  dồn hàng, kéo bị giật; bản 2.9.232 lại gộp tới lúc nhả tay → mất cảm giác kéo. Nay: `down` gửi ngay, các
+  điểm dồn lại gửi mỗi 60 ms (~16 request/giây, mỗi request nhiều điểm), `up` gửi ngay → vẫn thấy phản hồi
+  trong lúc kéo, ít request hơn 4 lần. `/control/gesture` nhận `start`/`end` để phát lại đúng thứ tự.
+
 ## V2.9.233
 - **Trả lại điều khiển LIVE từng điểm** (như 2.9.224): bản 2.9.232 gộp cả cử chỉ vào 1 POST nên chỉ gửi khi
   **nhả tay** → kéo/vuốt không thấy phản hồi trong lúc đang giữ (người dùng báo mất cảm giác thao tác thật).
