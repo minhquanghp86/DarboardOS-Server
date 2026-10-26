@@ -1,3 +1,6 @@
+> ✅ **ĐÃ HOÀN THÀNH (27/10)**: mục 1 (chất lượng tới encoder) + mục 2 (nhịp khung) đã sửa xong ở 2.9.260.
+> Kết quả và cách đo: [`ON-DINH-2026-10-27-480x272.md`](ON-DINH-2026-10-27-480x272.md)
+
 # BÀN GIAO CHI TIẾT — 26/10/2026 (phiên sau đọc file này TRƯỚC)
 
 > Mục tiêu phiên sau: **sửa lỗi "chất lượng đặt trong UI không tới encoder"** → nâng fps panel **480×272**
