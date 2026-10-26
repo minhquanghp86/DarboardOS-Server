@@ -1,3 +1,6 @@
+## V2.9.258
+- **Panel nhỏ: nhịp ép 100 → 85 ms** (≈11.8 fps) — decode thực đo 55 ms nên vẫn dưới 65% công suất.
+
 ## V2.9.257
 - **Nhịp panel nhỏ điều chỉnh được qua `SMALL_PANEL_INTERVAL_MS`** (mặc định 100 ms) để thử nghiệm 85/75 ms.
 
