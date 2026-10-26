@@ -4127,6 +4127,14 @@ export function runAdaptiveTick(): void {
     if (pinQuality && res.state.quality < device.cfg.jpegQuality) {
       res.state.quality = device.cfg.jpegQuality;
     }
+    // (27/10/2026) Panel nho: bo dieu tiet KHONG nhan duoc mau decode cua panel nay (khong co dong [adaptive] nao)
+    // nen sau moi lan khoi dong lai no ket o 200 ms du decode chi ~52 ms -> 5 fps. Khi bo dieu tiet DUNG YEN
+    // (khong tu thay doi) thi ep nhip 100 ms; con khi no chu dong giam toc (changed=true, co nghen) thi ton trong.
+    if (pinQuality && !res.changed && res.state.minFrameIntervalMs > 100) {
+      res.state.minFrameIntervalMs = 100;
+      res.changed = true;
+      res.reason = 'panel nho: ep nhip 100 ms (bo dieu tiet dung yen)';
+    }
     if (device.qualityOverride != null) {
       // (21/10/2026) Nguoi dung dat chat luong -> KHOA chat luong, nhung NHIP KHUNG van de bo dieu tiet
       // lo (nghen thi gian nhip, het nghen thi rut lai) — truoc day bo qua ca vong nen nhip bi dung im.

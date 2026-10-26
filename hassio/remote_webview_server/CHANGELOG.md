@@ -1,3 +1,9 @@
+## V2.9.256
+- **Panel nhỏ không còn kẹt 200 ms sau khi khởi động lại.** Bộ điều tiết không nhận được mẫu decode của panel
+  480×272 (không có dòng `[adaptive]` nào), nên sau restart nó đứng yên ở 200 ms dù decode chỉ ~52 ms → 5 fps.
+  Nay: khi bộ điều tiết **đứng yên** (`changed=false`) mà nhịp > 100 ms thì ép về 100 ms; khi nó chủ động giảm tốc
+  (có nghẽn thật) thì vẫn tôn trọng.
+
 ## V2.9.255
 - **Trả ngưỡng passthrough về 128 KB.** 2.9.253 hạ xuống 64 KB làm panel 480×272 rơi vào đường tắt (Chrome đẩy
   khung theo nhịp render ~60 fps) → panel quá tải, nhịp tự giãn về 200 ms và fps sụt 9.8 → 5.0. Giữ nguyên phần
