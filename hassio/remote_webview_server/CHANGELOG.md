@@ -1,3 +1,10 @@
+## V2.9.246
+- **Sửa tận gốc lỗi "co 1/4" + bật lại half-scale.** 2.9.245 chỉ tắt tạm half-scale (giảm byte/khung khi phát video,
+  tắt hẳn sẽ hại fps S3). Nguyên nhân thật: khi chuyển **half → full**, server không ép gửi lại khung đầy đủ, panel
+  còn giữ ảnh nền nửa kích thước nên vẽ ảnh nửa cỡ vào khung đầy. Nay ở nhánh tắt half có
+  `requestFullFrameFor(dev) + forceSharp + prevFrameHash = -1` → khung kế tiếp là ảnh đầy đủ, hết lệch cờ.
+  Half-scale bật lại như cũ.
+
 ## V2.9.245
 - **Tắt tạm chế độ half-scale**: panel S3 (đặc biệt 800×480) thỉnh thoảng vẽ ảnh như **co 1/4**. Nguyên nhân là
   khung nửa kích thước (`halfScale: true`) lệch cờ so với khung đầy. Băng thông LAN còn dư nên tắt hẳn chế độ này
