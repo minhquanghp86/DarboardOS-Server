@@ -24,7 +24,7 @@
   #stage:not(.ready) #frame { opacity:0; }
   #msg { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; color:var(--dim); padding:16px; font-size:13px; }
   #stage.ready #msg { display:none; }
-  #touch { position:absolute; inset:0; }
+  #touch { position:absolute; inset:0; touch-action:none; overscroll-behavior:none; -webkit-user-select:none; }
   nav { flex:0 0 auto; display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding:8px 10px calc(8px + env(safe-area-inset-bottom));
         border-top:1px solid var(--line); background:#0e141b; }
   nav button { appearance:none; border:1px solid var(--line); background:#151e28; color:var(--txt); border-radius:12px;
@@ -307,7 +307,7 @@
     lastSend = Date.now();
   }
   touch.addEventListener('pointerdown', function (e) {
-    e.preventDefault();
+    e.preventDefault(); e.stopPropagation();
     try { touch.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ }
     var p = pt(e);
     lastT = 0; acc = null; segStart = Date.now(); lastSend = 0;
@@ -318,6 +318,7 @@
     lastSend = Date.now();
   });
   touch.addEventListener('pointermove', function (e) {
+    e.preventDefault();
     if (touch.hasPointerCapture && !touch.hasPointerCapture(e.pointerId)) return;
     var now = Date.now(), rel = now - segStart;
     if (rel - lastT < 16) return;

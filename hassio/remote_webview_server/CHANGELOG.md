@@ -1,3 +1,8 @@
+## V2.9.238
+- **Thẻ Điều khiển: chặn Chrome Android "cướp" cử chỉ kéo.** `#touch` nay có `touch-action:none` +
+  `overscroll-behavior:none`, và `pointerdown/pointermove` gọi `preventDefault()` — trước đây trình duyệt có thể
+  hiểu cú kéo dọc là **cuộn trang** rồi phát `pointercancel`, nên giữ tay kéo không có tác dụng.
+
 ## V2.9.237
 - **Sửa treo hình trên Chrome Android ở thẻ Điều khiển.** Khi WebSocket rớt, trang rơi về **MJPEG**; Chrome Android
   **không phát** `multipart/x-mixed-replace` trong `<img>` (chỉ hiện 1 khung → header báo `MJPEG 0/0 fps · DỪNG`).
