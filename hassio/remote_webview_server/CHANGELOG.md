@@ -1,3 +1,10 @@
+## V2.9.232
+- **Sửa điều khiển cảm ứng bị trễ nặng trên tên miền công khai.** Mỗi điểm chạm trước đây là 1 POST riêng
+  (một cú vuốt = down + ~9 move + up = **11 lượt qua mạng**; qua Cloudflare ~150-250 ms/lượt → cú vuốt mất
+  1,5-2 s nên vuốt mở khoá/trong app gần như không ăn). Nay trang gom cả cử chỉ thành **1 POST** `/control/gesture`
+  (kèm toạ độ + mốc thời gian), server phát lại từng điểm theo nhịp thật (trần 600 ms/điểm để long-press vẫn ăn).
+  Giữ nguyên `/control/input` cho tương thích. Nhịp khung vẫn hạ ~3 fps trong lúc có thao tác (2.9.231).
+
 ## V2.9.231
 - **Thẻ Điều khiển: ưu tiên thao tác chạm/vuốt.** Mỗi khung JPEG 19-53 KB (base64 +33%) nên ở 15-25 fps luồng
   stream chiếm 0,5-1,4 MB/s; trên ingress/WiFi các POST `/control/input` bị nghẽn phía sau → **vuốt không ăn,
