@@ -1,3 +1,9 @@
+## V2.9.236
+- **Sửa: giữ tay trên màn hình thì hình đứng yên.** Bản 2.9.231 ưu tiên băng thông bằng cách **tạm dừng luồng khung**
+  ~3 fps trong lúc có thao tác; khi kéo liên tục, `inputBusy` được gia hạn mãi nên hình chỉ cập nhật sau khi **nhả tay**
+  (người dùng báo đúng hiện tượng này). Nay chỉ nghỉ 30 ms/khung khi đang thao tác → vẫn ~15-20 fps, kéo thấy hình
+  chạy theo tay. Input đã đi qua WebSocket (kênh riêng, tin nhỏ) nên không cần nhường băng thông nữa.
+
 ## V2.9.235
 - **Điều khiển: input đi qua WebSocket (giống màn hình thật).** Panel thật gửi `TouchType` qua WS
   (`remote_webview.ws_send_touch_event_`) nên độ trễ chỉ là WiFi; thẻ Điều khiển trước đây lại gửi từng điểm

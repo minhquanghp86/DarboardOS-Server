@@ -123,7 +123,7 @@ function pumpLive(id: string): void {
     let sent = 0;
     const t0 = Date.now();
     while (!e.stop && e.peers.size > 0) {
-      if (inputBusy(id)) { await sleep(300); continue; }
+      if (inputBusy(id)) { await sleep(30); continue; }   // van giu ~15-20 fps khi dang keo (truoc day 300ms -> hinh dung yen)
       const t = Date.now();
       try {
         const data = await captureJpeg(dev);
@@ -221,7 +221,7 @@ export function handleControlApi(req: http.IncomingMessage, res: http.ServerResp
     void (async () => {
       console.log(`[control] stream ${id}: bat dau`);
       while (!closed) {
-        if (inputBusy(id)) { await sleep(300); continue; }
+        if (inputBusy(id)) { await sleep(30); continue; }   // van giu ~15-20 fps khi dang keo (truoc day 300ms -> hinh dung yen)
         const t = Date.now();
         try {
           const data = await captureJpeg(d);
@@ -258,7 +258,7 @@ export function handleControlApi(req: http.IncomingMessage, res: http.ServerResp
     req.on('close', () => { closed = true; });
     void (async () => {
       while (!closed) {
-        if (inputBusy(id)) { await sleep(300); continue; }
+        if (inputBusy(id)) { await sleep(30); continue; }   // van giu ~15-20 fps khi dang keo (truoc day 300ms -> hinh dung yen)
         const t = Date.now();
         try {
           const data = await captureJpeg(d);
