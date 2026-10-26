@@ -1,3 +1,5 @@
+> ⚠️ **TÀI LIỆU NÀY ĐÃ CŨ.** Bản mới nhất: [`BAN-GIAO-2026-10-27-chat-luong-fps.md`](BAN-GIAO-2026-10-27-chat-luong-fps.md)
+
 # BÀN GIAO — 26/10/2026 (phiên sau đọc đầu tiên)
 
 Trạng thái triển khai lúc bàn giao: **add-on v2.9.249**, `started`. Server repo `main` sạch,
