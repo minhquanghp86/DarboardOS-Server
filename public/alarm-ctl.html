@@ -1,0 +1,108 @@
+<!doctype html>
+<!--
+  SPDX-License-Identifier: Apache-2.0
+
+  Copyright (c) 2026 minhquanghp86
+  Licensed under the Apache License, Version 2.0 (see LICENSE).
+-->
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Báo thức</title>
+<!--
+  (27/10/2026) UNG DUNG BAO THUC tren Darboard (dien thoai / may tinh). Cung du lieu voi ung dung Bao thuc tren
+  cac man hinh (server giu o /data/rwv-alarms.json — src/alarms.ts).
+    - Buoc 1: chon man hinh -> mo dung trinh Bao thuc cua man do (alarm.html?dev=<id>), gio mac dinh = man vua chon.
+    - "Tat ca man hinh" -> trinh Bao thuc chung (khong gan san mot man).
+    - Moi the hien so bao thuc dang bat cua man, va gio reo gan nhat.
+-->
+<link rel="stylesheet" href="ui.css">
+<script src="icons.js"></script>
+<style>
+  :root { --accent: #6366f1; }
+  body { overflow-y: auto; }
+  svg { width: 22px; height: 22px; fill: currentColor; flex: none; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 18px 16px 40px; display: flex; flex-direction: column; gap: 14px; }
+  h1 { margin: 0; font-size: clamp(20px, 4.6vmin, 28px); }
+  .sub { color: var(--muted); font-size: .92em; }
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); }
+  .sc { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 16px; background: var(--surface);
+    border: 1px solid var(--line); text-decoration: none; color: inherit; }
+  .sc:active { transform: scale(.99); }
+  .ic { width: 44px; height: 44px; border-radius: 13px; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(145deg, #6366f1, #4338ca); color: #fff; flex: none; }
+  .tx { flex: 1; min-width: 0; }
+  .nm { font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .st { color: var(--muted); font-size: .86em; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #22c55e; flex: none; }
+  .dot.off { background: #64748b; }
+  .badge { font-size: .8em; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: rgba(99,102,241,.18); color: #a5b4fc; }
+  .all .ic { background: linear-gradient(145deg, #0ea5e9, #0369a1); }
+  .empty { padding: 22px; text-align: center; color: var(--muted); background: var(--surface); border-radius: 16px; border: 1px solid var(--line); }
+</style>
+</head>
+<body class="rwv-app">
+<div class="wrap">
+  <div>
+    <h1>Báo thức</h1>
+    <div class="sub">Chọn màn hình để mở trình Báo thức của màn đó. Báo thức lưu ở server nên vẫn reo khi màn tắt.</div>
+  </div>
+  <a class="sc all" href="alarm.html">
+    <span class="ic" id="icAll"></span>
+    <span class="tx"><span class="nm">Tất cả màn hình</span><span class="st">Xem và quản lý mọi báo thức</span></span>
+  </a>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" hidden>Chưa có màn hình nào kết nối.</div>
+</div>
+<script>
+(function () {
+  'use strict';
+  var IC = window.RwvIcons || {};
+  function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; }
+  function svg(n) { var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24');
+    var p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', IC[n] || IC['alarm'] || ''); s.appendChild(p); return s; }
+  var p2 = function (n) { return String(n).padStart(2, '0'); };
+  document.getElementById('icAll').append(svg('alarm'));
+
+  function inText(ms) {
+    var m = Math.max(1, Math.round(ms / 60000)), h = Math.floor(m / 60), d = Math.floor(h / 24);
+    if (d >= 1) return d + ' ngày ' + (h % 24) + ' giờ';
+    return h ? h + ' giờ ' + (m % 60) + ' phút' : m + ' phút';
+  }
+
+  Promise.all([
+    fetch('/screens/list', { cache: 'no-store' }).then(function (r) { return r.json(); }).catch(function () { return { screens: [] }; }),
+    fetch('/alarm/list', { cache: 'no-store' }).then(function (r) { return r.json(); }).catch(function () { return { alarms: [], tz: 420 }; })
+  ]).then(function (res) {
+    var screens = (res[0] && res[0].screens) || [];
+    var data = res[1] || {};
+    var alarms = data.alarms || [], tz = data.tz == null ? 420 : data.tz;
+    var grid = document.getElementById('grid');
+    screens.forEach(function (s) {
+      var mine = alarms.filter(function (a) {
+        return a.enabled && (a.devices === 'all' || (Array.isArray(a.devices) && a.devices.indexOf(s.id) >= 0));
+      });
+      var nx = mine.filter(function (a) { return a.next; }).sort(function (x, y) { return x.next - y.next; })[0];
+      var a = el('a', 'sc'); a.href = 'alarm.html?dev=' + encodeURIComponent(s.id);
+      var ic = el('span', 'ic'); ic.append(svg('alarm'));
+      var tx = el('span', 'tx');
+      tx.append(el('span', 'nm', s.name || s.id));
+      var st;
+      if (!mine.length) st = 'Chưa có báo thức nào bật';
+      else if (nx) {
+        var d = new Date(nx.next + tz * 60000);
+        st = 'Tiếp theo ' + p2(d.getUTCHours()) + ':' + p2(d.getUTCMinutes()) + ' · sau ' + inText(nx.next - Date.now());
+      } else st = mine.length + ' báo thức đang bật';
+      tx.append(el('span', 'st', st));
+      var bd = el('span', 'badge', mine.length ? String(mine.length) : '—');
+      var dot = el('span', 'dot' + (s.online ? '' : ' off'));
+      a.append(ic, tx, bd, dot);
+      grid.append(a);
+    });
+    if (!screens.length) document.getElementById('empty').hidden = false;
+  });
+})();
+</script>
+</body>
+</html>

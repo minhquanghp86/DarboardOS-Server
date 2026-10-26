@@ -1,3 +1,11 @@
+## V2.9.261
+- **Ứng dụng "Báo thức" trên Darboard** (`public/alarm-ctl.html`): có mặt trong lưới ứng dụng ở trang chủ.
+  Bước 1 chọn màn hình → mở đúng trình Báo thức của màn đó (`alarm.html?dev=<id>`), báo thức mới mặc định reo
+  trên màn vừa chọn. Thẻ mỗi màn hiện số báo thức đang bật và giờ reo kế tiếp.
+- Dùng chung dữ liệu với ứng dụng Báo thức trên các màn hình (`/data/rwv-alarms.json`), nên thêm/sửa/xoá ở đâu
+  cũng đồng bộ.
+- API `/alarm/*` mở cho **LAN/Tailscale và HA ingress** (trước chỉ 127.0.0.1) để trang trên điện thoại dùng được.
+
 ## V2.9.260
 - **Panel nhỏ: ép cứng nhịp 80 ms** (bỏ điều kiện "chỉ khi bộ điều tiết đứng yên"). Đo: decode 56 ms vẫn dưới 80%
   ngân sách ở 80 ms; trước đó bộ điều tiết tự nới 75 → 100 ms làm fps tụt.

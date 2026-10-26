@@ -216,6 +216,8 @@ const STATIC_PAGES = ['no-url.html', 'cam.html', 'camera.html', 'weather.html', 
   'launcher-config.html', 'os-home.html', 'ui.css', 'ui.js', 'settings.html', 'rooms.html', 'todo.html', 'remote.html', 'photos.html', 'today.html', 'board.html', 'doorbell.html',
   // (01/10/2026) Thu vien / Tep (the SD cua P4), Tin nhan noi bo, bieu tuong dung chung.
   'files.html', 'chat.html', 'icons.js', 'alarm.html',
+  // (27/10/2026) Trang Dieu khien bao thuc tu Darboard (chon man -> trinh Bao thuc cua man do).
+  'alarm-ctl.html',
   // (07/10/2026) IPTV (src/iptv.ts). (08/10/2026) Su kien camera Frigate (src/frigate.ts).
   'iptv.html', 'events.html', 'media.html', 'call-test.html', 'door.html', 'call.html', 'call-web.html', 'call-ui.js', 'call-ui.css', 'door-log.html',
   // (21/10/2026) Trang dieu khien man hinh tu Darboard (src/controlApi.ts).

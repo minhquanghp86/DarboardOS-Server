@@ -181,12 +181,20 @@ function json(res: http.ServerResponse, code: number, body: unknown): void {
   res.end(JSON.stringify(body));
 }
 
-/** API cho alarm.html (chi tu man hinh — 127.0.0.1). true = da xu ly. */
+/** (27/10/2026) Nguon duoc phep: man hinh (localhost), trinh duyet trong LAN/Tailscale, hoac HA ingress.
+ *  Truoc day chi 127.0.0.1 nen trang Dieu khien bao thuc (public/alarm-ctl.html) tren dien thoai khong dung duoc. */
+function allowedSource(req: http.IncomingMessage): boolean {
+  const ip = (req.socket.remoteAddress || '').replace(/^::ffff:/, '');
+  if (ip === '127.0.0.1' || ip === '::1' || ip === '172.30.32.2') return true;   // man hinh / HA ingress
+  if (process.env.LAUNCHER_CONFIG_OPEN === '1') return true;
+  return /^10\./.test(ip) || /^192\.168\./.test(ip) || /^172\.(1[6-9]|2\d|3[01])\./.test(ip);
+}
+
+/** API cho alarm.html + alarm-ctl.html (man hinh, LAN/Tailscale, ingress). true = da xu ly. */
 export function handleAlarmApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL,
   screensInfo: () => { id: string; name: string; spk: boolean }[]): boolean {
   if (!url.pathname.startsWith('/alarm/')) return false;
-  const ip = (req.socket.remoteAddress || '').replace(/^::ffff:/, '');
-  if (ip !== '127.0.0.1' && ip !== '::1') { json(res, 403, { error: 'Chỉ dùng được từ màn hình.' }); return true; }
+  if (!allowedSource(req)) { json(res, 403, { error: 'Chỉ dùng được trong mạng nội bộ.' }); return true; }
   const route = url.pathname.slice(7), q = url.searchParams;
   const tz = alarms.hooks?.tz() ?? 420;
   if (route === 'list' && req.method === 'GET') {
