@@ -1,3 +1,9 @@
+## V2.9.248
+- **Trả lại cảm ứng (2.9.247 chặn nhầm) + sửa chiều phím YouTube TV.** 2.9.247 bỏ chuỗi chạm thô ở tab `yttv` nên
+  panel **mất cảm ứng hoàn toàn**; nay luôn bắn chạm thô như bản ổn định, phím mũi tên chỉ là bổ sung.
+  Đồng thời sửa chiều phím live cho **đúng quy ước `tvSwipeKeys()`**: kéo sang trái → `ArrowRight`, kéo lên →
+  `ArrowDown` (bản 2.9.242 đang ngược nên điều hướng sai/loạn).
+
 ## V2.9.247
 - **YouTube TV (800×480): hết "loạn" khi chạm/vuốt.** Trước đây với tab `yttv` server vẫn bắn **chuỗi chạm thô**
   (touchStart/Move/End) **rồi** thêm phím mũi tên → trang nhận 2 nguồn sự kiện cùng lúc nên nhảy sai/không nhạy.
