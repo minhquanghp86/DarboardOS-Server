@@ -1,3 +1,9 @@
+## V2.9.239
+- **Sửa hình đứng yên khi giữ tay kéo (thẻ Điều khiển).** Mỗi lệnh `Input.dispatchTouchEvent` tốn ~26 ms và dùng
+  **cùng kênh CDP** với `Page.captureScreenshot`. Gửi 60 move/giây = 1,5 s CDP mỗi giây → lệnh chụp khung không chen
+  vào được, nên trong lúc giữ tay hình đứng yên tới khi nhả. Nay khi một lệnh `move` đang chạy thì các điểm kế tiếp
+  **được bỏ qua** (chỉ gửi vị trí mới nhất khi kênh rảnh) → nhường CDP cho khung hình, cảm giác kéo vẫn liền.
+
 ## V2.9.238
 - **Thẻ Điều khiển: chặn Chrome Android "cướp" cử chỉ kéo.** `#touch` nay có `touch-action:none` +
   `overscroll-behavior:none`, và `pointerdown/pointermove` gọi `preventDefault()` — trước đây trình duyệt có thể

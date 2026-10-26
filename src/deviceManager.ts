@@ -4265,7 +4265,25 @@ export async function screenShot(id: string): Promise<Buffer | null> {
 // inputRouter._tvGesture doi vuot -> phim; Control thi chua. Luu moc vuot theo tung thiet bi.
 const tvTouchStart = new Map<string, { x0: number; y0: number; x: number; y: number }>();
 
+// (26/10/2026) Moi lenh Input.dispatchTouchEvent ton ~26 ms tren CUNG kenh CDP voi Page.captureScreenshot.
+// Gui 60 move/giay (16 ms) = 1,5 s CDP moi giay -> lenh chup khung khong chen vao duoc => hinh DUNG YEN
+// trong luc giu tay keo (dung trieu chung nguoi dung bao tren Chrome Android, SSE). Gio: dang gui move thi
+// BO QUA move tiep theo (chi gui vi tri moi nhat khi kenh ranh) -> khong mat cam giac keo, nhuong CDP cho khung.
+const moveInFlight = new Set<string>();
+
 export async function screenTouch(id: string, kind: 'down' | 'move' | 'up', x: number, y: number): Promise<string | null> {
+  if (kind === 'move') {
+    if (moveInFlight.has(id)) return null;   // dang gui -> bo qua diem nay
+    moveInFlight.add(id);
+  }
+  try {
+    return await screenTouchInner(id, kind, x, y);
+  } finally {
+    if (kind === 'move') moveInFlight.delete(id);
+  }
+}
+
+async function screenTouchInner(id: string, kind: 'down' | 'move' | 'up', x: number, y: number): Promise<string | null> {
   const dev = devices.get(id);
   if (!dev) return 'Không có màn hình này.';
   const tvTab = dev.tabs.get(dev.activeTabKey)?.kind === 'yttv';
