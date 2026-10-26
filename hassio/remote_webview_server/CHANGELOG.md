@@ -1,3 +1,9 @@
+## V2.9.233
+- **Trả lại điều khiển LIVE từng điểm** (như 2.9.224): bản 2.9.232 gộp cả cử chỉ vào 1 POST nên chỉ gửi khi
+  **nhả tay** → kéo/vuốt không thấy phản hồi trong lúc đang giữ (người dùng báo mất cảm giác thao tác thật).
+  Nay gửi `down` → `move` (tiết chế 16 ms ≈ 60 điểm/giây) → `up` ngay lập tức, không chờ phản hồi. Giữ nguyên
+  phần ưu tiên băng thông: trong lúc có thao tác, luồng khung hạ xuống ~3 fps nên lệnh điều khiển không bị nghẽn.
+
 ## V2.9.232
 - **Sửa điều khiển cảm ứng bị trễ nặng trên tên miền công khai.** Mỗi điểm chạm trước đây là 1 POST riêng
   (một cú vuốt = down + ~9 move + up = **11 lượt qua mạng**; qua Cloudflare ~150-250 ms/lượt → cú vuốt mất

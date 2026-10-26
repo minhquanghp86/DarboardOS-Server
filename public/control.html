@@ -274,36 +274,33 @@
   // - move tiet che 33 ms (khong lu request -> khong 429).
   // (26/10/2026) GOM CA CU CHI -> 1 POST thay vi 11 POST (xem /control/gesture).
   // Truoc day moi diem la 1 fetch: tren ten mien cong khai (~150-250 ms/lanh) cu vuot mat 1,5-2 s.
-  var gPoints = null, gLastT = 0, gStart = 0;
-  function sendGesture() {
-    if (!gPoints || gPoints.length === 0) { gPoints = null; return; }
-    var pts = gPoints; gPoints = null;
-    api('control/gesture', { dev: dev, points: pts }, 1);
+  // (26/10/2026) TRA LAI GUI LIVE tung diem (nhu 2.9.224): keo/vuot phai thay phan hoi NGAY trong luc
+  // dang giu tay. Ban gop 1 POST chi gui khi nha tay -> mat cam giac keo thuc te (nguoi dung bao).
+  // Chong tre: gui ngay khong cho phan hoi; move tiet che 16 ms (~60 diem/giay).
+  var lastMove = 0;
+  function send(kind, p) {
+    if (kind === 'move') {
+      var now = Date.now();
+      if (now - lastMove < 16) return;
+      lastMove = now;
+    }
+    api('control/input', { dev: dev, kind: kind, x: p.x, y: p.y });
   }
   touch.addEventListener('pointerdown', function (e) {
     e.preventDefault();
     try { touch.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ }
-    var p = pt(e);
-    gStart = Date.now(); gLastT = 0;
-    gPoints = [{ x: p.x, y: p.y, t: 0 }];
+    lastMove = 0;
+    send('down', pt(e));
   });
   touch.addEventListener('pointermove', function (e) {
-    if (!gPoints) return;
     if (touch.hasPointerCapture && !touch.hasPointerCapture(e.pointerId)) return;
-    var now = Date.now();
-    if (now - gStart - gLastT < 16) return;   // ~60 diem/giay
-    gLastT = now - gStart;
-    var p = pt(e);
-    gPoints.push({ x: p.x, y: p.y, t: gLastT });
+    send('move', pt(e));
   });
   function up(e) {
-    if (!gPoints) return;
     if (touch.hasPointerCapture && touch.hasPointerCapture(e.pointerId)) {
       try { touch.releasePointerCapture(e.pointerId); } catch (x) { /* ignore */ }
     }
-    var p = pt(e);
-    gPoints.push({ x: p.x, y: p.y, t: Date.now() - gStart });
-    sendGesture();
+    send('up', pt(e));
   }
   touch.addEventListener('pointerup', up);
   touch.addEventListener('pointercancel', up);
