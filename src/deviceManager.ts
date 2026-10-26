@@ -307,12 +307,26 @@ export function requestFullFrameFor(dev: DeviceSession): void {
  * thiet bi (Chrome nen san dung muc can -> chuyen thang); het khung nhip cao 1,5 s -> tra ve 90 va ve lai khung net.
  * Tat nong: "videoLowQ": false trong /data/rwv-tuning.json.
  */
+/** (27/10/2026) Chat luong JPEG HIEU LUC: nguoi dung dat trong Darboard UI (rwv.quality) > YAML (cfg.jpegQuality).
+ *  Truoc day duong screencast bo qua hoan toan gia tri UI -> dat q40/q50/q60 deu cho khung ~18 KB nhu nhau. */
+function effectiveJpegQuality(dev: DeviceSession): number {
+  return dev.qualityOverride ?? dev.cfg.jpegQuality;
+}
+
 function videoScreencastQuality(dev: DeviceSession, fps: number, nowMs: number): void {
   const tab = dev.tabs.get(dev.activeTabKey);
   if (!tab || !tab.screencastOn || dev.cfg.rotation || PASSTHROUGH_MIN_FPS <= 0) return;
-  const base = dev.cfg.maxBytesPerMessage >= 131072 ? dev.cfg.jpegQuality : SCREENCAST_JPEG_QUALITY;
-  const low = dev.cfg.jpegQuality;
-  if (base === low) return;
+  // (27/10/2026) Nguoi dung dat chat luong -> ap cho MOI khung (ca tinh lan video), khong con nguong 128 KB.
+  const effQ = effectiveJpegQuality(dev);
+  const base = dev.qualityOverride != null
+    ? effQ
+    : (dev.cfg.maxBytesPerMessage >= 65536 ? dev.cfg.jpegQuality : SCREENCAST_JPEG_QUALITY);
+  const low = effQ;
+  if (base === low) {
+    // Van phai EP dung muc: screencast co the dang chay o 90 (chat luong khoi tao) du dich la q nguoi dung dat.
+    if (tab.scQuality !== base && nowMs >= (dev.lowqBackoffUntil ?? 0)) setScreencastQuality(dev, tab, base, 'chat luong dich');
+    return;
+  }
   const enabled = tuning().videoLowQ !== false && nowMs >= (dev.lowqBackoffUntil ?? 0);
   if (enabled && fps >= PASSTHROUGH_MIN_FPS) {
     dev.lowqStreakMs ??= nowMs;
@@ -1697,6 +1711,9 @@ async function applySetting(dev: DeviceSession, sid: string, v: unknown): Promis
         dev.lastAppliedQuality = q;
         metrics.onAdaptiveChange(dev.deviceId, q, dev.tunedMinFrameIntervalMs ?? dev.cfg.minFrameInterval, 'nguoi dung dat');
         console.log(`[quality] ${dev.deviceId}: dat q=${q} (trang Darboard)`);
+        // (27/10/2026) Ap dung NGAY cho duong screencast dang chay (truoc day chi doi processor -> khung van la q cu).
+        const qTab = dev.tabs.get(dev.activeTabKey);
+        if (qTab?.screencastOn) setScreencastQuality(dev, qTab, q, 'nguoi dung dat');
       } else {
         console.log(`[quality] ${dev.deviceId}: TU DONG (bo muc dat tay)`);
       }
@@ -2898,8 +2915,9 @@ async function onTabCrashed(dev: DeviceSession, tab: Tab): Promise<void> {
     if (!active) setTimeout(() => freezeTab(dev, tab), 5000);  // tab nen: chay lai roi dong bang nhu cu
     return;
   }
-  const canPassthrough = PASSTHROUGH_MIN_FPS > 0 && dev.cfg.maxBytesPerMessage >= 131072;
-  const q = canPassthrough ? dev.cfg.jpegQuality : SCREENCAST_JPEG_QUALITY;
+  // (27/10/2026) Nguong 128 KB -> 64 KB (panel 480x272 khai 64 KB) va uu tien chat luong nguoi dung dat.
+  const canPassthrough = PASSTHROUGH_MIN_FPS > 0 && dev.cfg.maxBytesPerMessage >= 65536;
+  const q = dev.qualityOverride ?? (canPassthrough ? dev.cfg.jpegQuality : SCREENCAST_JPEG_QUALITY);
   for (let attempt = 1; attempt <= 6 && !tab.screencastOn && dev.activeTabKey === tab.key; attempt++) {
     await new Promise((r) => setTimeout(r, 500 * attempt));
     try {

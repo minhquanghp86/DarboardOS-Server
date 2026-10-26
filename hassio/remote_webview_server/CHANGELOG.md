@@ -1,3 +1,11 @@
+## V2.9.253
+- **Chất lượng đặt trong UI giờ đi tới encoder thật.** Trước đây đường video (`videoScreencastQuality`) luôn dùng
+  hằng số 90 (vì panel 480×272 khai gói 64 KB < ngưỡng 128 KB) và bỏ qua `qualityOverride` → đặt q40/q50/q60 đều
+  cho khung ~18 KB như nhau. Nay:
+  - `effectiveJpegQuality()` = `qualityOverride ?? cfg.jpegQuality`, dùng cho cả khung tĩnh lẫn video;
+  - ngưỡng passthrough hạ 128 KB → **64 KB** (panel nhỏ vẫn đủ);
+  - đổi chất lượng trong Darboard UI áp **ngay** vào screencast đang chạy (không cần tải lại trang).
+
 ## V2.9.252
 - **Panel nhỏ: chặn trần nhịp khung 100 ms (≥10 fps).** Đo thực tế: decode chỉ 55 ms nhưng bộ điều chỉnh ghim nhịp
   150-200 ms (dùng 28% ngân sách) → 5-6.7 fps. Nay với panel ≤480×272 đặt `maxIntervalMs: 100`.
