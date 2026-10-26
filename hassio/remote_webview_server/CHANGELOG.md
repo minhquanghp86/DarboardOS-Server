@@ -1,3 +1,8 @@
+## V2.9.230
+- **Thẻ Điều khiển mượt hơn**: bỏ khoảng nghỉ cố định 55 ms giữa 2 khung (`FRAME_GAP_MS`). Đo thật: `captureScreenshot`
+  tốn 50-68 ms (Chromium software render; P4 đang phát YouTube) nên nhịp chỉ còn **8-10 fps**; bỏ gap → **~14.7 fps (P4)**,
+  **~19 fps (S3)**. Thêm chặn tồn đọng `bufferedAmount > 1 MB` cho kênh WebSocket (SSE/MJPEG đã có `writableLength`).
+
 ## V2.9.229
 - **Bàn phím ảo: sáng hơn, bo góc, có hiệu ứng bấm, nền kính mờ.** (1) Bớt tối: nền tối gần đen -> xám xanh sáng,
   phím sáng hơn, chữ trắng có đổ bóng nhẹ. (2) Phím bo góc 10px (trước 2px vuông), bỏ viền cứng, thêm bóng nổi.

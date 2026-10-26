@@ -48,7 +48,10 @@ function readJson(req: http.IncomingMessage, max: number): Promise<any> {
 // (21/10/2026) Page.startScreencast KHONG phat khung khi cua so Chromium chay an (tab cua panel),
 // nen dung vong chup: do that 1 khung ~49 ms -> nhip 60 ms ~ 15 fps, du muot de thao tac.
 const wss = new WebSocketServer({ noServer: true, perMessageDeflate: false });
-const FRAME_GAP_MS = 55;
+// (26/10/2026) 55 ms -> 0: do that (P4 dang phat YouTube) captureScreenshot ton 50-68 ms, cong them gap
+// 55 ms thi nhip chi con 8-10 fps. Bo gap => 14.7 fps (P4) / ~19 fps (S3). Nhip gio do CHINH thoi gian
+// chup quyet dinh; chong ton dong van co san (SSE/MJPEG: writableLength > 1 MB; WS: bufferedAmount).
+const FRAME_GAP_MS = 0;
 const QUALITY = 35;
 const SCALE = 0.75;   // khung nho hon -> ma hoa/giai ma nhanh, do tre thap (dien thoai hien thi nho hon man that)
 
@@ -106,6 +109,8 @@ function pumpLive(id: string): void {
         const buf = Buffer.from(data, 'base64');
         for (const ws of e.peers) {
           if (ws.readyState !== WebSocket.OPEN) { e.peers.delete(ws); continue; }
+          // Bo gap 55 ms thi phai tu chan ton dong: dien thoai mang cham khong xep hang vo han.
+          if (ws.bufferedAmount > 1_048_576) continue;
           try { ws.send(buf, { binary: true }); sent++; } catch { e.peers.delete(ws); }
         }
       } catch (err) {
