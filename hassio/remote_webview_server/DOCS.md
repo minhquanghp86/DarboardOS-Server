@@ -769,6 +769,25 @@ chậm hơn một chút.
   được ở màn hình **Gần đây**. Radio/Nhạc đang
   phát nền dừng được ngay từ thẻ **Đang phát** trong thanh kéo xuống (từ 2.9.49).
 
+## Không thấy bản cập nhật add-on
+
+Nếu đã phát hành version mới mà HA vẫn báo `No update available` / `version_latest` là bản cũ:
+
+1. Kiểm tra clone store của Supervisor có bị **detached HEAD** không:
+   ```bash
+   docker exec hassio_supervisor sh -c 'cd /data/apps/git/b39feb53 && git status -sb | head -1'
+   ```
+   Nếu ra `HEAD detached at ...` thì đó là nguyên nhân: `GitRepo.pull()` của Supervisor cần
+   `repo.active_branch`, HEAD detached làm nó ném `TypeError` và **hủy toàn bộ lần reload repo**.
+2. Sửa bằng script trong repo (chạy trên máy HA):
+   ```bash
+   sh scripts/fix-store-clone.sh b39feb53 remote_webview_server
+   ```
+3. **Đừng** chạy `git checkout` / `git switch` / `git reset` trong `/data/apps/git/*` — chỉ cần
+   xem commit khác thì dùng `git show <ref>:<path>`.
+
+Chi tiết đầy đủ: `docs/SUA-LOI-STORE-ADDON.md`.
+
 ## Mã nguồn, ghi công, giấy phép
 
 - Phát triển tiếp từ [strange-v/RemoteWebViewServer](https://github.com/strange-v/RemoteWebViewServer) và
