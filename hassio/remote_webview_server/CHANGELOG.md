@@ -1,3 +1,7 @@
+## V2.9.262
+- **Sửa bố cục trang Báo thức trên Darboard**: tên màn và dòng trạng thái bị chồng lên nhau (span inline) → nay
+  mỗi dòng một hàng, badge số báo thức không đè lên tên.
+
 ## V2.9.261
 - **Ứng dụng "Báo thức" trên Darboard** (`public/alarm-ctl.html`): có mặt trong lưới ứng dụng ở trang chủ.
   Bước 1 chọn màn hình → mở đúng trình Báo thức của màn đó (`alarm.html?dev=<id>`), báo thức mới mặc định reo
