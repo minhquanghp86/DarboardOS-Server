@@ -4130,7 +4130,7 @@ export function runAdaptiveTick(): void {
     // (27/10/2026) Panel nho: bo dieu tiet KHONG nhan duoc mau decode cua panel nay (khong co dong [adaptive] nao)
     // nen sau moi lan khoi dong lai no ket o 200 ms du decode chi ~52 ms -> 5 fps. Khi bo dieu tiet DUNG YEN
     // (khong tu thay doi) thi ep nhip 100 ms; con khi no chu dong giam toc (changed=true, co nghen) thi ton trong.
-    const smallIntervalMs = Math.max(60, parseInt(process.env.SMALL_PANEL_INTERVAL_MS ?? '85', 10) || 85);
+    const smallIntervalMs = Math.max(60, parseInt(process.env.SMALL_PANEL_INTERVAL_MS ?? '75', 10) || 75);
     if (pinQuality && !res.changed && res.state.minFrameIntervalMs > smallIntervalMs) {
       res.state.minFrameIntervalMs = smallIntervalMs;
       res.changed = true;
