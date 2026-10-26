@@ -253,6 +253,23 @@
   // thi chay ~18 fps lien tuc. Vao bang ingress -> dung MJPEG luon, khoi mat 1-3 s dau de thu WS.
   // (22/10/2026) Qua HA ingress / ten mien: Cloudflare dem multipart (MJPEG) va dong WebSocket -> dung SSE
   // (text/event-stream) — day la kenh duy nhat Cloudflare stream on dinh. Vao bang IP (LAN/Tailscale) thi WS.
+  // (26/10/2026) TU CHUYEN SANG LAN/TAILSCALE: mo bang ten mien -> hoi server IP LAN, probe nhanh;
+  // toi duoc thi chuyen sang IP (khi do trang dung WebSocket -> input di qua WS nhu panel that).
+  // Neu trang dang HTTPS thi trinh duyet chan probe HTTP (mixed content) -> giu nguyen ten mien.
+  (function lanProbe() {
+    var h = location.hostname;
+    if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|127\.|localhost$)/.test(h)) return;
+    if (location.protocol === 'https:') return;
+    fetch('control/ping', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.lan) return null;
+        return fetch(j.lan + '/control/ping', { mode: 'no-cors', cache: 'no-store' })
+          .then(function () { location.replace(j.lan + location.pathname + location.search); });
+      })
+      .catch(function () { /* khong toi duoc LAN: giu ten mien */ });
+  })();
+
   if (/[?&]mjpeg/.test(location.search)) {
     preferStream = true; startWs();          // MJPEG (tuong thich cu)
   } else if (location.pathname.indexOf('/api/hassio_ingress/') >= 0) {
@@ -279,6 +296,10 @@
   // vao 1 POST (thay vi 1 POST/diem). Ly do: 1 lenh CDP ~26 ms o server + ~200 ms RTT ten mien cong khai;
   // gui 60 request/giay se day hang doi sau hang giay -> giat.
   var acc = null, lastT = 0, lastSend = 0, segStart = 0;
+  function wsOpen() { return !!(ws && ws.readyState === 1); }
+  function sendWs(kind, p) {
+    try { ws.send(JSON.stringify({ t: 'touch', kind: kind, x: p.x, y: p.y })); return true; } catch (e) { return false; }
+  }
   function flush(end) {
     if (!acc || acc.length === 0) { acc = null; return; }
     var pts = acc; acc = null;
@@ -289,8 +310,10 @@
     e.preventDefault();
     try { touch.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ }
     var p = pt(e);
-    segStart = Date.now(); lastT = 0; lastSend = 0;
-    acc = null;
+    lastT = 0; acc = null; segStart = Date.now(); lastSend = 0;
+    // (26/10/2026) CO WS -> gui thang qua WS (giong panel that: TouchType qua WS, khong round-trip tung diem).
+    // Khong co WS (SSE/tên miền) -> gop doan 60 ms nhu 2.9.234 de giam so request.
+    if (wsOpen() && sendWs('down', p)) { lastSend = Date.now(); return; }
     api('control/gesture', { dev: dev, points: [{ x: p.x, y: p.y, t: 0 }], start: true });
     lastSend = Date.now();
   });
@@ -300,6 +323,7 @@
     if (rel - lastT < 16) return;
     lastT = rel;
     var p = pt(e);
+    if (wsOpen() && sendWs('move', p)) return;
     (acc || (acc = [])).push({ x: p.x, y: p.y, t: rel });
     if (now - lastSend >= 60) flush(false);
   });
@@ -308,6 +332,7 @@
       try { touch.releasePointerCapture(e.pointerId); } catch (x) { /* ignore */ }
     }
     var p = pt(e);
+    if (wsOpen() && sendWs('up', p)) { acc = null; return; }
     (acc || (acc = [])).push({ x: p.x, y: p.y, t: Date.now() - segStart });
     flush(true);
   }

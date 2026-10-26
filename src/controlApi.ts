@@ -13,6 +13,7 @@
  *   POST /control/key   {dev, key: home|back|recents}
  *   WS   /control/ws?dev=<id>      -> day khung hinh (Page.startScreencast, toi da ~14 fps)
  */
+import os from 'node:os';
 import http from 'node:http';
 import type { Duplex } from 'node:stream';
 import { WebSocket, WebSocketServer } from 'ws';
@@ -69,6 +70,19 @@ export function handleControlUpgrade(req: http.IncomingMessage, socket: Duplex, 
   const dev = url.searchParams.get('dev') || '';
   wss.handleUpgrade(req, socket, head, (ws) => void startLive(ws, dev));
   return true;
+}
+
+function lanUrl(): string {
+  try {
+    const nets = os.networkInterfaces();
+    for (const list of Object.values(nets) as any[]) {
+      for (const ni of (list || []) as any[]) {
+        if (ni.family !== 'IPv4' || ni.internal) continue;
+        if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(ni.address)) return `http://${ni.address}:18080`;
+      }
+    }
+  } catch { /* ignore */ }
+  return '';
 }
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -147,6 +161,19 @@ async function startLive(ws: WebSocket, id: string): Promise<void> {
   };
   ws.on('close', drop);
   ws.on('error', drop);
+  // (26/10/2026) INPUT QUA WS (giong panel that: remote_webview gui TouchType qua WS). Mot ket noi, khong
+  // round-trip cho tung diem -> tren LAN/Tailscale do tre ~vai ms. Du phong: van nhan POST /control/input.
+  ws.on('message', (raw) => {
+    const txt = raw.toString();
+    if (txt === 'p') return;                       // heartbeat
+    try {
+      const m = JSON.parse(txt);
+      if (m && m.t === 'touch' && (m.kind === 'down' || m.kind === 'move' || m.kind === 'up')) {
+        inputAt.set(id, Date.now());
+        void screenTouch(id, m.kind, Number(m.x) || 0, Number(m.y) || 0);
+      }
+    } catch { /* bo qua */ }
+  });
   // (22/10/2026) Heartbeat: proxy (HA ingress / Cloudflare) co the dong WS khi chi mot chieu nhan du lieu.
   // Client gui 'p' moi 2 s; o day chi tieu thu de khong xep hang.
   ws.on('message', () => {});
@@ -160,6 +187,14 @@ export function handleControlApi(req: http.IncomingMessage, res: http.ServerResp
   const p = url.pathname;
   if (!p.startsWith('/control/')) return false;
   if (!isLocal(req) && !fromIngress(req) && !isLan(req)) { json(res, 403, { ok: false, error: 'Chỉ dùng được từ trang Darboard.' }); return true; }
+
+  // (26/10/2026) Probe de trang tu chuyen sang LAN/Tailscale: tra ve IP LAN cua HA (neu co).
+  // Trang mo bang ten mien se thu goi <lan>:18080/control/ping; thay duoc thi chuyen sang IP (WebSocket -> input
+  // di qua WS nhu panel that, do tre ~vai ms thay vi 1 RTT ~200 ms).
+  if (p === '/control/ping' && req.method === 'GET') {
+    json(res, 200, { ok: true, lan: lanUrl() });
+    return true;
+  }
 
   if (p === '/control/frame' && req.method === 'GET') {
     const dev = url.searchParams.get('dev') || url.searchParams.get('id') || '';

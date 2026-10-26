@@ -1,3 +1,12 @@
+## V2.9.235
+- **Điều khiển: input đi qua WebSocket (giống màn hình thật).** Panel thật gửi `TouchType` qua WS
+  (`remote_webview.ws_send_touch_event_`) nên độ trễ chỉ là WiFi; thẻ Điều khiển trước đây lại gửi từng điểm
+  bằng HTTP POST. Nay khi trang có WS, mỗi điểm chạm/vuốt được gửi thẳng qua WS (server bơm vào Chromium ngay) →
+  LAN/Tailscale gần như tức thì. Không có WS (qua tên miền) thì vẫn gộp đoạn 60 ms như 2.9.234.
+- **Tự chuyển sang LAN/Tailscale:** `GET /control/ping` trả IP LAN của HA; trang mở bằng tên miền (HTTP) sẽ
+  probe `http://<lan>:18080/control/ping`, tới được thì tự chuyển sang IP để dùng WebSocket. Trang HTTPS thì
+  trình duyệt chặn probe (mixed content) nên giữ nguyên tên miền.
+
 ## V2.9.234
 - **Kéo/vuốt live theo từng đoạn 60 ms.** Đo thật: mỗi lệnh `Input.dispatchTouchEvent` tốn ~26 ms ở server
   (p90 33 ms) + ~200 ms RTT qua tên miền công khai. Bản 2.9.233 gửi 1 POST mỗi điểm (~60 request/giây) →
