@@ -1,3 +1,9 @@
+## V2.9.241
+- **Bỏ hẳn việc bỏ qua chụp khung khi đang thao tác.** 2.9.240 cho SSE dùng chung `latestFrame`, nhưng trong
+  `pumpLive` vẫn còn `if (inputBusy) continue` → **không chụp khung nào** trong lúc giữ tay kéo, mà SSE lại đọc
+  đúng buffer đó ⇒ hình trên thẻ đứng yên tới khi nhả (màn hình thật vẫn chạy vì dùng screencast push). Nay luôn
+  chụp; việc chống nghẽn đã do cơ chế gộp `move` (2.9.239) đảm nhiệm.
+
 ## V2.9.240
 - **Trả lại "1 vòng chụp/thiết bị" cho cả đường SSE** (đọc code 2.9.207/2.9.212: bản cũ dùng chung một vòng chụp,
   chia khung cho mọi người xem; 2.9.214 khi chuyển sang SSE lại tạo **một vòng `captureScreenshot` riêng cho từng

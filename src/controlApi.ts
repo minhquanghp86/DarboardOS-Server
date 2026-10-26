@@ -59,9 +59,7 @@ const SCALE = 0.65;   // 0.75 -> 0.65 (26/10/2026): khung nho ~35% byte, dien th
 // 0,5-1,4 MB/s. Tren duong ingress/WiFi, cac POST /control/input bi nghen phia sau -> vuot khong an
 // (khong mo khoa duoc man hinh). Trong ~800 ms sau moi lenh cham/vuot, ha luong khung xuong ~3 fps
 // de lenh dieu khien di truoc.
-const INPUT_PRIORITY_MS = 800;
 const inputAt = new Map<string, number>();
-function inputBusy(id: string): boolean { return Date.now() - (inputAt.get(id) || 0) < INPUT_PRIORITY_MS; }
 
 export function handleControlUpgrade(req: http.IncomingMessage, socket: Duplex, head: Buffer): boolean {
   const url = new URL(req.url || '/', 'http://x');
@@ -127,7 +125,6 @@ function pumpLive(id: string): void {
     let sent = 0;
     const t0 = Date.now();
     while (!e.stop && (e.peers.size > 0 || (e.sse || 0) > 0)) {
-      if (inputBusy(id)) { await sleep(30); continue; }   // van giu ~15-20 fps khi dang keo (truoc day 300ms -> hinh dung yen)
       const t = Date.now();
       try {
         const data = await captureJpeg(dev);
@@ -226,7 +223,6 @@ export function handleControlApi(req: http.IncomingMessage, res: http.ServerResp
     void (async () => {
       console.log(`[control] stream ${id}: bat dau`);
       while (!closed) {
-        if (inputBusy(id)) { await sleep(30); continue; }   // van giu ~15-20 fps khi dang keo (truoc day 300ms -> hinh dung yen)
         const t = Date.now();
         try {
           const data = await captureJpeg(d);
