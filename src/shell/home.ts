@@ -366,7 +366,10 @@ export function mountHome(ctx: HomeCtx): HomeApi {
       if (openFolderId) return;
       press.swiping = Math.abs(dx) > Math.abs(dy) && !!press.target.closest('.pager');
     }
-    if (press.swiping && ctx.motion === 'full') {
+    // (26/10/2026) LUON cap nhat vi tri khi dang keo, khong phu thuoc ctx.motion. Truoc day chi chay khi
+    // motion === 'full'; panel S3 dat motion thap -> khong ve theo tay, chi nhay khi nha (do that: khung chi
+    // doi sau khi nha tay o 480x480 / 480x272).
+    if (press.swiping) {
       pages.classList.remove('anim');
       pages.style.transform = `translateX(calc(${-cur * 100}% + ${dx}px))`;
     }

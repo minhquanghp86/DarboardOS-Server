@@ -1,3 +1,9 @@
+## V2.9.243
+- **Màn hình chính: kéo theo tay trên panel S3.** Pager chỉ cập nhật vị trí khi `ctx.motion === 'full'`; các panel
+  S3 đặt motion thấp nên **không vẽ theo tay**, chỉ nhảy khi nhả (đo thật: 480×480 đổi khung tại 245 ms, 480×272 tại
+  240 ms, trong khi cú kéo chỉ 211–215 ms; P4 đổi tại 64/135/211 ms). Nay luôn cập nhật transform mỗi `pointermove`,
+  không phụ thuộc motion.
+
 ## V2.9.242
 - **Điều khiển YouTube TV: phím mũi tên phát ngay khi kéo.** Giao diện youtube.com/tv chỉ nhận phím mũi tên, và
   trước đây server chỉ đổi cú vuốt thành phím **khi nhả tay** (`kind === 'up'`) → trên các panel đang ở tab YouTube TV
