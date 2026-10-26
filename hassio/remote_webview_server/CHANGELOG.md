@@ -1,3 +1,10 @@
+## V2.9.240
+- **Trả lại "1 vòng chụp/thiết bị" cho cả đường SSE** (đọc code 2.9.207/2.9.212: bản cũ dùng chung một vòng chụp,
+  chia khung cho mọi người xem; 2.9.214 khi chuyển sang SSE lại tạo **một vòng `captureScreenshot` riêng cho từng
+  kết nối**). Mỗi vòng chiếm kênh CDP ~65 ms, tranh với `Input.dispatchTouchEvent` (~26 ms) → giữ tay kéo là hình
+  đứng yên. Nay SSE đăng ký vào vòng chụp chung (`pumpLive`) và chỉ đọc `latestFrame`, không gọi CDP nữa; nhịp gửi
+  cố định 60 ms (~16 fps) không phụ thuộc thời gian chụp.
+
 ## V2.9.239
 - **Sửa hình đứng yên khi giữ tay kéo (thẻ Điều khiển).** Mỗi lệnh `Input.dispatchTouchEvent` tốn ~26 ms và dùng
   **cùng kênh CDP** với `Page.captureScreenshot`. Gửi 60 move/giây = 1,5 s CDP mỗi giây → lệnh chụp khung không chen

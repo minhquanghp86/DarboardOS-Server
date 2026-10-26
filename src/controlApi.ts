@@ -106,7 +106,11 @@ function captureJpeg(d: { cdp: { send: (...a: any[]) => Promise<any> } }, timeou
 // (22/10/2026) MOT vong chup cho MOI THIET BI, chia khung cho MOI socket dang xem.
 // Truoc day moi ket noi mo mot vong chup rieng -> mo 2 tab la 2 vong tranh CPU, nhip tut va
 // vong kia co the loi/ngat. Nay: vong chup chi chay khi co it nhat 1 nguoi xem, tat khi het.
-type LiveEntry = { peers: Set<WebSocket>; run: Promise<void> | null; stop: boolean };
+type LiveEntry = { peers: Set<WebSocket>; run: Promise<void> | null; stop: boolean; sse?: number };
+// (26/10/2026) MOT vong chup/thiet bi (nhu 2.9.207), MOI nguoi xem (WS lan SSE) dung chung khung moi nhat.
+// Truoc day /control/sse tu chay vong captureJpeg RIENG cho tung ket noi -> mo 2 tab la 2 vong tranh CDP voi
+// lenh cham -> hinh dung yen khi keo. Nay SSE chi doc buffer, khong goi CDP.
+const latestFrame = new Map<string, Buffer>();
 const live = new Map<string, LiveEntry>();
 
 function pumpLive(id: string): void {
@@ -122,13 +126,14 @@ function pumpLive(id: string): void {
     }
     let sent = 0;
     const t0 = Date.now();
-    while (!e.stop && e.peers.size > 0) {
+    while (!e.stop && (e.peers.size > 0 || (e.sse || 0) > 0)) {
       if (inputBusy(id)) { await sleep(30); continue; }   // van giu ~15-20 fps khi dang keo (truoc day 300ms -> hinh dung yen)
       const t = Date.now();
       try {
         const data = await captureJpeg(dev);
         if (!data) { await sleep(150); continue; }
         const buf = Buffer.from(data, 'base64');
+        latestFrame.set(id, buf);
         for (const ws of e.peers) {
           if (ws.readyState !== WebSocket.OPEN) { e.peers.delete(ws); continue; }
           // Bo gap 55 ms thi phai tu chan ton dong: dien thoai mang cham khong xep hang vo han.
@@ -255,20 +260,22 @@ export function handleControlApi(req: http.IncomingMessage, res: http.ServerResp
     });
     res.write('retry: 2000\n\n');
     let closed = false, sent = 0, n = 0, t0 = Date.now();
-    req.on('close', () => { closed = true; });
+    // (26/10/2026) DUNG CHUNG vong chup voi WS (1 vong/thiet bi) thay vi tu chup rieng.
+    let le = live.get(id);
+    if (!le) { le = { peers: new Set(), run: null, stop: false, sse: 0 }; live.set(id, le); }
+    le.sse = (le.sse || 0) + 1;
+    pumpLive(id);
+    req.on('close', () => { closed = true; le!.sse = Math.max(0, (le!.sse || 1) - 1); if ((le!.sse || 0) === 0 && le!.peers.size === 0) le!.stop = true; });
     void (async () => {
       while (!closed) {
-        if (inputBusy(id)) { await sleep(30); continue; }   // van giu ~15-20 fps khi dang keo (truoc day 300ms -> hinh dung yen)
         const t = Date.now();
-        try {
-          const data = await captureJpeg(d);
-          if (closed) break;
-          if (data) { n++; res.write(`id: ${n}\ndata: ${data}\n\n`); sent++; } else { await sleep(150); }
-        } catch { break; }
-        // Chong ton dong: bo khung thay vi xep hang vo han khi dien thoai/mang cham.
+        const buf = latestFrame.get(id);
+        if (!buf) { await sleep(60); continue; }
         if (res.writableLength > 1_000_000) { await sleep(50); continue; }
+        try { n++; res.write(`id: ${n}\ndata: ${buf.toString('base64')}\n\n`); sent++; } catch { break; }
         const spent = Date.now() - t;
-        if (spent < FRAME_GAP_MS) await sleep(FRAME_GAP_MS - spent);
+        const gap = 60;   // ~16 fps, khong phu thuoc thoi gian chup nua
+        if (spent < gap) await sleep(gap - spent);
       }
       console.log(`[control] sse ${id}: ket thuc — ${sent} khung / ${Math.round((Date.now() - t0) / 1000)} s`);
       try { res.end(); } catch { /* ignore */ }
