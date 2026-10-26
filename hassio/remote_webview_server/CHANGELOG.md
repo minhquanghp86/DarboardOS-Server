@@ -1,3 +1,11 @@
+## V2.9.229
+- **Bàn phím ảo: sáng hơn, bo góc, có hiệu ứng bấm, nền kính mờ.** (1) Bớt tối: nền tối gần đen -> xám xanh sáng,
+  phím sáng hơn, chữ trắng có đổ bóng nhẹ. (2) Phím bo góc 10px (trước 2px vuông), bỏ viền cứng, thêm bóng nổi.
+  (3) Hiệu ứng bấm: phím lún + sáng lên (`translateY(2px) scale(.95)` + `brightness(1.55)`) thay cho việc đổi nền xám
+  (trước đây đổi nền làm mất màu phím Enter/VN/layout). (4) Nền bán trong suốt + `backdrop-filter` blur 14px.
+  (5) Màn thấp: chiều cao `min(196px, 50vh)` (480x272 trước chiếm 72% màn hình, nay 50%). (6) Màn dọc (panel xoay
+  90/270, vd 272x480): chế độ hẹp giảm gap/padding -> phím 21px -> 24px.
+
 ## V2.9.228
 - **App Camera theo góc xoay panel (90/270)**: video preview xoay bù `-rot` (hết nghiêng), thanh nút chuyển xuống
   **đáy màn hình** với bố cục `Ảnh/Video — nút chụp (giữa) — Thư viện (phải)`. Trang nhận `?rot=` từ server;

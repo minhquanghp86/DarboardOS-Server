@@ -485,7 +485,9 @@ export const broadcaster = new DeviceBroadcaster();
 // ============================================================
 const KIOSK_KEYBOARD_SCRIPT = `(function(){
   var VKB_WIDTH  = '100%';
-  var VKB_HEIGHT = '196px';
+  // (25/10/2026) Man thap (480x272) ma de 196px thi ban phim chiem 72% chieu cao man.
+  // Lay min(196px, 50vh): man >= 392px cao giu nguyen 196px, man 272px con 136px.
+  var VKB_HEIGHT = 'min(196px, 50vh)';
   if (window.__kioskKeyboardInitialized) return;
   window.__kioskKeyboardInitialized = true;
 
@@ -752,29 +754,44 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
         '#kiosk-vkb-container{position:fixed !important;top:auto !important;bottom:-200vh !important;'+
         'left:0 !important;right:0 !important;margin:0 auto !important;'+
         'width:'+VKB_WIDTH+' !important;height:'+VKB_HEIGHT+' !important;'+
-        'container-type:size;background:#1e1e1e;border-top:2px solid #333;z-index:2147483647;'+
-        'display:flex;flex-direction:column;padding:4px;box-sizing:border-box;'+
+        'container-type:size;background:linear-gradient(180deg,rgba(72,79,92,.70),rgba(50,56,66,.78));'+
+        'backdrop-filter:blur(14px) saturate(130%);-webkit-backdrop-filter:blur(14px) saturate(130%);'+
+        'border-top:1px solid rgba(255,255,255,.10);z-index:2147483647;'+
+        'box-shadow:0 -8px 26px rgba(0,0,0,.40);'+
+        'display:flex;flex-direction:column;padding:6px;box-sizing:border-box;'+
         'user-select:none;-webkit-user-select:none;font-family:sans-serif;touch-action:manipulation;border:none;}'+
         '#kiosk-vkb-container:popover-open{display:flex;}'+
         '#kiosk-vkb-container.vkb-visible{bottom:0 !important;}'+
-        '.vkb-row{display:flex;justify-content:center;margin-bottom:4px;width:100%;gap:4px;flex:1;}'+
+        '.vkb-row{display:flex;justify-content:center;margin-bottom:6px;width:100%;gap:6px;flex:1;}'+
         '.vkb-row:last-child{margin-bottom:0;}'+
-        '.vkb-key{flex:1;background:#383838;color:#f8f8f2;border:1px solid #2a2a2a;border-radius:2px;'+
-        'font-size:11.5cqh;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}'+
-        '.vkb-key:active{background:#555;}'+
-        '.vkb-key-layout{background:#324a5f;color:#e2e8f0;font-size:9cqh;}'+
-        '.vkb-key-layout:active{background:#233544;}'+
-        '.vkb-key-special{background:#485c4a;color:#e2e8f0;font-size:11cqh;}'+
-        '.vkb-key-special:active{background:#364538;}'+
+        // (25/10/2026) Nen sang hon, phim BO GOC (10px) thay vi 2px, them do noi + hieu ung nhan phim.
+        // (25/10/2026) Nen SANG + BAN TRONG SUOT (kinh mo): phim sang, vien sang mong,
+        // backdrop-filter lam noi dung phia sau mo di nhung chu van doc duoc.
+        '.vkb-key{flex:1;background:rgba(126,136,152,.45);color:#f7f9fc;border:none;border-radius:10px;'+
+        'font-size:11.5cqh;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;'+
+        'box-shadow:0 2px 0 rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.22);'+
+        'text-shadow:0 1px 2px rgba(0,0,0,.35);'+
+        'transition:transform .07s ease,filter .1s ease,box-shadow .07s ease;'+
+        'will-change:transform;-webkit-tap-highlight-color:transparent;}'+
+        '.vkb-key:active,.vkb-key.vkb-pressed{transform:translateY(2px) scale(.95);filter:brightness(1.55);'+
+        'background:rgba(168,178,194,.62);'+
+        'box-shadow:0 0 0 rgba(0,0,0,0),inset 0 2px 7px rgba(0,0,0,.45);}'+
+        '.vkb-key-layout{background:rgba(96,138,178,.50);color:#eef4fb;font-size:9cqh;}'+
+        '.vkb-key-special{background:rgba(104,146,120,.50);color:#eef4fb;font-size:11cqh;}'+
         '.vkb-key-large-icon{font-size:15cqh;}'+
         '.vkb-key-backspace{font-size:18cqh;}'+
-        '.vkb-key-hide{background:#8b3a3a;color:#e2e8f0;font-size:12.5cqh;}'+
-        '.vkb-key-hide:active{background:#6b2a2a;}'+
-        '.vkb-key-enter{background:#E95420;color:#fff;border-color:#c94618;font-size:12.5cqh;}'+
-        '.vkb-key-enter:active{background:#c94618;}'+
+        '.vkb-key-hide{background:rgba(196,104,104,.52);color:#fdf0f0;font-size:12.5cqh;}'+
+        '.vkb-key-enter{background:rgba(233,84,32,.82);color:#fff;font-size:12.5cqh;'+
+        'box-shadow:0 2px 0 rgba(150,52,16,.85),inset 0 1px 0 rgba(255,255,255,.25);}'+
         '.vkb-key-space{flex:3;}.vkb-key-arrow{flex:0.8;}'+
         '.vkb-key-vn{font-size:8.5cqh !important;}'+
-        '.vkb-key-vn-on{background:#1a5c1a !important;color:#7fff7f !important;}';
+        '.vkb-key-vn-on{background:rgba(60,152,74,.62) !important;color:#e6ffe9 !important;}'+
+        // (25/10/2026) che do hep cho man doc: phim rong hon, bo goc nho hon
+        '#kiosk-vkb-container.vkb-narrow{padding:4px;}'+
+        '#kiosk-vkb-container.vkb-narrow .vkb-row{gap:3px;margin-bottom:4px;}'+
+        '#kiosk-vkb-container.vkb-narrow .vkb-key{border-radius:7px;}'+
+        '#kiosk-vkb-container.vkb-narrow .vkb-key-space{flex:2.6;}'+
+        '#kiosk-vkb-container.vkb-narrow .vkb-key-arrow{flex:0.7;}';
       document.head.appendChild(st);
     }
     if(!keyboardContainer){
@@ -914,8 +931,17 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
   }
 
   /* ---- Show / Hide ----------------------------------------- */
+  // (25/10/2026) Man DOC (panel xoay 90/270, vd S3 480x272 -> 272x480) chi con 272px ngang:
+  // 10 phim/ hang voi gap 6px thi moi phim chi ~21px. Che do "hep" giam gap/padding de
+  // phim rong hon (~24px) va bo goc nho lai cho can doi.
+  function applyResponsive(){
+    if(!keyboardContainer) return;
+    var w = window.innerWidth || 0;
+    keyboardContainer.classList.toggle('vkb-narrow', w > 0 && w < 380);
+  }
+
   function showKeyboard(el){
-    activeInput=el; renderKeyboard();
+    activeInput=el; renderKeyboard(); applyResponsive();
     // Cải tiến: dùng _shield thay window.__vkbOpeningShield
     _shield.opening=Date.now();
     if(keyboardContainer.showPopover){
@@ -1018,8 +1044,10 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
             }
             if(found){
               var k=found.dataset.key;
-              found.style.background='#555';
-              setTimeout(function(){found.style.background='';},100);
+              // (25/10/2026) Hieu ung nhan phim: dung class de an theo transform/brightness
+              // cua CSS. Truoc day gan background mau xam de len ca phim mau (layout/enter/VN).
+              found.classList.add('vkb-pressed');
+              setTimeout(function(){found.classList.remove('vkb-pressed');},110);
               processKey(k);
             }
           }
