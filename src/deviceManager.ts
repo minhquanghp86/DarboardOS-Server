@@ -4038,10 +4038,17 @@ export function runAdaptiveTick(): void {
           intervalStepMs: 17, goodStreakNeeded: 1, cooldownMs: 5_000 } : {};
     // (26/10/2026) Panel RAT NHO (<=480x272): ghim chat luong dung bang cfg.jpegQuality. Truoc day bo dieu chinh
     // khong nhan duoc mau decode (dec=0) nen dung mai o san 40 -> YouTube mo, tang q trong YAML vo ich.
-    const pinQuality = device.cfg.width <= 480 && device.cfg.height <= 272;
+    const pinQuality = (device.cfg.width ?? 0) <= 480 && (device.cfg.height ?? 0) <= 272;
+    if (!(device as unknown as Record<string, unknown>).__dimLogged) {
+      (device as unknown as Record<string, unknown>).__dimLogged = true;
+      console.log(`[cfg] ${device.deviceId}: w=${device.cfg.width} h=${device.cfg.height} mfi=${device.cfg.minFrameInterval} maxBytes=${device.cfg.maxBytesPerMessage} halfVideo=${device.cfg.halfVideo} pin=${pinQuality}`);
+    }
     const cfgA = {
       ...DEFAULT_ADAPTIVE_CFG, maxQuality: device.cfg.jpegQuality,
       ...(pinQuality ? { minQuality: device.cfg.jpegQuality } : {}), ...fbProfile,
+      // (26/10/2026) Panel nho: tran nhi 100 ms (>=10 fps). Bo dieu chinh dang ghim 150-200 ms du decode chi 55 ms,
+      // trong khi link chi ~80 KB/s -> phi 2-3 lan nang luc. Giu 100 ms de con du dia cho nghen bat ngo.
+      ...(pinQuality ? { maxIntervalMs: 100 } : {}),
       ...(tun.maxBacklogBytes !== undefined ? { maxBacklogBytes: tun.maxBacklogBytes } : {}),
       ...(tun.decodeBudgetRatio !== undefined ? { decodeBudgetRatio: tun.decodeBudgetRatio } : {}),
       ...(tun.intervalBackoffFactor !== undefined ? { intervalBackoffFactor: tun.intervalBackoffFactor } : {}),

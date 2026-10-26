@@ -1,3 +1,8 @@
+## V2.9.252
+- **Panel nhỏ: chặn trần nhịp khung 100 ms (≥10 fps).** Đo thực tế: decode chỉ 55 ms nhưng bộ điều chỉnh ghim nhịp
+  150-200 ms (dùng 28% ngân sách) → 5-6.7 fps. Nay với panel ≤480×272 đặt `maxIntervalMs: 100`.
+  Kèm log `[cfg]` một lần/thiết bị để xác nhận `width/height` thật (nghi vấn điều kiện nhận diện panel nhỏ).
+
 ## V2.9.251
 - **Sửa tiếp việc panel nhỏ kẹt q40.** 2.9.250 chỉ đặt `minQuality` nhưng state của bộ điều chỉnh đã khởi tạo sẵn ở
   sàn 40 và chỉ có thể hạ, nên không bao giờ vươn lên. Nay nâng thẳng trong state:
