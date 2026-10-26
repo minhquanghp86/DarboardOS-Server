@@ -124,16 +124,16 @@
   function wsFailed() {
     // WS vua dut: neu no moi song duoc < 5 s hoac da dut >= 2 lan -> doi han sang MJPEG.
     wsDrops++;
-    if (preferStream || wsDrops >= 2 || performance.now() - wsAt < 5000) { preferStream = true; startStream(); return; }
+    if (preferStream || wsDrops >= 2 || performance.now() - wsAt < 5000) { startSse(); return; }
     scheduleWs(300);
   }
   function startWs() {
-    if (preferStream) { startStream(); return; }
+    if (preferStream) { startSse(); return; }
     mode = 'WS'; clearTimeout(reconnectTimer);
     lastFrameAt = performance.now(); wsAt = lastFrameAt;
     var u = new URL('control/ws?dev=' + encodeURIComponent(dev), location.href);
     u.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    try { ws = new WebSocket(u.href); } catch (e) { preferStream = true; startStream(); return; }
+    try { ws = new WebSocket(u.href); } catch (e) { startSse(); return; }
     ws.binaryType = 'arraybuffer';
     ws.onopen = function () {
       wsTries = 0;
@@ -165,7 +165,7 @@
       dot.classList.remove('on');
       // (22/10/2026) MJPEG dut: thu lai MJPEG (2.9.199 lam vay va on dinh), 2 lan moi xuong polling.
       if (mode !== 'MJPEG') return;
-      if (++streamTries <= 2) setTimeout(startStream, 500); else startPoll();
+      if (++streamTries <= 1) setTimeout(startStream, 500); else startSse();
     };
     img.src = 'control/stream?dev=' + encodeURIComponent(dev) + '&t=' + Date.now();
     setTimeout(function () { if (got < 2) startPoll(); }, 4000);

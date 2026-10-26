@@ -1,3 +1,8 @@
+## V2.9.237
+- **Sửa treo hình trên Chrome Android ở thẻ Điều khiển.** Khi WebSocket rớt, trang rơi về **MJPEG**; Chrome Android
+  **không phát** `multipart/x-mixed-replace` trong `<img>` (chỉ hiện 1 khung → header báo `MJPEG 0/0 fps · DỪNG`).
+  Nay fallback chuyển sang **SSE** (EventSource chạy tốt trên Android), MJPEG chỉ dùng khi mở bằng `?mjpeg`.
+
 ## V2.9.236
 - **Sửa: giữ tay trên màn hình thì hình đứng yên.** Bản 2.9.231 ưu tiên băng thông bằng cách **tạm dừng luồng khung**
   ~3 fps trong lúc có thao tác; khi kéo liên tục, `inputBusy` được gia hạn mãi nên hình chỉ cập nhật sau khi **nhả tay**
