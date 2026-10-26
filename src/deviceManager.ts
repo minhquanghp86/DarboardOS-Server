@@ -3396,7 +3396,10 @@ async function flushPending(dev: DeviceSession): Promise<void> {
       const netHalf = dev.netHalfUntilMs !== undefined && nowMs < dev.netHalfUntilMs;
       // (26/10/2026) TAM TAT half-scale: thinh thoang panel S3 ve anh nhu co 1/4 (co chuong hop lech giua
       // khung half + co halfScale). Bang thong LAN du, uu tien dung hinh.
-      const HALF_ENABLED = true;   // (26/10/2026) bat lai: da fix lech co khi half -> full
+      // (26/10/2026) Man RAT NHO (<=480x272): KHONG dung half-scale. Gui nua do phan giai (240x136) roi phong len
+      // lam YouTube mo han; khung 480x272 chi ~130k pixel nen gui full van nhe.
+      const smallScreen = dev.cfg.width <= 480 && dev.cfg.height <= 272;
+      const HALF_ENABLED = !smallScreen;
       let halfWanted = HALF_ENABLED && (dev.halfOn ? fps >= HALF_OFF_FPS : fps >= HALF_ON_FPS);
       // (30/09/2026) Thiet bi half=2 (S3): KHONG xet nhip. Do that 30/09: S3 giai ma cham -> server gian nhip con ~2,5 fps
       // = dung nguong HALF_ON_FPS -> nua do phan giai bat/tat lien tuc, xen khung day du 24-65 KB (5,6 fps). Chi con

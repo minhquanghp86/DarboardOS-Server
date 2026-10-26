@@ -1,3 +1,8 @@
+## V2.9.249
+- **480×272: tắt half-scale để ảnh nét hơn.** Màn nhỏ đang nhận khung **nửa độ phân giải** (240×136) rồi phóng lên
+  → YouTube rất mờ. Nay panel ≤480×272 luôn nhận khung **đủ 480×272** (diện tích nhỏ nên băng thông vẫn nhẹ).
+  Các panel khác giữ nguyên half-scale.
+
 ## V2.9.248
 - **Trả lại cảm ứng (2.9.247 chặn nhầm) + sửa chiều phím YouTube TV.** 2.9.247 bỏ chuỗi chạm thô ở tab `yttv` nên
   panel **mất cảm ứng hoàn toàn**; nay luôn bắn chạm thô như bản ổn định, phím mũi tên chỉ là bổ sung.
