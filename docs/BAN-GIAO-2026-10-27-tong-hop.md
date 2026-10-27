@@ -158,3 +158,15 @@ Bảng màn: P4 `esp32-80f1b2d35fb5` (.200) · 480×272 `esp32-1cdbd49b2260` (.1
 - `example` + mô tả cho **mọi trường** của 30 hành động (1.8.0) để form trong HA dễ điền.
 - Lỗi đã gặp: YAML services.yaml bị trùng khoá + chuỗi mô tả chứa dấu `"` chưa escape → HA cảnh báo/không load;
   đã sửa và kiểm bằng `yaml.safe_load` trong container HA (30 dịch vụ, 0 cảnh báo).
+
+### GĐ 5 hoàn tất (component 2.0.0, test 9/9)
+- **switch** (3/màn): `man_hinh_cho` (bật = hiện màn chờ, tắt = đánh thức), `khong_lam_phien` (DND), `khong_cho_man_ngu`.
+- **number** (3/màn): `do_sang`, `am_luong`, `chat_luong_hinh` (ghi thẳng xuống panel: `b`, `v`, `rwv.quality`).
+- **select** (1/màn): `goc_xoay` 0/90/180/270 (đọc từ `/screens/settings`, có cache khi mất kết nối).
+- **Options flow**: `scan_interval` 10–300 s, `controls` bật/tắt nhóm switch/number/select.
+- **`send` có `priority`**: urgent (mặc định) / critical / high / normal.
+- **Alias**: mọi hành động đăng ký thêm `darboard_os.*` (tên cũ) — `darboard_os.send` chạy đúng.
+- Lỗi đã gặp khi test: entity điều khiển cập nhật trễ 30 s → đổi `async_request_refresh` → **`async_refresh`**;
+  select không xuất hiện vì chỉ tạo khi rotation đã có → tạo cho mọi màn + cache giá trị.
+- **Lưu ý**: `notify.send_message` của HA 2026.10 **không nhận** `data` (400) → muốn `priority`/media thì dùng
+  `dashboard_os.send`.

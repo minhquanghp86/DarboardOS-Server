@@ -23,6 +23,7 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 SERVICE_SEND = "send"
+# (27/10/2026) Ưu tiên chọn được: urgent (mặc định, mở khoá + phủ toàn màn), critical, high, normal.
 PRIORITY = "urgent"
 
 SERVICE_SCHEMA = vol.Schema(
@@ -36,6 +37,7 @@ SERVICE_SCHEMA = vol.Schema(
         vol.Optional("audio"): cv.string,
         vol.Optional("camera"): cv.string,
         vol.Optional("camera_stream"): cv.string,
+        vol.Optional("priority", default="urgent"): vol.In(["urgent", "critical", "high", "normal"]),
     }
 )
 
@@ -56,6 +58,9 @@ async def async_setup_entry(
         hass.services.async_register(
             DOMAIN, SERVICE_SEND, handle, schema=SERVICE_SCHEMA
         )
+    # (27/10/2026) Alias tên cũ `darboard_os.send` (gõ sai chính tả) — cùng handler.
+    if not hass.services.has_service("darboard_os", SERVICE_SEND):
+        hass.services.async_register("darboard_os", SERVICE_SEND, handle, schema=SERVICE_SCHEMA)
 
 
 class DashboardOSNotify(NotifyEntity):
@@ -127,7 +132,7 @@ class DashboardOSNotify(NotifyEntity):
             payload: dict[str, object] = {
                 "title": title or "",
                 "message": message or "",
-                "priority": PRIORITY,
+                "priority": str(data.get("priority") or PRIORITY),
                 "duration": duration,
                 "device": target,
                 **media,

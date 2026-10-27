@@ -54,6 +54,9 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+# (27/10/2026) Tên cũ (gõ sai chính tả) — giữ để automation cũ vẫn chạy.
+ALIAS_DOMAIN = "darboard_os"
+
 NAV_KEYS = ["home", "back", "recents", "unlock"]
 WWW_DIR = "www/dashboard"
 
@@ -540,4 +543,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                     SERVICE_LIST_SCREENS, SERVICE_GET_STATUS, SERVICE_CAST_IPTV):
             extra["supports_response"] = SupportsResponse.OPTIONAL
         hass.services.async_register(DOMAIN, name, handler, schema=schema, **extra)
-        _LOGGER.debug("DarboardOS: đăng ký hành động %s.%s", DOMAIN, name)
+        # (27/10/2026) Alias cho thói quen gõ `darboard_os.*` (tên cũ gõ sai) — cùng handler, không ảnh hưởng tên đúng.
+        if not hass.services.has_service(ALIAS_DOMAIN, name):
+            hass.services.async_register(ALIAS_DOMAIN, name, handler, schema=schema, **extra)
+        _LOGGER.debug("Dashboard OS: đăng ký hành động %s.%s (+%s)", DOMAIN, name, ALIAS_DOMAIN)

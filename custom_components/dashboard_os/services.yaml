@@ -31,11 +31,22 @@ send:
           mode: box
     device:
       name: Thiết bị
-      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình.
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
       selector:
         device:
           integration: dashboard_os
           multiple: true
+    priority:
+      name: Mức ưu tiên
+      description: "urgent (mặc định) = mở khoá + bật đèn + phủ toàn màn · critical = như urgent, xuyên cả Không làm phiền · high = phủ toàn màn, tôn trọng Không làm phiền · normal = chỉ hiện thông báo."
+      default: urgent
+      selector:
+        select:
+          options:
+            - urgent
+            - critical
+            - high
+            - normal
     image:
       name: Ảnh
       description: Chọn từ thư viện media, hoặc dán URL / đường dẫn trong /config

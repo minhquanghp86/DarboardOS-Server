@@ -41,6 +41,9 @@ Mỗi màn có sẵn các entity để dùng trực tiếp trong dashboard/autom
 | `sensor.<màn>_ung_dung_dang_mo` | Ứng dụng đang mở |
 | `sensor.<màn>_trang_thai_man_hinh` | `đang dùng` / `màn hình chờ` / `khoá` / `không làm phiền` / `offline` (kèm độ sáng, âm lượng, DND…) |
 | `button.<màn>_man_hinh_chinh` · `_quay_lai` · `_gan_day` · `_danh_thuc` · `_tai_lai_trang` · `_chup_man_hinh` | Nút bấm nhanh |
+| `switch.<màn>_man_hinh_cho` · `_khong_lam_phien` · `_khong_cho_man_ngu` | Công tắc 2 chiều |
+| `number.<màn>_do_sang` · `_am_luong` · `_chat_luong_hinh` | Thanh trượt 2 chiều |
+| `select.<màn>_goc_xoay` | Chọn 0 / 90 / 180 / 270 |
 
 ## Danh sách hành động (24)
 
@@ -151,6 +154,20 @@ action:
     data: { message: "Đã bật máy lạnh" }
 ```
 
+## Tùy chọn tích hợp (Options)
+
+Settings → Devices & Services → **Dashboard OS** → **Configure**:
+
+| Tùy chọn | Việc |
+|---|---|
+| `scan_interval` | Chu kỳ cập nhật trạng thái (10–300 giây, mặc định 30) |
+| `controls` | Bật/tắt nhóm entity điều khiển (switch/number/select) — tắt nếu không muốn quá nhiều entity |
+
+## Alias tên cũ
+
+Mọi hành động được đăng ký **hai lần**: `dashboard_os.*` (tên đúng) và `darboard_os.*` (tên cũ gõ sai) —
+automation cũ dùng `darboard_os.send` vẫn chạy.
+
 ## Ghi chú
 
 - `say` và `set_volume` chỉ chạy trên màn **có loa** (P4). Màn không loa báo lỗi rõ ràng.
@@ -161,6 +178,7 @@ action:
 
 - **1.8.0** (27/10/2026): mọi trường có `example` (hiện làm gợi ý trong form) + mô tả chi tiết; sửa trùng khoá YAML.
 - **1.7.0** (27/10/2026): 6 hành động nâng cao (GĐ 4): list_screens, get_status, cast_iptv, touch, swipe, send_command.
+- **2.0.0** (27/10/2026): switch/number/select 2 chiều (3+3+1 entity/màn), Options flow (chu kỳ + bật/tắt nhóm điều khiển), `priority` cho `send`, alias `darboard_os.*`. Test 9/9.
 - **1.6.0** (27/10/2026): trường chọn `device` cho mọi hành động (giống `send`); thêm entity mỗi màn: kết nối, ứng dụng đang mở, trạng thái + 6 nút bấm.
 - **1.5.0** (27/10/2026): 6 hành động báo thức (GĐ 3), test thật 7/7.
 - **1.4.0** (27/10/2026): 17 hành động mới (GĐ 1+2), tách `api.py` dùng chung; đổi tên hiển thị sang **Dashboard OS**.
