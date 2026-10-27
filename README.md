@@ -1,342 +1,177 @@
-# HA Dashboard Server — Dashboard OS Server
+# Dashboard OS — biến màn hình ESP32 thành bảng điều khiển Home Assistant
 
-Biến màn hình cảm ứng **ESP32-P4 / ESP32-S3** thành **bảng điều khiển gắn tường kiểu điện thoại** cho Home Assistant.
-Một Chrome ẩn chạy trên máy chủ dựng trang web (dashboard HA, YouTube, camera, ứng dụng của dự án), gửi phần thay đổi
-dưới dạng ô ảnh JPEG qua WebSocket tới màn hình, nhận lại thao tác chạm. Trên đó là một "hệ điều hành" nhỏ: màn hình
-chính, dock, thanh trạng thái kéo xuống, thông báo, tin nhắn nội bộ, báo thức, âm thanh theo loại, màn hình chờ…
+**Dashboard OS** là một add-on Home Assistant truyền giao diện (dashboard HA hoặc bất kỳ trang web nào)
+xuống các màn hình ESP32 (S3, P4) theo thời gian thực, kèm bộ giao diện kiểu điện thoại: màn hình chính,
+thanh trạng thái, ứng dụng, thông báo, chuông cửa, báo thức, tin nhắn, IPTV…
 
-Dự án gồm hai repo dùng cùng nhau:
+- Cài bằng add-on, cấu hình bằng giao diện web — không sửa file.
+- Mỗi màn hình tự xuất hiện trong Home Assistant thành một thiết bị, có sẵn nút bấm / thanh trượt / cảm biến.
+- Chạy hoàn toàn trong nhà (LAN/Tailscale), không cần Internet.
 
-| Repo | Vai trò | Phiên bản hiện tại (18/10/2026) |
-|---|---|---|
-| **DarboardOS-Server** (repo này) | Máy chủ — addon Home Assistant (hoặc container Docker) | **2.9.185** |
-| [Dashboard OS-Client](https://github.com/minhquanghp86/Dashboard OS-Client) | Firmware màn hình (ESPHome) + YAML mẫu chung (một file, nhiều thiết bị) | tag **`fw-2026.10.27`** |
+---
 
-> Tài liệu bàn giao / báo cáo nội bộ được giữ riêng (không công khai).
+## 1. Cần gì để bắt đầu
 
-Đã chạy thật hằng ngày trên ba màn hình: **ESP32-P4 1024×600** (Guition JC1060P470C — có camera, micro, loa),
-**ESP32-S3 480×480** (Guition 4848S040) và **ESP32-S3 480×272** (Guition JC4827W543C) — hai màn S3 không có loa/camera.
+| Thành phần | Yêu cầu |
+|---|---|
+| Home Assistant | HA OS hoặc Supervised, kiến trúc **amd64** |
+| Add-on này | cài từ kho add-on (bên dưới) |
+| Màn hình | ESP32-S3 / ESP32-P4 nạp firmware **Dashboard OS** (xem [DashboardOS-Client](https://github.com/minhquanghp86/DarboardOS-Client)) |
 
-📖 **Hướng dẫn sử dụng đầy đủ** (cài từ đầu, dùng hằng ngày, tự động hoá, xử lý sự cố):
-[`hassio/remote_webview_server/DOCS.md`](hassio/remote_webview_server/DOCS.md) — cũng ở tab *Tài liệu* của addon.
-Nhật ký thay đổi từng phiên bản: [`CHANGELOG.md`](hassio/remote_webview_server/CHANGELOG.md).
-**Danh mục chức năng** (đối chiếu trực tiếp với mã, gồm cả firmware): [`docs/DANH-MUC-CHUC-NANG.md`](docs/DANH-MUC-CHUC-NANG.md).
+## 2. Cài đặt
 
+1. **Settings → Add-ons → Add-on Store → ⋮ → Repositories** → dán
+   `https://github.com/minhquanghp86/DarboardOS-Server` → **Add**.
+2. Tìm **Dashboard OS Server** → **Install** → **Start**.
+3. Bật **Show in sidebar** để mở nhanh trang quản lý.
+4. Nạp firmware cho từng màn hình (theo hướng dẫn ở repo Client). Màn hình tự kết nối tới add-on
+   qua mạng LAN và hiện trong mục **Màn hình**.
 
-<p align="center">
-  <img src="images/menu.png" width="49%" alt="Menu ứng dụng của panel (xem trước trong trang Dashboard)">
-  <img src="images/weather.png" width="49%" alt="Ứng dụng Thời tiết">
-  <img src="images/calendar.png" width="49%" alt="Lịch vạn niên">
-  <img src="images/menu-panel.png" width="49%" alt="Trang Dashboard trong Home Assistant">
-</p>
+> Lần đầu, màn hình vào chế độ phát Wi-Fi riêng (`dashboard-...`) để bạn nhập Wi-Fi nhà; sau đó mọi thứ
+> cấu hình được từ xa trên màn hình hoặc từ trang Dashboard.
 
-## Tính năng
+## 3. Bạn làm được gì
 
-### Hiển thị và truyền hình
-
-- Chrome ẩn (có giải mã **H.264**) dựng trang; chỉ gửi các ô **thay đổi** (so khớp băm từng ô), khung đầy đủ khi vùng
-  đổi lớn; bỏ khung trùng; không có màn hình nào xem thì không mã hoá.
-- **Tự điều tiết** nhịp khung và chất lượng JPEG theo thời gian giải mã thật của từng màn hình và độ nghẽn WiFi.
-- **ESP32-P4**: khung đầy đủ chia dải ngang, giải mã phần cứng thẳng vào framebuffer — YouTube đủ 1024×600 ~25–29
-  hình/giây đo thực tế.
-- **ESP32-S3**: khung video nửa độ phân giải + phóng ×2 trên chip — YouTube 480×480 ~14 hình/giây (trước 1,9).
-- **Mỗi ứng dụng một tab Chromium riêng**: chuyển ứng dụng không tải lại; tab nền vẫn chạy (nhạc/radio phát nền), tab
-  rảnh lâu tự đóng và còn trong *Gần đây*. Renderer Chrome bị hệ điều hành giết (hết RAM) thì tab tự nạp lại.
-- **YouTube không quảng cáo** (2.9.132, mặc định BẬT — tắt riêng từng màn ở *Cài đặt → YouTube*): trên tab YouTube /
-  YouTube TV đang hiện, máy chủ kiểm mỗi 1,5 s và tự **bỏ qua quảng cáo** (bấm “Bỏ qua” nếu có, tua hết quảng cáo không có
-  nút) và tự chọn **“Xem ở chế độ khách”** trên YouTube TV (chạm thật qua CDP).
+### Hiển thị
+- Chiếu dashboard Home Assistant hoặc bất kỳ URL nào, nhiều tab cho mỗi màn, chuyển tab tức thì.
+- Tự chỉnh chất lượng hình và nhịp khung theo mạng; chế độ nửa phân giải cho video.
+- Màn hình chờ: đồng hồ lớn, ngày âm lịch, thời tiết, ảnh gia đình (Google Photos, thư mục media).
+- Xoay màn hình 0/90/180/270; độ sáng, âm lượng, tắt tiếng.
 
 ### Giao diện kiểu điện thoại
+- Màn hình chính dạng lưới ứng dụng (ẩn/hiện, đổi thứ tự, biểu tượng, màu, thư mục).
+- Thanh trạng thái, thông báo kéo xuống, khoá màn hình, ứng dụng gần đây, cử chỉ vuốt theo tay.
 
-- **Màn hình chính**: đồng hồ lớn, ngày âm dương, thời tiết (Open-Meteo, tự thử lại khi lỗi, nhớ số liệu qua khởi động
-  lại); lưới ứng dụng nhiều trang, **thư mục**, kéo thả sắp xếp; **dock** tối đa 6 ứng dụng (mặc định Home Assistant,
-  Camera, YouTube, Tin nhắn, NhacCuaTui, Google Maps).
-- **Cử chỉ**: vuốt lên từ mép dưới = về màn hình chính; vuốt lên rồi giữ = **Gần đây**; vuốt từ mép trái/phải = quay lại;
-  kéo từ mép trên = **thanh trạng thái**.
-- **Thanh trạng thái**: độ sáng, âm lượng (Media / Thông báo / Báo thức), nút Màn hình chờ, Im lặng, Không làm phiền,
-  Khử vọng mic, hàng *Phát hiện người* (P4), thẻ *Đang phát*, danh sách thông báo, lối tắt (Camera, Frigate, Gần đây,
-  Cài đặt, Trợ lý…).
-- **Màn hình chờ / màn khóa**: đồng hồ hoặc **khung ảnh số** (ảnh gia đình/Google Photos, hiệu ứng, ban đêm tông tối) sau
-  một lúc rảnh; không bao giờ đè lên video đang phát. Góc trên phải có **thanh trạng thái kiểu điện thoại** (tin nhắn /
-  thông báo / báo thức kèm số, mạng Wi-Fi hoặc cáp, **pin của màn**). Widget: thời tiết, **6 chỉ số năng lượng** (PV hôm nay,
-  công suất PV, tải hôm nay, tiêu thụ lưới, tiêu thụ tải, pin % kèm sạc/xả), lịch, lần camera Frigate phát hiện (~5 s),
-  và **thẻ đỏ "Cuộc gọi nhỡ"** (chuông cổng / gọi giữa các màn) kèm ảnh khách. Màn có cảm biến người (P4): **còn người
-  đứng trước màn hình thì không vào màn hình chờ**, chỉ đếm thời gian rảnh từ lúc cảm biến báo trống.
-- **Pin kiểu điện thoại** (firmware có `battery_monitor.h`): tự biết có lắp pin hay không, đang sạc / cắm nguồn / dùng pin —
-  pin xanh có tia sét khi sạc, phích cắm khi chạy nguồn ngoài; không còn báo % ảo khi không lắp pin.
-- **YouTube TV**: vuốt = phím mũi tên như remote, cử chỉ quay lại = Esc. **Truyền YouTube từ điện thoại** như Smart TV
-  (DIAL/SSDP), tên màn hình khi truyền đổi được trong Cài đặt.
-- **Bàn phím ảo** tiếng Việt (Telex) tự hiện khi chạm ô nhập.
+### Ứng dụng có sẵn
+Camera (xem/chụp/quay lưu thẻ SD), Frigate, IPTV, YouTube, YouTube TV, nhạc, radio, tin tức, lịch,
+thời tiết, ảnh, ghi chú, tệp, gọi video giữa các màn, chuông cửa, **báo thức**, tin nhắn nội bộ.
 
-### Ứng dụng
+### Chuông cửa
+Bấm chuông → mọi màn đổ chuông, hiện hình người bấm, nói chuyện 2 chiều, mở cổng; không ai nghe thì
+báo "cuộc gọi nhỡ" kèm ảnh và lưu nhật ký 30 ngày.
 
-| Nhóm | Ứng dụng |
+### Báo thức
+Đặt trên màn hoặc từ trang Dashboard: lặp theo thứ, báo lại, chọn màn nào reo. Báo thức lưu ở server
+nên màn tắt vẫn reo đúng giờ.
+
+### Điều khiển từ xa
+Trang **Điều khiển** trên điện thoại: xem màn hình, chạm/vuốt, phím Trở lại / Màn hình chính / Gần đây,
+chụp màn hình.
+
+## 4. Dùng với Home Assistant (tích hợp Dashboard OS)
+
+M��i màn hình là một thiết bị trong HA, kèm sẵn:
+
+| Loại | Ví dụ |
 |---|---|
-| Liên lạc | **Gọi** (gọi video giữa các màn / với trình duyệt), **Chuông cổng** (nhật ký 30 ngày) |
-| Nhà | Home Assistant, **Camera** (chụp/quay của chính P4), **Frigate** (lưới camera), **Sự kiện camera** (sự kiện Frigate theo ngày), **Thư viện** + **Quản lý file** (thẻ SD), Phòng, Điều khiển, Solar |
-| Giải trí | **IPTV**, YouTube, YouTube TV, YouTube Music, TikTok, **Radio** (VOV 1/2/3/5), Tin tức, VTVgo, Zing MP3, NhacCuaTui, Media, Khung ảnh |
-| Tiện ích | **Tin nhắn**, **Báo thức**, Hẹn giờ, Thời tiết, **Lịch vạn niên**, Việc cần làm, Hôm nay, Bảng tin, Báo Mới, Giá vàng, Xổ số, Google Maps, **Chrome**, **Cài đặt** |
+| Cảm biến | Kết nối, ứng dụng đang mở, trạng thái màn (khoá / màn hình chờ / không làm phiền) |
+| Nút bấm | Màn hình chính, Quay lại, Gần đây, Đánh thức, Tải lại, Chụp màn hình |
+| Công tắc | Màn hình chờ, Không làm phiền, Không cho màn ngủ |
+| Thanh trượt | Độ sáng, Âm lượng, Chất lượng hình |
+| Chọn | Góc xoay |
 
-Ứng dụng **Camera** chỉ có trên màn có camera (**P4**). **Thư viện** + **Quản lý file** có trên màn có thẻ nhớ — **P4**
-(SDMMC) và **S3 4848S040** (thẻ SPI, component `sd_files`, từ 2.9.129). Thêm/ẩn/sắp xếp/đổi biểu tượng ở trang **Dashboard**
-trên thanh bên Home Assistant.
+### Cài tích hợp
+1. Chép thư mục `custom_components/dashboard_os` vào `/config/custom_components/`.
+2. Khởi động lại Home Assistant.
+3. **Settings → Devices & Services → + Add Integration → Dashboard OS** → giữ địa chỉ mặc định → **Submit**.
 
-### Tin nhắn nội bộ
+### Các hành động (30)
 
-- Nhắn giữa trang **Dashboard** (thanh bên HA — mỗi tài khoản HA một người, **ảnh đại diện** lấy từ `person.*`) và các
-  màn hình: chữ, ảnh, video, **tin nhắn thoại giữ-để-ghi** (micro P4), tạo/xoá cuộc trò chuyện, nhóm.
-- **Đã xem riêng từng màn hình**; chấm đỏ + huy hiệu số tin chưa đọc; nhiều tin cùng cuộc trò chuyện gộp một thông báo.
-- "Đang xem" chỉ khi ứng dụng đang hiện, không có màn hình chờ đè lên và có người chạm trong 2 phút — không thì tin mới
-  vẫn có chuông + thẻ thông báo.
-- Tin từ màn hình bắn sự kiện HA `dashboard_chat_message` (dùng cho tự động hoá).
-
-### Trang "Dashboard" (thanh bên Home Assistant)
-
-- **Trang chủ kiểu điện thoại**: thẻ rút gọn từng màn ở đầu trang + lưới biểu tượng ứng dụng (Màn hình, Tin nhắn có huy
-  hiệu số tin chưa đọc, IPTV, Quản lý file, Màn khóa, Chuông cổng, Gọi, Menu ứng dụng). Mỗi ứng dụng có nút **‹ Trang chủ**.
-- **Màn hình** (2.9.161): điều khiển + cài đặt từng màn từ xa — ảnh màn đang hiển thị, trạng thái (mạng, pin, độ sáng, âm
-  lượng, ứng dụng, thông báo, cuộc gọi nhỡ), thao tác (đánh thức, màn hình chờ, khóa, về màn chính / HA, tải lại, khởi động
-  lại), trình phát (phát / tạm dừng / tua / kênh trước-sau / dừng), mở / đóng ứng dụng, gửi thông báo, đọc to, mọi cài đặt.
-- **Màn khóa**: ô *Xem trước màn khóa* (6 chỉ số năng lượng như trên màn, số liệu trực tiếp) + chọn cảm biến theo từng dòng;
-  lịch Google / iCal.
-- **Menu ứng dụng**: ô *Xem trước menu trên màn* (lưới biểu tượng theo nhóm, bấm để sửa); bật / tắt, sắp xếp, đổi tên,
-  biểu tượng, màu, thêm ứng dụng.
-
-### Quản lý file (thẻ SD) trên trang Dashboard
-
-- Thẻ **Quản lý file** trên trang Dashboard (thanh bên HA, qua đăng nhập HA — dùng được cả ngoài nhà): duyệt thẻ, xem ảnh /
-  phát video, **tải về** (tệp gốc hoặc **MP4** — máy chủ đổi .mkv sang MP4 trong vài giây, không nén lại hình), **tải lên**
-  từ điện thoại / máy tính (tuỳ chọn **tối ưu video 720p** cho màn hình, nhận cả HEVC của điện thoại), đổi tên, tạo thư mục,
-  xoá nhiều. Chép vào thẻ ~2 MB/s (WiFi của P4), **tạm dừng khi màn hình đang phát video**. Chỉ liệt kê màn **đang có thẻ** (rút
-  thẻ ra thì màn đó biến khỏi danh sách); nhiều màn có thẻ thì có ô chọn màn, chỉ một màn thì ghi tên màn cạnh "Thẻ SD".
-
-### IPTV + phát từ trang Dashboard
-
-- **Danh sách kênh M3U** (đường link, `.m3u` trong `/media` của HA, hoặc tệp trên thẻ nhớ của màn — `sd:/…`): kênh hiện
-  trong ứng dụng **IPTV** của mọi panel; tự cập nhật 6 giờ/lần (nút **Tải lại kênh** để cập nhật ngay; mất mạng dùng bản
-  đã lưu). Quản lý danh sách nằm sau nút ⚙ **Danh sách kênh**.
-- **Trang IPTV của Dashboard**: hàng **trạng thái từng màn** (Đang phát kênh gì / IPTV chạy nền / Không phát) với nút
-  **Dừng** và **Màn chính**; ô **tìm kênh** (gõ không dấu vẫn ra); chip **Yêu thích** (dùng chung mọi màn) · **Gần đây**
-  (kênh phát từ Dashboard + kênh xem trên màn) · **Tất cả** · từng danh sách, chọn nhóm; lưới thẻ kênh có logo và ngôi sao.
-  Chạm thẻ → chọn **một màn** hoặc **Tất cả màn hình** để phát, hoặc **Xem trong trình duyệt**.
-- API (trang Dashboard): `GET /iptv/channels?refresh=1` (danh sách kênh), `GET /iptv/config` + `POST /iptv/config|/iptv/refresh`
-  (nguồn danh sách), `GET /iptv/screens` + `GET /iptv/status` (trạng thái từng màn), `POST /iptv/cast {dev, ch, name?}`
-  (`dev` = id màn hoặc `all`), `POST /iptv/control {dev, act: "stop"|"home"}`, `POST /iptv/fav`, `POST /iptv/recent`,
-  `POST /iptv/log`, `GET /iptv/sd`; proxy luồng `GET /iptv/p`, `GET /iptv/probe`.
-- Phát được HLS / MPEG-TS / FLV qua HTTP / `.mp4` / DASH + ClearKey; **không** phát DRM Widevine/PlayReady, `udp://`,
-  `rtmp://`, H.265/MPEG-2. Máy chủ làm proxy luồng (`/iptv/p`) để gắn `Referer`/`User-Agent` riêng từng kênh và tránh CORS.
-
-### Âm thanh kiểu điện thoại
-
-- Âm thanh trang web (YouTube, radio…) bắt qua PulseAudio, gửi PCM 16 kHz tới màn hình có loa.
-- Ba loại âm lượng: **Media** (trang web), **Thông báo** (chuông tin nhắn/thông báo, chuông cửa, TTS của HA),
-  **Báo thức** (báo thức, hẹn giờ, cảnh báo khẩn). P4 tự phát chuông bằng tệp nhúng trong firmware.
-- **Im lặng** = chỉ tắt Media. **Không làm phiền** = im lặng hoàn toàn (thông báo, báo thức, cảnh báo khẩn, TTS).
-- **Báo thức** giữ ở máy chủ: reo đúng giờ kể cả khi màn tắt/mất kết nối; Tắt / Báo lại trên một màn = cả nhóm dừng.
-
-### Thông báo, chuông cửa, bảng tin
-
-- `POST /notify` (từ `rest_command` của HA): `normal` / `high` (bật sáng + chuông) / `critical` (hiện cả khi Không làm
-  phiền), kèm ảnh camera go2rtc, chạm để mở ứng dụng/URL; lưu qua khởi động lại addon.
-- **Custom component `custom_components/dashboard_os/`**: action **`dashboard_os.send`** (Settings → Devices & Services →
-  Add Integration → Dashboard OS, địa chỉ mặc định `http://172.30.32.1:18080`). Có đầy đủ ô nhập trên giao diện:
-  `message`, `title`, `duration` (0–600 giây; **0 = không tự thoát, chạm màn hình để đóng**), `device`, `image`, `video`,
-  `audio`, `camera`, `camera_stream`. Mức ưu tiên luôn là `urgent` (mở khoá, bật đèn nền, phủ toàn màn hình).
-  `device` là **dropdown chỉ gồm màn hình do add-on báo về** (`GET /devices`), component đồng bộ mỗi 30 giây nên
-  thêm/bớt màn hình là dropdown tự đổi; `camera` chọn từ thực thể camera của HA, `camera_stream` cho luồng go2rtc;
-  `image`/`video`/`audio` dùng **thư viện media của Home Assistant** (hoặc dán URL/đường dẫn trong /config).
-  Hướng dẫn riêng: `custom_components/dashboard_os/README.md`.
-  File local hoặc URL được tự tải lên add-on; `urgent` = mở khoá + bật đèn nền + phủ toàn màn hình 6 giây.
-  (Entity `notify.dashboard_os` vẫn tồn tại cho `notify.send_message`.)
-- **Thông báo Telegram** (2.9.169): chuông cổng nhỡ / bị từ chối / mỗi lần bấm (kèm ảnh khách), cuộc gọi video nhỡ — add-on gửi thẳng
-  bằng bot Telegram của bạn (Dashboard → Gọi → ⚙).
-- **Chuông cổng Dashboard** (ESP32-S3 CAM, firmware `fw-2026.10.27`): bấm nút → các màn đổ chuông (đè lên màn khóa) với
-  hình cổng trực tiếp, **Nói chuyện** hai chiều, **Mở khóa cổng**, Chụp ảnh; không ai nghe → thông báo "Cuộc gọi nhỡ" kèm
-  ảnh; nhật ký ảnh 30 ngày (ứng dụng + tab trên trang Dashboard); sự kiện HA `dashboard_doorbell`; nhạc chuông từ
-  `media/audio/chuong-cua.mp3` (2.9.141).
-- **Gọi video** kiểu điện thoại giữa các màn có camera + mic và tab **Gọi** trên trang Dashboard (trình duyệt / điện thoại
-  qua HTTPS, chạy được qua Cloudflare Tunnel — tiếng + hình đi qua addon bằng WebSocket); nhạc chuông `media/audio/zalo.mp3`.
-- `POST /doorbell`: màn hình chuông cửa toàn màn với camera go2rtc bất kỳ, nút Mở cổng (cho chuông không phải Dashboard).
-- `POST /board`: ghi chú lên Bảng tin gia đình; *Hôm nay* tổng hợp lịch, thời tiết, việc cần làm (bản tin buổi sáng).
-
-### Nhận biết người (P4)
-
-Firmware P4 dò **chuyển động** và **khuôn mặt** ngay trên chip từ camera của panel. Có người → bật màn hình / về trang
-chủ khi đang màn hình chờ; giữ màn sáng khi còn người; chọn nguồn (*Chuyển động / Person / Cả 2 / Tắt*) ngay trên thanh
-trạng thái. Ảnh chụp người phát hiện (khung xanh + điểm % nền cam) lên HA.
-
-### Điều khiển từ Home Assistant
-
-Mỗi màn hình là một thiết bị ESPHome (URL hiển thị, đèn nền, Sleep time, Màn hình chờ, Ảnh màn hình chờ, âm lượng,
-media player, cảm biến người…). **Ứng dụng Cài đặt** trên màn đọc/ghi trực tiếp các thực thể đó qua HA.
-Đèn nền **nhớ độ sáng** qua khởi động lại (firmware `RESTORE_AND_ON`).
-
-### Vận hành
-
-- `/metrics` (JSON số liệu từng màn hình: khung, giải mã, băng thông, RAM máy chủ, `pipeline.slowWhy`…), tinh chỉnh nóng
-  qua `/data/rwv-tuning.json`, self-test đo thời gian dựng hình, proxy Chrome DevTools tuỳ chọn.
-
-## Cài đặt
-
-### Home Assistant (khuyến nghị)
-
-1. Cài đặt → Ứng dụng (Add-on) → Cửa hàng → ⋮ → Kho lưu trữ → thêm `https://github.com/minhquanghp86/DarboardOS-Server`.
-2. Cài **Dashboard OS Server**, khởi động. Mở trang **Dashboard** trên thanh bên để chỉnh menu và nhắn tin.
-3. Nạp firmware cho màn hình từ [Dashboard OS-Client](https://github.com/minhquanghp86/Dashboard OS-Client) (YAML trỏ
-   tag `fw-…`), với `server: <ip-HA>:8081`.
-4. (Tuỳ chọn) Thêm `rest_command.panel_notify` để gửi thông báo — xem DOCS.md.
-
-**Yêu cầu**: máy chủ **x86-64 (amd64)** — Google Chrome cho Linux (cần cho H.264) không có bản ARM. Nên có ≥ 8 GB RAM
-nếu chạy cùng Frigate (Chrome ~1–1,7 GB cho 3 màn hình, ~3 nhân CPU khi một màn phát video; Intel i5-8500T).
-
-### Docker (ngoài Home Assistant)
-
-[`docker-compose.rwv.yml`](docker-compose.rwv.yml) — image `ghcr.io/minhquanghp86/darboardos-server:chrome-h264`,
-`network_mode: host`. Ngoài HA không có ingress: đặt `LAUNCHER_CONFIG_OPEN=1` nếu muốn lưu cấu hình menu từ
-`http://<máy>:18080/launcher-config.html` (mọi máy trong LAN đều sửa được — chỉ dùng trong mạng tin cậy). Tin nhắn
-phía HA, ảnh đại diện, Cài đặt thực thể cần token Home Assistant nên chỉ đầy đủ khi chạy dạng addon.
-
-## Cổng
-
-| Cổng | Dùng cho |
+| Nhóm | Hành động |
 |---|---|
-| `8081` (`ws_port`) | WebSocket với màn hình: ảnh, âm thanh, cảm ứng, trạng thái, điều khiển |
-| `18080` (`health_port`) | `/metrics`, `/notify`, `/doorbell`, `/board`, các trang ứng dụng, Dashboard (qua ingress) — **chỉ LAN** |
-| `9221` (`debug_port`) | Chrome DevTools nội bộ (127.0.0.1) |
-| `9222` (`debug_proxy_port`) | DevTools ra LAN — chỉ khi bật `expose_debug_proxy` |
-| UDP `1900` (SSDP) + **TCP** `56790` (`dial_port`) | Truyền YouTube từ điện thoại (SSDP + DIAL) |
+| Thông báo | `send` (tiêu đề, nội dung, ảnh/video/âm thanh/camera, thời gian, mức ưu tiên) |
+| Điều hướng | `open_app`, `open_url`, `nav`, `wake`, `lock`, `reload`, `close_app`, `screenshot` |
+| Hiển thị & âm thanh | `set_brightness`, `set_volume`, `set_quality`, `set_rotation`, `set_dnd`, `set_no_sleep`, `set_screensaver`, `set_setting`, `say` |
+| Báo thức | `alarm_create`, `alarm_list`, `alarm_delete`, `alarm_set_enabled`, `alarm_stop`, `alarm_snooze` |
+| Nâng cao | `list_screens`, `get_status`, `cast_iptv`, `touch`, `swipe`, `send_command` |
 
-## Tuỳ chọn addon / biến môi trường
+M��i hành động đều có trường **Thiết bị** (chọn một hay nhiều màn; bỏ trống = mọi màn đang kết nối).
 
-Addon tự đặt biến môi trường từ phần *Cấu hình*; chạy Docker thì tự khai báo.
+### Ví dụ
 
-| Tuỳ chọn (biến) | Mặc định | Ý nghĩa |
-|---|---|---|
-| `browser_locale` | `en-US` | Ngôn ngữ trình duyệt (`vi-VN` để trang hiện tiếng Việt) |
-| `screensaver_idle_s` | `120` | Giây rảnh trước màn hình chờ (`0` = tắt); chỉnh riêng từng màn trong Cài đặt |
-| `screensaver_photos` | bật | Màn hình chờ dạng khung ảnh (ảnh trong Media › `photos`) |
-| `gphotos_album` | — | Album Google Photos công khai cho khung ảnh |
-| `morning_briefing`, `morning_window`, `morning_tts` | bật, `06:00-09:30`, tắt | Bản tin buổi sáng khi có người lần đầu trong khung giờ |
-| `cast_enabled`, `dial_port` | bật, `56790` | Nhận truyền YouTube |
-| `user_data_dir` | `/data/pw-data` | Hồ sơ trình duyệt — giữ đăng nhập qua cập nhật |
-| `prefers_reduced_motion` | tắt | Yêu cầu trang tắt hiệu ứng |
-| `tile_size`, `jpeg_quality`, `min_frame_interval_ms`… | xem addon | **Dự phòng** — firmware luôn gửi giá trị riêng |
-| `GO2RTC_URL` | `http://127.0.0.1:1984` | go2rtc cho Frigate/chuông cửa/ảnh thông báo |
-| `MAX_APP_TABS` | `2` | Số ứng dụng phụ giữ mở song song mỗi màn (không kể HA/màn hình chính) |
-| `LAUNCHER_CONFIG_OPEN` | — | `1` = cho lưu cấu hình menu không qua ingress (Docker) |
-| `CCR_ADAPTIVE`, `HALF_SCALE_VIDEO`, `IDLE_TAB_CLOSE_MIN`, `LOW_MEM_MB`… | xem mã | Tinh chỉnh nâng cao |
+Thông báo khi có khách:
 
-Dữ liệu lưu trong `/data`:
-`launcher.json` (menu + màn hình chính), `mdi-cache.json` (biểu tượng), `rwv-chat/` (`chats.json`, `screens.json`, `media/`, `up/`),
-`rwv-alarms.json`, `rwv-notices.json`, `rwv-sound.json`, `rwv-panel-prefs.json`, `rwv-board.json`, `rwv-weather-mini.json`,
-`rwv-calendars.json`, `rwv-door.json` + `rwv-door/` (nhật ký chuông cổng), `rwv-telegram.json`, `rwv-iptv.json` + `rwv-iptv-cache/`,
-`rwv-lock-widgets.json`, `rwv-lock-bright.json`, `fm-mp4/` + `fm-tmp/` (đổi MP4, tải lên), `rwv-tuning.json` (tinh chỉnh nóng),
-`pw-data/` (hồ sơ Chrome).
-
-## Giao thức WebSocket (tóm tắt)
-
-Gói nhị phân, byte đầu là loại (khớp `src/protocol.ts` và `components/remote_webview/protocol.h` bên firmware):
-
-| Loại | Hướng | Nội dung |
-|---|---|---|
-| 1 `Frame` | server → màn hình | Các ô JPEG của một khung |
-| 2 `Touch` | màn hình → server | Chạm / kéo / nhấc |
-| 3 `FrameStats` | hai chiều | Thời gian giải mã (µs), bộ nhớ |
-| 4 `OpenURL` / 5 `Keepalive` | màn hình → server | Mở trang / giữ kết nối |
-| 6 `CurrentURL` | server → màn hình | Trang đang hiện thực tế |
-| 7 `AudioFrame` | server → màn hình | PCM 16 kHz mono của trang |
-| 8 `SetDisplayURL` | server → màn hình | Người dùng nhập URL ở Trình duyệt |
-| 9 `DeviceControl` | server → màn hình | Độ sáng, âm lượng, Màn hình chờ, Im lặng, AEC, Trợ lý, đang phát media, màn hình chờ hiện/tắt, **phát âm** (loại), âm lượng Thông báo/Báo thức, Không làm phiền, **gọi (Call)**, **mở cổng (Gate)**, **trạng thái cửa (DoorState)** |
-| 10 `DeviceState` | màn hình → server | Độ sáng, âm lượng, đèn nền, nút, **giờ của màn hình** |
-| 11 `RepaintRect` | màn hình → server | Xin vẽ lại một vùng |
-| 12 `DeviceEvent` | màn hình → server | Trợ lý giọng nói (trạng thái, chữ), **có người** (0/1), **bấm chuông cổng**, **bấm nút trên bo** |
-| 13 `MicFrame` | màn hình → server | Mic của màn hình (nói chuyện 2 chiều: chuông cổng / gọi) |
-
-Tham số kết nối khai báo khả năng của màn hình (đọc trong `src/config.ts`):
-`?id=&w=&h=&ts=&r=&q=&home=&audio=1&fb=1&half=&urlset=1&ctl=1&cam=&sd=&snd=1&va=1&mic=1&fn=1`
-(loa, framebuffer P4, khung nửa, camera, thẻ SD, phát âm trên chip, trợ lý giọng nói, mic);
-nhóm tinh chỉnh dự phòng `fftc=&ffat=&ffe=&mfi=&enf=&mbpm=`; phía chuông cổng `door=1&mj=&sn=`.
-
-## Phát triển
-
-```bash
-npm ci
-npm run build        # TypeScript -> dist/ (+ bundle Shell bằng esbuild)
-npm run typecheck    # kiểm kiểu toàn bộ, kể cả file test
-npm run test:run     # unit test (305 test / 44 file: giao thức, điều tiết, màn hình chờ, chat, báo thức, cử chỉ, menu, IPTV…)
-npm run test:integration   # server thật + Chromium thật + panel giả qua WebSocket (~1 phút)
+```yaml
+action:
+  - action: dashboard_os.send
+    data:
+      title: "Chuông cổng"
+      message: "Có người bấm chuông"
+      camera: camera.chuong_cua
+      duration: 30
+      priority: urgent
 ```
 
-- `src/` — máy chủ (Node/TypeScript): `deviceManager.ts` (phiên thiết bị, tab ứng dụng, màn hình chờ, thông báo),
-  `frameProcessor.ts` (chia ô, JPEG), `adaptive.ts` (điều tiết), `broadcaster.ts`, `audioCapture.ts`, `inputRouter.ts` +
-  `gestures.ts` (cử chỉ), `tabPolicy.ts` (URL → tab ứng dụng), `chat.ts`, `alarms.ts`, `sound.ts`, `notifications.ts`,
-  `screensaver.ts`, `dial.ts` (truyền YouTube), `iptv.ts` (danh sách kênh M3U + proxy luồng + cast lên màn),
-  `fileManager.ts` (thẻ SD), `frigate.ts`, `camProxy.ts` + `go2rtcProxy.ts`, `mkvLive.ts` (luồng camera dùng chung), `haApps.ts`,
-  `door.ts` + `doorbell.ts` (chuông cổng), `calls.ts` + `callBridge.ts` + `ringtone.ts` (gọi video), `screenCtl.ts` (Màn hình),
-  `lockWidgets.ts` (Màn khóa), `mediaLib.ts` (Media), `homeApi.ts` + `homeModel.ts` (Phòng/điều khiển), `haSettings.ts` +
-  `haLocation.ts` (đọc HA), `calendarSource.ts` (lịch), `photoFrame.ts` + `photoSource.ts` (khung ảnh), `today.ts` + `todayData.ts`
-  (Hôm nay), `board.ts` (Bảng tin), `telegram.ts` (thông báo Telegram), `settingsModel.ts` (Cài đặt ↔ thực thể ESPHome),
-  `weatherMini.ts`, `panelPrefs.ts`, `metrics.ts` + `tuning.ts` + `selfTest.ts` + `debugProxy.ts` (vận hành), `launcher*.ts`.
-- `src/shell/` — "hệ điều hành" tiêm vào mọi trang (màn hình chính, thanh trạng thái, màn hình chờ, Gần đây, thông
-  báo, báo thức); đóng gói thành `dist/shell.bundle.js`.
-- `public/` — trang ứng dụng (`chat`, `alarm`, `camera`, `files`, `iptv`, `settings`, `weather`, `calendar`…) và trang
-  Dashboard (`launcher-config.html`), phục vụ ở `health_port`. **Mọi trang dùng đường dẫn tương đối theo `location`**
-  (`ui.js` bọc `window.fetch` + `window.rwvRel`) để chạy đúng cả khi mở qua ingress (`/api/hassio_ingress/<token>/`).
-- `hassio/remote_webview_server/` — addon: `config.yaml`, `run.sh`, `DOCS.md`, `CHANGELOG.md`, `translations/`.
+Sáng mở dashboard, tối về màn hình chính:
 
-### Quy trình phát hành
+```yaml
+action:
+  - action: dashboard_os.open_url
+    target: { device_id: <id màn hình> }
+    data: { url: "http://192.168.10.2:8123/dashboard-mobile/3" }
+  - action: dashboard_os.set_brightness
+    target: { device_id: <id màn hình> }
+    data: { brightness: 70 }
+```
 
-1. Việc mới làm trên nhánh `feature/*`. Commit có chữ `[thu-may-that]` → GitHub Actions dựng image `chrome-h264` và
-   ảnh addon tag `addon-test` từ nhánh đó. Chạy thử trên addon thật (từ 2.9.106 addon cài từ ảnh dựng sẵn, không còn
-   `ha apps rebuild`): `docker pull ghcr.io/minhquanghp86/darboardos-server:addon-test`, `docker tag` thành
-   `ghcr.io/minhquanghp86/darboardos-server:<version đang cài>`, rồi `ha apps restart`. Bỏ thử: `docker pull` lại đúng tag
-   version rồi `ha apps restart`.
-2. Thử xong, được duyệt → gộp `main`, tăng `version` trong `config.yaml`, đẩy → Actions dựng ảnh addon tag
-   `<version>` (Supervisor tải đúng tag này) → **đợi Actions xong** → `ha store reload` rồi `ha apps update`. Xoá nhánh.
-3. Bản Ổn định (đường lui đã kiểm chứng): tag `ban-on-dinh-*` ở cả hai repo.
+Đọc thông báo bằng giọng nói trên màn có loa:
 
-## Bảo mật
+```yaml
+action:
+  - action: dashboard_os.say
+    target: { device_id: <id màn hình> }
+    data: { message: "Đã bật máy lạnh" }
+```
 
-- `health_port` (18080) chỉ dùng trong LAN; không đưa ra Internet. Trang Dashboard đi qua ingress của HA (có đăng
-  nhập); lưu cấu hình, gửi tin phía HA chỉ nhận từ Supervisor. API màn hình (`/chat`, `/alarm`, `/api/cam`, `/fm/*`) chỉ nhận từ
-  chính trình duyệt của addon (127.0.0.1) **hoặc từ trang Dashboard qua ingress** (`172.30.32.2`).
-- **Không** đặt trang tự tạo trong `/config/www/` của HA nếu HA mở ra Internet: `/local/` phục vụ không cần đăng nhập
-  (đã kiểm chứng qua Cloudflare Tunnel). Vì vậy các trang của dự án được phục vụ ở `health_port`.
-- Addon dùng token Supervisor (quyền `homeassistant_api`) để đọc vị trí nhà, người dùng/ảnh đại diện, thực thể của
-  màn hình — không cần thông tin đăng nhập của người dùng.
-- Proxy DevTools (`expose_debug_proxy`) cho phép điều khiển trình duyệt, kể cả phiên HA — chỉ bật khi cần.
-- **Proxy luồng IPTV `/iptv/p` + `/iptv/probe`** (2.9.133) nhận cả **trang Dashboard qua ingress** (đã đăng nhập HA), vẫn
-  **bắt buộc mã phiên** — cần cho nút “Phát trong trình duyệt”. Đây là điểm cần rà lại (người đã đăng nhập HA có thể dùng
-  máy chủ để tải URL bất kỳ) — ghi chú chi tiết nằm trong tài liệu nội bộ ở repo client (private).
+Chụp màn hình và gửi Telegram:
 
-## Ghi công và giấy phép
+```yaml
+action:
+  - action: dashboard_os.screenshot
+    target: { device_id: <id màn hình> }
+    data: { filename: hien-tai }
+    response_variable: shot
+  - action: notify.telegram
+    data:
+      message: "Màn hình"
+      data: { photo: "{{ shot.screenshots[0].path }}" }
+```
 
-- Phát triển tiếp từ [strange-v/RemoteWebViewServer](https://github.com/strange-v/RemoteWebViewServer) — cảm ơn
-  strange-v. Ý tưởng bàn phím ảo từ [SleepinDevil](https://github.com/SleepinDevil/RemoteWebViewServer).
-- Dữ liệu thời tiết [Open-Meteo](https://open-meteo.com) (CC BY 4.0), radio Đài Tiếng nói Việt Nam, biểu tượng
-  [Material Design Icons](https://pictogrammers.com/library/mdi/).
+Blueprint sẵn có (thông báo, nhắc lịch, chào buổi sáng, camera, chuông cổng, cảnh báo an ninh):
+xem `examples/home-assistant/` trong repo Client.
 
-| Phần | Giấy phép | File |
-|---|---|---|
-| Mã gốc của strange_v | MIT © 2025 strange_v | `LICENSE-MIT` |
-| Sửa đổi và bổ sung | Apache License 2.0 © 2026 minhquanghp86 | `LICENSE` |
-| **Âm lịch** (`public/lunar.js`, thuật toán của Hồ Ngọc Đức) | **Chỉ dùng cá nhân, phi thương mại**, giữ nguyên thông báo | đầu file, `NOTICE` |
-| Font đồng hồ (Bebas Neue, phần số) | SIL OFL 1.1 | `LICENSE-OFL-BebasNeue.txt` |
-| Thư viện npm (sharp/libvips, ical.js, hls.js, ...) | Giấy phép riêng từng thư viện | `THIRD-PARTY-NOTICES.md` |
+### Mức ưu tiên thông báo
 
-Khi dùng lại, sao chép hay phát hành lại (mã hoặc ảnh Docker), theo Apache-2.0 mục 4 bạn phải: **kèm bản `LICENSE`**; **giữ**
-các thông báo bản quyền trong file và cả hai thông báo (strange_v + minhquanghp86); **ghi rõ file nào bạn đã sửa**; **giữ nội
-dung `NOTICE`**. Mọi file mã nguồn đều có dòng `SPDX-License-Identifier` ở đầu (kiểm bằng `npm run check:spdx`); ảnh Docker
-kèm toàn bộ giấy phép trong `/licenses`.
+| Mức | Hành vi |
+|---|---|
+| `urgent` (mặc định) | Mở khoá, bật đèn nền, phủ toàn màn hình |
+| `critical` | Như urgent, xuyên cả chế độ Không làm phiền |
+| `high` | Phủ toàn màn, tôn trọng Không làm phiền |
+| `normal` | Chỉ hiện thẻ thông báo |
 
-- **Dùng thương mại:** giấy phép Apache-2.0 cho phép, **trừ** file âm lịch ở trên (chỉ phi thương mại) — muốn dùng thương mại phải
-  gỡ / thay phần âm lịch hoặc xin phép tác giả thuật toán. Ảnh Docker còn chứa Google Chrome theo điều khoản riêng của Google.
-- **Tên, logo** "HA Dashboard" / "Dashboard" không được cấp phép dùng cho bản fork — xem [`TRADEMARKS.md`](TRADEMARKS.md).
-- **Đóng góp** theo [`CONTRIBUTING.md`](CONTRIBUTING.md) (Apache-2.0 mục 5, mã phải có nguồn gốc rõ ràng).
-- **Kế hoạch mở rộng dịch vụ HA (27/10)**: [`docs/KE-HOACH-DICH-VU-HA.md`](docs/KE-HOACH-DICH-VU-HA.md) — hiện chỉ có `dashboard_os.send`; đề xuất 26 dịch vụ + entity/event theo 5 giai đoạn.
-- **Bàn giao tổng hợp 27/10 (ĐỌC TRƯỚC)**: [`docs/BAN-GIAO-2026-10-27-tong-hop.md`](docs/BAN-GIAO-2026-10-27-tong-hop.md) — trạng thái 2.9.267, 3 việc của phiên, vận hành, việc còn mở, bài học.
-- **Sửa lỗi hình co nhỏ (Gần đây → Màn hình chính)**: [`docs/SUA-LOI-HINH-CO-NHO.md`](docs/SUA-LOI-HINH-CO-NHO.md) — nguyên nhân thumbnail `captureScreenshot clip.scale`, cách sửa + kiểm thử 4 màn.
-- **Báo thức (27/10)**: [`docs/BAO-THUC-DASHBOARD.md`](docs/BAO-THUC-DASHBOARD.md) — app Báo thức trên Dashboard: chọn màn → trình báo thức của màn đó, đồng bộ với app trên panel.
-- **Mốc ổn định 27/10 — 480×272**: [`docs/ON-DINH-2026-10-27-480x272.md`](docs/ON-DINH-2026-10-27-480x272.md) — 12.1 fps YouTube / 11.4 fps YouTube TV, q40, nhịp 80 ms; 3 lỗi đã sửa + cách đo tái lập.
-- **Bàn giao phiên 27/10 (ĐỌC TRƯỚC)**: [`docs/BAN-GIAO-2026-10-27-chat-luong-fps.md`](docs/BAN-GIAO-2026-10-27-chat-luong-fps.md) — trạng thái 2.9.252 + fix chất lượng không tới encoder + kế hoạch nghiệm thu fps.
-- (cũ) Bàn giao phiên 26/10/2026: [`docs/BAN-GIAO-2026-10-26-phien-sau.md`](docs/BAN-GIAO-2026-10-26-phien-sau.md) — trạng thái 2.9.249 + việc dở (480×272 kẹt q40).
+## 5. Vận hành
+
+| Việc | Ở đâu |
+|---|---|
+| Xem/sửa từng màn | Sidebar → **Dashboard** → **Màn hình** |
+| Đổi Wi-Fi, độ sáng, chất lượng | Trên màn hình (Cài đặt) hoặc trang Dashboard |
+| Sao lưu | Sao lưu add-on trong HA (đã loại bộ đệm Chrome cho nhẹ) |
+| Nhật ký | Settings → Add-ons → Dashboard OS Server → Log |
+
+**Cổng:** `18080` (web + điều khiển), `8081` (màn hình kết nối). Chỉ dùng trong LAN/Tailscale.
+
+## 6. Xử lý sự cố
+
+| Hiện tượng | Cách xử lý |
+|---|---|
+| Màn hình không hiện trong danh sách | Kiểm tra cùng mạng Wi-Fi, đã nhập đúng IP máy HA; khởi động lại màn |
+| Hình giật / mờ | Giảm **Chất lượng hình** hoặc bật nửa phân giải cho video |
+| Màn hình đen sau khi cập nhật | Khởi động lại add-on; kiểm tra log |
+| Không điều khiển được từ điện thoại | Mở trang bằng IP LAN (`http://<ip-ha>:18080`), không qua tên miền |
+
+## 7. Giấy phép & ghi công
+
+Apache-2.0 — xem [LICENSE](LICENSE) và [NOTICE](NOTICE). Biểu tượng MDI (Pictogrammers), phông Bebas Neue
+(OFL) — chi tiết ở [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). Nhãn hiệu: [TRADEMARKS.md](TRADEMARKS.md).
+
+Tài liệu chi tiết (kiến trúc, giao thức, phát triển): thư mục [`docs/`](docs/).
