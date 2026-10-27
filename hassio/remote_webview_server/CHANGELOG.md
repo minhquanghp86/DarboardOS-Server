@@ -1,3 +1,8 @@
+## V2.9.273
+- **Bàn phím ảo: sửa hàng phím cuối bị che và phím không đều.** Chiều cao `min(196px, 50vh)` + `margin-bottom` từng hàng
+  làm 5 hàng vượt khung trên màn thấp (480×272) và khi xoay 90/270. Nay: cao tối đa `min(196px, 62vh)` và `max-height:100%`,
+  hàng `flex:1 1 0; min-height:0`, gap co theo `vmin`, phím `flex:1 1 0; min-width:0`, thêm safe-area cho đáy.
+
 ## V2.9.272
 - **Đổi tên image GHCR**: `ghcr.io/minhquanghp86/darboardos-server` → **`dashboardos-server`** (theo tên repo mới).
   Slug add-on không đổi nên cập nhật bình thường, không mất dữ liệu.

@@ -505,7 +505,7 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
   var VKB_WIDTH  = '100%';
   // (25/10/2026) Man thap (480x272) ma de 196px thi ban phim chiem 72% chieu cao man.
   // Lay min(196px, 50vh): man >= 392px cao giu nguyen 196px, man 272px con 136px.
-  var VKB_HEIGHT = 'min(196px, 50vh)';
+  var VKB_HEIGHT = 'min(196px, 62vh)';
   if (window.__kioskKeyboardInitialized) return;
   window.__kioskKeyboardInitialized = true;
 
@@ -769,7 +769,7 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
       var st=document.createElement('style');
       st.id='kiosk-vkb-style';
       st.textContent=
-        '#kiosk-vkb-container{position:fixed !important;top:auto !important;bottom:-200vh !important;'+
+        '#kiosk-vkb-container{position:fixed !important;top:auto !important;bottom:-200vh !important;box-sizing:border-box !important;padding-bottom:env(safe-area-inset-bottom,0px) !important;max-height:100% !important;'+
         'left:0 !important;right:0 !important;margin:0 auto !important;'+
         'width:'+VKB_WIDTH+' !important;height:'+VKB_HEIGHT+' !important;'+
         'container-type:size;background:linear-gradient(180deg,rgba(72,79,92,.70),rgba(50,56,66,.78));'+
@@ -780,12 +780,12 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
         'user-select:none;-webkit-user-select:none;font-family:sans-serif;touch-action:manipulation;border:none;}'+
         '#kiosk-vkb-container:popover-open{display:flex;}'+
         '#kiosk-vkb-container.vkb-visible{bottom:0 !important;}'+
-        '.vkb-row{display:flex;justify-content:center;margin-bottom:6px;width:100%;gap:6px;flex:1;}'+
+        '.vkb-row{display:flex;justify-content:center;margin-bottom:0;width:100%;gap:clamp(3px,0.8vmin,6px);flex:1 1 0;min-height:0;}'+
         '.vkb-row:last-child{margin-bottom:0;}'+
         // (25/10/2026) Nen sang hon, phim BO GOC (10px) thay vi 2px, them do noi + hieu ung nhan phim.
         // (25/10/2026) Nen SANG + BAN TRONG SUOT (kinh mo): phim sang, vien sang mong,
         // backdrop-filter lam noi dung phia sau mo di nhung chu van doc duoc.
-        '.vkb-key{flex:1;background:rgba(126,136,152,.45);color:#f7f9fc;border:none;border-radius:10px;'+
+        '.vkb-key{flex:1 1 0;min-width:0;box-sizing:border-box;background:rgba(126,136,152,.45);color:#f7f9fc;border:none;border-radius:10px;'+
         'font-size:11.5cqh;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;'+
         'box-shadow:0 2px 0 rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.22);'+
         'text-shadow:0 1px 2px rgba(0,0,0,.35);'+
