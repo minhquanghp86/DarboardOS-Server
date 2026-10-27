@@ -493,7 +493,7 @@ setChatHooks({
   changed: () => chatChanged(),
   haImage: async (p) => { const r = await haGetRaw(p); return r.ok ? Buffer.from(await r.arrayBuffer()) : null; },
   chatActive: (device) => isUserViewing(device, 'chat'),
-  haEvent: (data) => { haFetch('/events/darboard_chat_message', { method: 'POST', body: JSON.stringify(data) }).catch(() => { }); },
+  haEvent: (data) => { haFetch('/events/dashboard_chat_message', { method: 'POST', body: JSON.stringify(data) }).catch(() => { }); },
   camFetch,
 });
 setNoticeArgHook((device, app, arg) => { if (app === 'chat') requestOpenConv(device, arg); else if (app === 'doorlog') requestOpenLog(device, arg); });

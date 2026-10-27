@@ -5,7 +5,7 @@
 
 // (14/10/2026) CHUONG CONG (INTERCOM GD1): thiet bi ESP32-S3 CAM khong man hinh, ket noi WS rieng (?door=1&mic=1&audio=1
 // &mj=<cong MJPEG>&sn=<cong anh chup>&name=<ten>). Server:
-//   - nut bam (DeviceEvent Doorbell) -> do chuong cac man (door.html), chong bam lien tiep, su kien HA darboard_doorbell;
+//   - nut bam (DeviceEvent Doorbell) -> do chuong cac man (door.html), chong bam lien tiep, su kien HA dashboard_doorbell;
 //     het gio khong ai nghe -> cuoc goi nho (thong bao kem anh khach).
 //   - hinh MJPEG (esp32_camera_web_server) chia cho nhieu nguoi xem (WS /call/video).
 //   - Nghe: noi tieng hai chieu man <-> chuong (callBridge). Mo cong: ControlField.Gate (MOSFET tren chuong).
@@ -232,7 +232,7 @@ function press(d: Door, only?: string[]): void {
     telegramNotify('ring', tgText('ring', { door: d.name, ts: tsPress }), path.join(SNAP_DIR, f));
   }).catch(() => { ring.snapFailed = true; telegramNotify('ring', tgText('ring', { door: d.name, ts: tsPress })); });
   led(d, DoorState.Ringing);
-  haFetch('/events/darboard_doorbell', { method: 'POST', body: JSON.stringify({ door: d.id, name: d.name, panels: r.devices }) })
+  haFetch('/events/dashboard_doorbell', { method: 'POST', body: JSON.stringify({ door: d.id, name: d.name, panels: r.devices }) })
     .then((x) => { if (!x.ok) console.warn(`[door] su kien HA: ${x.status}`); }).catch(() => { });
 }
 

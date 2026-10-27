@@ -64,10 +64,10 @@ Thêm / ẩn / sắp xếp / đổi tên / đổi biểu tượng: Dashboard →
 |---|---|---|
 | **Tin nhắn nội bộ** giữa Dashboard và các màn | Chữ, ảnh, video, **tin nhắn thoại giữ-để-ghi**; tạo/xoá cuộc trò chuyện, nhóm | tab **Tin nhắn** trên Dashboard + app *Tin nhắn* |
 | "Đã xem" riêng từng màn, chấm đỏ + huy hiệu chưa đọc | "Đang xem" chỉ khi app đang hiện, không bị màn hình chờ đè, có chạm trong 2 phút | tự động |
-| Sự kiện HA `darboard_chat_message` | Dùng cho tự động hoá | — |
+| Sự kiện HA `dashboard_chat_message` | Dùng cho tự động hoá | — |
 | **Gọi video** giữa các màn có camera + mic, và với trình duyệt/điện thoại | Chạy được qua Cloudflare Tunnel | app *Gọi*, tab **Gọi** |
-| **Chuông cổng Dashboard** (ESP32-S3 CAM) | Bấm nút → các màn đổ chuông đè lên màn khóa; hình cổng trực tiếp; **Nói chuyện** 2 chiều; **Mở khóa cổng**; Chụp ảnh | firmware + `darboard_door` |
-| Không ai nghe → **"Cuộc gọi nhỡ"** kèm ảnh + **nhật ký 30 ngày** | Sự kiện HA `darboard_doorbell` | app *Chuông cổng*, tab trên Dashboard |
+| **Chuông cổng Dashboard** (ESP32-S3 CAM) | Bấm nút → các màn đổ chuông đè lên màn khóa; hình cổng trực tiếp; **Nói chuyện** 2 chiều; **Mở khóa cổng**; Chụp ảnh | firmware + `dashboard_door` |
+| Không ai nghe → **"Cuộc gọi nhỡ"** kèm ảnh + **nhật ký 30 ngày** | Sự kiện HA `dashboard_doorbell` | app *Chuông cổng*, tab trên Dashboard |
 | `POST /doorbell` | Màn hình chuông cửa toàn màn với camera bất kỳ (cho chuông không phải Dashboard) | `rest_command` trong HA |
 | **Thông báo Telegram** | Chuông cổng nhỡ / bị từ chối / mỗi lần bấm (kèm ảnh khách), cuộc gọi nhỡ | Dashboard → **Gọi** → ⚙ |
 
@@ -124,7 +124,7 @@ Thêm / ẩn / sắp xếp / đổi tên / đổi biểu tượng: Dashboard →
 | Tích hợp HA `dashboard_os` | Action **`dashboard_os.send`** có ô nhập đầy đủ (thiết bị, media, camera, thời gian hiển thị); danh sách màn hình tự đồng bộ từ add-on mỗi 30 giây | `custom_components/dashboard_os/` |
 | `GET /devices` | Danh sách màn hình đang kết nối (không gồm chuông cổng) cho tích hợp dựng dropdown | — |
 | `POST /board` | Ghi chú lên Bảng tin gia đình | `rest_command` |
-| `POST /doorbell` | Hiện camera toàn màn + nút mở cổng | `rest_command.darboard_hien_camera` |
+| `POST /doorbell` | Hiện camera toàn màn + nút mở cổng | `rest_command.dashboard_hien_camera` |
 | **6 Blueprint** cho HA | Hiện camera · Thông báo · Cảnh báo an ninh · Nhắc lịch · Chào buổi sáng · Chuông cổng báo cả nhà | `examples/home-assistant/` |
 
 ## K. Firmware & thiết bị (repo client)

@@ -365,14 +365,14 @@ chuyện mới với Home Assistant (và màn hình khác nếu muốn). Màn c�
 SD; nhấn giữ 🎤 ghi tin nhắn thoại (vuốt lên để huỷ). Màn không có loa (S3) hiện tin thoại nhưng không phát.
 
 Tin mới: màn hình sáng lên + chuông + thẻ thông báo kèm ảnh người gửi; chạm mở đúng cuộc trò chuyện. Màn hình gửi tin →
-Home Assistant nhận **sự kiện** `darboard_chat_message` (`conversation`, `from`, `text`, `kind`) — ví dụ báo về điện thoại:
+Home Assistant nhận **sự kiện** `dashboard_chat_message` (`conversation`, `from`, `text`, `kind`) — ví dụ báo về điện thoại:
 
 ```yaml
 automation:
   - alias: Tin nhắn từ màn hình
     triggers:
       - trigger: event
-        event_type: darboard_chat_message
+        event_type: dashboard_chat_message
     actions:
       - action: notify.mobile_app_dien_thoai
         data:
@@ -469,7 +469,7 @@ khuếch đại MAX98357A, vòng LED WS2812, nút chuông, MOSFET mở khóa). K
   chuông thì màn quay lại đúng màn hình chờ / khóa trước đó.
 - Mỗi lần bấm chuông đều được lưu ảnh vào **nhật ký 30 ngày** — ứng dụng **"Chuông cổng"** trên màn và mục
   **"Chuông cổng"** trong trang Dashboard (ảnh ghi ngày / giờ, lọc Nhỡ / Đã nghe / Từ chối / Ảnh chụp, chọn + xóa).
-- Home Assistant nhận sự kiện `darboard_doorbell` (dữ liệu: `door`, `name`, `panels`) — dùng cho automation, ví dụ
+- Home Assistant nhận sự kiện `dashboard_doorbell` (dữ liệu: `door`, `name`, `panels`) — dùng cho automation, ví dụ
   gửi thông báo về điện thoại. Trong HA, chuông có sẵn switch **Mở cổng**, nút, camera, vòng LED.
 - Cài đặt (mục **"Gọi"** trong Dashboard → nút ⚙ góc trên phải): **chọn một hoặc nhiều màn bất kỳ** đổ chuông (màn không có loa vẫn hiện trang chuông, chỉ không nói chuyện được; không chọn = mọi màn), thời gian đổ chuông (chọn nhanh 5–100 s
   hoặc nhập số giây 5–300), thời gian mở khóa cổng (chọn nhanh 1–30 s hoặc nhập 1–120).
@@ -504,7 +504,7 @@ khuếch đại MAX98357A, vòng LED WS2812, nút chuông, MOSFET mở khóa). K
 - Tự đổ chuông từ automation (vd cảm biến khác) — `rest_command` trong `configuration.yaml`:
   ```yaml
   rest_command:
-    darboard_ring:
+    dashboard_ring:
       url: "http://127.0.0.1:18080/door/ring"   # tùy chọn: ?panels=esp32-xxxx,esp32-yyyy
       method: post
   ```
@@ -543,7 +543,7 @@ Ví dụ — hiện camera cổng toàn màn hình khi có người (hoặc chu�
 
 ```yaml
 rest_command:
-  darboard_hien_camera:
+  dashboard_hien_camera:
     url: "http://<IP-HASS>:18080/doorbell"     # 18080 = health_port của add-on
     method: POST
     content_type: application/json
@@ -562,7 +562,7 @@ automation:
         from: "off"
         to: "on"
     actions:
-      - action: rest_command.darboard_hien_camera
+      - action: rest_command.dashboard_hien_camera
         data:
           camera: cong               # tên luồng go2rtc
           title: "Cổng: có người"

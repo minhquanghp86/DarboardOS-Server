@@ -88,7 +88,7 @@ trên thanh bên Home Assistant.
 - **Đã xem riêng từng màn hình**; chấm đỏ + huy hiệu số tin chưa đọc; nhiều tin cùng cuộc trò chuyện gộp một thông báo.
 - "Đang xem" chỉ khi ứng dụng đang hiện, không có màn hình chờ đè lên và có người chạm trong 2 phút — không thì tin mới
   vẫn có chuông + thẻ thông báo.
-- Tin từ màn hình bắn sự kiện HA `darboard_chat_message` (dùng cho tự động hoá).
+- Tin từ màn hình bắn sự kiện HA `dashboard_chat_message` (dùng cho tự động hoá).
 
 ### Trang "Dashboard" (thanh bên Home Assistant)
 
@@ -152,7 +152,7 @@ trên thanh bên Home Assistant.
   bằng bot Telegram của bạn (Dashboard → Gọi → ⚙).
 - **Chuông cổng Dashboard** (ESP32-S3 CAM, firmware `fw-2026.10.27`): bấm nút → các màn đổ chuông (đè lên màn khóa) với
   hình cổng trực tiếp, **Nói chuyện** hai chiều, **Mở khóa cổng**, Chụp ảnh; không ai nghe → thông báo "Cuộc gọi nhỡ" kèm
-  ảnh; nhật ký ảnh 30 ngày (ứng dụng + tab trên trang Dashboard); sự kiện HA `darboard_doorbell`; nhạc chuông từ
+  ảnh; nhật ký ảnh 30 ngày (ứng dụng + tab trên trang Dashboard); sự kiện HA `dashboard_doorbell`; nhạc chuông từ
   `media/audio/chuong-cua.mp3` (2.9.141).
 - **Gọi video** kiểu điện thoại giữa các màn có camera + mic và tab **Gọi** trên trang Dashboard (trình duyệt / điện thoại
   qua HTTPS, chạy được qua Cloudflare Tunnel — tiếng + hình đi qua addon bằng WebSocket); nhạc chuông `media/audio/zalo.mp3`.

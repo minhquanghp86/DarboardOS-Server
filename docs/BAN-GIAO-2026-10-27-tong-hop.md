@@ -106,8 +106,8 @@ Bảng màn: P4 `esp32-80f1b2d35fb5` (.200) · 480×272 `esp32-1cdbd49b2260` (.1
   **"Dashboard OS"** (component 1.3.1), toàn bộ chữ trong giao diện / tài liệu / log (64 file, 348 dòng).
 - **Giữ nguyên định danh** (đổi sẽ hỏng automation/thiết bị):
   slug `remote_webview_server`, image `ghcr.io/minhquanghp86/darboardos-server`, repo GitHub `DarboardOS-Server`,
-  domain `dashboard_os`, sự kiện `darboard_doorbell` / `darboard_chat_message`, `rest_command.darboard_hien_camera`,
-  `darboard_ring`, component ESPHome `darboard_door`, thực thể `…_ha_darboard_server`, và `TRADEMARKS.md`.
+  domain `dashboard_os`, sự kiện `dashboard_doorbell` / `dashboard_chat_message`, `rest_command.dashboard_hien_camera`,
+  `dashboard_ring`, component ESPHome `dashboard_door`, thực thể `…_ha_dashboard_server`, và `TRADEMARKS.md`.
 - **ĐÃ HOÀN TẤT (27/10, sau khi restart HA):**
   - Tích hợp: `Dashboard OS` · entry title: `Dashboard OS` (sửa trong `.storage/core.config_entries` lúc HA dừng,
     đã backup `.storage/core.config_entries.bak-dashboard-rename`).

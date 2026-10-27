@@ -1,3 +1,9 @@
+## V2.9.271
+- **Đổi tên sự kiện HA**: `darboard_doorbell` → **`dashboard_doorbell`**, `darboard_chat_message` →
+  **`dashboard_chat_message`**. (Automation dùng tên cũ cần sửa trigger.)
+- Nhận diện thực thể "máy chủ" của panel theo mẫu `_ha_<tên>_server` (đổi tên hiển thị không còn làm hỏng mục cài đặt).
+- Dọn toàn bộ chữ "darboard" còn lại trong mã nguồn và tài liệu (chỉ giữ tên repo GitHub + image GHCR vì không đổi được).
+
 ## V2.9.270
 - **Sửa quyền `/iptv/*` cho tích hợp HA**: add-on chạy `host_network` nên HA core gọi tới bằng IP LAN của máy HA
   (vd `192.168.10.2`), không phải `172.30.32.x` → trước đó bị 403. Nay cho cả LAN/Tailscale như các API khác
@@ -12,8 +18,8 @@
   tên add-on: **"Dashboard OS Server"**, tiêu đề thanh bên **"Dashboard"**, tích hợp HA **"Dashboard OS"**.
 - **Giữ nguyên các định danh đang dùng thật** (đổi sẽ hỏng automation/thiết bị): slug add-on `remote_webview_server`,
   image `ghcr.io/minhquanghp86/darboardos-server`, tên repo GitHub `DarboardOS-Server`, domain tích hợp
-  `dashboard_os`, các sự kiện HA `darboard_doorbell` / `darboard_chat_message`, `rest_command.darboard_hien_camera`,
-  `darboard_ring`, component ESPHome `darboard_door` và tên thực thể `…_ha_darboard_server`.
+  `dashboard_os`, các sự kiện HA `dashboard_doorbell` / `dashboard_chat_message`, `rest_command.dashboard_hien_camera`,
+  `dashboard_ring`, component ESPHome `dashboard_door` và tên thực thể `…_ha_dashboard_server`.
 - `TRADEMARKS.md` giữ nguyên (là tuyên bố nhãn hiệu, trích dẫn tên gốc).
 
 ## V2.9.267
@@ -682,15 +688,15 @@
 
 ## V2.9.142
 - Hướng dẫn (trang Tài liệu của addon): mục **"Liên lạc: chuông cổng và gọi video"** — chuông cổng, nhật ký, gọi video,
-  nhạc chuông, sự kiện `darboard_doorbell`, tự đổ chuông từ automation (`rest_command` → `/door/ring`).
+  nhạc chuông, sự kiện `dashboard_doorbell`, tự đổ chuông từ automation (`rest_command` → `/door/ring`).
 - `/door/ring` nhận thêm yêu cầu từ mạng nội bộ Home Assistant (addon khác, vd Node-RED).
 
 ## V2.9.141
 - **Liên lạc (cần firmware fw-2026.10.16):**
-  - **Chuông cổng ESP32-S3 CAM** (component `darboard_door`): bấm chuông → các màn đổ chuông (nhạc chuông
+  - **Chuông cổng ESP32-S3 CAM** (component `dashboard_door`): bấm chuông → các màn đổ chuông (nhạc chuông
     `media/audio/chuong-cua.mp3`), màn hình chuông kiểu màn chuông hình chuyên dụng: hình cổng trực tiếp, **Nói chuyện**
     (tiếng hai chiều), **Mở khóa cổng** (chạm 2 lần), Chụp ảnh, Từ chối. Hiện đè lên màn khóa, khóa lại sau chuông.
-    Không ai nghe → thông báo "Cuộc gọi nhỡ ở cổng" kèm ảnh. Sự kiện HA `darboard_doorbell`.
+    Không ai nghe → thông báo "Cuộc gọi nhỡ ở cổng" kèm ảnh. Sự kiện HA `dashboard_doorbell`.
   - **Nhật ký chuông cổng** (ứng dụng "Chuông cổng" + tab trong Dashboard): ảnh mỗi lần bấm chuông, Nhỡ / Đã nghe /
     Từ chối / Ảnh chụp, giữ 30 ngày, chọn + xóa; chạm thông báo gọi nhỡ mở đúng ảnh.
   - **Gọi video kiểu điện thoại** giữa các màn có camera + mic và tab **"Gọi"** trong Dashboard (trình duyệt, HTTPS):
@@ -1087,7 +1093,7 @@
   video. Mỗi cuộc trò chuyện gồm Home Assistant + các màn hình đã chọn (hoặc "Mọi màn hình"). Trên panel: danh sách
   cuộc trò chuyện, tạo mới / xoá (giữ ngón tay hoặc nút thùng rác), trang nhắn tin kiểu điện thoại, trả lời nhanh;
   màn có camera (P4) gửi được ảnh chụp ngay hoặc ảnh/video từ thẻ SD. Tin mới: màn hình sáng lên + thẻ thông báo,
-  chạm vào mở đúng cuộc trò chuyện. Màn hình gửi tin -> sự kiện HA `darboard_chat_message` (tự động hoá báo về điện thoại…).
+  chạm vào mở đúng cuộc trò chuyện. Màn hình gửi tin -> sự kiện HA `dashboard_chat_message` (tự động hoá báo về điện thoại…).
 - **Ảnh đại diện**: mỗi người nhà nhắn từ Home Assistant hiện ảnh trong tài khoản HA của mình (ảnh của thực thể *person*;
   chưa đặt ảnh -> chữ cái đầu trên nền màu riêng), màn hình hiện biểu tượng màn hình; tin gom nhóm theo người gửi như ứng
   dụng chat. Trên trang thanh bên, tin của người nhà KHÁC (cùng dùng HA) nằm bên trái kèm ảnh. Thẻ thông báo trên panel
