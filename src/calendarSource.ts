@@ -5,10 +5,10 @@
 
 // (09/10/2026) NGUON LICH DUNG CHUNG (widget man hinh khoa, trang "Hôm nay"): KHONG bat buoc Home Assistant co lich.
 //  - HA co tich hop lich (calendar.*) -> lay qua REST nhu truoc.
-//  - Nguoi dung dan "Địa chỉ bí mật ở định dạng iCal" cua Google Calendar (hoac bat ky lich .ics nao) trong trang Darboard
+//  - Nguoi dung dan "Địa chỉ bí mật ở định dạng iCal" cua Google Calendar (hoac bat ky lich .ics nao) trong trang Dashboard
 //    (the "Màn khóa") -> server tai, giai ma bang ical.js (su kien lap lai RRULE + ngoai le + mui gio VTIMEZONE).
 //  - Khong co nguon nao -> mang rong (widget / trang Hom nay an phan lich).
-// Dia chi iCal bi mat = quyen DOC lich: chi luu /data cua add-on, chi trang Darboard (ingress) doc / sua; khong log,
+// Dia chi iCal bi mat = quyen DOC lich: chi luu /data cua add-on, chi trang Dashboard (ingress) doc / sua; khong log,
 // khong tra nguyen van ra trang (chi ten + duoi rut gon).
 import fs from 'node:fs';
 import type http from 'node:http';
@@ -94,13 +94,13 @@ export function parseIcal(text: string, fromMs: number, toMs: number): CalEv[] {
 
 // ── Lay du lieu ──────────────────────────────────────────────────────────────────────────────────────────────────
 const cache = new Map<string, { at: number; text: string }>();
-/** Trang thai lan tai gan nhat cua tung nguon (trang Darboard hien). */
+/** Trang thai lan tai gan nhat cua tung nguon (trang Dashboard hien). */
 export const icalStatus = new Map<string, { at: number; ok: boolean; msg: string }>();
 
 async function fetchText(url: string): Promise<string> {
   const c = cache.get(url);
   if (c && Date.now() - c.at < TTL_MS) return c.text;
-  const r = await fetch(url, { signal: AbortSignal.timeout(15_000), headers: { 'user-agent': 'HA-Darboard/1 (+calendar)' } });
+  const r = await fetch(url, { signal: AbortSignal.timeout(15_000), headers: { 'user-agent': 'HA-Dashboard/1 (+calendar)' } });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   const len = Number(r.headers.get('content-length') || 0);
   if (len > MAX_BYTES) throw new Error('tệp lịch quá lớn');
@@ -144,7 +144,7 @@ export async function allCalendarEvents(fromMs: number, toMs: number): Promise<C
   return [...ha, ...ic];
 }
 
-// ── API cho trang Darboard (ingress): the "Màn khóa" -> khung "Lịch" ───────────────────────────────────────────
+// ── API cho trang Dashboard (ingress): the "Màn khóa" -> khung "Lịch" ───────────────────────────────────────────
 const INGRESS_IP = '172.30.32.2';
 const fromIngress = (req: http.IncomingMessage) =>
   process.env.LAUNCHER_CONFIG_OPEN === '1' || (req.socket.remoteAddress || '').replace(/^::ffff:/, '') === INGRESS_IP;
@@ -162,7 +162,7 @@ async function view(): Promise<Record<string, unknown>> {
 /** GET / POST calendar/config (khong "/" dau — ingress them tien to). POST {add:{name,url}} | {remove:<chi so>}. Chi ingress. */
 export function handleCalendarApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL): boolean {
   if (url.pathname !== '/calendar/config') return false;
-  if (!fromIngress(req)) { json(res, 403, { error: 'Chỉ mở được từ trang Darboard trong Home Assistant.' }); return true; }
+  if (!fromIngress(req)) { json(res, 403, { error: 'Chỉ mở được từ trang Dashboard trong Home Assistant.' }); return true; }
   if (req.method === 'GET') { view().then((v) => json(res, 200, v)).catch((e: Error) => json(res, 500, { error: e.message })); return true; }
   if (req.method !== 'POST') { json(res, 405, { error: 'method' }); return true; }
   let body = '';

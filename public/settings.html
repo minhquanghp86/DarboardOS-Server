@@ -151,7 +151,7 @@
 
   // ── Muc lon: ten, icon, mau (mau he thong iOS ban toi), nhom tren danh sach, thu tu nhom con, chu thich ──
   var CATS = [
-    { id: 'net', t: 'Wi-Fi & Mạng', ic: 'wifi', c: '#0a84ff', g: 1, subs: ['Wi-Fi', 'Máy chủ Darboard', 'Đo tốc độ'] },
+    { id: 'net', t: 'Wi-Fi & Mạng', ic: 'wifi', c: '#0a84ff', g: 1, subs: ['Wi-Fi', 'Máy chủ Dashboard', 'Đo tốc độ'] },
     { id: 'dnd', t: 'Không làm phiền', ic: 'moon-waning-crescent', c: '#5e5ce6', g: 1, toggle: true },
     { id: 'sound', t: 'Âm thanh', ic: 'volume-high', c: '#ff375f', g: 2, subs: ['Âm lượng', 'Loa'] },
     { id: 'display', t: 'Màn hình & Độ sáng', ic: 'brightness-6', c: '#0a84ff', g: 2, subs: ['Độ sáng', 'Tự tắt màn hình', 'Hướng màn hình'] },
@@ -168,9 +168,9 @@
   var CAT = {}; CATS.forEach(function (c) { CAT[c.id] = c; });
   CAT.about = { id: 'about', t: 'Giới thiệu', ic: 'tablet', c: '#5e5ce6' };
   var FOOT = {
-    'net/Máy chủ Darboard': 'Địa chỉ addon HA Darboard mà màn hình kết nối tới (máy:cổng).',
+    'net/Máy chủ Dashboard': 'Địa chỉ addon HA Dashboard mà màn hình kết nối tới (máy:cổng).',
     'display/Tự tắt màn hình': 'Khi bật “Luôn sáng”, màn hình không tắt mà hiện màn hình khóa / chờ lúc rảnh.',
-    'lock/Widget': 'Không có số liệu thì widget tự ẩn. Chọn cảm biến năng lượng ở trang Darboard → thẻ Màn khóa.',
+    'lock/Widget': 'Không có số liệu thì widget tự ẩn. Chọn cảm biến năng lượng ở trang Dashboard → thẻ Màn khóa.',
     'wall/Nguồn ảnh': 'Thư mục = media/photos của Home Assistant. Album Google Photos dùng chung cho mọi màn hình.',
     'voice/Đánh thức': 'Từ khoá nghe trên chính thiết bị để gọi trợ lý của Home Assistant.',
     'camera/Phát hiện người': 'Dùng để bật sáng màn hình và hiện “Hôm nay” khi có người đứng trước màn hình.',
@@ -421,7 +421,7 @@
     var dv = d.ok && d.view ? d.view.device : null, srv = d.server || {};
     var card = el('div', 'grp'), r = el('button', 'row tap dev' + (sel === 'about' ? ' sel' : '')); r.type = 'button';
     var ic = el('span', 'ico'); ic.append(svg('tablet')); r.append(ic);
-    var ver = dv && dv.version ? 'ESPHome ' + String(dv.version).split(' ')[0] : (srv.version ? 'HA Darboard ' + srv.version : '');
+    var ver = dv && dv.version ? 'ESPHome ' + String(dv.version).split(' ')[0] : (srv.version ? 'HA Dashboard ' + srv.version : '');
     r.append(textCol(dv ? dv.name : (srv.w ? 'Màn hình ' + srv.w + '×' + srv.h : 'Màn hình này'), ver));
     if (!split()) r.append(svg('chevron-right', 'chev'));
     r.addEventListener('click', function () { go({ cat: 'about', sub: null }, !split()); });
@@ -513,7 +513,7 @@
     if (dv.name) g1.append(valueRow('Tên', dv.name));
     if (dv.model) g1.append(valueRow('Kiểu máy', dv.model));
     if (dv.version) g1.append(valueRow('Phần mềm', 'ESPHome ' + String(dv.version).split(' ')[0]));
-    if (srv.version) g1.append(valueRow('HA Darboard', srv.version));
+    if (srv.version) g1.append(valueRow('HA Dashboard', srv.version));
     if (srv.w) g1.append(valueRow('Màn hình', srv.w + ' × ' + srv.h + (srv.rotation ? ' · xoay ' + srv.rotation + '°' : '')));
     haItems().filter(function (i) { return (i.cat === 'net' && /_(ip|ip_address|mac_esp|mac|mac_address)$/.test(i.id)) || (i.cat === 'about' && i.kind === 'value'); })
       .forEach(function (i) { g1.append(valueRow(title(i), fmtVal(i))); });
@@ -533,13 +533,13 @@
     if (srv.tabs != null) g.append(valueRow('Ứng dụng đang mở', String(srv.tabs)));
     if (srv.decodeMs != null) g.append(valueRow('Giải mã một khung', nf(srv.decodeMs, srv.decodeMs < 10 ? 1 : 0) + ' ms'));
     if (srv.kbps != null) g.append(valueRow('Băng thông', srv.kbps + ' KB/s'));
-    out.push(el('div', 'gh first', 'Máy chủ Darboard'), g);
+    out.push(el('div', 'gh first', 'Máy chủ Dashboard'), g);
     var rest = groupsFor('diag', itemsOf('diag'));
     rest.forEach(function (n) { if (n.classList && n.classList.contains('first')) n.classList.remove('first'); });
     return out.concat(rest);
   }
   // ── (08/10/2026) WI-FI: mang dang dung, mang quanh day (firmware quet KHONG ngat ket noi), chon mang -> nhap mat khau.
-  // Firmware tu thu 30 s; khong vao duoc hoac khong thay may chu Darboard thi quay lai mang cu (cam bien "Đổi Wi-Fi").
+  // Firmware tu thu 30 s; khong vao duoc hoac khong thay may chu Dashboard thi quay lai mang cu (cam bien "Đổi Wi-Fi").
   var wifiScanAt = 0, wifiScanning = false, wifiPending = '';
   function wifiItems() {
     var a = haItems(), f = function (re) { return a.filter(function (i) { return re.test(i.id); })[0] || null; };
@@ -625,19 +625,19 @@
       g2.append(other);
       g2.append(actionRow(wifiScanning ? 'Đang quét…' : 'Quét lại', false, function () { if (!wifiScanning) { wifiScan(); render(last, true); } }));
       out.push(el('div', 'gh', 'Mạng khác'), g2,
-        el('div', 'gf', 'Chọn mạng để kết nối. Màn hình thử trong 30 giây; không vào được hoặc không thấy máy chủ Darboard thì tự quay lại mạng đang dùng.'));
+        el('div', 'gf', 'Chọn mạng để kết nối. Màn hình thử trong 30 giây; không vào được hoặc không thấy máy chủ Dashboard thì tự quay lại mạng đang dùng.'));
     } else {
       out.push(el('div', 'gf', 'Cập nhật firmware mới để chọn mạng Wi-Fi ngay tại đây.'));
     }
     // Chi tiet: bo dong ten mang + cuong do song (da o tren); doi ten nhom "Wi-Fi" -> "Chi tiết".
     var rest = itemsOf('net').filter(function (i) { return !/_(wifi_ket_noi|ssid|wifi_signal)$/.test(i.id); })
       .map(function (i) { return i.sub === 'Wi-Fi' ? Object.assign({}, i, { sub: 'Chi tiết' }) : i; });
-    var saveSubs = CAT.net.subs; CAT.net.subs = ['Chi tiết', 'Máy chủ Darboard', 'Đo tốc độ'];
+    var saveSubs = CAT.net.subs; CAT.net.subs = ['Chi tiết', 'Máy chủ Dashboard', 'Đo tốc độ'];
     var more = groupsFor('net', rest); CAT.net.subs = saveSubs;
     more.forEach(function (n) { if (n.classList && n.classList.contains('first')) n.classList.remove('first'); });
     return out.concat(more);
   }
-  // ── (08/10/2026) MAT KHAU LUONG CAMERA (nguoi dung cuoi): firmware luu flash, ap dung ngay; may chu Home Assistant (Darboard,
+  // ── (08/10/2026) MAT KHAU LUONG CAMERA (nguoi dung cuoi): firmware luu flash, ap dung ngay; may chu Home Assistant (Dashboard,
   // Frigate cai tren HA) khong can mat khau. Trang thai lay tu cam bien "Bật · <ten>" / "Tắt" (khong bao gio co mat khau).
   var camOn = null;
   function camAuthPage(id) {
@@ -684,7 +684,7 @@
     var bar = navBar('Huỷ', 'Mật khẩu luồng camera', ok, { plain: true, onBack: done });
     return [bar, el('div', 'gh first', 'Trạng thái: ' + cur), g].concat(out).concat([
       el('div', 'gf', 'Áp dụng ngay cho luồng camera (http://' + ip + ':8080/live) và ứng dụng Camera / thẻ nhớ. Máy chủ Home Assistant ' +
-        '(Darboard, Frigate cài trên HA) không cần mật khẩu. Xem bằng VLC: http://<tên>:<mật khẩu>@' + ip + ':8080/live')]);
+        '(Dashboard, Frigate cài trên HA) không cần mật khẩu. Xem bằng VLC: http://<tên>:<mật khẩu>@' + ip + ':8080/live')]);
   }
   var showPw = false;
   function joinPage(ssid) {
@@ -725,7 +725,7 @@
     setTimeout(function () { try { (known ? pw : sIn).focus(); } catch (e) { /* */ } }, 60);
     out.push(bar, el('div', 'gh first', known ? 'Nhập mật khẩu cho “' + ssid + '”' : 'Mạng ẩn hoặc chưa thấy trong danh sách'), g,
       el('div', 'gsp'), g2,
-      el('div', 'gf', 'Màn hình thử kết nối trong 30 giây. Không vào được, hoặc vào được nhưng không thấy máy chủ Darboard, thì tự quay lại mạng đang dùng. Trong lúc đổi, màn hình có thể đứng vài giây.'));
+      el('div', 'gf', 'Màn hình thử kết nối trong 30 giây. Không vào được, hoặc vào được nhưng không thấy máy chủ Dashboard, thì tự quay lại mạng đang dùng. Trong lúc đổi, màn hình có thể đứng vài giây.'));
     return out;
   }
   function catContent(catId) {

@@ -1,6 +1,6 @@
 {
   "domain": "dashboard_os",
-  "name": "DarboardOS",
+  "name": "Dashboard OS",
   "codeowners": ["@minhquanghp86"],
   "config_flow": true,
   "documentation": "https://github.com/minhquanghp86/DarboardOS-Server",

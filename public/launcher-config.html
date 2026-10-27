@@ -9,14 +9,14 @@
   (25/09/2026) Trang "Menu panel" (ingress Home Assistant — thanh ben HA). Cau hinh menu ung dung cua cac panel:
   an/hien, thu tu, doi ten/bieu tuong (MDI, giong HA)/mau/nhom, them ung dung. Luu -> server nap lai launcher ngay.
   Duong dan API TUONG DOI ("launcher/config") vi ingress them tien to vao URL.
-  (01/10/2026) THIET KE LAI thanh trang "Darboard" hai the: #tin-nhan (nhan tin noi bo voi cac man hinh — src/chat.ts) va
+  (01/10/2026) THIET KE LAI thanh trang "Dashboard" hai the: #tin-nhan (nhan tin noi bo voi cac man hinh — src/chat.ts) va
   #menu (cau hinh menu ung dung nhu cu, ma giu nguyen). The mac dinh: Tin nhan.
 -->
 <html lang="vi">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Darboard</title>
+<title>Dashboard</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap">
 <script src="icons.js"></script>
 <style>
@@ -538,8 +538,8 @@
 </style>
 </head>
 <body>
-<nav class="top" aria-label="Darboard"><div class="in">
-  <div class="brand" id="navBrand"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="brandPath" d=""/></svg><span>Darboard</span></div>
+<nav class="top" aria-label="Dashboard"><div class="in">
+  <div class="brand" id="navBrand"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="brandPath" d=""/></svg><span>Dashboard</span></div>
   <!-- (16/10/2026) Trong mot ung dung: nut ve Trang chu + bieu tuong / ten ung dung (thay hang the chu). -->
   <a class="nav-back" id="navBack" href="#" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path id="backPath" d=""/></svg>Trang chủ</a>
   <div class="nav-ttl" id="navTtl" hidden></div>
@@ -559,7 +559,7 @@
 <!-- (16/10/2026) TRANG CHU: luoi bieu tuong ung dung kieu dien thoai. -->
 <main id="homeView" hidden>
 <div class="hm">
-  <div class="hm-head"><h1>Darboard</h1><p id="hmSum">Màn hình gắn tường cho Home Assistant</p></div>
+  <div class="hm-head"><h1>Dashboard</h1><p id="hmSum">Màn hình gắn tường cho Home Assistant</p></div>
   <div class="hm-sec" id="hmScrSec" hidden>Màn hình</div>
   <div class="hm-scr" id="hmScr"></div>
   <div class="hm-sec">Ứng dụng</div>
@@ -1272,7 +1272,7 @@
     var unread = S.convs.reduce(function (n, c) { return n + c.unread; }, 0);
     $('tabCnt').hidden = !unread; $('tabCnt').textContent = unread > 99 ? '99+' : String(unread);
     if ($('hmChatCnt')) { $('hmChatCnt').hidden = !unread; $('hmChatCnt').textContent = unread > 99 ? '99+' : String(unread); }
-    document.title = (unread ? '(' + unread + ') ' : '') + 'Darboard';
+    document.title = (unread ? '(' + unread + ') ' : '') + 'Dashboard';
     if (!S.convs.length) {
       var e = el('div', 'cempty'); e.append(el('b', '', 'Chưa có cuộc trò chuyện'), document.createTextNode('Bấm “＋ Mới” để nhắn tới một hay nhiều màn hình.'));
       box.append(e);

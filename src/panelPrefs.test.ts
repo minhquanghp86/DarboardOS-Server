@@ -21,7 +21,7 @@ describe("cai dat addon theo tung man hinh", () => {
     const p = new PanelPrefsStore(null);
     expect(p.items("esp32-0a0b0c0d0002", D).filter((i) => i.sec === "screen").map((i) => [i.id, i.on, i.value])).toEqual([
       ["rwv.quality", true, "Tự động"], ["rwv.morning", true, ""], ["rwv.cast", true, ""], ["rwv.yt_skip_ads", true, ""], ["rwv.yttv_guest", true, ""],
-      ["rwv.cast_name", true, "Darboard 0002"]]);
+      ["rwv.cast_name", true, "Dashboard 0002"]]);
     expect(p.set("a", "rwv.morning", false)).toBe(true);
     expect(p.morning("a", true)).toBe(false);
     expect(p.set("a", "rwv.saver_idle", "Tắt")).toBe(true);
@@ -92,7 +92,7 @@ describe("truyen YouTube", () => {
     expect(p.cast("a", true)).toBe(true);
     expect(p.set("a", "rwv.cast", false)).toBe(true);
     expect(p.cast("a", true)).toBe(false);
-    expect(p.castName("esp32-0a0b0c0d0002")).toBe("Darboard 0002");
+    expect(p.castName("esp32-0a0b0c0d0002")).toBe("Dashboard 0002");
     expect(p.set("a", "rwv.cast_name", "Phòng <khách>")).toBe(true);
     expect(p.castName("a")).toBe("Phòng khách");
     expect(p.set("a", "rwv.cast_name", "x".repeat(41))).toBe(false);

@@ -1,4 +1,4 @@
-# MỐC ỔN ĐỊNH — 26/10/2026 — DarboardOS Server v2.9.241
+# MỐC ỔN ĐỊNH — 26/10/2026 — Dashboard OS Server v2.9.241
 
 > **Bản ổn định mới nhất: `v2.9.241`** (commit `9b178a4`), add-on đang chạy bản này.
 > Người dùng xác nhận: thẻ Điều khiển đã mượt, giữ tay kéo hình cập nhật theo tay.
@@ -50,7 +50,7 @@ Thẻ:    chạm → WS {t:'touch'} (LAN) / POST /control/input (tên miền) �
 
 ## 3. Rollback
 - Code: `git checkout 9b178a4` (hoặc tag `stable-2026-10-26`).
-- Add-on: cài lại version trước trong HA (Settings → Add-ons → DarboardOS Server → phiên bản).
+- Add-on: cài lại version trước trong HA (Settings → Add-ons → Dashboard OS Server → phiên bản).
 - Lưu ý store: nếu `version_latest` không đổi, xem `docs/SUA-LOI-STORE-ADDON.md` (clone Supervisor bị detached HEAD).
 
 ## 4. Việc còn có thể làm (không gấp)

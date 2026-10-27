@@ -3,7 +3,7 @@
 // Copyright (c) 2026 minhquanghp86
 // Licensed under the Apache License, Version 2.0 (see LICENSE).
 
-// (02/10/2026) QUAN LY FILE — the SD cua man hinh co camera (P4, firmware cam_app) quan ly tu trang "Darboard" tren thanh
+// (02/10/2026) QUAN LY FILE — the SD cua man hinh co camera (P4, firmware cam_app) quan ly tu trang "Dashboard" tren thanh
 // ben Home Assistant (public/launcher-config.html, the #quan-ly-file). CHI qua ingress cua HA (da dang nhap).
 //   - Duyet / xem / tai ve / xoa / doi ten / tao thu muc: chuyen tiep toi HTTP cua cam_app (/sd/ls, get, rm, mv, mkdir).
 //   - Tai ve MP4 (nguoi dung chon "cach B" 02/10): video quay la .mkv (H.264 + tieng mu-law) — dien thoai (iPhone) khong
@@ -33,7 +33,7 @@ const VIDEO_RE = /\.(mkv|mp4|m4v|mov|webm|avi|3gp|ts|mts|m2ts|wmv|flv|hevc|h265)
 export interface FileManagerHooks {
   /** Man hinh dang phat video/am thanh -> tam dung day tep vao the. */
   mediaBusy(deviceId: string): boolean;
-  /** (09/10/2026) Ten man hinh (so dang ky thiet bi HA) cho o chon man o trang Darboard. */
+  /** (09/10/2026) Ten man hinh (so dang ky thiet bi HA) cho o chon man o trang Dashboard. */
   screenName?(deviceId: string): string;
 }
 let hooks: FileManagerHooks | null = null;
@@ -98,7 +98,7 @@ function cam(pathQuery: string, method = 'GET', body?: Buffer, dev?: string | nu
 
 const enc = encodeURIComponent;
 
-/** (07/10/2026) IPTV (src/iptv.ts): liet ke mot thu muc the SD — chon tep danh sach kenh ngay tren panel / trang Darboard. */
+/** (07/10/2026) IPTV (src/iptv.ts): liet ke mot thu muc the SD — chon tep danh sach kenh ngay tren panel / trang Dashboard. */
 export async function sdLs(dir: string, dev?: string | null): Promise<{ n: string; d: boolean; s: number; t: number }[]> {
   const q = cleanSdPath(dir);
   if (!q) throw new Error('Đường dẫn không hợp lệ');
@@ -363,7 +363,7 @@ async function sdOk(id: string): Promise<boolean> {
 export function handleFileManager(req: http.IncomingMessage, res: http.ServerResponse, url: URL): boolean {
   if (!url.pathname.startsWith('/fm/')) return false;
   const ip = (req.socket.remoteAddress || '').replace(/^::ffff:/, '');
-  if (ip !== INGRESS_IP && process.env.LAUNCHER_CONFIG_OPEN !== '1') { json(res, 403, { error: 'Chỉ dùng được từ trang Darboard trong Home Assistant.' }); return true; }
+  if (ip !== INGRESS_IP && process.env.LAUNCHER_CONFIG_OPEN !== '1') { json(res, 403, { error: 'Chỉ dùng được từ trang Dashboard trong Home Assistant.' }); return true; }
   const route = url.pathname.slice(4), q = url.searchParams;
   const DEV = q.get('dev');    // (09/10/2026) man co the nho dang chon (GET); POST: body.dev
   const fail = (e: unknown, code = 502) => { if (!res.headersSent) json(res, code, { error: (e as Error).message || String(e) }); else res.destroy(); };

@@ -1,4 +1,4 @@
-# DarboardOS Server — biến màn hình ESP32 thành bảng điều khiển gắn tường
+# Dashboard OS Server — biến màn hình ESP32 thành bảng điều khiển gắn tường
 
 ## Đây là gì?
 
@@ -12,7 +12,7 @@ Dự án gồm hai phần, dùng cùng nhau:
 | Phần | Chạy ở đâu | Repo |
 |---|---|---|
 | **Máy chủ** (addon này) | Máy Home Assistant | [DarboardOS-Server](https://github.com/minhquanghp86/DarboardOS-Server) |
-| **Firmware màn hình** (component ESPHome `remote_webview` + cấu hình mẫu) | Màn hình ESP32 | [DarboardOS-Client](https://github.com/minhquanghp86/DarboardOS-Client) |
+| **Firmware màn hình** (component ESPHome `remote_webview` + cấu hình mẫu) | Màn hình ESP32 | [Dashboard OS-Client](https://github.com/minhquanghp86/Dashboard OS-Client) |
 
 ## Để làm gì?
 
@@ -28,11 +28,11 @@ Dự án gồm hai phần, dùng cùng nhau:
 
 ```
  ┌───────────── Máy Home Assistant (x86-64) ─────────────┐          ┌──── Màn hình ESP32 ────┐
- │  Addon DarboardOS Server                           │  WiFi    │  ESPHome +             │
+ │  Addon Dashboard OS Server                           │  WiFi    │  ESPHome +             │
  │   Chrome ẩn ──► chụp khung ──► chia ô JPEG ──► WS :8081 ├─────────►│  remote_webview        │
  │        ▲                                              │  ảnh+tiếng│   giải mã, vẽ, phát loa │
  │        └───────── chạm / bấm / trạng thái ◄───────────┤◄─────────┤   gửi cảm ứng, giờ,     │
- │   Trang ứng dụng + Darboard ──── cổng :18080 (LAN)     │          │   độ sáng, âm lượng     │
+ │   Trang ứng dụng + Dashboard ──── cổng :18080 (LAN)     │          │   độ sáng, âm lượng     │
  └────────────────────────────────────────────────────────┘          └─────────────────────────┘
 ```
 
@@ -68,15 +68,15 @@ Màn hình ESP32-S3/P4 khác (có PSRAM, màn hình ESPHome hỗ trợ) thườn
 
 1. **Thêm kho addon**: Cài đặt → Addon → Cửa hàng addon → ⋮ → Kho lưu trữ → thêm
    `https://github.com/minhquanghp86/DarboardOS-Server`.
-2. **Cài addon "DarboardOS Server"** → Khởi động. Bật *Hiện trên thanh bên* nếu muốn (mục **Darboard**). Xem tab
+2. **Cài addon "Dashboard OS Server"** → Khởi động. Bật *Hiện trên thanh bên* nếu muốn (mục **Dashboard**). Xem tab
    *Nhật ký*: có dòng `WebSocket listening on :8081` là sẵn sàng.
 3. **Tạo tài khoản HA riêng cho màn hình** (khuyến nghị): Cài đặt → Người & Khu vực → Người → thêm người, *không* cho
    quyền quản trị. Màn hình sẽ đăng nhập bằng tài khoản này.
 4. **Chuẩn bị firmware**: trong addon ESPHome tạo thiết bị mới, dán cấu hình mẫu của màn hình bạn từ thư mục
-   [`examples/`](https://github.com/minhquanghp86/DarboardOS-Client/tree/main/examples) của repo firmware — **không phải sửa
+   [`examples/`](https://github.com/minhquanghp86/Dashboard OS-Client/tree/main/examples) của repo firmware — **không phải sửa
    gì**: YAML mẫu là *một file cho mọi thiết bị* (không có IP, tên, Wi-Fi của nhà nào). Tên tự thêm 6 số MAC, Wi-Fi nhập qua
-   mạng tạm `<tên>` (captive portal), địa chỉ máy chủ Darboard và Home URL **tự lấy từ Home Assistant** lần đầu kết nối, múi giờ
-   do Home Assistant (≥ 2026.3) gửi. Đổi sau này ở các thực thể **HA Darboard server** / **Home URL** của thiết bị.
+   mạng tạm `<tên>` (captive portal), địa chỉ máy chủ Dashboard và Home URL **tự lấy từ Home Assistant** lần đầu kết nối, múi giờ
+   do Home Assistant (≥ 2026.3) gửi. Đổi sau này ở các thực thể **HA Dashboard server** / **Home URL** của thiết bị.
 5. **Nạp firmware** lần đầu qua cáp USB, các lần sau qua WiFi (OTA). Mở mạng Wi-Fi `<tên>` của màn hình trên điện thoại và nhập
    Wi-Fi nhà; thêm thiết bị vào Home Assistant (tích hợp ESPHome) — màn hình tự nhận địa chỉ máy chủ rồi khởi động lại một lần
    và hiện trang. Muốn giữ tên cũ / nạp sẵn Wi-Fi / IP tĩnh: dùng file riêng gọi YAML chung (`examples/rieng-cua-ban/`).
@@ -84,7 +84,7 @@ Màn hình ESP32-S3/P4 khác (có PSRAM, màn hình ESPHome hỗ trợ) thườn
    Việt, gõ Telex) → đăng nhập bằng tài khoản ở bước 3, tích *Ghi nhớ*. Đăng nhập được lưu trong thư mục hồ sơ của
    addon (`/data/pw-data`), không mất khi cập nhật.
 7. **Vuốt từ mép trên xuống** để mở thanh trạng thái, **vuốt lên từ mép dưới** để vào màn hình chính (các ứng dụng).
-   Vào **Darboard › Menu ứng dụng** trên thanh bên HA để sắp xếp ứng dụng theo ý bạn.
+   Vào **Dashboard › Menu ứng dụng** trên thanh bên HA để sắp xếp ứng dụng theo ý bạn.
 
 ## Sử dụng hằng ngày
 
@@ -103,7 +103,7 @@ Giọt nước ở giữa mép trên mọi trang hiện **giờ của chính mà
 - **Ứng dụng** chia ba nhóm:
 
 Bảng dưới là **toàn bộ ứng dụng có sẵn** (đúng theo `src/launcherApps.ts`). Thêm / ẩn / sắp xếp / đổi tên / đổi biểu tượng
-ở **Darboard → Menu ứng dụng**. Ứng dụng chỉ có trên màn đủ khả năng được ghi rõ ở cột *Làm gì*.
+ở **Dashboard → Menu ứng dụng**. Ứng dụng chỉ có trên màn đủ khả năng được ghi rõ ở cột *Làm gì*.
 
 | Nhóm | Ứng dụng | Làm gì |
 |---|---|---|
@@ -111,7 +111,7 @@ Bảng dưới là **toàn bộ ứng dụng có sẵn** (đúng theo `src/launc
 | | Camera | Xem trực tiếp camera của chính panel (**chỉ P4**) — luồng riêng của panel qua `/api/cam/stream` |
 | | Frigate | Lưới ảnh các camera Frigate/go2rtc, cập nhật lần lượt vài giây/lần; chạm để xem trực tiếp |
 | | Sự kiện camera | Sự kiện Frigate theo ngày (người/xe…), xem lại ảnh và clip |
-| | Gọi | Gọi video giữa các màn có camera + mic, và với trình duyệt (tab **Gọi** trên Darboard) |
+| | Gọi | Gọi video giữa các màn có camera + mic, và với trình duyệt (tab **Gọi** trên Dashboard) |
 | | Chuông cổng | Nhật ký chuông cổng 30 ngày (ảnh khách, cuộc nhỡ, đã mở cổng) |
 | | Thư viện | Ảnh trong thẻ SD của màn, xem kiểu thư viện ảnh (**màn có thẻ SD**) |
 | | Phòng | Điều khiển thiết bị HA theo phòng (đèn, công tắc…) |
@@ -130,7 +130,7 @@ Bảng dưới là **toàn bộ ứng dụng có sẵn** (đúng theo `src/launc
 | | Media | Trình duyệt media **riêng của dự án** (duyệt kho media HA, phát lên màn hoặc lên đầu phát HA) |
 | | Khung ảnh | Màn hình chờ dạng khung ảnh (ảnh trong Media › `photos`, hoặc album Google Photos) |
 | Tiện ích | Quản lý file | Thẻ SD của màn: duyệt, xem/phát, tải lên–xuống, đổi tên, tạo thư mục, xoá (**màn có thẻ SD**) |
-| | Tin nhắn | Nhắn tin nội bộ giữa Darboard và các màn (chữ, ảnh, video, tin nhắn thoại) |
+| | Tin nhắn | Nhắn tin nội bộ giữa Dashboard và các màn (chữ, ảnh, video, tin nhắn thoại) |
 | | Thời tiết | Hiện tại, 24 giờ, 7 ngày, chất lượng không khí (Open-Meteo). Chạm tên nơi chốn → chọn 1 trong 34 tỉnh/thành, hoặc "Nhà (Home Assistant)" |
 | | Lịch vạn niên | Lịch tháng âm dương, can chi, ngày lễ, giao thừa |
 | | Hẹn giờ | Hẹn nhanh 1–60 phút. **Vẫn reo khi bạn đã chuyển trang**: hết giờ màn hình tự sáng, hiện báo thức toàn màn hình kèm chuông |
@@ -152,7 +152,7 @@ Bảng dưới là **toàn bộ ứng dụng có sẵn** (đúng theo `src/launc
   sẵn để thêm). Kéo xuống **dock** (tối đa 6; mặc định Home Assistant, Camera, YouTube, Tin nhắn, NhacCuaTui, Google Maps; dock không có nút Gần đây — mở Gần đây bằng vuốt lên giữ hoặc thanh kéo xuống) hoặc kéo ra khỏi dock. Giữ sát mép trái/phải để sang trang.
 - Chạm thư mục để mở. Trong chế độ sắp xếp: chạm một chip để đổi tên thư mục, kéo ứng dụng ra ngoài khung để lấy ra.
 - **Xong** hoặc chạm chỗ trống để thoát. **Đặt lại** (chạm 2 lần) trở về bố cục mặc định.
-- Bố cục dùng chung cho mọi màn hình. Ứng dụng mới thêm ở trang *Darboard › Menu ứng dụng* xuất hiện ở cuối.
+- Bố cục dùng chung cho mọi màn hình. Ứng dụng mới thêm ở trang *Dashboard › Menu ứng dụng* xuất hiện ở cuối.
 
 ### Ứng dụng cho ngôi nhà
 
@@ -240,7 +240,7 @@ rest_command:
 - **Thanh trạng thái** góc trên phải (như điện thoại): tin nhắn / thông báo / báo thức kèm số (chạm để mở), mạng (Wi-Fi
   theo vạch hoặc biểu tượng cáp), **pin** của màn.
 - **Năng lượng**: 6 chỉ số — PV hôm nay, Công suất PV, Tải hôm nay, Tiêu thụ lưới, Tiêu thụ tải, Pin % (đang sạc / xả bao
-  nhiêu). Chọn cảm biến ở Darboard › Màn khóa. Màn ngang (P4): thời tiết + dòng lịch / camera ở cột phải.
+  nhiêu). Chọn cảm biến ở Dashboard › Màn khóa. Màn ngang (P4): thời tiết + dòng lịch / camera ở cột phải.
 - **Camera Frigate**: lần phát hiện gần nhất (trong 1 giờ) hiện trong ~5 giây.
 - **Cuộc gọi nhỡ** (chuông cổng / gọi giữa các màn): thẻ đỏ lớn kèm ảnh khách, màn hình chờ không bị tắt.
 - **Pin** (YAML mẫu P4 / S3 480×272 kèm `battery_monitor.h` — chép cùng thư mục với YAML): màn **tự biết có lắp pin hay
@@ -259,12 +259,12 @@ rest_command:
 
 - Giải trí: **VTVgo** (lần đầu bấm *Đồng ý & tiếp tục* điều khoản), **Zing MP3**, **NhacCuaTui** (phát nền như Nhạc/Radio).
 - Tiện ích: **Báo Mới**, **Giá vàng** (WebGiá), **Xổ số** (Minh Ngọc), **Giao thông** (Google Maps lớp giao thông;
-  đổi vị trí: biến `LAUNCHER_TRAFFIC_URL`). Ẩn/sắp xếp ở trang *Darboard › Menu ứng dụng*.
+  đổi vị trí: biến `LAUNCHER_TRAFFIC_URL`). Ẩn/sắp xếp ở trang *Dashboard › Menu ứng dụng*.
 
 ### Truyền YouTube từ điện thoại (như Smart TV)
 
 - Điện thoại và màn hình **cùng mạng WiFi/LAN** (cùng dải với máy chạy HA). Mở app **YouTube** (hoặc YouTube Music) →
-  bấm nút **Truyền** → chọn **Darboard XXXX** (4 ký tự cuối mã màn hình). Màn hình tự sáng, mở *YouTube TV* và phát;
+  bấm nút **Truyền** → chọn **Dashboard XXXX** (4 ký tự cuối mã màn hình). Màn hình tự sáng, mở *YouTube TV* và phát;
   điện thoại thành điều khiển (phát/dừng/tua/âm lượng/danh sách chờ). Ngắt truyền → màn hình quay về ứng dụng trước.
 - Đổi tên / tắt riêng từng màn hình: **Cài đặt → Màn hình → Nhận truyền YouTube / Tên khi truyền**. Tắt cho mọi màn
   hình: tuỳ chọn addon `cast_enabled`.
@@ -300,9 +300,9 @@ không làm gì. Màn đang ở màn hình chờ / khóa: nhấn đầu chỉ **
 
 Tự hiện khi chạm vào ô nhập chữ trên bất kỳ trang nào; có chế độ tiếng Việt (Telex), số và ký hiệu. Phím ▼ để ẩn.
 
-### Trang "Darboard" (thanh bên Home Assistant)
+### Trang "Dashboard" (thanh bên Home Assistant)
 
-Mục **Darboard** trên thanh bên HA (trước 2.9.94 tên "Menu panel") mở ra **trang chủ kiểu điện thoại**: lưới biểu tượng
+Mục **Dashboard** trên thanh bên HA (trước 2.9.94 tên "Menu panel") mở ra **trang chủ kiểu điện thoại**: lưới biểu tượng
 các ứng dụng — **Tin nhắn** (huy hiệu số tin chưa đọc), **IPTV**, **Quản lý file**, **Màn khóa**, **Chuông cổng**, **Gọi**,
 **Menu ứng dụng**, **Màn hình** — và ở đầu trang là **thẻ rút gọn của từng màn** (trạng thái, ứng dụng đang hiển thị,
 mạng, pin, cuộc gọi nhỡ, thông báo; chạm để mở chi tiết). Trong mỗi ứng dụng, nút **‹ Trang chủ** ở góc trên trái để quay lại.
@@ -319,7 +319,7 @@ mạng, pin, cuộc gọi nhỡ, thông báo; chạm để mở chi tiết). Tro
 - **Ứng dụng**: các ứng dụng đang mở trên màn (mở, tải lại, đóng), mở bất kỳ ứng dụng nào của màn (hỏi xác nhận trước khi mở), mở một trang web.
 - **Thông báo**: danh sách thông báo của màn (đánh dấu đã xem, xoá từng cái / tất cả); **gửi thông báo** tới màn (tùy chọn
   *Quan trọng* để bật sáng màn); **Đọc to** bằng giọng nói (màn có loa, cần TTS trong HA, vd Piper); hẹn giờ, báo thức.
-- **Cài đặt**: mọi cài đặt của màn như ứng dụng Cài đặt trên màn (thực thể ESPHome của thiết bị + cài đặt của Darboard), xếp
+- **Cài đặt**: mọi cài đặt của màn như ứng dụng Cài đặt trên màn (thực thể ESPHome của thiết bị + cài đặt của Dashboard), xếp
   theo nhóm; thông tin kết nối với máy chủ (băng thông, RAM).
 
 Ô nào màn không hỗ trợ thì tự ẩn (vd S3 không loa thì không có Âm thanh / Đọc to). Độ sáng / âm lượng điều khiển trực tiếp
@@ -396,9 +396,9 @@ không có màn hình chờ đè lên và có người chạm màn hình trong 2
   rồi mở **Tệp**: màn hình báo "Thẻ chưa đúng định dạng" → **Định dạng thẻ (FAT32)** (2.9.96 + `fw-2026.10.01e`, không
   cần máy tính). Mỗi tệp tối đa 4 GB (video tự dừng sau 30 phút, không vượt).
 
-### Quản lý file trên trang Darboard (2.9.104; thẻ SD của P4 và S3 4848S040)
+### Quản lý file trên trang Dashboard (2.9.104; thẻ SD của P4 và S3 4848S040)
 
-Trang **Darboard** (thanh bên Home Assistant) › **Quản lý file**:
+Trang **Dashboard** (thanh bên Home Assistant) › **Quản lý file**:
 
 - Chỉ hiện màn **đang có thẻ nhớ** (rút thẻ ra thì màn đó biến khỏi danh sách trong vài giây — cần firmware
   `fw-2026.10.20`). Nhiều màn có thẻ: ô chọn màn; chỉ một màn: tên màn ghi cạnh "Thẻ SD".
@@ -414,15 +414,15 @@ Trang **Darboard** (thanh bên Home Assistant) › **Quản lý file**:
 - Màn hình **phát được**: .mp4 / .m4v / .mkv / .webm / .mov với hình **H.264** (tốt nhất), VP9, AV1 và tiếng AAC, MP3,
   Opus, Vorbis, FLAC. **Không** phát được: H.265/HEVC, .avi / .wmv / .flv / .ts, tiếng AC3/DTS. Nên dùng 720p, 2–4 Mbps.
 
-### IPTV trên màn hình + phát từ trang Darboard
+### IPTV trên màn hình + phát từ trang Dashboard
 
-Trang **Darboard** › **IPTV**:
+Trang **Dashboard** › **IPTV**:
 
 - **Trên màn hình** (hàng thẻ trên cùng): mỗi màn một thẻ — **Đang phát** (chấm xanh, tên kênh), **IPTV chạy nền** (chấm
   vàng) hoặc **Không phát IPTV**; nút **Dừng** (đóng IPTV trên màn, về màn chính) và **Màn chính** (IPTV vào nền). Tự làm
   mới 3 giây.
 - **Tìm kênh** (ô trên cùng, gõ không dấu vẫn ra — tìm trong mọi kênh) và chip lọc: **★ Yêu thích** (dùng chung mọi màn —
-  bấm ☆ trên thẻ kênh), **Gần đây** (kênh phát từ Darboard và kênh xem trên màn), **Tất cả**, từng danh sách; ô **Nhóm**.
+  bấm ☆ trên thẻ kênh), **Gần đây** (kênh phát từ Dashboard và kênh xem trên màn), **Tất cả**, từng danh sách; ô **Nhóm**.
 - Kênh hiện dạng **thẻ có logo**. Chạm thẻ → chọn **một màn** hoặc **Tất cả màn hình** rồi **Phát** (máy chủ tự mở ứng dụng
   IPTV của màn), hoặc **Xem trong trình duyệt** (phát ngay trên máy tính — kênh cần `Referer` / `User-Agent` vẫn xem được
   vì máy chủ làm proxy hộ).
@@ -468,10 +468,10 @@ khuếch đại MAX98357A, vòng LED WS2812, nút chuông, MOSFET mở khóa). K
   và hiện **thẻ đỏ "Cuộc gọi nhỡ"** lớn trên đó (chạm thẻ mở đúng ảnh; thẻ mất khi đã xem hoặc sau 12 giờ). Từ chối / hết
   chuông thì màn quay lại đúng màn hình chờ / khóa trước đó.
 - Mỗi lần bấm chuông đều được lưu ảnh vào **nhật ký 30 ngày** — ứng dụng **"Chuông cổng"** trên màn và mục
-  **"Chuông cổng"** trong trang Darboard (ảnh ghi ngày / giờ, lọc Nhỡ / Đã nghe / Từ chối / Ảnh chụp, chọn + xóa).
+  **"Chuông cổng"** trong trang Dashboard (ảnh ghi ngày / giờ, lọc Nhỡ / Đã nghe / Từ chối / Ảnh chụp, chọn + xóa).
 - Home Assistant nhận sự kiện `darboard_doorbell` (dữ liệu: `door`, `name`, `panels`) — dùng cho automation, ví dụ
   gửi thông báo về điện thoại. Trong HA, chuông có sẵn switch **Mở cổng**, nút, camera, vòng LED.
-- Cài đặt (mục **"Gọi"** trong Darboard → nút ⚙ góc trên phải): **chọn một hoặc nhiều màn bất kỳ** đổ chuông (màn không có loa vẫn hiện trang chuông, chỉ không nói chuyện được; không chọn = mọi màn), thời gian đổ chuông (chọn nhanh 5–100 s
+- Cài đặt (mục **"Gọi"** trong Dashboard → nút ⚙ góc trên phải): **chọn một hoặc nhiều màn bất kỳ** đổ chuông (màn không có loa vẫn hiện trang chuông, chỉ không nói chuyện được; không chọn = mọi màn), thời gian đổ chuông (chọn nhanh 5–100 s
   hoặc nhập số giây 5–300), thời gian mở khóa cổng (chọn nhanh 1–30 s hoặc nhập 1–120).
 - **Thông báo Telegram** (2.9.169, cùng hộp ⚙): add-on gửi thẳng qua Telegram Bot API — **chuông cổng nhỡ**, **chuông cổng bị từ chối**,
   **mỗi lần bấm chuông** (cả ba kèm ảnh khách) và **cuộc gọi video nhỡ**; mỗi tin có thời gian (giờ Home Assistant), tên chuông / người gọi.
@@ -494,9 +494,9 @@ khuếch đại MAX98357A, vòng LED WS2812, nút chuông, MOSFET mở khóa). K
         width: 800        # ĐÚNG bằng độ phân giải camera (kiểm bằng ffprobe), không thì detect sai
         height: 600
   ```
-  ID chuông xem ở Darboard → **Gọi** → ⚙ (hoặc nút chép ID ở tab **Màn hình**). Không cần khai camera này trong go2rtc.
+  ID chuông xem ở Dashboard → **Gọi** → ⚙ (hoặc nút chép ID ở tab **Màn hình**). Không cần khai camera này trong go2rtc.
   Xem kích thước thật: `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 <URL>`.
-- **Darboard → Trang chủ** (2.9.175 — bản 2.9.174 đặt trong app "Màn hình" đã **sửa lại**): chuông cổng hiện như một
+- **Dashboard → Trang chủ** (2.9.175 — bản 2.9.174 đặt trong app "Màn hình" đã **sửa lại**): chuông cổng hiện như một
   **thiết bị của hệ thống** ngay trên trang chủ — dòng tổng thành "N màn hình đang kết nối & M Chuông cửa", thẻ chuông nằm
   cùng lưới **2 cột** với các thẻ màn. Thẻ có tên, chấm trực tuyến, **ID để chép** (`esp32-<MAC>`), IP, cổng MJPEG/ảnh,
   mic/loa, các màn được đổ chuông, thống kê nhật ký 30 ngày; chạm thẻ → nhật ký chuông. Chuông **đã từng kết nối** vẫn hiện
@@ -509,7 +509,7 @@ khuếch đại MAX98357A, vòng LED WS2812, nút chuông, MOSFET mở khóa). K
       method: post
   ```
 
-**Gọi video** giữa các màn có camera + mic (ứng dụng **"Gọi"**) và tab **"Gọi"** trong trang Darboard (trình duyệt máy
+**Gọi video** giữa các màn có camera + mic (ứng dụng **"Gọi"**) và tab **"Gọi"** trong trang Dashboard (trình duyệt máy
 tính / điện thoại — cần mở Home Assistant qua **HTTPS** để dùng camera, micro). Giao diện như điện thoại: cuộc gọi đến
 hiện đè lên màn khóa, tắt mic / tắt camera, máy bận, gọi nhỡ vào Thông báo + thẻ "Cuộc gọi nhỡ" trên màn hình chờ.
 Camera màn tự lên 10 hình/giây khi đang gọi.
@@ -566,12 +566,12 @@ automation:
         data:
           camera: cong               # tên luồng go2rtc
           title: "Cổng: có người"
-          device: esp32-0a0b0c0d0003  # ID màn: Darboard → Màn hình → chạm dòng "ID" để chép; "all" = mọi màn
+          device: esp32-0a0b0c0d0003  # ID màn: Dashboard → Màn hình → chạm dòng "ID" để chép; "all" = mọi màn
           timeout: 45
 ```
 
-Không muốn tự viết: Blueprint "Darboard: Hiện camera lên màn hình" (chọn camera + màn bằng giao diện) và hướng dẫn đầy đủ ở repo
-DarboardOS-Client, `docs/HUONG-DAN-AUTOMATION-CAMERA.md`. **Đừng** đặt "URL hiển thị" của màn thành địa chỉ LAN của Home Assistant: trình duyệt
+Không muốn tự viết: Blueprint "Dashboard: Hiện camera lên màn hình" (chọn camera + màn bằng giao diện) và hướng dẫn đầy đủ ở repo
+Dashboard OS-Client, `docs/HUONG-DAN-AUTOMATION-CAMERA.md`. **Đừng** đặt "URL hiển thị" của màn thành địa chỉ LAN của Home Assistant: trình duyệt
 của màn chạy trong add-on và địa chỉ LAN bị chặn.
 
 ## Thông báo từ Home Assistant (chuông cửa, nhắc việc…)
@@ -585,7 +585,7 @@ rest_command:
   #   Có ô nhập đầy đủ: nội dung, tiêu đề, thời gian hiển thị (0 = không tự thoát),
   #   thiết bị (dropdown tự đồng bộ từ add-on), ảnh/video/âm thanh, camera.
   #   Cài: chép thư mục vào /config/custom_components/, khởi động lại HA,
-  #   Settings -> Devices & Services -> Add Integration -> DarboardOS.
+  #   Settings -> Devices & Services -> Add Integration -> Dashboard OS.
   panel_notify:
     url: http://127.0.0.1:18080/notify      # 18080 = health_port của addon
     method: POST
@@ -639,7 +639,7 @@ luôn gửi giá trị riêng của từng màn hình (trong YAML ESPHome) khi k
 |---|---|---|
 | Ngôn ngữ trình duyệt (`browser_locale`) | `en-US` | Đặt `vi-VN` để trang web hiện tiếng Việt |
 | Cổng WebSocket (`ws_port`) | `8081` | Cổng màn hình kết nối tới — phải khớp `server:` trong YAML |
-| Cổng nội bộ (`health_port`) | `18080` | Trạng thái, trang ứng dụng, Darboard |
+| Cổng nội bộ (`health_port`) | `18080` | Trạng thái, trang ứng dụng, Dashboard |
 | Giảm hiệu ứng chuyển động | tắt | Bật để trang bớt hiệu ứng → ít khung hình phải truyền |
 | Thư mục hồ sơ trình duyệt (`user_data_dir`) | `/data/pw-data` | Nơi lưu đăng nhập; giữ trong `/data` |
 | Mở DevTools ra mạng LAN (`expose_debug_proxy`) | tắt | Xem mục *Nâng cao* — chỉ bật khi cần |
@@ -672,7 +672,7 @@ chậm hơn một chút.
 | Cổng | Dùng cho | Ai truy cập |
 |---|---|---|
 | 8081 | WebSocket ảnh/tiếng/cảm ứng | Màn hình ESP32 |
-| 18080 | `/metrics`, trang ứng dụng (`/weather.html`, `/calendar.html`, `/cams.html`, `/radio.html`, `/timer.html`, `/cam.html`, `/chat.html`, `/alarm.html`, `/files.html`), Darboard | Trình duyệt của addon, mạng LAN, ingress HA |
+| 18080 | `/metrics`, trang ứng dụng (`/weather.html`, `/calendar.html`, `/cams.html`, `/radio.html`, `/timer.html`, `/cam.html`, `/chat.html`, `/alarm.html`, `/files.html`), Dashboard | Trình duyệt của addon, mạng LAN, ingress HA |
 | 9222 | Chrome DevTools (chỉ khi bật) | Máy tính quản trị |
 | 9221 | Chrome DevTools nội bộ (127.0.0.1) | Chỉ máy chủ |
 | UDP 1900 (SSDP) + TCP 56790 (DIAL) | Truyền YouTube (SSDP tìm thiết bị + DIAL) | Điện thoại trong mạng nhà |
@@ -692,7 +692,7 @@ chậm hơn một chút.
 ## Bảo mật
 
 - Cổng **18080 chỉ nên dùng trong mạng nhà**. Đừng đưa nó ra Internet (reverse proxy, Cloudflare Tunnel, mở cổng
-  router). Trang Darboard thì vào qua Home Assistant (đã có đăng nhập).
+  router). Trang Dashboard thì vào qua Home Assistant (đã có đăng nhập).
 - Addon có quyền đọc cấu hình HA (vị trí nhà, người dùng/ảnh đại diện, thực thể của màn hình) bằng token riêng do Supervisor cấp — không cần
   mật khẩu hay token của bạn.
 - **Không đặt trang tự tạo trong `/config/www/`** của HA nếu HA được mở ra Internet: `/local/` phục vụ không cần đăng
@@ -711,7 +711,7 @@ chậm hơn một chút.
 | Menu không có thanh trượt / đồng hồ | Firmware màn hình cũ — nạp lại theo cấu hình mẫu mới nhất |
 | Frigate trống | Cần go2rtc ở cổng 1984 trên máy HA và đã có luồng camera |
 | Thời tiết sai nơi | Chạm tên nơi chốn → chọn tỉnh/thành, hoặc sửa *Vị trí nhà* trong Cài đặt → Hệ thống → Chung của HA |
-| Darboard báo không lưu được / không gửi được tin | Mở trang từ thanh bên Home Assistant (không mở thẳng `http://…:18080`) |
+| Dashboard báo không lưu được / không gửi được tin | Mở trang từ thanh bên Home Assistant (không mở thẳng `http://…:18080`) |
 | Addon không cài được | Máy HA phải là x86-64; không hỗ trợ ARM (Raspberry Pi) |
 | Hình màu sai | Đổi `big_endian` trong YAML ESPHome |
 | Ô ảnh bị đỏ | Ô lớn hơn `max_bytes_per_msg` — tăng giá trị đó hoặc giảm `tile_size`/`jpeg_quality` trong YAML |
@@ -803,5 +803,5 @@ Chi tiết đầy đủ: `docs/SUA-LOI-STORE-ADDON.md`.
 
 Mã của dự án theo **Apache-2.0** (phần phái sinh từ strange_v theo **MIT**). Riêng chức năng **âm lịch** dùng mã của Hồ Ngọc Đức
 chỉ cho phép **dùng cá nhân, phi thương mại**. Thư viện bên thứ ba có giấy phép riêng (xem `THIRD-PARTY-NOTICES.md` trong
-kho mã). Toàn bộ văn bản giấy phép nằm trong ảnh Docker tại `/licenses`. Tên và logo "HA Darboard" / "Darboard" không được
+kho mã). Toàn bộ văn bản giấy phép nằm trong ảnh Docker tại `/licenses`. Tên và logo "HA Dashboard" / "Dashboard" không được
 cấp phép dùng cho bản fork. Chi tiết: README, `NOTICE`, `TRADEMARKS.md`.

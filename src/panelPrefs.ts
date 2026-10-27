@@ -163,7 +163,7 @@ export class PanelPrefsStore {
   ytSkipAds(dev: string): boolean { return this.get(dev).ytSkipAds ?? true; }
   ytTvGuest(dev: string): boolean { return this.get(dev).ytTvGuest ?? true; }
   /** Ten panel hien trong nut truyen cua dien thoai. */
-  castName(dev: string): string { return this.get(dev).castName || `Darboard ${dev.replace(/^esp32-/, '').slice(-4).toUpperCase()}`; }
+  castName(dev: string): string { return this.get(dev).castName || `Dashboard ${dev.replace(/^esp32-/, '').slice(-4).toUpperCase()}`; }
   frame(dev: string, envAlbum = ''): FrameSettings {
     const p = this.get(dev);
     return {
@@ -193,7 +193,7 @@ export class PanelPrefsStore {
       sel('rwv.clock_size', 'lock', 'Cỡ đồng hồ', CLOCK_CHOICES, this.clockSize(dev), 'Lớn'),
       sw('rwv.wx_detail', 'lock', 'Thời tiết chi tiết', this.wxDetail(dev), 'Cảm giác, độ ẩm, gió, mưa, không khí, giờ tới'),
       // (08/10/2026) Widget: khong co so lieu (chua chon cam bien / khong co lich / khong co Frigate) thi tu an.
-      sw('rwv.lw_energy', 'lock', 'Năng lượng', this.lockWidgets(dev).en, 'Mặt trời, pin, tiêu thụ · chọn cảm biến ở trang Darboard → Màn khóa'),
+      sw('rwv.lw_energy', 'lock', 'Năng lượng', this.lockWidgets(dev).en, 'Mặt trời, pin, tiêu thụ · chọn cảm biến ở trang Dashboard → Màn khóa'),
       sw('rwv.lw_cal', 'lock', 'Lịch sắp tới', this.lockWidgets(dev).cal, 'Sự kiện 3 ngày tới từ lịch Home Assistant'),
       sw('rwv.lw_cam', 'lock', 'Camera phát hiện', this.lockWidgets(dev).cam, 'Lần Frigate thấy người / xe gần nhất trong 1 giờ'),
       sw('rwv.saver_photos', 'lock', 'Hiện ảnh nền', this.saverPhotos(dev, d.saverPhotos), 'Khung ảnh số · đêm chỉ đồng hồ'),

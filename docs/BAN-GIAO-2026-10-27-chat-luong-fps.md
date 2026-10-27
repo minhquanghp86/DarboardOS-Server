@@ -54,7 +54,7 @@ Hai lỗi xác định được:
    `SCREENCAST_JPEG_QUALITY = 90` (dòng ~373: `Math.min(100, Math.max(1, parseInt(process.env.SCREENCAST_JPEG_QUALITY ?? '90')))`).
    ⇒ đường video chạy **q90 cố định**, không phải chất lượng người dùng đặt.
 2. **`low` bỏ qua UI**: `low = dev.cfg.jpegQuality` lấy từ **YAML** (hiện 65). Giá trị người dùng chọn trong
-   Darboard UI nằm ở **`dev.qualityOverride`** (được set tại `src/deviceManager.ts` ~1689, nhánh `sid === 'rwv.quality'`,
+   Dashboard UI nằm ở **`dev.qualityOverride`** (được set tại `src/deviceManager.ts` ~1689, nhánh `sid === 'rwv.quality'`,
    pref `rwv.quality`, `0 = Tự động`), và chỉ được áp qua `dev.processor.setTuning({ jpegQuality: q })`.
 
 ⇒ Đường screencast/video **không đọc `qualityOverride`** bao giờ.
@@ -76,7 +76,7 @@ Sau khi sửa, kiểm tra thêm hợp đồng giữa `setTuning` và đường c
 ### 1.4 Kế hoạch nghiệm thu (bắt buộc, đúng thứ tự)
 
 1. Deploy bản có fix (quy trình mục 5).
-2. Người dùng đặt **q50** trong Darboard UI, phát YouTube.
+2. Người dùng đặt **q50** trong Dashboard UI, phát YouTube.
 3. Chạy `python3 /tmp/yt3.py` (3 phút) — xem mục 3.1.
 4. **Điều kiện đạt**: byte/khung **giảm rõ** so với 18.3 KB (kỳ vọng ~12-13 KB ở q50), decode **< 55 ms**,
    fps **≥ 11**, q báo cáo đúng 50.

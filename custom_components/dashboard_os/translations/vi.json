@@ -2,8 +2,8 @@
   "config": {
     "step": {
       "user": {
-        "title": "DarboardOS",
-        "description": "Nhập địa chỉ của add-on DarboardOS (mặc định đúng với Home Assistant OS).",
+        "title": "Dashboard OS",
+        "description": "Nhập địa chỉ của add-on Dashboard OS (mặc định đúng với Home Assistant OS).",
         "data": {
           "name": "Tên",
           "host": "Địa chỉ add-on"
@@ -16,8 +16,8 @@
   },
   "services": {
     "send": {
-      "name": "DarboardOS",
-      "description": "Gửi thông báo tới màn hình DarboardOS.",
+      "name": "Dashboard OS",
+      "description": "Gửi thông báo tới màn hình Dashboard OS.",
       "fields": {
         "message": {
           "name": "Nội dung",

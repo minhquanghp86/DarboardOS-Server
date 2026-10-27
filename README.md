@@ -1,4 +1,4 @@
-# HA Darboard Server — DarboardOS Server
+# HA Dashboard Server — Dashboard OS Server
 
 Biến màn hình cảm ứng **ESP32-P4 / ESP32-S3** thành **bảng điều khiển gắn tường kiểu điện thoại** cho Home Assistant.
 Một Chrome ẩn chạy trên máy chủ dựng trang web (dashboard HA, YouTube, camera, ứng dụng của dự án), gửi phần thay đổi
@@ -10,7 +10,7 @@ Dự án gồm hai repo dùng cùng nhau:
 | Repo | Vai trò | Phiên bản hiện tại (18/10/2026) |
 |---|---|---|
 | **DarboardOS-Server** (repo này) | Máy chủ — addon Home Assistant (hoặc container Docker) | **2.9.185** |
-| [DarboardOS-Client](https://github.com/minhquanghp86/DarboardOS-Client) | Firmware màn hình (ESPHome) + YAML mẫu chung (một file, nhiều thiết bị) | tag **`fw-2026.10.27`** |
+| [Dashboard OS-Client](https://github.com/minhquanghp86/Dashboard OS-Client) | Firmware màn hình (ESPHome) + YAML mẫu chung (một file, nhiều thiết bị) | tag **`fw-2026.10.27`** |
 
 > Tài liệu bàn giao / báo cáo nội bộ được giữ riêng (không công khai).
 
@@ -24,10 +24,10 @@ Nhật ký thay đổi từng phiên bản: [`CHANGELOG.md`](hassio/remote_webvi
 
 
 <p align="center">
-  <img src="images/menu.png" width="49%" alt="Menu ứng dụng của panel (xem trước trong trang Darboard)">
+  <img src="images/menu.png" width="49%" alt="Menu ứng dụng của panel (xem trước trong trang Dashboard)">
   <img src="images/weather.png" width="49%" alt="Ứng dụng Thời tiết">
   <img src="images/calendar.png" width="49%" alt="Lịch vạn niên">
-  <img src="images/menu-panel.png" width="49%" alt="Trang Darboard trong Home Assistant">
+  <img src="images/menu-panel.png" width="49%" alt="Trang Dashboard trong Home Assistant">
 </p>
 
 ## Tính năng
@@ -78,19 +78,19 @@ Nhật ký thay đổi từng phiên bản: [`CHANGELOG.md`](hassio/remote_webvi
 | Tiện ích | **Tin nhắn**, **Báo thức**, Hẹn giờ, Thời tiết, **Lịch vạn niên**, Việc cần làm, Hôm nay, Bảng tin, Báo Mới, Giá vàng, Xổ số, Google Maps, **Chrome**, **Cài đặt** |
 
 Ứng dụng **Camera** chỉ có trên màn có camera (**P4**). **Thư viện** + **Quản lý file** có trên màn có thẻ nhớ — **P4**
-(SDMMC) và **S3 4848S040** (thẻ SPI, component `sd_files`, từ 2.9.129). Thêm/ẩn/sắp xếp/đổi biểu tượng ở trang **Darboard**
+(SDMMC) và **S3 4848S040** (thẻ SPI, component `sd_files`, từ 2.9.129). Thêm/ẩn/sắp xếp/đổi biểu tượng ở trang **Dashboard**
 trên thanh bên Home Assistant.
 
 ### Tin nhắn nội bộ
 
-- Nhắn giữa trang **Darboard** (thanh bên HA — mỗi tài khoản HA một người, **ảnh đại diện** lấy từ `person.*`) và các
+- Nhắn giữa trang **Dashboard** (thanh bên HA — mỗi tài khoản HA một người, **ảnh đại diện** lấy từ `person.*`) và các
   màn hình: chữ, ảnh, video, **tin nhắn thoại giữ-để-ghi** (micro P4), tạo/xoá cuộc trò chuyện, nhóm.
 - **Đã xem riêng từng màn hình**; chấm đỏ + huy hiệu số tin chưa đọc; nhiều tin cùng cuộc trò chuyện gộp một thông báo.
 - "Đang xem" chỉ khi ứng dụng đang hiện, không có màn hình chờ đè lên và có người chạm trong 2 phút — không thì tin mới
   vẫn có chuông + thẻ thông báo.
 - Tin từ màn hình bắn sự kiện HA `darboard_chat_message` (dùng cho tự động hoá).
 
-### Trang "Darboard" (thanh bên Home Assistant)
+### Trang "Dashboard" (thanh bên Home Assistant)
 
 - **Trang chủ kiểu điện thoại**: thẻ rút gọn từng màn ở đầu trang + lưới biểu tượng ứng dụng (Màn hình, Tin nhắn có huy
   hiệu số tin chưa đọc, IPTV, Quản lý file, Màn khóa, Chuông cổng, Gọi, Menu ứng dụng). Mỗi ứng dụng có nút **‹ Trang chủ**.
@@ -102,24 +102,24 @@ trên thanh bên Home Assistant.
 - **Menu ứng dụng**: ô *Xem trước menu trên màn* (lưới biểu tượng theo nhóm, bấm để sửa); bật / tắt, sắp xếp, đổi tên,
   biểu tượng, màu, thêm ứng dụng.
 
-### Quản lý file (thẻ SD) trên trang Darboard
+### Quản lý file (thẻ SD) trên trang Dashboard
 
-- Thẻ **Quản lý file** trên trang Darboard (thanh bên HA, qua đăng nhập HA — dùng được cả ngoài nhà): duyệt thẻ, xem ảnh /
+- Thẻ **Quản lý file** trên trang Dashboard (thanh bên HA, qua đăng nhập HA — dùng được cả ngoài nhà): duyệt thẻ, xem ảnh /
   phát video, **tải về** (tệp gốc hoặc **MP4** — máy chủ đổi .mkv sang MP4 trong vài giây, không nén lại hình), **tải lên**
   từ điện thoại / máy tính (tuỳ chọn **tối ưu video 720p** cho màn hình, nhận cả HEVC của điện thoại), đổi tên, tạo thư mục,
   xoá nhiều. Chép vào thẻ ~2 MB/s (WiFi của P4), **tạm dừng khi màn hình đang phát video**. Chỉ liệt kê màn **đang có thẻ** (rút
   thẻ ra thì màn đó biến khỏi danh sách); nhiều màn có thẻ thì có ô chọn màn, chỉ một màn thì ghi tên màn cạnh "Thẻ SD".
 
-### IPTV + phát từ trang Darboard
+### IPTV + phát từ trang Dashboard
 
 - **Danh sách kênh M3U** (đường link, `.m3u` trong `/media` của HA, hoặc tệp trên thẻ nhớ của màn — `sd:/…`): kênh hiện
   trong ứng dụng **IPTV** của mọi panel; tự cập nhật 6 giờ/lần (nút **Tải lại kênh** để cập nhật ngay; mất mạng dùng bản
   đã lưu). Quản lý danh sách nằm sau nút ⚙ **Danh sách kênh**.
-- **Trang IPTV của Darboard**: hàng **trạng thái từng màn** (Đang phát kênh gì / IPTV chạy nền / Không phát) với nút
+- **Trang IPTV của Dashboard**: hàng **trạng thái từng màn** (Đang phát kênh gì / IPTV chạy nền / Không phát) với nút
   **Dừng** và **Màn chính**; ô **tìm kênh** (gõ không dấu vẫn ra); chip **Yêu thích** (dùng chung mọi màn) · **Gần đây**
-  (kênh phát từ Darboard + kênh xem trên màn) · **Tất cả** · từng danh sách, chọn nhóm; lưới thẻ kênh có logo và ngôi sao.
+  (kênh phát từ Dashboard + kênh xem trên màn) · **Tất cả** · từng danh sách, chọn nhóm; lưới thẻ kênh có logo và ngôi sao.
   Chạm thẻ → chọn **một màn** hoặc **Tất cả màn hình** để phát, hoặc **Xem trong trình duyệt**.
-- API (trang Darboard): `GET /iptv/channels?refresh=1` (danh sách kênh), `GET /iptv/config` + `POST /iptv/config|/iptv/refresh`
+- API (trang Dashboard): `GET /iptv/channels?refresh=1` (danh sách kênh), `GET /iptv/config` + `POST /iptv/config|/iptv/refresh`
   (nguồn danh sách), `GET /iptv/screens` + `GET /iptv/status` (trạng thái từng màn), `POST /iptv/cast {dev, ch, name?}`
   (`dev` = id màn hoặc `all`), `POST /iptv/control {dev, act: "stop"|"home"}`, `POST /iptv/fav`, `POST /iptv/recent`,
   `POST /iptv/log`, `GET /iptv/sd`; proxy luồng `GET /iptv/p`, `GET /iptv/probe`.
@@ -139,7 +139,7 @@ trên thanh bên Home Assistant.
 - `POST /notify` (từ `rest_command` của HA): `normal` / `high` (bật sáng + chuông) / `critical` (hiện cả khi Không làm
   phiền), kèm ảnh camera go2rtc, chạm để mở ứng dụng/URL; lưu qua khởi động lại addon.
 - **Custom component `custom_components/dashboard_os/`**: action **`dashboard_os.send`** (Settings → Devices & Services →
-  Add Integration → DarboardOS, địa chỉ mặc định `http://172.30.32.1:18080`). Có đầy đủ ô nhập trên giao diện:
+  Add Integration → Dashboard OS, địa chỉ mặc định `http://172.30.32.1:18080`). Có đầy đủ ô nhập trên giao diện:
   `message`, `title`, `duration` (0–600 giây; **0 = không tự thoát, chạm màn hình để đóng**), `device`, `image`, `video`,
   `audio`, `camera`, `camera_stream`. Mức ưu tiên luôn là `urgent` (mở khoá, bật đèn nền, phủ toàn màn hình).
   `device` là **dropdown chỉ gồm màn hình do add-on báo về** (`GET /devices`), component đồng bộ mỗi 30 giây nên
@@ -149,14 +149,14 @@ trên thanh bên Home Assistant.
   File local hoặc URL được tự tải lên add-on; `urgent` = mở khoá + bật đèn nền + phủ toàn màn hình 6 giây.
   (Entity `notify.dashboard_os` vẫn tồn tại cho `notify.send_message`.)
 - **Thông báo Telegram** (2.9.169): chuông cổng nhỡ / bị từ chối / mỗi lần bấm (kèm ảnh khách), cuộc gọi video nhỡ — add-on gửi thẳng
-  bằng bot Telegram của bạn (Darboard → Gọi → ⚙).
-- **Chuông cổng Darboard** (ESP32-S3 CAM, firmware `fw-2026.10.27`): bấm nút → các màn đổ chuông (đè lên màn khóa) với
+  bằng bot Telegram của bạn (Dashboard → Gọi → ⚙).
+- **Chuông cổng Dashboard** (ESP32-S3 CAM, firmware `fw-2026.10.27`): bấm nút → các màn đổ chuông (đè lên màn khóa) với
   hình cổng trực tiếp, **Nói chuyện** hai chiều, **Mở khóa cổng**, Chụp ảnh; không ai nghe → thông báo "Cuộc gọi nhỡ" kèm
-  ảnh; nhật ký ảnh 30 ngày (ứng dụng + tab trên trang Darboard); sự kiện HA `darboard_doorbell`; nhạc chuông từ
+  ảnh; nhật ký ảnh 30 ngày (ứng dụng + tab trên trang Dashboard); sự kiện HA `darboard_doorbell`; nhạc chuông từ
   `media/audio/chuong-cua.mp3` (2.9.141).
-- **Gọi video** kiểu điện thoại giữa các màn có camera + mic và tab **Gọi** trên trang Darboard (trình duyệt / điện thoại
+- **Gọi video** kiểu điện thoại giữa các màn có camera + mic và tab **Gọi** trên trang Dashboard (trình duyệt / điện thoại
   qua HTTPS, chạy được qua Cloudflare Tunnel — tiếng + hình đi qua addon bằng WebSocket); nhạc chuông `media/audio/zalo.mp3`.
-- `POST /doorbell`: màn hình chuông cửa toàn màn với camera go2rtc bất kỳ, nút Mở cổng (cho chuông không phải Darboard).
+- `POST /doorbell`: màn hình chuông cửa toàn màn với camera go2rtc bất kỳ, nút Mở cổng (cho chuông không phải Dashboard).
 - `POST /board`: ghi chú lên Bảng tin gia đình; *Hôm nay* tổng hợp lịch, thời tiết, việc cần làm (bản tin buổi sáng).
 
 ### Nhận biết người (P4)
@@ -181,8 +181,8 @@ media player, cảm biến người…). **Ứng dụng Cài đặt** trên màn
 ### Home Assistant (khuyến nghị)
 
 1. Cài đặt → Ứng dụng (Add-on) → Cửa hàng → ⋮ → Kho lưu trữ → thêm `https://github.com/minhquanghp86/DarboardOS-Server`.
-2. Cài **DarboardOS Server**, khởi động. Mở trang **Darboard** trên thanh bên để chỉnh menu và nhắn tin.
-3. Nạp firmware cho màn hình từ [DarboardOS-Client](https://github.com/minhquanghp86/DarboardOS-Client) (YAML trỏ
+2. Cài **Dashboard OS Server**, khởi động. Mở trang **Dashboard** trên thanh bên để chỉnh menu và nhắn tin.
+3. Nạp firmware cho màn hình từ [Dashboard OS-Client](https://github.com/minhquanghp86/Dashboard OS-Client) (YAML trỏ
    tag `fw-…`), với `server: <ip-HA>:8081`.
 4. (Tuỳ chọn) Thêm `rest_command.panel_notify` để gửi thông báo — xem DOCS.md.
 
@@ -201,7 +201,7 @@ phía HA, ảnh đại diện, Cài đặt thực thể cần token Home Assista
 | Cổng | Dùng cho |
 |---|---|
 | `8081` (`ws_port`) | WebSocket với màn hình: ảnh, âm thanh, cảm ứng, trạng thái, điều khiển |
-| `18080` (`health_port`) | `/metrics`, `/notify`, `/doorbell`, `/board`, các trang ứng dụng, Darboard (qua ingress) — **chỉ LAN** |
+| `18080` (`health_port`) | `/metrics`, `/notify`, `/doorbell`, `/board`, các trang ứng dụng, Dashboard (qua ingress) — **chỉ LAN** |
 | `9221` (`debug_port`) | Chrome DevTools nội bộ (127.0.0.1) |
 | `9222` (`debug_proxy_port`) | DevTools ra LAN — chỉ khi bật `expose_debug_proxy` |
 | UDP `1900` (SSDP) + **TCP** `56790` (`dial_port`) | Truyền YouTube từ điện thoại (SSDP + DIAL) |
@@ -280,7 +280,7 @@ npm run test:integration   # server thật + Chromium thật + panel giả qua W
 - `src/shell/` — "hệ điều hành" tiêm vào mọi trang (màn hình chính, thanh trạng thái, màn hình chờ, Gần đây, thông
   báo, báo thức); đóng gói thành `dist/shell.bundle.js`.
 - `public/` — trang ứng dụng (`chat`, `alarm`, `camera`, `files`, `iptv`, `settings`, `weather`, `calendar`…) và trang
-  Darboard (`launcher-config.html`), phục vụ ở `health_port`. **Mọi trang dùng đường dẫn tương đối theo `location`**
+  Dashboard (`launcher-config.html`), phục vụ ở `health_port`. **Mọi trang dùng đường dẫn tương đối theo `location`**
   (`ui.js` bọc `window.fetch` + `window.rwvRel`) để chạy đúng cả khi mở qua ingress (`/api/hassio_ingress/<token>/`).
 - `hassio/remote_webview_server/` — addon: `config.yaml`, `run.sh`, `DOCS.md`, `CHANGELOG.md`, `translations/`.
 
@@ -297,15 +297,15 @@ npm run test:integration   # server thật + Chromium thật + panel giả qua W
 
 ## Bảo mật
 
-- `health_port` (18080) chỉ dùng trong LAN; không đưa ra Internet. Trang Darboard đi qua ingress của HA (có đăng
+- `health_port` (18080) chỉ dùng trong LAN; không đưa ra Internet. Trang Dashboard đi qua ingress của HA (có đăng
   nhập); lưu cấu hình, gửi tin phía HA chỉ nhận từ Supervisor. API màn hình (`/chat`, `/alarm`, `/api/cam`, `/fm/*`) chỉ nhận từ
-  chính trình duyệt của addon (127.0.0.1) **hoặc từ trang Darboard qua ingress** (`172.30.32.2`).
+  chính trình duyệt của addon (127.0.0.1) **hoặc từ trang Dashboard qua ingress** (`172.30.32.2`).
 - **Không** đặt trang tự tạo trong `/config/www/` của HA nếu HA mở ra Internet: `/local/` phục vụ không cần đăng nhập
   (đã kiểm chứng qua Cloudflare Tunnel). Vì vậy các trang của dự án được phục vụ ở `health_port`.
 - Addon dùng token Supervisor (quyền `homeassistant_api`) để đọc vị trí nhà, người dùng/ảnh đại diện, thực thể của
   màn hình — không cần thông tin đăng nhập của người dùng.
 - Proxy DevTools (`expose_debug_proxy`) cho phép điều khiển trình duyệt, kể cả phiên HA — chỉ bật khi cần.
-- **Proxy luồng IPTV `/iptv/p` + `/iptv/probe`** (2.9.133) nhận cả **trang Darboard qua ingress** (đã đăng nhập HA), vẫn
+- **Proxy luồng IPTV `/iptv/p` + `/iptv/probe`** (2.9.133) nhận cả **trang Dashboard qua ingress** (đã đăng nhập HA), vẫn
   **bắt buộc mã phiên** — cần cho nút “Phát trong trình duyệt”. Đây là điểm cần rà lại (người đã đăng nhập HA có thể dùng
   máy chủ để tải URL bất kỳ) — ghi chú chi tiết nằm trong tài liệu nội bộ ở repo client (private).
 
@@ -331,12 +331,12 @@ kèm toàn bộ giấy phép trong `/licenses`.
 
 - **Dùng thương mại:** giấy phép Apache-2.0 cho phép, **trừ** file âm lịch ở trên (chỉ phi thương mại) — muốn dùng thương mại phải
   gỡ / thay phần âm lịch hoặc xin phép tác giả thuật toán. Ảnh Docker còn chứa Google Chrome theo điều khoản riêng của Google.
-- **Tên, logo** "HA Darboard" / "Darboard" không được cấp phép dùng cho bản fork — xem [`TRADEMARKS.md`](TRADEMARKS.md).
+- **Tên, logo** "HA Dashboard" / "Dashboard" không được cấp phép dùng cho bản fork — xem [`TRADEMARKS.md`](TRADEMARKS.md).
 - **Đóng góp** theo [`CONTRIBUTING.md`](CONTRIBUTING.md) (Apache-2.0 mục 5, mã phải có nguồn gốc rõ ràng).
 - **Kế hoạch mở rộng dịch vụ HA (27/10)**: [`docs/KE-HOACH-DICH-VU-HA.md`](docs/KE-HOACH-DICH-VU-HA.md) — hiện chỉ có `dashboard_os.send`; đề xuất 26 dịch vụ + entity/event theo 5 giai đoạn.
 - **Bàn giao tổng hợp 27/10 (ĐỌC TRƯỚC)**: [`docs/BAN-GIAO-2026-10-27-tong-hop.md`](docs/BAN-GIAO-2026-10-27-tong-hop.md) — trạng thái 2.9.267, 3 việc của phiên, vận hành, việc còn mở, bài học.
 - **Sửa lỗi hình co nhỏ (Gần đây → Màn hình chính)**: [`docs/SUA-LOI-HINH-CO-NHO.md`](docs/SUA-LOI-HINH-CO-NHO.md) — nguyên nhân thumbnail `captureScreenshot clip.scale`, cách sửa + kiểm thử 4 màn.
-- **Báo thức (27/10)**: [`docs/BAO-THUC-DARBOARD.md`](docs/BAO-THUC-DARBOARD.md) — app Báo thức trên Darboard: chọn màn → trình báo thức của màn đó, đồng bộ với app trên panel.
+- **Báo thức (27/10)**: [`docs/BAO-THUC-DASHBOARD.md`](docs/BAO-THUC-DASHBOARD.md) — app Báo thức trên Dashboard: chọn màn → trình báo thức của màn đó, đồng bộ với app trên panel.
 - **Mốc ổn định 27/10 — 480×272**: [`docs/ON-DINH-2026-10-27-480x272.md`](docs/ON-DINH-2026-10-27-480x272.md) — 12.1 fps YouTube / 11.4 fps YouTube TV, q40, nhịp 80 ms; 3 lỗi đã sửa + cách đo tái lập.
 - **Bàn giao phiên 27/10 (ĐỌC TRƯỚC)**: [`docs/BAN-GIAO-2026-10-27-chat-luong-fps.md`](docs/BAN-GIAO-2026-10-27-chat-luong-fps.md) — trạng thái 2.9.252 + fix chất lượng không tới encoder + kế hoạch nghiệm thu fps.
 - (cũ) Bàn giao phiên 26/10/2026: [`docs/BAN-GIAO-2026-10-26-phien-sau.md`](docs/BAN-GIAO-2026-10-26-phien-sau.md) — trạng thái 2.9.249 + việc dở (480×272 kẹt q40).

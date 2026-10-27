@@ -1,18 +1,18 @@
-# DarboardOS — tích hợp Home Assistant
+# Dashboard OS — tích hợp Home Assistant
 
-Gửi thông báo **ưu tiên cao** tới các màn hình ESP32 chạy DarboardOS: mở khoá, bật đèn nền,
+Gửi thông báo **ưu tiên cao** tới các màn hình ESP32 chạy Dashboard OS: mở khoá, bật đèn nền,
 hiển thị phủ toàn màn hình trên ứng dụng đang chạy, kèm ảnh / video / âm thanh.
 
 ## Yêu cầu
 
-- Add-on **DarboardOS Server ≥ 2.9.191** (cài từ kho add-on của bạn)
+- Add-on **Dashboard OS Server ≥ 2.9.191** (cài từ kho add-on của bạn)
 - Home Assistant (đã thử với 2026.10)
 
 ## Cài đặt
 
 1. Chép thư mục `dashboard_os` vào `/config/custom_components/` của Home Assistant.
 2. Khởi động lại Home Assistant.
-3. **Settings → Devices & Services → + Add Integration** → tìm **DarboardOS**.
+3. **Settings → Devices & Services → + Add Integration** → tìm **Dashboard OS**.
 4. Giữ địa chỉ mặc định `http://172.30.32.1:18080` (đúng với Home Assistant OS) → **Submit**.
 
 ## Hành động `dashboard_os.send`

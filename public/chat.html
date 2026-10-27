@@ -11,7 +11,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Tin nhắn</title>
 <!--
-  (01/10/2026) UNG DUNG TIN NHAN cua panel — nhan tin noi bo voi trang "Darboard" tren thanh ben Home Assistant va voi
+  (01/10/2026) UNG DUNG TIN NHAN cua panel — nhan tin noi bo voi trang "Dashboard" tren thanh ben Home Assistant va voi
   man hinh khac (src/chat.ts). Man rong (P4 1024x600): 2 cot (danh sach | cuoc tro chuyen). Man hep (S3 480x480,
   480x272): mot cot, cham de vao, nut quay lai de ra. Chu, anh, video; tra loi nhanh; man co camera (P4) gui duoc anh
   chup ngay hoac anh/video tu Thu vien (the SD).
@@ -252,7 +252,7 @@
     var box = $('convs'); box.replaceChildren();
     if (!S.convs.length) {
       var e = el('div'); box.append(e);
-      RwvUI.state(e, { kind: 'empty', title: 'Chưa có tin nhắn', text: 'Nhắn từ trang Darboard trong Home Assistant, hoặc chạm ＋ để bắt đầu.' });
+      RwvUI.state(e, { kind: 'empty', title: 'Chưa có tin nhắn', text: 'Nhắn từ trang Dashboard trong Home Assistant, hoặc chạm ＋ để bắt đầu.' });
       return;
     }
     S.convs.forEach(function (c) {

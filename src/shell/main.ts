@@ -3,7 +3,7 @@
 // Copyright (c) 2026 minhquanghp86
 // Licensed under the Apache License, Version 2.0 (see LICENSE).
 
-// (25/09/2026) SHELL — giao dien he thong kieu dien thoai, tiem vao MOI tab cua panel (xem DarboardOS-Client: docs/server-noi-bo/KE-HOACH-GIAO-DIEN-HE-DIEU-HANH.md).
+// (25/09/2026) SHELL — giao dien he thong kieu dien thoai, tiem vao MOI tab cua panel (xem Dashboard OS-Client: docs/server-noi-bo/KE-HOACH-GIAO-DIEN-HE-DIEU-HANH.md).
 //   - Dong ho giua mep tren: CHI hien thi (26/09: cham xuyen qua xuong tab HA).
 //   - Thanh keo xuong: SERVER nhan dien cu chi keo tu mep tren (src/gestures.ts) roi goi __rwvShell.gesture(...).
 //     Dong: cham nen mo / vuot len tren thanh.
@@ -79,7 +79,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     const fn = window[CFG.bindings.control];
     if (typeof fn === 'function') { try { fn(JSON.stringify(obj)); } catch { /* bo qua */ } }
   }
-  // (26/09/2026 OS-2) MOI ung dung la MOT TAB rieng o server (DarboardOS-Client: docs/server-noi-bo/KE-HOACH-GIAO-DIEN-HE-DIEU-HANH.md muc 3.1):
+  // (26/09/2026 OS-2) MOI ung dung la MOT TAB rieng o server (Dashboard OS-Client: docs/server-noi-bo/KE-HOACH-GIAO-DIEN-HE-DIEU-HANH.md muc 3.1):
   // cham mot ung dung KHONG con dieu huong tab hien tai (location.href) ma xin SERVER chuyen sang dung tab do —
   // server tu tao tab neu chua co, giu am cac tab khac (radio/nhac van phat khi khong active). Nho vay quay lai
   // Home Assistant tuc thi, khong tai lai.
@@ -279,7 +279,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     b.addEventListener('click', (e) => { e.stopPropagation(); fn(); });
     shortcuts.appendChild(b);
   }
-  // The "Dang phat" (DarboardOS-Client: docs/server-noi-bo/KE-HOACH-GIAO-DIEN-HE-DIEU-HANH.md muc 5.2): Radio/Nhac dang phat nen -> Mo lai / Dung ngay,
+  // The "Dang phat" (Dashboard OS-Client: docs/server-noi-bo/KE-HOACH-GIAO-DIEN-HE-DIEU-HANH.md muc 5.2): Radio/Nhac dang phat nen -> Mo lai / Dung ngay,
   // khong phai mo lai dung ung dung do moi tat duoc. Chi dung lai DOM khi danh sach DOI (moi lan ve = mot khung WiFi).
   const npBox = el('div', 'np');
   npBox.style.display = 'none';

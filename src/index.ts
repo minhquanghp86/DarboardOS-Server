@@ -216,13 +216,13 @@ const STATIC_PAGES = ['no-url.html', 'cam.html', 'camera.html', 'weather.html', 
   'launcher-config.html', 'os-home.html', 'ui.css', 'ui.js', 'settings.html', 'rooms.html', 'todo.html', 'remote.html', 'photos.html', 'today.html', 'board.html', 'doorbell.html',
   // (01/10/2026) Thu vien / Tep (the SD cua P4), Tin nhan noi bo, bieu tuong dung chung.
   'files.html', 'chat.html', 'icons.js', 'alarm.html',
-  // (27/10/2026) Trang Dieu khien bao thuc tu Darboard (chon man -> trinh Bao thuc cua man do).
+  // (27/10/2026) Trang Dieu khien bao thuc tu Dashboard (chon man -> trinh Bao thuc cua man do).
   'alarm-ctl.html',
   // (07/10/2026) IPTV (src/iptv.ts). (08/10/2026) Su kien camera Frigate (src/frigate.ts).
   'iptv.html', 'events.html', 'media.html', 'call-test.html', 'door.html', 'call.html', 'call-web.html', 'call-ui.js', 'call-ui.css', 'door-log.html',
-  // (21/10/2026) Trang dieu khien man hinh tu Darboard (src/controlApi.ts).
+  // (21/10/2026) Trang dieu khien man hinh tu Dashboard (src/controlApi.ts).
   'control.html',
-  'screens.html'];   // (16/10/2026) Darboard → Màn hình
+  'screens.html'];   // (16/10/2026) Dashboard → Màn hình
 const staticCache = new Map<string, Buffer>();
 for (const name of STATIC_PAGES) {
   const p = path.join(__dirname, '..', 'public', name);
@@ -254,12 +254,12 @@ http.createServer((req, res) => {
   if (handleGo2rtcHttp(req, res, pathname, reqUrl.search)) return;
   if (handleCamLive(req, res, pathname)) return;
   if (handleCamProxy(req, res, pathname, reqUrl.search)) return;
-  // (02/10/2026) Quan ly file (the SD cua P4) tu trang Darboard — chi ingress.
+  // (02/10/2026) Quan ly file (the SD cua P4) tu trang Dashboard — chi ingress.
   if (handleFileManager(req, res, reqUrl)) return;
-  // (07/10/2026) IPTV: danh sach kenh, proxy luong, yeu thich, cau hinh tu trang Darboard (src/iptv.ts).
+  // (07/10/2026) IPTV: danh sach kenh, proxy luong, yeu thich, cau hinh tu trang Dashboard (src/iptv.ts).
   if (handleIptvApi(req, res, reqUrl)) return;
-  if (handleScreenCtlApi(req, res, reqUrl)) return;   // (16/10/2026) Darboard → Màn hình
-  if (handleControlApi(req, res, reqUrl)) return;     // (21/10/2026) Darboard → điều khiển màn hình
+  if (handleScreenCtlApi(req, res, reqUrl)) return;   // (16/10/2026) Dashboard → Màn hình
+  if (handleControlApi(req, res, reqUrl)) return;     // (21/10/2026) Dashboard → điều khiển màn hình
   if (handleTelegramApi(req, res, reqUrl)) return;   // (16/10/2026) thong bao Telegram
   // (14/10/2026) Ung dung Media: nguon media cua HA, phat tren man / loa HA (src/mediaLib.ts) — chi 127.0.0.1.
   if (handleMediaApi(req, res, reqUrl)) return;
@@ -314,7 +314,7 @@ http.createServer((req, res) => {
     });
     return;
   }
-  // (19/10/2026) Media cho thong bao (anh / video / am thanh): component DarboardOS tren HA tai len, panel tai ve.
+  // (19/10/2026) Media cho thong bao (anh / video / am thanh): component Dashboard OS tren HA tai len, panel tai ve.
   if (pathname === '/notify/upload' && req.method === 'POST') {
     const chunks: Buffer[] = []; let size = 0, tooBig = false;
     const limit = 64 * 1024 * 1024;
@@ -409,7 +409,7 @@ http.createServer((req, res) => {
   if (handleAppApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
   if (handleHomeApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
   if (handleLauncherApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
-  // (08/10/2026) Trang Darboard -> tab "Màn khóa": cam bien nang luong cho widget (src/lockWidgets.ts).
+  // (08/10/2026) Trang Dashboard -> tab "Màn khóa": cam bien nang luong cho widget (src/lockWidgets.ts).
   if (handleLockWidgetsApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
   // (09/10/2026) Lich iCal (Google...) cho widget / trang Hom nay — src/calendarSource.ts.
   if (handleCalendarApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
@@ -428,7 +428,7 @@ http.createServer((req, res) => {
     return;
   }
 
-  // (16/10/2026) Goc ingress ("/") = trang chu Darboard. Truoc day tra "ok" 2 byte khong co content-type -> nut "‹ Trang chu" (href="./")
+  // (16/10/2026) Goc ingress ("/") = trang chu Dashboard. Truoc day tra "ok" 2 byte khong co content-type -> nut "‹ Trang chu" (href="./")
   // o Man hinh / Chuong cong / Goi lam trinh duyet TAI VE tep "Tai xuong". Van giu "ok" cho kiem tra suc khoe (127.0.0.1 / Docker).
   const ingressRoot = pathname === '/' && (req.socket.remoteAddress || '').replace(/^::ffff:/, '') === '172.30.32.2';
   if (ingressRoot || STATIC_PAGES.includes(pathname.slice(1)) || pathname === '/os/home') {
@@ -499,7 +499,7 @@ setChatHooks({
 setNoticeArgHook((device, app, arg) => { if (app === 'chat') requestOpenConv(device, arg); else if (app === 'doorlog') requestOpenLog(device, arg); });
 setChatUnreadProvider(unreadForScreen);
 setFileManagerHooks({ mediaBusy: (device) => isMediaPlaying(device), screenName: (id) => screenNameOf(id) || id });
-// (13/10/2026) The IPTV (trang Darboard): nut "phat tren man" — o chon man + gui lenh phat kenh (xem src/iptv.ts).
+// (13/10/2026) The IPTV (trang Dashboard): nut "phat tren man" — o chon man + gui lenh phat kenh (xem src/iptv.ts).
 setIptvHooks({
   screens: () => connectedScreens().map((s) => ({ id: s.id, name: screenNameOf(s.id) || s.id, online: true })),
   cast: (ids, urlOf) => castUrlToDevices(ids, urlOf),

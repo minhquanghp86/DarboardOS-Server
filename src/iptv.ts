@@ -3,7 +3,7 @@
 // Copyright (c) 2026 minhquanghp86
 // Licensed under the Apache License, Version 2.0 (see LICENSE).
 
-// (07/10/2026) UNG DUNG IPTV — danh sach kenh M3U nguoi dung them o trang Darboard (the IPTV); trang public/iptv.html phat
+// (07/10/2026) UNG DUNG IPTV — danh sach kenh M3U nguoi dung them o trang Dashboard (the IPTV); trang public/iptv.html phat
 // bang hls.js / mpegts.js (phuc vu tu node_modules, khong can CDN). Server lam 3 viec:
 //   1. Tai + phan tich danh sach M3U (parseM3u thuan, co test), luu dia /data/rwv-iptv-cache de mat mang van co kenh.
 //   2. PROXY luong /iptv/p: trang chay o http://127.0.0.1:18080 nen moi luong deu cung nguon (khong vuong CORS — do
@@ -22,12 +22,12 @@ import type { Readable } from 'node:stream';
 import { cleanSdPath, fmScreenName, sdLs, sdReadText } from './fileManager.js';
 import { camHostOf, cameraDevices } from './camProxy.js';
 
-// (13/10/2026) The IPTV (trang Darboard): nut "phat tren man" — hook do src/index.ts gan (o day khong duoc import
+// (13/10/2026) The IPTV (trang Dashboard): nut "phat tren man" — hook do src/index.ts gan (o day khong duoc import
 // deviceManager vi se tao vong). screens() = man dang ket noi (kem ten nguoi dung dat); cast() gui lenh mo URL.
 export interface IptvHooks {
   screens(): { id: string; name: string; online: boolean }[];
   cast(ids: string[], urlOf: (id: string) => string): { ok: boolean; sent: string[]; error?: string };
-  /** (16/10/2026) Trang thai / dieu khien IPTV tung man (trang Darboard). */
+  /** (16/10/2026) Trang thai / dieu khien IPTV tung man (trang Dashboard). */
   status?(id: string): { open: boolean; active: boolean; playing: boolean };
   control?(id: string, act: 'stop' | 'home'): Promise<boolean>;
 }
@@ -58,7 +58,7 @@ export interface Channel {
 }
 export interface ClearKey { keys?: Record<string, string>; url?: string }
 export interface IptvList { id: string; name: string; url: string; on: boolean }
-/** (16/10/2026) recent: ten kenh (chu thuong) xem GAN DAY — moi nhat truoc, toi da RECENT_MAX (phat tu Darboard + tren man). */
+/** (16/10/2026) recent: ten kenh (chu thuong) xem GAN DAY — moi nhat truoc, toi da RECENT_MAX (phat tu Dashboard + tren man). */
 interface IptvConfig { lists: IptvList[]; favs: string[]; recent: string[] }
 const RECENT_MAX = 24;
 
@@ -500,7 +500,7 @@ function decHeaders(s: string | null): Record<string, string> {
 }
 /**
  * (13/10/2026) URL proxy de VIET LAI trong playlist HLS — tra ve duong dan TUONG DOI so voi chinh `/iptv/p`
- * (`p?...`), KHONG phai '/iptv/p?...'. Ly do: trang phat con mo trong tab Trinh duyet tu trang Darboard, khi do goc la
+ * (`p?...`), KHONG phai '/iptv/p?...'. Ly do: trang phat con mo trong tab Trinh duyet tu trang Dashboard, khi do goc la
  * `/api/hassio_ingress/<token>/` — '/iptv/p' se tro sai goc (hls.js khong tai duoc doan phim, trang ket o "Dang mo ...").
  * `p?...` duoc giai theo URL cua playlist nen dung o CA HAI noi: panel `/iptv/p` -> `/iptv/p`; ingress -> `/api/.../iptv/p`.
  */
@@ -609,7 +609,7 @@ function readJson(req: http.IncomingMessage, max: number): Promise<unknown> {
   });
 }
 
-/** Kiem + chuan hoa danh sach tu trang Darboard. */
+/** Kiem + chuan hoa danh sach tu trang Dashboard. */
 export function validateLists(v: unknown): IptvList[] {
   if (!Array.isArray(v)) throw new Error('thiếu danh sách');
   if (v.length > MAX_LISTS) throw new Error(`tối đa ${MAX_LISTS} danh sách`);
@@ -641,7 +641,7 @@ export function handleIptvApi(req: http.IncomingMessage, res: http.ServerRespons
   if (!p.startsWith('/iptv/')) return false;
   const local = isLocal(req), ingress = fromIngress(req);
   if (p === '/iptv/p' || p === '/iptv/probe') {
-    // (13/10/2026) Cho phep CA trang Darboard (ingress — da xac thuc Home Assistant) de nut "phat trong trinh duyet" o
+    // (13/10/2026) Cho phep CA trang Dashboard (ingress — da xac thuc Home Assistant) de nut "phat trong trinh duyet" o
     // the IPTV xem duoc kenh: trang public/iptv.html luon phat qua proxy nay (can header Referer/User-Agent rieng tung
     // kenh va tranh CORS; trinh duyet khong tu dat duoc). VAN doi ma phien TOKEN (chi lay duoc tu /iptv/channels).
     if ((!local && !ingress) || url.searchParams.get('t') !== TOKEN) { json(res, 403, { error: 'Chỉ dùng được từ màn hình.' }); return true; }
@@ -649,8 +649,8 @@ export function handleIptvApi(req: http.IncomingMessage, res: http.ServerRespons
     probe(url.searchParams.get('u') || '', decHeaders(url.searchParams.get('h'))).then((r) => json(res, 200, r));
     return true;
   }
-  if (!local && !ingress) { json(res, 403, { error: 'Chỉ dùng được từ màn hình hoặc trang Darboard.' }); return true; }
-  // (16/10/2026) Trang Darboard → IPTV: tung man dang phat gi + dung / ve man chinh.
+  if (!local && !ingress) { json(res, 403, { error: 'Chỉ dùng được từ màn hình hoặc trang Dashboard.' }); return true; }
+  // (16/10/2026) Trang Dashboard → IPTV: tung man dang phat gi + dung / ve man chinh.
   if (p === '/iptv/status' && req.method === 'GET') {
     const list = (hooks ? hooks.screens() : []).map((s) => {
       const st = hooks?.status?.(s.id) ?? { open: false, active: false, playing: false };
@@ -675,7 +675,7 @@ export function handleIptvApi(req: http.IncomingMessage, res: http.ServerRespons
     json(res, 200, { ok: true, screens: hooks ? hooks.screens() : [] });
     return true;
   }
-  // (13/10/2026) The IPTV (trang Darboard): "phat tren man" — gui lenh mo kenh tren 1 man hoac TAT CA man dang ket noi.
+  // (13/10/2026) The IPTV (trang Dashboard): "phat tren man" — gui lenh mo kenh tren 1 man hoac TAT CA man dang ket noi.
   // Chi gui URL `iptv.html?dev=<id>&play=<kenh>`; server tu mo/chuyen tab 'iptv' cua man do (deviceManager.navigateToUrl),
   // trang iptv.html da co autoPlay() theo ?play= (nhan id hoac ten ken, khop mo).
   if (p === '/iptv/cast' && req.method === 'POST') {
@@ -717,7 +717,7 @@ export function handleIptvApi(req: http.IncomingMessage, res: http.ServerRespons
     }).catch((e) => json(res, 400, { ok: false, error: (e as Error).message }));
     return true;
   }
-  // (16/10/2026) Man bat dau phat mot kenh (iptv.html start) -> "Gần đây" (trang Darboard hien kenh xem gan day).
+  // (16/10/2026) Man bat dau phat mot kenh (iptv.html start) -> "Gần đây" (trang Dashboard hien kenh xem gan day).
   if (p === '/iptv/recent' && req.method === 'POST') {
     readJson(req, 2048).then((b) => {
       const o = b as { name?: unknown; dev?: unknown };
@@ -736,11 +736,11 @@ export function handleIptvApi(req: http.IncomingMessage, res: http.ServerRespons
     return true;
   }
   if (p === '/iptv/sd' && req.method === 'GET') {
-    // Duyet the nho tim tep danh sach (tu trang IPTV tren panel — can ma phien — hoac trang Darboard).
+    // Duyet the nho tim tep danh sach (tu trang IPTV tren panel — can ma phien — hoac trang Dashboard).
     if (!ingress && url.searchParams.get('t') !== TOKEN) { json(res, 403, { error: 'Thiếu mã phiên.' }); return true; }
     const dir = url.searchParams.get('p') || '/';
     // (09/10/2026) Nha nhieu man co the nho: ?dev= chon man; devices de trang hien o chon man.
-    // Trang Darboard: man da chon (chat — man tat thi bao loi, khong doc nham the khac); panel: the cua chinh no, khong co -> man dau.
+    // Trang Dashboard: man da chon (chat — man tat thi bao loi, khong doc nham the khac); panel: the cua chinh no, khong co -> man dau.
     const dev = ingress ? url.searchParams.get('dev') : (camHostOf(url.searchParams.get('dev')).id ?? null);
     const devices = cameraDevices().map((id) => ({ id, name: fmScreenName(id) }));
     sdLs(dir, dev).then((items) => json(res, 200, {
@@ -761,9 +761,9 @@ export function handleIptvApi(req: http.IncomingMessage, res: http.ServerRespons
   }
   if (p === '/iptv/refresh' && req.method === 'POST') { configView(true).then((v) => json(res, 200, v)).catch((e) => json(res, 500, { ok: false, error: (e as Error).message })); return true; }
   if (p === '/iptv/config' && req.method === 'POST') {
-    // (07/10/2026) Luu tu trang Darboard HOAC tu chinh ung dung IPTV tren panel (them / xoa danh sach nhu app that) — trang
+    // (07/10/2026) Luu tu trang Dashboard HOAC tu chinh ung dung IPTV tren panel (them / xoa danh sach nhu app that) — trang
     // panel phai kem ma phien (chi trang cung nguon doc duoc), trang web la trong tab Trinh duyet khong sua duoc.
-    if (!ingress && url.searchParams.get('t') !== TOKEN) { json(res, 403, { error: 'Chỉ lưu được từ ứng dụng IPTV hoặc trang Darboard.' }); return true; }
+    if (!ingress && url.searchParams.get('t') !== TOKEN) { json(res, 403, { error: 'Chỉ lưu được từ ứng dụng IPTV hoặc trang Dashboard.' }); return true; }
     readJson(req, 64 * 1024).then(async (b) => {
       const lists = validateLists((b as { lists?: unknown }).lists);
       const c = config();

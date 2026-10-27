@@ -1,5 +1,5 @@
-name: "DarboardOS Server"
-version: "2.9.267"
+name: "Dashboard OS Server"
+version: "2.9.268"
 slug: "remote_webview_server"
 # (02/10/2026) Anh dung san tren ghcr (CI tag = version). Truoc day addon build tai may HA tu build.yaml + Dockerfile,
 # va Supervisor xuat ca anh Docker (~1,1 GB sau nen) vao moi ban sao luu; anh keo ve thi khong. build.yaml/Dockerfile
@@ -26,9 +26,9 @@ ingress_port: 18080
 ports:
   18080/tcp: 18080
 ingress_entry: launcher-config.html
-# (01/10/2026) Trang thanh ben gio co hai the: Tin nhan (noi bo voi cac man hinh) + Menu ung dung -> ten "Darboard".
+# (01/10/2026) Trang thanh ben gio co hai the: Tin nhan (noi bo voi cac man hinh) + Menu ung dung -> ten "Dashboard".
 panel_icon: mdi:tablet-dashboard
-panel_title: Darboard
+panel_title: Dashboard
 
 video: true
 udev: true

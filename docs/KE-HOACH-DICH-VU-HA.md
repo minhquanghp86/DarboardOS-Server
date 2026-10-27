@@ -1,10 +1,10 @@
-# Kế hoạch: mở rộng tích hợp Home Assistant cho DarboardOS (27/10/2026)
+# Kế hoạch: mở rộng tích hợp Home Assistant cho Dashboard OS (27/10/2026)
 
 ## 1. Hiện trạng (đã đọc toàn bộ `custom_components/dashboard_os/`)
 
 | Thành phần | Nội dung |
 |---|---|
-| `manifest.json` | domain **`dashboard_os`** (không phải `darboard_os`), version 1.2.0, `config_flow`, `iot_class: local_push` |
+| `manifest.json` | domain **`dashboard_os`** (không phải `dashboard_os`), version 1.2.0, `config_flow`, `iot_class: local_push` |
 | `config_flow.py` | nhập địa chỉ add-on, mặc định `http://172.30.32.1:18080` |
 | `__init__.py` | `DataUpdateCoordinator` gọi `GET /devices` (fallback `/metrics`) mỗi **30 s**, đồng bộ device registry (mỗi màn = 1 thiết bị HA) |
 | `notify.py` | **`dashboard_os.send`** + entity `notify.dashboard_os` |
@@ -45,7 +45,7 @@ Quy ước chung cho **mọi** dịch vụ mới:
 | `dashboard_os.lock` | `target` | `act: lock` |
 | `dashboard_os.reload` | `target` | `act: reload` |
 | `dashboard_os.close_app` | `app`, `target` | `act: close` |
-| `dashboard_os.screenshot` | `target`, `filename?` → lưu `/config/www/darboard/…`, trả `{path,url}` | `/screens/shot` |
+| `dashboard_os.screenshot` | `target`, `filename?` → lưu `/config/www/dashboard/…`, trả `{path,url}` | `/screens/shot` |
 
 ```yaml
 action:
@@ -99,7 +99,7 @@ action:
 
 ```
 custom_components/dashboard_os/
-  api.py          # DarboardApi: 1 nơi duy nhất gọi HTTP (timeout, lỗi, retry nhẹ, map device_id → esp32-…)
+  api.py          # DashboardApi: 1 nơi duy nhất gọi HTTP (timeout, lỗi, retry nhẹ, map device_id → esp32-…)
   services.py     # đăng ký toàn bộ dịch vụ + schema (selectors) + supports_response
   const.py        # SERVICE_*, ATTR_*, DOMAIN
   coordinator.py  # (tách khỏi __init__.py) poll /devices + /metrics, giữ snapshot cho entity/response
@@ -111,7 +111,7 @@ custom_components/dashboard_os/
 
 - `_resolve_device()` hiện nằm trong `notify.py` → chuyển sang `api.py`, dùng chung.
 - Response services: `SupportsResponse.ONLY/OPTIONAL` (HA ≥ 2023.7) → trả dict, dùng được trong template.
-- Ảnh chụp: lưu `/config/www/darboard/<dev>-<time>.jpg` rồi trả URL (`/local/darboard/…`) thay vì base64
+- Ảnh chụp: lưu `/config/www/dashboard/<dev>-<time>.jpg` rồi trả URL (`/local/dashboard/…`) thay vì base64
   (nhẹ cho automation, xem được trên dashboard).
 - Thêm **options flow**: chu kỳ poll, có bật entity hay không, tiền tố tên thiết bị.
 
@@ -129,10 +129,10 @@ Tổng: **~5 buổi làm việc**, mỗi giai đoạn tự đứng được (kh�
 
 ## 6. Rủi ro & quyết định cần bạn chốt
 
-1. **Tên miền dịch vụ**: component dùng `dashboard_os` (đúng như code), bạn gọi là `darboard_os`.
+1. **Tên miền dịch vụ**: component dùng `dashboard_os` (đúng như code), bạn gọi là `dashboard_os`.
    - (a) Giữ `dashboard_os.*` — không phá gì (khuyến nghị).
-   - (b) Đổi domain sang `darboard_os` — phải tạo lại integration, hỏng automation cũ.
-   - (c) Giữ `dashboard_os` + đăng ký **alias** `darboard_os.send` cho quen tay.
+   - (b) Đổi domain sang `dashboard_os` — phải tạo lại integration, hỏng automation cũ.
+   - (c) Giữ `dashboard_os` + đăng ký **alias** `dashboard_os.send` cho quen tay.
 2. **Bảo mật**: các endpoint điều khiển chỉ cho LAN/ingress. Component gọi từ `172.30.32.x` → đã được phép.
    Nếu add-on chạy ngoài HA OS, cần thêm IP vào danh sách.
 3. **Entity có làm phiền không**: 4 màn × ~10 entity = 40 entity. Có thể để mặc định **chỉ bật sensor quan trọng**
@@ -142,4 +142,4 @@ Tổng: **~5 buổi làm việc**, mỗi giai đoạn tự đứng được (kh�
 ## 7. Đề nghị của mình
 Làm **GĐ 1 + 2** trước (16 dịch vụ, phủ 90% nhu cầu automation: mở app/URL, điều hướng, sáng/tối, âm lượng,
 chất lượng, TTS), rồi **GĐ 3** (báo thức) vì vừa làm xong phần server, rồi mới tới GĐ 4-5.
-Giữ tên `dashboard_os`, thêm alias `darboard_os` cho quen tay.
+Giữ tên `dashboard_os`, thêm alias `dashboard_os` cho quen tay.

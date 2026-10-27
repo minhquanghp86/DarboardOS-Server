@@ -4,7 +4,7 @@
 // Licensed under the Apache License, Version 2.0 (see LICENSE).
 
 // (14/10/2026) CUOC GOI VIDEO (INTERCOM GD2/GD3) giua cac man co camera + mic (P4) va trinh duyet (tab "Gọi" trong
-// Darboard). Server lam tong dai: do chuong ben nhan (trang call.html DE LEN man khoa — deviceManager.openRingPage), nhan /
+// Dashboard). Server lam tong dai: do chuong ben nhan (trang call.html DE LEN man khoa — deviceManager.openRingPage), nhan /
 // tu choi / ket thuc, may ban, goi nho (Thong bao), tat mic / tat camera (NGUNG gui hinh that su).
 //   Tieng: man <-> man noi truc tiep (callBridge.linkCalls); man <-> trinh duyet qua WS phien web (PCM 16 kHz, khung 0x01).
 //   Hinh: camera man = luong /live chia (camProxy); camera trinh duyet = H.264 do trinh duyet nen (WebCodecs) gui len WS
@@ -168,7 +168,7 @@ export function subscribeWebFrames(id: string, sink: FrameSink): () => void {
   return () => { w.vsinks.delete(sink); };
 }
 
-// ── Phien web (tab "Gọi" trong Darboard) ─────────────────────────────────────────────────────────────────────
+// ── Phien web (tab "Gọi" trong Dashboard) ─────────────────────────────────────────────────────────────────────
 function webMessage(w: WebSession, data: Buffer, isBinary: boolean): void {
   if (!isBinary) {
     let m: any;

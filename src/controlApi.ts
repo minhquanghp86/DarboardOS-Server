@@ -4,9 +4,9 @@
 // Licensed under the Apache License, Version 2.0 (see LICENSE).
 
 /**
- * (21/10/2026) TRANG "CONTROL" (public/control.html) — dieu khien man hinh tu Darboard:
+ * (21/10/2026) TRANG "CONTROL" (public/control.html) — dieu khien man hinh tu Dashboard:
  * xem khung hinh lien tuc (CDP screencast) va gui thao tac cham/vuot/keo tha xuong dung tab
- * Chromium cua thiet bi. Chi trang Darboard (ingress HA) hoac may chu goi duoc.
+ * Chromium cua thiet bi. Chi trang Dashboard (ingress HA) hoac may chu goi duoc.
  *
  *   GET  /control/frame?dev=<id>   -> JPEG khung hinh hien tai (du phong khi WebSocket loi)
  *   POST /control/input {dev, kind: down|move|up, x, y}
@@ -188,7 +188,7 @@ async function startLive(ws: WebSocket, id: string): Promise<void> {
 export function handleControlApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL): boolean {
   const p = url.pathname;
   if (!p.startsWith('/control/')) return false;
-  if (!isLocal(req) && !fromIngress(req) && !isLan(req)) { json(res, 403, { ok: false, error: 'Chỉ dùng được từ trang Darboard.' }); return true; }
+  if (!isLocal(req) && !fromIngress(req) && !isLan(req)) { json(res, 403, { ok: false, error: 'Chỉ dùng được từ trang Dashboard.' }); return true; }
 
   // (26/10/2026) Probe de trang tu chuyen sang LAN/Tailscale: tra ve IP LAN cua HA (neu co).
   // Trang mo bang ten mien se thu goi <lan>:18080/control/ping; thay duoc thi chuyen sang IP (WebSocket -> input

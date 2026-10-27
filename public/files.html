@@ -319,7 +319,7 @@
     if (!a.length) {
       var box = el('div'); m.append(box);
       RwvUI.state(box, { kind: 'empty', title: GALLERY ? 'Chưa có ảnh hay video' : 'Thư mục trống',
-        text: GALLERY ? (GDIR === '/DCIM' ? 'Ảnh và video chụp bằng ứng dụng Camera sẽ hiện ở đây.' : 'Chép ảnh / video vào thẻ (thẻ Quản lý file trên trang Darboard trong Home Assistant) để xem ở đây.') : '' });
+        text: GALLERY ? (GDIR === '/DCIM' ? 'Ảnh và video chụp bằng ứng dụng Camera sẽ hiện ở đây.' : 'Chép ảnh / video vào thẻ (thẻ Quản lý file trên trang Dashboard trong Home Assistant) để xem ở đây.') : '' });
       return;
     }
     if (GALLERY) renderGrid(m, a); else renderList(m, a);

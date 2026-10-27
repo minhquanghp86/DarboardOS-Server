@@ -53,7 +53,7 @@ export function parseMSearch(msg: string): { st: string; mx: number } | null {
 
 export function ssdpResponse(location: string, uuid: string): string {
   return ['HTTP/1.1 200 OK', 'CACHE-CONTROL: max-age=1800', `DATE: ${new Date().toUTCString()}`, 'EXT:',
-    `LOCATION: ${location}`, 'SERVER: Linux/5 UPnP/1.1 Darboard/1.0', `ST: ${DIAL_ST}`, `USN: uuid:${uuid}::${DIAL_ST}`,
+    `LOCATION: ${location}`, 'SERVER: Linux/5 UPnP/1.1 Dashboard/1.0', `ST: ${DIAL_ST}`, `USN: uuid:${uuid}::${DIAL_ST}`,
     'BOOTID.UPNP.ORG: 1', 'CONFIGID.UPNP.ORG: 1', '', ''].join('\r\n');
 }
 
@@ -64,8 +64,8 @@ export function deviceXml(name: string, uuid: string): string {
   <device>
     <deviceType>urn:dial-multiscreen-org:device:dial:1</deviceType>
     <friendlyName>${xmlEsc(name)}</friendlyName>
-    <manufacturer>Darboard</manufacturer>
-    <modelName>Darboard Panel</modelName>
+    <manufacturer>Dashboard</manufacturer>
+    <modelName>Dashboard Panel</modelName>
     <UDN>uuid:${uuid}</UDN>
     <serviceList><service>
       <serviceType>urn:dial-multiscreen-org:service:dial:1</serviceType>

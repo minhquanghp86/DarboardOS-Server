@@ -7,7 +7,7 @@
 -->
 <!--
   (07/10/2026) Ung dung "IPTV": kenh tu cac danh sach M3U — them / sua / bat tat / xoa NGAY TRONG ung dung (nhu app IPTV
-  that: duong link hoac tep tren the nho cua man hinh co camera) hoac o trang Darboard (the IPTV). Server: src/iptv.ts.
+  that: duong link hoac tep tren the nho cua man hinh co camera) hoac o trang Dashboard (the IPTV). Server: src/iptv.ts.
   Moi luong di qua proxy cua server (/iptv/p — cung nguon, gan User-Agent/Referer rieng tung kenh). Phat: HLS bang
   hls.js, MPEG-TS / FLV bang mpegts.js, DASH va ClearKey bang shaka-player (EME ClearKey co san trong Chromium), mp4
   bang the <video>. Thu vien phuc vu tu node_modules (/vendor/*), chi nap khi can.
@@ -20,7 +20,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>IPTV</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
-<!-- (13/10/2026) Duong dan TUONG DOI: trang nay con mo trong tab Trinh duyet tu trang Darboard (qua ingress
+<!-- (13/10/2026) Duong dan TUONG DOI: trang nay con mo trong tab Trinh duyet tu trang Dashboard (qua ingress
      /api/hassio_ingress/<token>/iptv.html) — '/ui.css' se tro sai goc va trang trang chi con dong tim kiem. -->
 <link rel="stylesheet" href="ui.css">
 <script src="ui.js"></script>
@@ -363,7 +363,7 @@
     } else box.replaceChildren(el('span', 'ini', initials(c.name)));
   }
   // (13/10/2026) Trang nay chay o HAI noi: tren PANEL (http://127.0.0.1:18080/iptv.html -> goc '/') va trong TAB TRINH
-  // DUYET mo tu trang Darboard (qua ingress: /api/hassio_ingress/<token>/iptv.html). Moi duong dan toi server phai theo
+  // DUYET mo tu trang Dashboard (qua ingress: /api/hassio_ingress/<token>/iptv.html). Moi duong dan toi server phai theo
   // location — bat dau bang '/' se tro SAI goc khi o trong ingress (loi 13/10: tab trang chi hien o "Tim kenh theo ten").
   var REL_BASE = location.pathname.replace(/[^/]*$/, '');
   function rel(p) { return REL_BASE + String(p).replace(/^\//, ''); }
@@ -632,7 +632,7 @@
     $('edUrlPane').hidden = m !== 'url'; $('edSdPane').hidden = m !== 'sd';
     $('edHint').textContent = m === 'url'
       ? 'Dán đường link M3U / M3U8 (danh sách IPTV, link GitHub raw, Xtream get.php…). Kênh có User-Agent / Referer / ClearKey trong danh sách đều dùng được.'
-      : 'Tệp .m3u / .m3u8 / .txt trên thẻ nhớ của màn hình có camera. Chép tệp vào thẻ qua trang Darboard → Quản lý file.';
+      : 'Tệp .m3u / .m3u8 / .txt trên thẻ nhớ của màn hình có camera. Chép tệp vào thẻ qua trang Dashboard → Quản lý file.';
     if (m === 'sd') sdLoad(E.dir);
   }
   function sdLoad(dir) {
@@ -801,7 +801,7 @@
     S.cur = c; S.recovered = false; S.resumeOnThaw = false; S.t0 = Date.now(); S.kind = c.kind;
     var seq = ++S.seq;
     try { localStorage.setItem(K_LAST, JSON.stringify({ id: c.id, name: c.name })); } catch (e) { /* */ }
-    // (16/10/2026) "Gần đây" chung (trang Darboard → IPTV).
+    // (16/10/2026) "Gần đây" chung (trang Dashboard → IPTV).
     fetch(rel('/iptv/recent'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: c.name, dev: DEV }) }).catch(function () { });
     show('player'); renderOsd(); live(false); osd(true, 0);
     msg('loading', 'Đang mở ' + c.name + '…', '');

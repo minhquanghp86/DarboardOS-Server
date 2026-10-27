@@ -27,17 +27,17 @@ import { telegramNotify, tgText } from './telegram.js';
 
 const DATA_DIR = fs.existsSync('/data') ? '/data' : path.join(process.cwd(), 'data');
 const SNAP_DIR = path.join(DATA_DIR, 'rwv-door');
-// (14/10/2026) Cai dat chuong (tab "Gọi" trong Darboard -> Chuong cong): man do chuong (rong = theo firmware / moi man),
+// (14/10/2026) Cai dat chuong (tab "Gọi" trong Dashboard -> Chuong cong): man do chuong (rong = theo firmware / moi man),
 // thoi gian do chuong, thoi gian mo cong. Luu /data/rwv-door.json.
 const CFG_FILE = path.join(DATA_DIR, 'rwv-door.json');
-/** `known`: các chuông ĐÃ TỪNG kết nối (để trang Darboard vẫn hiện thẻ khi chuông đang offline). */
+/** `known`: các chuông ĐÃ TỪNG kết nối (để trang Dashboard vẫn hiện thẻ khi chuông đang offline). */
 export interface KnownDoor { id: string; name: string; ip: string; at: number }
 export interface DoorConfig { ringPanels: string[]; ringS: number; gateS: number; known: KnownDoor[] }
 let cfg: DoorConfig = { ringPanels: [], ringS: 45, gateS: 3, known: [] };
 try { cfg = { ...cfg, ...JSON.parse(fs.readFileSync(CFG_FILE, 'utf8')) }; } catch { /* chua co */ }
 export function doorConfig(): DoorConfig { return cfg; }
 function saveCfg(): void { try { fs.mkdirSync(DATA_DIR, { recursive: true }); fs.writeFileSync(CFG_FILE, JSON.stringify(cfg)); } catch { /* */ } }
-/** (17/10/2026) Nhớ chuông đã từng kết nối (id + tên + IP) — hiện thẻ ở trang Darboard cả khi offline. */
+/** (17/10/2026) Nhớ chuông đã từng kết nối (id + tên + IP) — hiện thẻ ở trang Dashboard cả khi offline. */
 function rememberDoor(id: string, name: string, ip: string): void {
   const k = cfg.known.filter((x) => x.id !== id);
   k.push({ id, name, ip, at: Date.now() });
@@ -47,7 +47,7 @@ function rememberDoor(id: string, name: string, ip: string): void {
 
 // ── (14/10/2026) NHAT KY CHUONG CONG: anh MOI lan bam chuong (+ anh tu chup), ket qua Nho / Da nghe / Tu choi; GIU 30 NGAY
 // (qua 30 ngay tu xoa — anh moi thay cho anh cu nhat). Xem lai: ung dung "Chuong cong" (door-log.html) tren moi man, cham
-// thong bao "Cuoc goi nho", tab "Chuong cong" trong Darboard. /data/rwv-door/log.json + <tep>.jpg.
+// thong bao "Cuoc goi nho", tab "Chuong cong" trong Dashboard. /data/rwv-door/log.json + <tep>.jpg.
 export type LogKind = 'ring' | 'missed' | 'answered' | 'declined' | 'shot';
 export interface LogItem { f: string; ts: number; door: string; name: string; kind: LogKind; by?: string }
 const LOG_FILE = path.join(SNAP_DIR, 'log.json');
@@ -84,7 +84,7 @@ function setLogKind(f: string | null | undefined, kind: LogKind, by?: string): v
   if (!it) return;
   it.kind = kind; if (by) it.by = by; saveLog();
 }
-/** (14/10/2026) Xoa anh trong nhat ky (chon nhieu tren ung dung / Darboard). Tra so anh da xoa. */
+/** (14/10/2026) Xoa anh trong nhat ky (chon nhieu tren ung dung / Dashboard). Tra so anh da xoa. */
 export function deleteLog(files: unknown): number {
   if (!Array.isArray(files)) return 0;
   const del = new Set(files.filter((f): f is string => typeof f === 'string' && /^[\w.-]+\.jpg$/.test(f)).slice(0, 500));
@@ -138,7 +138,7 @@ export function doorList(): { id: string; name: string; busy: boolean }[] {
 }
 
 /**
- * (17/10/2026) Trang Darboard → "Màn hình": chuông cổng là MỘT THIẾT BỊ của hệ thống (như 3 màn) — trả về thông tin
+ * (17/10/2026) Trang Dashboard → "Màn hình": chuông cổng là MỘT THIẾT BỊ của hệ thống (như 3 màn) — trả về thông tin
  * đầy đủ để vẽ thẻ: id (dùng cho automation), IP, cổng MJPEG/ảnh, có mic/loa, các màn được đổ chuông, trạng thái,
  * và thống kê nhật ký 30 ngày (nhỡ / đã nghe / từ chối) + lần bấm gần nhất.
  */
@@ -162,7 +162,7 @@ export function doorInfo(): DoorInfo[] {
     panels: d.panels, ringing: !!d.ring, busy: !!d.talk,
     lastPress: d.lastPress || null, counts, last: lastObj,
   }));
-  // (17/10/2026) Chuông đã từng kết nối nhưng đang offline: vẫn trả về để Darboard giữ thẻ (online=false).
+  // (17/10/2026) Chuông đã từng kết nối nhưng đang offline: vẫn trả về để Dashboard giữ thẻ (online=false).
   for (const k of cfg.known) {
     if (doors.has(k.id)) continue;
     out.push({ id: k.id, name: k.name, online: false, ip: k.ip, mjPort: 0, snapPort: 0, canTalk: false, panels: [], ringing: false, busy: false,
@@ -437,7 +437,7 @@ function json(res: http.ServerResponse, code: number, body: unknown): void {
 export function handleDoorApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL): boolean {
   const p = url.pathname;
   if (!p.startsWith('/door/')) return false;
-  // Cai dat chuong: tu trang Darboard (ingress, HA da buoc dang nhap).
+  // Cai dat chuong: tu trang Dashboard (ingress, HA da buoc dang nhap).
   if (p === '/door/config' && (isLocal(req) || (req.socket.remoteAddress || '').replace(/^::ffff:/, '') === '172.30.32.2')) {
     if (req.method === 'GET') { json(res, 200, { cfg, doors: doorList(), panels: doorPanelChoices() }); return true; }
     let body = '';
@@ -447,7 +447,7 @@ export function handleDoorApi(req: http.IncomingMessage, res: http.ServerRespons
   }
   const ingress = (req.socket.remoteAddress || '').replace(/^::ffff:/, '') === '172.30.32.2';
   const q = (k: string) => url.searchParams.get(k) || '';
-  // Nhat ky (man + Darboard): danh sach moi nhat truoc; ?dev= -> kem anh can mo (cham thong bao) roi xoa yeu cau.
+  // Nhat ky (man + Dashboard): danh sach moi nhat truoc; ?dev= -> kem anh can mo (cham thong bao) roi xoa yeu cau.
   if (p === '/door/log' && req.method === 'GET' && (isLocal(req) || ingress)) {
     const dev = q('dev'), open = dev ? openReq.get(dev) : undefined;
     if (dev) openReq.delete(dev);

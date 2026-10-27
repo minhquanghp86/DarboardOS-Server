@@ -2,8 +2,8 @@
   "config": {
     "step": {
       "user": {
-        "title": "DarboardOS",
-        "description": "Address of the DarboardOS add-on (default is correct on Home Assistant OS).",
+        "title": "Dashboard OS",
+        "description": "Address of the Dashboard OS add-on (default is correct on Home Assistant OS).",
         "data": {
           "name": "Name",
           "host": "Add-on address"
@@ -16,8 +16,8 @@
   },
   "services": {
     "send": {
-      "name": "DarboardOS",
-      "description": "Send a notification to DarboardOS screens.",
+      "name": "Dashboard OS",
+      "description": "Send a notification to Dashboard OS screens.",
       "fields": {
         "message": {
           "name": "Message",

@@ -110,7 +110,7 @@
   $('list').appendChild(note);
   // Server goi khi nguoi dung bam Dung o the "Dang phat" (Shell) — dung han, huy HLS, khong chi tam dung the audio.
   window.rwvStop = stop;
-  // (16/10/2026) Darboard → Màn hình (src/deviceManager.ts screenAct 'media'): phat tiep kenh cuoi, kenh truoc / sau.
+  // (16/10/2026) Dashboard → Màn hình (src/deviceManager.ts screenAct 'media'): phat tiep kenh cuoi, kenh truoc / sau.
   window.rwvResume = function () { if (!playing) play(cur || ST[0]); };
   function shift(d) { var i = cur ? ST.indexOf(cur) : -1; play(ST[(i + d + ST.length) % ST.length]); }
   window.rwvNext = function () { shift(1); };

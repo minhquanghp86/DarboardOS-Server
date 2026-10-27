@@ -3,7 +3,7 @@
 // Copyright (c) 2026 minhquanghp86
 // Licensed under the Apache License, Version 2.0 (see LICENSE).
 
-// (16/10/2026) Darboard → "Màn hình" (src/screenCtl.ts + khoi screen* trong deviceManager): danh sach / chi tiet / lenh dieu
+// (16/10/2026) Dashboard → "Màn hình" (src/screenCtl.ts + khoi screen* trong deviceManager): danh sach / chi tiet / lenh dieu
 // khien tung man tu xa. Man gia (FakeDevice, ctl=1) nhan DeviceControl khi chinh do sang / am luong / tat tieng.
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { FakeDevice, TestServer } from './harness.js';

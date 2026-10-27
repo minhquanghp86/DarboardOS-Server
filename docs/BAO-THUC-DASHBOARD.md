@@ -1,8 +1,8 @@
-# Ứng dụng Báo thức trên Darboard (27/10/2026)
+# Ứng dụng Báo thức trên Dashboard (27/10/2026)
 
 ## Dùng thế nào
 
-1. Trang chủ Darboard → lưới **Ứng dụng** → **Báo thức** (`alarm-ctl.html`).
+1. Trang chủ Dashboard → lưới **Ứng dụng** → **Báo thức** (`alarm-ctl.html`).
 2. Danh sách màn hình: mỗi thẻ hiện tên màn, **số báo thức đang bật** và **giờ reo kế tiếp**;
    chấm xanh = màn đang kết nối.
 3. Chạm một màn → mở **trình Báo thức của màn đó** (`alarm.html?dev=<id>`):
@@ -18,7 +18,7 @@ cùng một dữ liệu.
 ## Dữ liệu & đồng bộ
 
 - Một nguồn duy nhất: `/data/rwv-alarms.json` (module `src/alarms.ts`), server giữ nên **màn tắt vẫn reo đúng giờ**.
-- Thêm/sửa/xoá ở Darboard hay trên panel đều ghi vào cùng file → mọi nơi thấy ngay.
+- Thêm/sửa/xoá ở Dashboard hay trên panel đều ghi vào cùng file → mọi nơi thấy ngay.
 - Mỗi báo thức có `devices: 'all' | string[]` — danh sách màn sẽ reo.
 - Báo lại (snooze) 5/10/15/30 phút; reo tối đa 5 phút không ai tắt → tự dừng + thông báo "báo thức bị lỡ".
 - Giờ tính theo múi giờ server (mọi panel cùng nhà).
@@ -50,7 +50,7 @@ Nếu cần khoá lại: sửa `allowedSource()` trong `src/alarms.ts`.
 ## File liên quan
 
 - `public/alarm-ctl.html` — trang chọn màn (mới).
-- `public/alarm.html` — trình Báo thức (dùng cho cả panel và Darboard).
+- `public/alarm.html` — trình Báo thức (dùng cho cả panel và Dashboard).
 - `src/alarms.ts` — lưu trữ, lịch reo, API, `allowedSource()`.
 - `src/index.ts` — whitelist trang tĩnh (`alarm-ctl.html`).
 - `public/launcher-config.html` — mảng `APPS` (ô **Báo thức** trên lưới trang chủ).

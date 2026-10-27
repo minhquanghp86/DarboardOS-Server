@@ -5,7 +5,7 @@
 
 /**
  * (16/10/2026) THONG BAO TELEGRAM — add-on gui THANG qua Telegram Bot API (khong qua tich hop Telegram cua Home Assistant):
- * chuong cong nho / bi tu choi / moi lan bam chuong (kem anh khach), cuoc goi video nho. Cai dat o Darboard → Gọi → ⚙
+ * chuong cong nho / bi tu choi / moi lan bam chuong (kem anh khach), cuoc goi video nho. Cai dat o Dashboard → Gọi → ⚙
  * (token bot, chat ID, chon su kien, "Tìm chat ID", "Gửi thử"); luu /data/rwv-telegram.json. Token KHONG bao gio tra ve trang
  * (chi 4 ky tu cuoi) va KHONG ghi vao log.
  *
@@ -13,7 +13,7 @@
  *   POST /telegram/config            -> luu (token rong = giu token cu)
  *   POST /telegram/test              -> gui tin thu toi moi chat ID
  *   POST /telegram/chats             -> chat da nhan tin cho bot gan day (getUpdates) — de lay chat ID
- * Chi trang Darboard (ingress) hoac chinh may chu goi duoc.
+ * Chi trang Dashboard (ingress) hoac chinh may chu goi duoc.
  */
 import http from 'node:http';
 import fs from 'node:fs';
@@ -162,7 +162,7 @@ function readJson(req: http.IncomingMessage): Promise<any> {
 export function handleTelegramApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL): boolean {
   const p = url.pathname;
   if (!p.startsWith('/telegram/')) return false;
-  if (!allowed(req)) { json(res, 403, { ok: false, error: 'Chỉ dùng được từ trang Darboard.' }); return true; }
+  if (!allowed(req)) { json(res, 403, { ok: false, error: 'Chỉ dùng được từ trang Dashboard.' }); return true; }
   if (p === '/telegram/config' && req.method === 'GET') { json(res, 200, { ok: true, ...telegramPublic() }); return true; }
   if (p === '/telegram/config' && req.method === 'POST') {
     readJson(req).then((b) => {
@@ -177,7 +177,7 @@ export function handleTelegramApi(req: http.IncomingMessage, res: http.ServerRes
       if (!cfg.chatIds.length) throw new Error('Chưa có chat ID.');
       const out: { chat: string; ok: boolean; error?: string }[] = [];
       for (const chat of cfg.chatIds) {
-        try { await call('sendMessage', { chat_id: chat, text: `✅ <b>HA Darboard</b>: thông báo Telegram đã hoạt động.\n🕒 ${when()}`, parse_mode: 'HTML' }); out.push({ chat, ok: true }); }
+        try { await call('sendMessage', { chat_id: chat, text: `✅ <b>HA Dashboard</b>: thông báo Telegram đã hoạt động.\n🕒 ${when()}`, parse_mode: 'HTML' }); out.push({ chat, ok: true }); }
         catch (e) { out.push({ chat, ok: false, error: mask((e as Error).message) }); }
       }
       json(res, 200, { ok: out.every((x) => x.ok), results: out });

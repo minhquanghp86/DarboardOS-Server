@@ -6,7 +6,7 @@
   Licensed under the Apache License, Version 2.0 (see LICENSE).
 -->
 <!--
-  (16/10/2026) DARBOARD → "MÀN HÌNH": the dieu khien + cai dat da nang cho TUNG man hinh, dung tu xa (khong can cham man).
+  (16/10/2026) DASHBOARD → "MÀN HÌNH": the dieu khien + cai dat da nang cho TUNG man hinh, dung tu xa (khong can cham man).
   Danh sach (screens.html) -> chi tiet (screens.html#<id man>) chia 5 nhom: Tổng quan · Điều khiển · Ứng dụng · Thông báo · Cài đặt.
   Du lieu / lenh: src/screenCtl.ts (/screens/*). Man khac nhau co kha nang khac nhau (P4 co loa / camera / pin; S3 480×480 the
   nho; S3 480×272 pin) -> o nao man khong ho tro thi tu an. Do sang / am luong: man bao truc tiep (DeviceState) thi dieu
@@ -729,7 +729,7 @@
     var qa = card('Thao tác nhanh', 'gesture-tap', '#0ea5e9'), g = el('div', 'acts');
     var off = !d.online;
     g.append(
-      // (21/10/2026) Mo tab dieu khien: xem man hinh lien tuc + cham/vuot/keo tha tu Darboard.
+      // (21/10/2026) Mo tab dieu khien: xem man hinh lien tuc + cham/vuot/keo tha tu Dashboard.
       actBtn('Điều khiển', 'monitor-dashboard', function () { window.open(ctrlUrl(S.id), '_blank', 'noopener'); }, '', off),
       actBtn(d.saver ? 'Mở màn hình' : 'Đánh thức', 'lock-open-variant-outline', function () { act({ act: 'wake' }, 'Đã mở màn hình'); }, '', off),
       actBtn('Màn hình chờ', 'power-sleep', function () { act({ act: 'saver' }, 'Đã chuyển màn hình chờ'); }, '', off || d.saver),
@@ -1014,7 +1014,7 @@
   function paneSettings() {
     var d = S.d, out = [];
     if (!S.set) { out.push(el('div', 'card empty', 'Đang đọc cài đặt…')); return out; }
-    if (!S.set.ok) out.push(el('div', 'card empty', 'Không đọc được cài đặt từ Home Assistant: ' + (S.set.error || '') + ' Các cài đặt của Darboard bên dưới vẫn dùng được.'));
+    if (!S.set.ok) out.push(el('div', 'card empty', 'Không đọc được cài đặt từ Home Assistant: ' + (S.set.error || '') + ' Các cài đặt của Dashboard bên dưới vẫn dùng được.'));
     var groups = {};
     haItems().forEach(function (it) { if (it.hide) return; var c = it.cat || 'other'; (groups[c] = groups[c] || []).push(it); });
     panelItems().forEach(function (it) { var c = it.id === 'rwv.quality' ? 'quality' : (it.cat || (it.sec === 'screen' ? 'home' : 'other')); (groups[c] = groups[c] || []).push(it); });

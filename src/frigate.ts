@@ -135,7 +135,7 @@ export function hostsOfRuntime(streams: unknown): Record<string, string[]> {
   const out: Record<string, string[]> = {};
   for (const [name, s] of Object.entries((streams && typeof streams === 'object' ? streams : {}) as Record<string, unknown>)) {
     const prods = ((s as { producers?: { url?: unknown }[] })?.producers ?? []);
-    // (09/10/2026) Nguon qua server Darboard (/cam/live/<id thiet bi>) -> them dau "cam-live:<id>" (nhan camera cua chinh panel).
+    // (09/10/2026) Nguon qua server Dashboard (/cam/live/<id thiet bi>) -> them dau "cam-live:<id>" (nhan camera cua chinh panel).
     const live = prods.map((p) => /\/cam\/live\/([A-Za-z0-9_-]+)/.exec(String(p?.url ?? ''))?.[1]).filter((x): x is string => !!x).map((x) => 'cam-live:' + x);
     out[name] = [...new Set([...prods.map((p) => hostOf(p?.url)).filter((h): h is string => !!h), ...live])];
   }

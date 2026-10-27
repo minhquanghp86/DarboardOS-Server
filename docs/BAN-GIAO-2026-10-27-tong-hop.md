@@ -1,7 +1,7 @@
 # BÀN GIAO TỔNG HỢP — 27/10/2026 (đọc file này trước)
 
 > Phiên này làm 3 việc: **(A)** chốt chất lượng/fps cho panel 480×272, **(B)** thêm ứng dụng Báo thức trên
-> Darboard, **(C)** sửa lỗi hình bị co nhỏ sau "Gần đây → Màn hình chính".
+> Dashboard, **(C)** sửa lỗi hình bị co nhỏ sau "Gần đây → Màn hình chính".
 > Trạng thái cuối: add-on **2.9.267**, tag `stable-2026-10-27` trỏ về commit chốt phiên.
 
 ---
@@ -13,7 +13,7 @@
 | Add-on | **2.9.267** (started) |
 | Server repo | `main` sạch, đã push; tag `stable-2026-10-27` → commit chốt phiên |
 | Client repo | sạch, YAML 480×272 đã đồng bộ `jpeg_quality: 65` |
-| 4 màn | P4 1024×600 · 480×272 · 480×480 · 800×480 (q40 đặt chung từ Darboard UI) |
+| 4 màn | P4 1024×600 · 480×272 · 480×480 · 800×480 (q40 đặt chung từ Dashboard UI) |
 | Test | 307/307 pass |
 
 ---
@@ -35,9 +35,9 @@ Trần thực tế của S3: decode 55-70 ms/khung (không có giải mã JPEG p
 
 ---
 
-## B. Ứng dụng Báo thức trên Darboard (2.9.261 → 2.9.264)
+## B. Ứng dụng Báo thức trên Dashboard (2.9.261 → 2.9.264)
 
-Chi tiết: [`BAO-THUC-DARBOARD.md`](BAO-THUC-DARBOARD.md).
+Chi tiết: [`BAO-THUC-DASHBOARD.md`](BAO-THUC-DASHBOARD.md).
 
 - Ô **Báo thức** trong lưới ứng dụng trang chủ → chọn màn → mở trình Báo thức của **đúng màn đó**
   (`alarm.html?dev=<id>`); thẻ mỗi màn hiện số báo thức đang bật + giờ reo kế tiếp.

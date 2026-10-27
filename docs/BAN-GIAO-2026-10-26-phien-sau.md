@@ -120,7 +120,7 @@ có thể là kích thước khung gửi hoặc chưa có khi khởi tạo).
    (`src/deviceManager.ts` ~4040) để biết giá trị thật, rồi sửa điều kiện `pinQuality` cho khớp
    (hoặc nhận diện bằng `cfg.maxBytesPerMessage === 65536 && !cfg.halfVideo`).
 2. Đo lại: `appliedQ` phải = 65, `recentFrameBytes` ~12-20 KB, `interval` 50-75 ms.
-3. Đường **chắc chắn chạy được ngay** (không cần code): Darboard UI → panel 480×272 → Cài đặt →
+3. Đường **chắc chắn chạy được ngay** (không cần code): Dashboard UI → panel 480×272 → Cài đặt →
    **"Chất lượng hình ảnh" = 65** (thay vì "Tự động"). Nhánh này gọi `processor.setTuning({jpegQuality:65})`
    + `lastAppliedQuality = 65` ngay lập tức (`src/deviceManager.ts` ~1689, pref `rwv.quality`).
 

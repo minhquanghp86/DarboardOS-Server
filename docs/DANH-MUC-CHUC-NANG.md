@@ -1,8 +1,8 @@
-# DANH MỤC CHỨC NĂNG — HA Darboard
+# DANH MỤC CHỨC NĂNG — HA Dashboard
 
 > Cập nhật **18/10/2026** · add-on server **2.9.185** · firmware **fw-2026.10.27**
 > Dự án gồm **hai repo dùng chung một sản phẩm**: `DarboardOS-Server` (máy chủ, repo này) và
-> `DarboardOS-Client` (firmware ESPHome cho màn hình). Danh mục này liệt kê **đúng những gì đang có trong mã**,
+> `Dashboard OS-Client` (firmware ESPHome cho màn hình). Danh mục này liệt kê **đúng những gì đang có trong mã**,
 > kèm **nơi cấu hình** và **tài liệu chi tiết** — không có mục nào chỉ nằm trên giấy.
 >
 > Cách tra: mỗi dòng ghi rõ *chức năng* · *ai có* (màn P4 / S3 / chuông) · *cấu hình ở đâu* · *đọc thêm*.
@@ -25,12 +25,12 @@
 
 | Chức năng | Ai có | Cấu hình |
 |---|---|---|
-| Màn hình chính: đồng hồ lớn, ngày âm dương, thời tiết | cả 3 màn | Darboard → **Menu ứng dụng** |
+| Màn hình chính: đồng hồ lớn, ngày âm dương, thời tiết | cả 3 màn | Dashboard → **Menu ứng dụng** |
 | Lưới ứng dụng nhiều trang, **thư mục**, kéo thả sắp xếp | cả 3 màn | chạm giữ ~0,5 s để vào chế độ sắp xếp |
 | **Dock** tối đa 6 ứng dụng | cả 3 màn | kéo xuống/vào dock |
 | Cử chỉ: vuốt lên = Home; vuốt lên giữ = Gần đây; mép trái/phải = quay lại; mép trên = thanh trạng thái | cả 3 màn | — |
 | Thanh trạng thái: độ sáng, 3 âm lượng, Màn hình chờ, Im lặng, Không làm phiền, Khử vọng mic | cả 3 màn | — |
-| Widget: thời tiết, **6 chỉ số năng lượng**, lịch, lần camera phát hiện (~5 s), **thẻ đỏ "Cuộc gọi nhỡ"** | cả 3 màn | Darboard → **Màn khóa** |
+| Widget: thời tiết, **6 chỉ số năng lượng**, lịch, lần camera phát hiện (~5 s), **thẻ đỏ "Cuộc gọi nhỡ"** | cả 3 màn | Dashboard → **Màn khóa** |
 | Màn hình chờ / màn khóa: đồng hồ hoặc **khung ảnh số** | cả 3 màn | `screensaver_idle_s`, `screensaver_photos`, `gphotos_album` |
 | Bàn phím ảo tiếng Việt (Telex) | cả 3 màn | tự hiện khi chạm ô nhập |
 | **Pin kiểu điện thoại** (tự biết có pin / sạc / nguồn ngoài) | P4 + S3 480×272 | firmware `battery_monitor.h`, ngưỡng ±35 mV, xu hướng 3 phút |
@@ -46,7 +46,7 @@ Việc cần làm, Hôm nay, Bảng tin, Báo Mới, Giá vàng, Xổ số, Goog
 
 **Theo khả năng thiết bị:** *Camera* chỉ P4; *Thư viện* + *Quản lý file* cần thẻ SD (P4, S3 4848S040);
 *Gọi* + nói chuyện 2 chiều cần mic; ba nhóm còn lại có trên mọi màn.
-Thêm / ẩn / sắp xếp / đổi tên / đổi biểu tượng: Darboard → **Menu ứng dụng**.
+Thêm / ẩn / sắp xếp / đổi tên / đổi biểu tượng: Dashboard → **Menu ứng dụng**.
 
 ## D. Âm thanh
 
@@ -62,14 +62,14 @@ Thêm / ẩn / sắp xếp / đổi tên / đổi biểu tượng: Darboard → 
 
 | Chức năng | Ghi chú | Cấu hình |
 |---|---|---|
-| **Tin nhắn nội bộ** giữa Darboard và các màn | Chữ, ảnh, video, **tin nhắn thoại giữ-để-ghi**; tạo/xoá cuộc trò chuyện, nhóm | tab **Tin nhắn** trên Darboard + app *Tin nhắn* |
+| **Tin nhắn nội bộ** giữa Dashboard và các màn | Chữ, ảnh, video, **tin nhắn thoại giữ-để-ghi**; tạo/xoá cuộc trò chuyện, nhóm | tab **Tin nhắn** trên Dashboard + app *Tin nhắn* |
 | "Đã xem" riêng từng màn, chấm đỏ + huy hiệu chưa đọc | "Đang xem" chỉ khi app đang hiện, không bị màn hình chờ đè, có chạm trong 2 phút | tự động |
 | Sự kiện HA `darboard_chat_message` | Dùng cho tự động hoá | — |
 | **Gọi video** giữa các màn có camera + mic, và với trình duyệt/điện thoại | Chạy được qua Cloudflare Tunnel | app *Gọi*, tab **Gọi** |
-| **Chuông cổng Darboard** (ESP32-S3 CAM) | Bấm nút → các màn đổ chuông đè lên màn khóa; hình cổng trực tiếp; **Nói chuyện** 2 chiều; **Mở khóa cổng**; Chụp ảnh | firmware + `darboard_door` |
-| Không ai nghe → **"Cuộc gọi nhỡ"** kèm ảnh + **nhật ký 30 ngày** | Sự kiện HA `darboard_doorbell` | app *Chuông cổng*, tab trên Darboard |
-| `POST /doorbell` | Màn hình chuông cửa toàn màn với camera bất kỳ (cho chuông không phải Darboard) | `rest_command` trong HA |
-| **Thông báo Telegram** | Chuông cổng nhỡ / bị từ chối / mỗi lần bấm (kèm ảnh khách), cuộc gọi nhỡ | Darboard → **Gọi** → ⚙ |
+| **Chuông cổng Dashboard** (ESP32-S3 CAM) | Bấm nút → các màn đổ chuông đè lên màn khóa; hình cổng trực tiếp; **Nói chuyện** 2 chiều; **Mở khóa cổng**; Chụp ảnh | firmware + `darboard_door` |
+| Không ai nghe → **"Cuộc gọi nhỡ"** kèm ảnh + **nhật ký 30 ngày** | Sự kiện HA `darboard_doorbell` | app *Chuông cổng*, tab trên Dashboard |
+| `POST /doorbell` | Màn hình chuông cửa toàn màn với camera bất kỳ (cho chuông không phải Dashboard) | `rest_command` trong HA |
+| **Thông báo Telegram** | Chuông cổng nhỡ / bị từ chối / mỗi lần bấm (kèm ảnh khách), cuộc gọi nhỡ | Dashboard → **Gọi** → ⚙ |
 
 ## F. Nhà & Home Assistant
 
@@ -89,8 +89,8 @@ Thêm / ẩn / sắp xếp / đổi tên / đổi biểu tượng: Darboard → 
 | **YouTube không quảng cáo** | Mặc định BẬT; kiểm mỗi 1,5 s, bấm "Bỏ qua" hoặc tua hết; YouTube TV tự chọn "chế độ khách" | Cài đặt → YouTube (từng màn) |
 | YouTube TV điều khiển bằng cử chỉ | Vuốt = phím mũi tên, cử chỉ quay lại = Esc | — |
 | **Truyền YouTube từ điện thoại** (DIAL/SSDP) | Tên màn đổi được trong Cài đặt | `cast_enabled`, `dial_port` |
-| **IPTV** — danh sách M3U | Tự cập nhật 6 giờ/lần; nút **Tải lại kênh** buộc tải ngay; mất mạng dùng bản đã lưu; chip Yêu thích/Gần đây/Tất cả | Danh sách kênh trên Darboard |
-| **IPTV — danh sách mặc định** | 5 list có sẵn khi cài add-on (VMTTV 538 kênh bật sẵn, TV tổng hợp, Viettel, Sport quốc tế, iptv-org VN) + 8 kênh yêu thích; nút **Mặc định** (bấm 2 lần) hoặc `POST /iptv/reset` để khôi phục khi lỡ xoá | Trang Darboard → IPTV và app IPTV trên panel |
+| **IPTV** — danh sách M3U | Tự cập nhật 6 giờ/lần; nút **Tải lại kênh** buộc tải ngay; mất mạng dùng bản đã lưu; chip Yêu thích/Gần đây/Tất cả | Danh sách kênh trên Dashboard |
+| **IPTV — danh sách mặc định** | 5 list có sẵn khi cài add-on (VMTTV 538 kênh bật sẵn, TV tổng hợp, Viettel, Sport quốc tế, iptv-org VN) + 8 kênh yêu thích; nút **Mặc định** (bấm 2 lần) hoặc `POST /iptv/reset` để khôi phục khi lỡ xoá | Trang Dashboard → IPTV và app IPTV trên panel |
 | Phát kênh lên một màn hoặc **tất cả màn** | Proxy luồng để gắn Referer/User-Agent riêng | API `/iptv/cast`, `/iptv/p` |
 | Radio VOV 1/2/3/5, Zing MP3, NhacCuaTui, TikTok, VnExpress, VTVgo, Media, Khung ảnh | Ứng dụng web sẵn có | Menu ứng dụng |
 
@@ -98,14 +98,14 @@ Thêm / ẩn / sắp xếp / đổi tên / đổi biểu tượng: Darboard → 
 
 | Chức năng | Ai có | Ghi chú |
 |---|---|---|
-| **Quản lý file** thẻ SD từ Darboard (kể cả ngoài nhà, qua ingress) | P4, S3 4848S040 | duyệt, xem/phát, tải lên–xuống, đổi tên, tạo thư mục, xoá nhiều; chép ~2 MB/s; **tạm dừng khi màn đang phát video** |
+| **Quản lý file** thẻ SD từ Dashboard (kể cả ngoài nhà, qua ingress) | P4, S3 4848S040 | duyệt, xem/phát, tải lên–xuống, đổi tên, tạo thư mục, xoá nhiều; chép ~2 MB/s; **tạm dừng khi màn đang phát video** |
 | Tải về dạng **MP4** | như trên | Máy chủ đổi .mkv/.mov/.webm → MP4 (không nén lại hình, đổi tiếng sang AAC); đệm `/data/fm-mp4` ~3 GB / 3 ngày |
 | Tải lên + **tối ưu video 720p** | như trên | Nhận cả HEVC của điện thoại; tệp tối đa 4 GB (FAT32) |
 | **Thư viện** (ảnh trong thẻ) | như trên | ứng dụng *Thư viện* |
 | **Media** (kho media của HA) | cả 3 màn | Ứng dụng riêng của dự án (không phải trang Media của HA) |
 | **Khung ảnh** (màn hình chờ) | cả 3 màn | Ảnh từ Media › `photos` hoặc album Google Photos |
 
-## I. Trang "Darboard" (thanh bên Home Assistant)
+## I. Trang "Dashboard" (thanh bên Home Assistant)
 
 | Trang | Chức năng |
 |---|---|
@@ -138,7 +138,7 @@ Thêm / ẩn / sắp xếp / đổi tên / đổi biểu tượng: Darboard → 
 
 **Cơ chế YAML**: `examples/*.yaml` là YAML chung (một file/loại màn, không cấu hình nhà riêng) — máy khách dùng
 `examples/rieng-cua-ban/*.yaml` gọi qua `packages` với `ref: fw-2026.10.27`, rồi nhập Wi-Fi/máy chủ/Home URL **sau khi nạp**.
-Chi tiết: [`DarboardOS-Client/docs/YAML-CHUNG.md`](https://github.com/minhquanghp86/DarboardOS-Client/blob/main/docs/YAML-CHUNG.md).
+Chi tiết: [`Dashboard OS-Client/docs/YAML-CHUNG.md`](https://github.com/minhquanghp86/Dashboard OS-Client/blob/main/docs/YAML-CHUNG.md).
 
 **Khoá firmware theo MAC** (`mac_guard.h`, biến `allow_mac`): nạp sang thiết bị khác thì máy ngủ — chống nhân bản.
 `allow_mac` khai ở **YAML cục bộ** trên máy build (rỗng = không khoá).
@@ -148,7 +148,7 @@ Chi tiết: [`DarboardOS-Client/docs/YAML-CHUNG.md`](https://github.com/minhquan
 | Điểm | Thực tế |
 |---|---|
 | `health_port` 18080 | Chỉ trong LAN, không mở ra Internet |
-| Trang Darboard đi qua **ingress** của HA (có đăng nhập) | `/chat`, `/alarm`, `/api/cam`, `/fm/*` nhận từ 127.0.0.1 **hoặc** ingress (`172.30.32.2`) |
+| Trang Dashboard đi qua **ingress** của HA (có đăng nhập) | `/chat`, `/alarm`, `/api/cam`, `/fm/*` nhận từ 127.0.0.1 **hoặc** ingress (`172.30.32.2`) |
 | Không dùng `/config/www/` của HA | `/local/` phục vụ không cần đăng nhập |
 | Add-on dùng **token Supervisor** | Quyền `homeassistant_api`; không cần thông tin đăng nhập người dùng |
 | Proxy DevTools ra LAN | **Tắt mặc định** (`expose_debug_proxy`) — chỉ bật khi cần |
@@ -184,7 +184,7 @@ Chi tiết: [`DarboardOS-Client/docs/YAML-CHUNG.md`](https://github.com/minhquan
 | `README.md` | repo server | Tổng quan sản phẩm, tính năng, cài đặt |
 | `hassio/remote_webview_server/DOCS.md` | repo server | **Hướng dẫn sử dụng đầy đủ** (cài từ đầu, dùng hằng ngày, tự động hoá, xử lý sự cố) |
 | `CHANGELOG.md` | repo server | Nhật ký từng phiên bản |
-| `DarboardOS-Client/README.md` | repo client | Firmware, component, tuỳ chọn từng component, cơ chế YAML |
+| `Dashboard OS-Client/README.md` | repo client | Firmware, component, tuỳ chọn từng component, cơ chế YAML |
 | `docs/YAML-CHUNG.md`, `docs/HUONG-DAN-AUTOMATION-CAMERA.md` | repo client | Cấu hình YAML chung; 6 Blueprint + `rest_command` |
 | `docs/BAN-GIAO.md`, `docs/HOAN-THANH-DU-AN.md`, `docs/KHOI-PHUC-BAN-ON-DINH.md` | repo client | Bàn giao, tóm tắt vận hành, quay về bản ổn định |
 | `docs/mac-guard-2026-10-17-commandcode.md` | repo client | Khoá firmware theo MAC + cách cứu máy |

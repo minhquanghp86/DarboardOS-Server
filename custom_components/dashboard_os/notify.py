@@ -1,4 +1,4 @@
-"""dashboard_os.send: gui thong bao uu tien cao toi man hinh DarboardOS."""
+"""dashboard_os.send: gui thong bao uu tien cao toi man hinh Dashboard OS."""
 from __future__ import annotations
 
 import logging
@@ -142,11 +142,11 @@ class DashboardOSNotify(NotifyEntity):
                 ) as resp:
                     if resp.status >= 400:
                         raise HomeAssistantError(
-                            f"DarboardOS tra loi HTTP {resp.status}: {await resp.text()}"
+                            f"Dashboard OS tra loi HTTP {resp.status}: {await resp.text()}"
                         )
             except aiohttp.ClientError as err:
                 raise HomeAssistantError(
-                    f"Khong ket noi duoc DarboardOS: {err}"
+                    f"Khong ket noi duoc Dashboard OS: {err}"
                 ) from err
 
     async def _to_url(self, src: str, kind: str) -> str | None:
@@ -160,7 +160,7 @@ class DashboardOSNotify(NotifyEntity):
                 session = async_get_clientsession(self.hass)
                 async with session.get(download, timeout=aiohttp.ClientTimeout(total=180)) as got:
                     if got.status >= 400:
-                        _LOGGER.warning("DarboardOS: tai media that bai HTTP %s", got.status)
+                        _LOGGER.warning("Dashboard OS: tai media that bai HTTP %s", got.status)
                         return None
                     body = await got.read()
                     ctype = got.headers.get("Content-Type", "application/octet-stream")
@@ -168,7 +168,7 @@ class DashboardOSNotify(NotifyEntity):
             except HomeAssistantError:
                 raise
             except Exception as err:
-                _LOGGER.warning("DarboardOS: khong doc duoc media-source %s: %s", src, err)
+                _LOGGER.warning("Dashboard OS: khong doc duoc media-source %s: %s", src, err)
                 return None
         if src.startswith(("http://", "https://")):
             return src
@@ -176,7 +176,7 @@ class DashboardOSNotify(NotifyEntity):
         if not path.is_absolute():
             path = Path(self.hass.config.config_dir) / src
         if not path.exists():
-            _LOGGER.warning("DarboardOS: khong tim thay file %s", path)
+            _LOGGER.warning("Dashboard OS: khong tim thay file %s", path)
             return None
         body = await self.hass.async_add_executor_job(path.read_bytes)
         ctype, _ = mimetypes.guess_type(str(path))

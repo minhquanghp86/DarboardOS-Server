@@ -78,7 +78,7 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   // (08/10/2026) Su kien Frigate (nguoi / xe) theo ngay: anh, clip — src/frigate.ts, public/events.html.
   add('nha', 'Sự kiện camera', 'events', '#0e7490', `${LOCAL}/events.html`, undefined, 'events', 'mdi:cctv');
   // (01/10/2026) The SD cua panel co camera: Thu vien (anh/video da chup, trinh phat) va Tep (duyet / xoa ca the).
-  // (14/10/2026) Goi video giua cac man co camera + mic va tab "Gọi" trong Darboard (src/calls.ts, public/call.html).
+  // (14/10/2026) Goi video giua cac man co camera + mic va tab "Gọi" trong Dashboard (src/calls.ts, public/call.html).
   add('nha', 'Gọi', 'call', '#16a34a', `${LOCAL}/call.html`, undefined, 'call', 'mdi:video');
   // (14/10/2026) Nhat ky chuong cong: anh moi lan bam chuong / goi nho, giu 30 ngay (src/door.ts, public/door-log.html).
   add('nha', 'Chuông cổng', 'doorlog', '#ea580c', `${LOCAL}/door-log.html`, undefined, 'doorlog', 'mdi:doorbell-video');
@@ -90,7 +90,7 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   // (27/09/2026) Bo ung dung "Nang luong" (trang Energy cua HA) theo yeu cau nguoi dung — thay bang Solar.
   // (27/09/2026) Trang Solar rieng cua nguoi dung (khong doc cam bien nao — chi mo trang).
   // (09/10/2026) 'Solar' la ung dung CHUNG, dia chi mac dinh TRONG — moi nha dien dia chi trang solar cua minh trong trang
-  // Menu panel (Darboard -> Menu panel -> Solar -> Địa chỉ web). Chua dien -> mo trang huong dan (no-url.html).
+  // Menu panel (Dashboard -> Menu panel -> Solar -> Địa chỉ web). Chua dien -> mo trang huong dan (no-url.html).
   add('nha', 'Solar', 'solar', '#eab308', '');
 
   add('giai_tri', 'YouTube', 'youtube', '#ff0033', 'https://m.youtube.com');
@@ -104,7 +104,7 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   // tiep (khong vuong DRM; lan dau co hop Dieu khoan — nguoi dung tu bam Dong y). Zing MP3 / NhacCuaTui: kind 'music' de
   // PHAT NEN nhu ung dung Nhac (tab khong bi dong bang khi dang phat).
   add('giai_tri', 'VTVgo', 'vtvgo', '#c8102e', 'https://vtvgo.vn', undefined, 'vtvgo', 'mdi:television-play');
-  // (07/10/2026) IPTV: danh sach kenh M3U nguoi dung them o trang Darboard (src/iptv.ts, public/iptv.html).
+  // (07/10/2026) IPTV: danh sach kenh M3U nguoi dung them o trang Dashboard (src/iptv.ts, public/iptv.html).
   add('giai_tri', 'IPTV', 'iptv', '#c026d3', `${LOCAL}/iptv.html`, undefined, 'iptv', 'mdi:television-classic');
   add('giai_tri', 'Zing MP3', 'music', '#8b45ca', 'https://zingmp3.vn', undefined, 'zingmp3', 'mdi:music-circle-outline');
   add('giai_tri', 'NhacCuaTui', 'music', '#1f6feb', 'https://www.nhaccuatui.com', undefined, 'nhaccuatui', 'mdi:playlist-music');
@@ -122,7 +122,7 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   add('tien_ich', 'Việc cần làm', 'todo', '#16a34a', `${LOCAL}/todo.html`);
   add('tien_ich', 'Hôm nay', 'today', '#f59e0b', `${LOCAL}/today.html`);
   add('tien_ich', 'Bảng tin', 'board', '#ca8a04', `${LOCAL}/board.html`);
-  // (01/10/2026) Nhan tin noi bo: panel <-> trang "Darboard" tren thanh ben HA (src/chat.ts, public/chat.html).
+  // (01/10/2026) Nhan tin noi bo: panel <-> trang "Dashboard" tren thanh ben HA (src/chat.ts, public/chat.html).
   add('tien_ich', 'Tin nhắn', 'chat', '#2563eb', `${LOCAL}/chat.html`, undefined, 'chat', 'mdi:message-text-outline');
   add('tien_ich', 'Báo Mới', 'baomoi', '#15803d', 'https://baomoi.com', undefined, 'baomoi', 'mdi:newspaper-variant-multiple');
   add('tien_ich', 'Giá vàng', 'giavang', '#ca8a04', 'https://webgia.com', undefined, 'giavang', 'mdi:gold');

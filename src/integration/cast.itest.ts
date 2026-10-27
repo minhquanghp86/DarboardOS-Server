@@ -60,7 +60,7 @@ it('dien thoai tim thay panel, truyen YouTube -> YouTube TV tren panel, ngat -> 
   expect(loc).toBe(`http://127.0.0.1:${dialPort}/dial/${DEV_ID}/dd.xml`);
   // 2) Mo ta thiet bi -> Application-URL
   const dd = await fetch(loc);
-  expect(await dd.text()).toContain('<friendlyName>Darboard 0002</friendlyName>');
+  expect(await dd.text()).toContain('<friendlyName>Dashboard 0002</friendlyName>');
   const appUrl = dd.headers.get('application-url')!;
   expect(appUrl).toBe(`http://127.0.0.1:${dialPort}/dial/${DEV_ID}/apps/`);
   expect(await (await fetch(appUrl + 'YouTube')).text()).toContain('<state>stopped</state>');

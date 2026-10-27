@@ -73,8 +73,8 @@ const PLACE: PlaceRule[] = [
   // (08/10/2026) Trang thai mat khau luong camera ("Bật · <ten>" / "Tắt" — KHONG co mat khau); trang Cai dat mo trang doi.
   { re: /^sensor\..*_mat_khau_luong_camera$/, cat: 'camera', sub: 'Bảo mật luồng camera', title: 'Mật khẩu luồng camera' },
   { re: /^sensor\..*_thoi_gian_chay$/, cat: 'diag', sub: 'Hiệu năng', title: 'Thời gian chạy', ord: 2 },
-  { re: /_ha_darboard_server$/, cat: 'net', sub: 'Máy chủ Darboard', title: 'Địa chỉ máy chủ', ord: 0 },
-  { re: /_ws_connected$/, cat: 'net', sub: 'Máy chủ Darboard', title: 'Kết nối', ord: 1 },
+  { re: /_ha_darboard_server$/, cat: 'net', sub: 'Máy chủ Dashboard', title: 'Địa chỉ máy chủ', ord: 0 },
+  { re: /_ws_connected$/, cat: 'net', sub: 'Máy chủ Dashboard', title: 'Kết nối', ord: 1 },
   { re: /_toc_do_tai_tcp$/, cat: 'net', sub: 'Đo tốc độ', title: 'Tốc độ tải lần đo gần nhất', ord: 0 },
   { re: /_do_toc_do_mang$/, cat: 'net', sub: 'Đo tốc độ', title: 'Đo tốc độ mạng', ord: 1 },
   { re: /_(audio_amplifier|amplifier)$/, cat: 'sound', sub: 'Loa', title: 'Bộ khuếch đại loa' },

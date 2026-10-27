@@ -3,7 +3,7 @@
 // Copyright (c) 2026 minhquanghp86
 // Licensed under the Apache License, Version 2.0 (see LICENSE).
 
-// (01/10/2026) NHAN TIN NOI BO giua trang "Darboard" tren thanh ben Home Assistant (ingress) va cac panel.
+// (01/10/2026) NHAN TIN NOI BO giua trang "Dashboard" tren thanh ben Home Assistant (ingress) va cac panel.
 //
 // Thanh vien cua mot cuoc tro chuyen: phia 'ha' (moi nguoi dung HA mo trang thanh ben — ten tung nguoi lay tu header
 // ingress) LUON co mat, cong mot so man hinh (hoac "moi man hinh"). Tin nhan: chu, anh, video. Xoa cuoc tro chuyen
@@ -496,7 +496,7 @@ export function handleChatApi(req: http.IncomingMessage, res: http.ServerRespons
   }
   const me = who(req, url);
   const camDev = me?.side === 'screen' ? me.id : undefined;   // (09/10/2026) camera cua CHINH man nay
-  if (!me) { json(res, 403, { error: 'Chỉ dùng được từ màn hình hoặc trang Darboard trong Home Assistant.' }); return true; }
+  if (!me) { json(res, 403, { error: 'Chỉ dùng được từ màn hình hoặc trang Dashboard trong Home Assistant.' }); return true; }
   const route = url.pathname.slice(6);
   const q = url.searchParams;
   const fail = (e: unknown, code = 400) => json(res, code, { error: (e as Error).message || String(e) });

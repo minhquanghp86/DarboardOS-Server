@@ -173,7 +173,7 @@ export type DeviceSession = {
   /** (25/09/2026) Hen gio cua menu — giu o SERVER nen van reo khi nguoi dung da chuyen trang. */
   timer?: { endsAt: number; label: string; handle: NodeJS.Timeout };
 
-  // (26/09/2026 OS-2) MOI UNG DUNG LA MOT TAB CHROMIUM RIENG — xem DarboardOS-Client: docs/server-noi-bo/KE-HOACH-GIAO-DIEN-HE-DIEU-HANH.md muc 3.1.
+  // (26/09/2026 OS-2) MOI UNG DUNG LA MOT TAB CHROMIUM RIENG — xem Dashboard OS-Client: docs/server-noi-bo/KE-HOACH-GIAO-DIEN-HE-DIEU-HANH.md muc 3.1.
   // `cdp`/`url` o tren LUON phan anh tab dang ACTIVE (dang hien tren man hinh — chi tab nay duoc Page.startScreencast).
   // Cac tab khac (Home Assistant ghim + toi da MAX_APP_TABS ung dung) van "am": JS chay binh thuong, radio/nhac phat
   // duoc, nhung KHONG duoc gui hinh — chuyen ve chi la doi con tro `cdp` + bat lai screencast, tuc thi, khong tai lai.
@@ -311,7 +311,7 @@ export function requestFullFrameFor(dev: DeviceSession): void {
  * thiet bi (Chrome nen san dung muc can -> chuyen thang); het khung nhip cao 1,5 s -> tra ve 90 va ve lai khung net.
  * Tat nong: "videoLowQ": false trong /data/rwv-tuning.json.
  */
-/** (27/10/2026) Chat luong JPEG HIEU LUC: nguoi dung dat trong Darboard UI (rwv.quality) > YAML (cfg.jpegQuality).
+/** (27/10/2026) Chat luong JPEG HIEU LUC: nguoi dung dat trong Dashboard UI (rwv.quality) > YAML (cfg.jpegQuality).
  *  Truoc day duong screencast bo qua hoan toan gia tri UI -> dat q40/q50/q60 deu cho khung ~18 KB nhu nhau. */
 function effectiveJpegQuality(dev: DeviceSession): number {
   return dev.qualityOverride ?? dev.cfg.jpegQuality;
@@ -1262,7 +1262,7 @@ function isHaUrl(dev: DeviceSession, url: string): boolean {
 /**
  * (26/09/2026 OS-2) DIEM VAO DUY NHAT cho moi lenh "hien URL nay" tu phia thiet bi (OpenURL packet: nut/thuc the
  * "Go Home" VA thuc the "URL hien thi" deu di qua CUNG mot goi tin o tang firmware — khong the phan biet duoc,
- * xem DarboardOS-Client: docs/server-noi-bo/KE-HOACH-GIAO-DIEN-HE-DIEU-HANH.md muc 4). Phan loai theo GOC: cung goc voi Home URL -> tab 'home'
+ * xem Dashboard OS-Client: docs/server-noi-bo/KE-HOACH-GIAO-DIEN-HE-DIEU-HANH.md muc 4). Phan loai theo GOC: cung goc voi Home URL -> tab 'home'
  * (ghim); khac goc -> tab 'browser'. "Go Home" luon gui dung Home URL nen luon dua tab 'home' VE DUNG home_url,
  * ke ca khi tab do dang o mot trang con khac cua HA — dung yeu cau ban dau cua nut nay.
  */
@@ -1688,7 +1688,7 @@ async function handleSettings(dev: DeviceSession, tab: Tab, msg: any): Promise<v
 }
 
 /** (16/10/2026) Doi MOT cai dat cua man (muc addon "rwv.*" hoac thuc the HA cua thiet bi) — dung chung cho ung dung Cai
- *  dat tren man va trang Darboard → Màn hình (src/screenCtl.ts). */
+ *  dat tren man va trang Dashboard → Màn hình (src/screenCtl.ts). */
 async function applySetting(dev: DeviceSession, sid: string, v: unknown): Promise<{ ok: boolean; msg?: string }> {
   // (27/09/2026) Muc cua addon (id "rwv.*"): server tu luu, khong qua HA.
   if (sid.startsWith('rwv.')) {
@@ -1714,7 +1714,7 @@ async function applySetting(dev: DeviceSession, sid: string, v: unknown): Promis
         dev.processor.setTuning({ jpegQuality: q });
         dev.lastAppliedQuality = q;
         metrics.onAdaptiveChange(dev.deviceId, q, dev.tunedMinFrameIntervalMs ?? dev.cfg.minFrameInterval, 'nguoi dung dat');
-        console.log(`[quality] ${dev.deviceId}: dat q=${q} (trang Darboard)`);
+        console.log(`[quality] ${dev.deviceId}: dat q=${q} (trang Dashboard)`);
         // (27/10/2026) Ap dung NGAY cho duong screencast dang chay (truoc day chi doi processor -> khung van la q cu).
         const qTab = dev.tabs.get(dev.activeTabKey);
         if (qTab?.screencastOn) setScreencastQuality(dev, qTab, q, 'nguoi dung dat');
@@ -1847,7 +1847,7 @@ export function connectedScreens(): { id: string; w: number; h: number; cam: boo
 }
 
 /**
- * (13/10/2026) Trang Darboard (the IPTV): nut "phat tren man" — mo 1 URL tren cac man da chon.
+ * (13/10/2026) Trang Dashboard (the IPTV): nut "phat tren man" — mo 1 URL tren cac man da chon.
  * `urlOf(deviceId)` tra URL RIENG cho tung man (trang iptv.html can ?dev=<id> de nho kenh xem cuoi theo man).
  * Chi gui cho man DANG ket noi (khong co client thi navigateToUrl vo nghia). Tra ve danh sach man da gui.
  */
@@ -1867,21 +1867,21 @@ export function castUrlToDevices(ids: string[], urlOf: (deviceId: string) => str
 function iptvTabOf(dev: DeviceSession): Tab | undefined {
   return dev.tabs.get('iptv') ?? [...dev.tabs.values()].find((t) => t.kind === 'iptv' || /\/iptv\.html/.test(t.url));
 }
-/** (16/10/2026) Trang thai IPTV tung man cho trang Darboard → IPTV: mo?, dang hien?, dang phat? */
+/** (16/10/2026) Trang thai IPTV tung man cho trang Dashboard → IPTV: mo?, dang hien?, dang phat? */
 export function iptvStatus(deviceId: string): { open: boolean; active: boolean; playing: boolean } {
   const dev = devices.get(deviceId), t = dev && iptvTabOf(dev);
   if (!dev || !t) return { open: false, active: false, playing: false };
   return { open: true, active: dev.activeTabKey === t.key, playing: t.mediaPlaying };
 }
-/** (16/10/2026) Trang Darboard → IPTV: 'home' = ve man chinh (IPTV vao nen, ngung phat); 'stop' = ve man chinh + DONG tab IPTV. */
+/** (16/10/2026) Trang Dashboard → IPTV: 'home' = ve man chinh (IPTV vao nen, ngung phat); 'stop' = ve man chinh + DONG tab IPTV. */
 export async function iptvControl(deviceId: string, act: 'stop' | 'home'): Promise<boolean> {
   const dev = devices.get(deviceId);
   if (!dev) return false;
   const t = iptvTabOf(dev);
   if (!t) { if (act === 'home') await openApp(dev, 'home'); return act === 'home'; }
   if (dev.activeTabKey === t.key) await openApp(dev, 'home');
-  if (act === 'stop') closeTab(dev, t.key, 'dung IPTV tu trang Darboard');
-  console.log(`[iptv] ${deviceId}: ${act === 'stop' ? 'dung IPTV' : 've man chinh'} (trang Darboard)`);
+  if (act === 'stop') closeTab(dev, t.key, 'dung IPTV tu trang Dashboard');
+  console.log(`[iptv] ${deviceId}: ${act === 'stop' ? 'dung IPTV' : 've man chinh'} (trang Dashboard)`);
   return true;
 }
 
@@ -4290,11 +4290,11 @@ async function deleteDeviceAsync(device: DeviceSession) {
   console.log(`[device] Device ${device.deviceId} deleted [${devices.size}/${MAX_DEVICES} slots used]`);
 }
 
-// ── (16/10/2026) TRANG DARBOARD → "MÀN HÌNH": trang thai + dieu khien TUNG man tu xa (src/screenCtl.ts, public/screens.html) ──
+// ── (16/10/2026) TRANG DASHBOARD → "MÀN HÌNH": trang thai + dieu khien TUNG man tu xa (src/screenCtl.ts, public/screens.html) ──
 // Khong can cham man: do sang / am luong / Khong lam phien / man hinh cho-khoa / ung dung dang hien / trinh phat / thong bao /
 // moi cai dat (addon + thuc the HA cua thiet bi, dung chung applySetting voi ung dung Cai dat tren man).
 
-/** Tom tat 1 man (the rut gon tren trang chu Darboard + dau trang chi tiet). */
+/** Tom tat 1 man (the rut gon tren trang chu Dashboard + dau trang chi tiet). */
 function screenSummary(dev: DeviceSession) {
   const s = dev.devState, t = dev.tabs.get(dev.activeTabKey), nts = noticesOf(dev.deviceId);
   const recent = nts.list(50);
@@ -4381,7 +4381,7 @@ export async function screenShot(id: string): Promise<Buffer | null> {
 }
 
 /**
- * (21/10/2026) Cham/vuot tu trang Control (Darboard) — gui thang xuong tab Chromium cua man.
+ * (21/10/2026) Cham/vuot tu trang Control (Dashboard) — gui thang xuong tab Chromium cua man.
  * x,y theo khung hinh dang thay (pixel cua anh chup), cung he voi cfg.width/height khi rotation = 0.
  *
  * (23/10/2026) KHONG ap mapPointForRotation: anh xem truoc (control/frame = Page.captureScreenshot) la
@@ -4527,7 +4527,7 @@ async function pageHook(t: Tab, fn: string): Promise<boolean> {
   return r?.result?.value === true;
 }
 
-/** Lenh tu trang Darboard → Màn hình. null = da lam; chuoi = loi (tieng Viet, hien cho nguoi dung). */
+/** Lenh tu trang Dashboard → Màn hình. null = da lam; chuoi = loi (tieng Viet, hien cho nguoi dung). */
 export async function screenAct(id: string, b: any): Promise<string | null> {
   const dev = devices.get(id);
   if (!dev) return 'Server không biết màn hình này.';
@@ -4554,7 +4554,7 @@ export async function screenAct(id: string, b: any): Promise<string | null> {
       } else {
         broadcaster.sendDeviceControl(id, F[act], act === 'b' || act === 'v' ? v : (v ? 1 : 0));
       }
-      console.log(`${tag} ${act} = ${v} (trang Darboard)`);
+      console.log(`${tag} ${act} = ${v} (trang Dashboard)`);
       return null;
     }
     case 'snd': {
@@ -4571,7 +4571,7 @@ export async function screenAct(id: string, b: any): Promise<string | null> {
     // ── Man hinh ──
     case 'wake':
       dev.locked = false; setSaver(dev, false); dev.lastTouchMs = Date.now();
-      console.log(`${tag} mo man hinh (trang Darboard)`);
+      console.log(`${tag} mo man hinh (trang Dashboard)`);
       return null;
     case 'saver': case 'lock': {
       const t = dev.tabs.get(dev.activeTabKey);
@@ -4604,7 +4604,7 @@ export async function screenAct(id: string, b: any): Promise<string | null> {
       if (t.pinned) return 'Ứng dụng ghim (trang chủ) không đóng được.';
       await dev.tabOps.run(async () => {
         if (t.key === dev.activeTabKey) await openAppNow(dev, 'home');
-        closeTab(dev, t.key, 'dong tu trang Darboard');
+        closeTab(dev, t.key, 'dong tu trang Dashboard');
       });
       pushDeviceStateToPage(dev);
       return null;
@@ -4613,7 +4613,7 @@ export async function screenAct(id: string, b: any): Promise<string | null> {
       const t = tabOf(b.k);
       if (!t) return 'Không có trang để tải lại.';
       await t.session.send('Page.reload', { ignoreCache: false }).catch(() => { });
-      console.log(`${tag} tai lai tab "${t.key}" (trang Darboard)`);
+      console.log(`${tag} tai lai tab "${t.key}" (trang Dashboard)`);
       return null;
     }
     case 'url': {
@@ -4644,7 +4644,7 @@ export async function screenAct(id: string, b: any): Promise<string | null> {
           .catch(() => null) as { result?: { value?: unknown } } | null;
         if (r?.result?.value !== true) return 'Trang này không có trình phát điều khiển được.';
       } else return 'Lệnh không hợp lệ.';
-      console.log(`${tag} trinh phat "${t.key}": ${cmd} (trang Darboard)`);
+      console.log(`${tag} trinh phat "${t.key}": ${cmd} (trang Dashboard)`);
       return null;
     }
     // ── Thong bao ──

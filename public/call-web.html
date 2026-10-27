@@ -6,7 +6,7 @@
   Licensed under the Apache License, Version 2.0 (see LICENSE).
 -->
 <!--
-  (14/10/2026) TAB "GỌI" TRONG DARBOARD (trinh duyet, qua ingress HTTPS) — goi video toi man co camera + mic (P4), giao
+  (14/10/2026) TAB "GỌI" TRONG DASHBOARD (trinh duyet, qua ingress HTTPS) — goi video toi man co camera + mic (P4), giao
   dien kieu dien thoai chung voi man (call-ui.js / call-ui.css). Mot WS /calls/web: JSON dieu khien + nhi phan
   0x01 = tieng PCM s16le mono 16 kHz (hai chieu), 0x02 = hinh camera minh [key u8][ts u32le] + H.264 AVCC (WebCodecs).
   Hinh man: WS /call/video. Can HTTPS (camera / micro). Chi nhan cuoc goi den khi tab dang mo.
@@ -32,7 +32,7 @@
   .back b { font: 600 17px "Be Vietnam Pro", Roboto, sans-serif; color: #fff; }
   .call .lt { display: none; }
   .call[data-view="contacts"] ~ .back { display: inline-flex; }
-  /* danh ba (trang Darboard): chua cho nut Trang chu o tren */
+  /* danh ba (trang Dashboard): chua cho nut Trang chu o tren */
   .call .contacts { padding-top: 64px !important; }
   /* (14/10/2026) Cai dat chuong cong */
   .gear { position: fixed; z-index: 5; top: 12px; right: 16px; display: none; align-items: center; justify-content: center; gap: 8px; width: 40px; height: 40px; padding: 0; border-radius: 50% !important; border: none;
@@ -108,7 +108,7 @@
 (function () {
   'use strict';
   var BASE = location.pathname.replace(/[^/]*$/, '');
-  var NAME = /Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'Darboard · điện thoại' : 'Darboard · máy tính';
+  var NAME = /Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'Dashboard · điện thoại' : 'Dashboard · máy tính';
   var ws = null, me = '', call = '', peer = '', peerName = '', list = [], wantList = null;
   var media = null, actx = null, capNode = null, playNode = null, enc = null, vT = 0, vts = 0, forceKey = true, muted = false, camOff = false, ringT = 0;
 
@@ -142,7 +142,7 @@
   // ── Camera + micro ──
   function getMedia() {
     if (media) return Promise.resolve(media);
-    if (!navigator.mediaDevices) return Promise.reject(new Error('Cần mở Darboard qua HTTPS để dùng camera / micro.'));
+    if (!navigator.mediaDevices) return Promise.reject(new Error('Cần mở Dashboard qua HTTPS để dùng camera / micro.'));
     return navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 15 }, facingMode: 'user' } }).then(function (s) { media = s; return s; });
   }

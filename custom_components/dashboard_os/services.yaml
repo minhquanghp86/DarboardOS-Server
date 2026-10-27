@@ -1,6 +1,6 @@
 send:
-  name: DarboardOS
-  description: Gửi thông báo ưu tiên cao (mở khoá, bật đèn nền, phủ toàn màn hình) tới màn hình DarboardOS.
+  name: Dashboard OS
+  description: Gửi thông báo ưu tiên cao (mở khoá, bật đèn nền, phủ toàn màn hình) tới màn hình Dashboard OS.
   fields:
     message:
       name: Nội dung

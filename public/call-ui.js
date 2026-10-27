@@ -4,7 +4,7 @@
 // Licensed under the Apache License, Version 2.0 (see LICENSE).
 
 // (14/10/2026) GIAO DIEN CUOC GOI VIDEO kieu dien thoai — dung chung cho call.html (man P4, trong Chromium cua add-on) va
-// call-web.html (tab "Gọi" trong Darboard). Trang goi CallUI.mount(root, adapter):
+// call-web.html (tab "Gọi" trong Dashboard). Trang goi CallUI.mount(root, adapter):
 //   adapter = { self, base, contacts(): Promise<list>, start(to), accept(), decline(), hangup(), mute(on), cam(on),
 //               selfVideo(el?): gan hinh cua minh vao khung nho (man: WS /call/video; web: <video> getUserMedia) }
 //   va goi ui.set(state) moi khi trang thai doi: {view:'contacts'|'out'|'in'|'active'|'ended', call, peer, peerName,

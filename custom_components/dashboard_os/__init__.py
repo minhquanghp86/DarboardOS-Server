@@ -1,4 +1,4 @@
-"""DarboardOS: thong bao (text / anh / video / am thanh) toi cac man hinh."""
+"""Dashboard OS: thong bao (text / anh / video / am thanh) toi cac man hinh."""
 from __future__ import annotations
 
 import logging
@@ -22,7 +22,7 @@ UPDATE_INTERVAL = timedelta(seconds=30)
 
 
 class DashboardOSCoordinator(DataUpdateCoordinator[list[dict]]):
-    """Hoi add-on DarboardOS danh sach man hinh dang ket noi."""
+    """Hoi add-on Dashboard OS danh sach man hinh dang ket noi."""
 
     def __init__(self, hass: HomeAssistant, host: str) -> None:
         super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=UPDATE_INTERVAL)
@@ -40,7 +40,7 @@ class DashboardOSCoordinator(DataUpdateCoordinator[list[dict]]):
                 for item in raw
                 if item.get("id") and item.get("config")
             ]
-        raise UpdateFailed("DarboardOS khong tra danh sach man hinh")
+        raise UpdateFailed("Dashboard OS khong tra danh sach man hinh")
 
     async def _try_json(self, session, path: str, key: str):
         try:
@@ -69,8 +69,8 @@ def _sync_devices(hass: HomeAssistant, entry: ConfigEntry, screens: list[dict]) 
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, dev_id)},
             name=str(item.get("name") or dev_id),
-            manufacturer="DarboardOS",
-            model="Man hinh DarboardOS",
+            manufacturer="Dashboard OS",
+            model="Man hinh Dashboard OS",
         )
     for device in dr.async_entries_for_config_entry(registry, entry.entry_id):
         if not (device.identifiers & seen):

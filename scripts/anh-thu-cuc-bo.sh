@@ -19,7 +19,7 @@ tar czf "$TGZ" dist public package.json package-lock.json
 scp -q -i "$KEY" "$TGZ" "$HASS:/tmp/rwv-anh-thu.tgz"
 rm -f "$TGZ"
 ssh -i "$KEY" "$HASS" "set -e
-# (14/10/2026) Ma addon phu thuoc URL kho (doi kho = doi ma) -> tu tim addon Darboard dang chay.
+# (14/10/2026) Ma addon phu thuoc URL kho (doi kho = doi ma) -> tu tim addon Dashboard dang chay.
 SLUG=\$(ha apps --raw-json | python3 -c 'import json,sys;print([a[\"slug\"] for a in json.load(sys.stdin)[\"data\"][\"addons\"] if a[\"slug\"].endswith(\"_remote_webview_server\") and a.get(\"state\")==\"started\"][0])')
 V=\$(ha apps info \$SLUG --raw-json | python3 -c 'import json,sys;print(json.load(sys.stdin)[\"data\"][\"version\"])')
 docker pull -q $IMG:\$V >/dev/null

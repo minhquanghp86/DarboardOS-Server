@@ -6,7 +6,7 @@
 // (08/10/2026) WIDGET TREN MAN HINH KHOA / CHO: nang luong (mat troi, pin, tieu thu, luoi), lich 3 ngay toi, camera vua
 // phat hien (Frigate). Server chi gom SO LIEU THO; Shell (src/shell/main.ts) tu viet chu theo gio thiet bi ("Ngày mai",
 // "5 phút trước") va chi ve lai so lieu luc doi phut (moi khung doi la mot khung gui qua WiFi).
-// Cam bien nang luong: trang Darboard (ingress) -> tab "Màn khóa" luu /data/rwv-lock-widgets.json; chua luu -> lay theo
+// Cam bien nang luong: trang Dashboard (ingress) -> tab "Màn khóa" luu /data/rwv-lock-widgets.json; chua luu -> lay theo
 // trang Nang luong cua HA (HA >= 2025.12 co stat_rate = cam bien CONG SUAT; do that 08/10: cau hinh Nang luong cua nguoi
 // dung tro toi cam bien khong con ton tai -> phai chon tay).
 // Chi hoi HA / Frigate thuong xuyen khi co man hinh dang hien lop khoa / cho (deviceManager.screensaverTick); con lai 5 phut/lan
@@ -163,7 +163,7 @@ export function pickEvents(perCal: HaCalEvent[][], nowMs: number, tzMin: number,
   return out.sort((a, b) => a.s - b.s || Number(!!b.ad) - Number(!!a.ad)).slice(0, max);
 }
 async function fetchCalendar(tzMin: number): Promise<LwEvent[]> {
-  // (09/10/2026) Lich HA (neu co) + lich iCal (Google...) da dan trong trang Darboard — src/calendarSource.ts.
+  // (09/10/2026) Lich HA (neu co) + lich iCal (Google...) da dan trong trang Dashboard — src/calendarSource.ts.
   const now = Date.now();
   return pickEvents(await allCalendarEvents(now - 86_400_000, now + CAL_DAYS * 86_400_000) as HaCalEvent[][], now, tzMin);
 }
@@ -234,7 +234,7 @@ export function lockWidgetsFor(deviceId: string, want: LwWant, nowMs = Date.now(
   return Object.keys(out).length ? out : null;
 }
 
-// ── API cho trang Darboard (ingress): tab "Màn khóa" ────────────────────────────────────────────────────────────
+// ── API cho trang Dashboard (ingress): tab "Màn khóa" ────────────────────────────────────────────────────────────
 const INGRESS_IP = '172.30.32.2';
 function fromIngress(req: http.IncomingMessage): boolean {
   if (process.env.LAUNCHER_CONFIG_OPEN === '1') return true;
@@ -264,13 +264,13 @@ async function snapshot(): Promise<Record<string, unknown>> {
 /** GET/POST lockwidgets/config (duong dan trang KHONG co "/" dau — ingress them tien to). GET: ingress / 127.0.0.1; POST chi ingress. */
 export function handleLockWidgetsApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL): boolean {
   if (url.pathname !== '/lockwidgets/config') return false;
-  // Danh sach cam bien + so lieu nha nguoi dung: chi trang Darboard (ingress) hoac chinh may chu doc duoc, khong mo ca LAN.
+  // Danh sach cam bien + so lieu nha nguoi dung: chi trang Dashboard (ingress) hoac chinh may chu doc duoc, khong mo ca LAN.
   if (!fromIngress(req) && !/^(::ffff:)?127\.0\.0\.1$|^::1$/.test(req.socket.remoteAddress || '')) {
-    json(res, 403, { error: 'Chỉ mở được từ trang Darboard trong Home Assistant.' }); return true;
+    json(res, 403, { error: 'Chỉ mở được từ trang Dashboard trong Home Assistant.' }); return true;
   }
   if (req.method === 'GET') { snapshot().then((s) => json(res, 200, s)).catch((e: Error) => json(res, 500, { error: e.message })); return true; }
   if (req.method !== 'POST') { json(res, 405, { error: 'method' }); return true; }
-  if (!fromIngress(req)) { json(res, 403, { error: 'Chỉ lưu được từ trang Darboard trong Home Assistant.' }); return true; }
+  if (!fromIngress(req)) { json(res, 403, { error: 'Chỉ lưu được từ trang Dashboard trong Home Assistant.' }); return true; }
   let body = '';
   req.on('data', (c) => { body += c; if (body.length > 20_000) req.destroy(); });
   req.on('end', () => {

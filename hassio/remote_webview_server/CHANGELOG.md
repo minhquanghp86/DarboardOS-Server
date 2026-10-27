@@ -1,3 +1,12 @@
+## V2.9.268
+- **Đổi tên hiển thị: "Darboard" → "Dashboard"** (sửa lỗi chính tả). Áp dụng cho toàn bộ giao diện, tài liệu, log và
+  tên add-on: **"Dashboard OS Server"**, tiêu đề thanh bên **"Dashboard"**, tích hợp HA **"Dashboard OS"**.
+- **Giữ nguyên các định danh đang dùng thật** (đổi sẽ hỏng automation/thiết bị): slug add-on `remote_webview_server`,
+  image `ghcr.io/minhquanghp86/darboardos-server`, tên repo GitHub `DarboardOS-Server`, domain tích hợp
+  `dashboard_os`, các sự kiện HA `darboard_doorbell` / `darboard_chat_message`, `rest_command.darboard_hien_camera`,
+  `darboard_ring`, component ESPHome `darboard_door` và tên thực thể `…_ha_darboard_server`.
+- `TRADEMARKS.md` giữ nguyên (là tuyên bố nhãn hiệu, trích dẫn tên gốc).
+
 ## V2.9.267
 - **Nút "Màn hình chính" nay đóng "Gần đây"**: khi đang ở tab hệ thống, `goOsHome()` gọi `activateTab()` và hàm này
   return sớm (tab đã active) nên không gửi gì xuống Shell → lớp "Gần đây"/bảng điều khiển vẫn nằm trên màn.
@@ -26,11 +35,11 @@
 - Trang chọn màn có thêm khối **"Báo thức chung (mọi màn hình)"** để thấy ngay các báo thức đặt cho tất cả màn.
 
 ## V2.9.262
-- **Sửa bố cục trang Báo thức trên Darboard**: tên màn và dòng trạng thái bị chồng lên nhau (span inline) → nay
+- **Sửa bố cục trang Báo thức trên Dashboard**: tên màn và dòng trạng thái bị chồng lên nhau (span inline) → nay
   mỗi dòng một hàng, badge số báo thức không đè lên tên.
 
 ## V2.9.261
-- **Ứng dụng "Báo thức" trên Darboard** (`public/alarm-ctl.html`): có mặt trong lưới ứng dụng ở trang chủ.
+- **Ứng dụng "Báo thức" trên Dashboard** (`public/alarm-ctl.html`): có mặt trong lưới ứng dụng ở trang chủ.
   Bước 1 chọn màn hình → mở đúng trình Báo thức của màn đó (`alarm.html?dev=<id>`), báo thức mới mặc định reo
   trên màn vừa chọn. Thẻ mỗi màn hiện số báo thức đang bật và giờ reo kế tiếp.
 - Dùng chung dữ liệu với ứng dụng Báo thức trên các màn hình (`/data/rwv-alarms.json`), nên thêm/sửa/xoá ở đâu
@@ -72,7 +81,7 @@
   cho khung ~18 KB như nhau. Nay:
   - `effectiveJpegQuality()` = `qualityOverride ?? cfg.jpegQuality`, dùng cho cả khung tĩnh lẫn video;
   - ngưỡng passthrough hạ 128 KB → **64 KB** (panel nhỏ vẫn đủ);
-  - đổi chất lượng trong Darboard UI áp **ngay** vào screencast đang chạy (không cần tải lại trang).
+  - đổi chất lượng trong Dashboard UI áp **ngay** vào screencast đang chạy (không cần tải lại trang).
 
 ## V2.9.252
 - **Panel nhỏ: chặn trần nhịp khung 100 ms (≥10 fps).** Đo thực tế: decode chỉ 55 ms nhưng bộ điều chỉnh ghim nhịp
@@ -302,7 +311,7 @@
 ## V2.9.210
 - **Điều khiển: mở cổng trực tiếp 18080** (LAN/Tailscale). Nguyên nhân gốc: qua HA ingress, WebSocket bị đóng
   sau vài khung, MJPEG bị đệm → trang phải polling liên tục và **bị 429**. Mở thẳng cổng thì WS chạy ~18 fps.
-  - Add-on công bố `18080/tcp` ra host; nút **Điều khiển** trên Darboard tự mở `http://<ip-ha>:18080/control.html?dev=…`.
+  - Add-on công bố `18080/tcp` ra host; nút **Điều khiển** trên Dashboard tự mở `http://<ip-ha>:18080/control.html?dev=…`.
   - API control + screens cho phép nguồn từ mạng nội bộ (10/172.16-31/192.168).
 - Điều khiển khi vẫn qua ingress: giãn nhịp polling và **tự lùi khi gặp 429** (tối đa 3 s) thay vì dồn dập.
 
@@ -315,7 +324,7 @@
 
 ## V2.9.208
 - **Khoảng giờ ban đêm cấu hình được, theo TỪNG màn hình**: màn hình chờ trong khoảng này chỉ hiện đồng hồ,
-  không hiện ảnh (mặc định 22:00 → 06:00 như trước, giờ địa phương của thiết bị). Có ở cả **Darboard → cài đặt
+  không hiện ảnh (mặc định 22:00 → 06:00 như trước, giờ địa phương của thiết bị). Có ở cả **Dashboard → cài đặt
   từng màn** (nhóm *Hình nền & Khung ảnh*) và **ứng dụng Cài đặt trên chính màn hình**.
   - "Đêm: tắt ảnh từ" / "Đêm: tắt ảnh đến" (0–23 giờ, vắt qua nửa đêm được), chọn **"Cả ngày (tắt đêm)"** để luôn có ảnh.
 - Sửa: mục *Chất lượng hình ảnh* thiếu nhóm trong ứng dụng Cài đặt kiểu iOS (nay nằm ở *Màn hình & Độ sáng → Hình ảnh*).
@@ -348,12 +357,12 @@
   thích nghi (server tự cân theo băng thông và thời gian giải mã).
 
 ## V2.9.202
-- Darboard → **Cài đặt từng màn hình**: thêm nhóm **"Chất lượng hình ảnh"** ở trên cùng (trước "Màn hình & Độ sáng"),
+- Dashboard → **Cài đặt từng màn hình**: thêm nhóm **"Chất lượng hình ảnh"** ở trên cùng (trước "Màn hình & Độ sáng"),
   chọn 20–90%. Đổi là áp dụng **ngay** phía server (không nối lại WebSocket, không tải lại trang), lưu vào
   `rwv-panel-prefs.json` nên nhớ sau khi khởi động lại. Khi người dùng đặt mức, bộ điều tiết tự động *không* ghi đè.
 
 ## V2.9.201
-- Darboard → Trang chủ: thẻ rút gọn mỗi màn có thêm nút **Điều khiển** (icon màn hình, góc phải) — mở thẳng
+- Dashboard → Trang chủ: thẻ rút gọn mỗi màn có thêm nút **Điều khiển** (icon màn hình, góc phải) — mở thẳng
   tab điều khiển của màn đó, không cần vào trang Màn hình.
 
 ## V2.9.200
@@ -372,13 +381,13 @@
   để không phải vuốt từ mép (trùng cử chỉ vuốt của điện thoại). Khung hình thu nhỏ chừa lề, không chạm mép.
 
 ## V2.9.197
-- Darboard → Màn hình: thêm nút **"Điều khiển"** trong thẻ *Thao tác nhanh*. Mở tab điều khiển riêng:
+- Dashboard → Màn hình: thêm nút **"Điều khiển"** trong thẻ *Thao tác nhanh*. Mở tab điều khiển riêng:
   xem màn hình liên tục (~5 fps, thay cho ảnh xem trước 4 giây) và **chạm / vuốt / kéo-thả** trực tiếp
   lên khung hình — thao tác được gửi xuống đúng tab Chromium của màn hình. Kèm nút "Màn hình chính",
   "Đánh thức", "Tải lại", "Tạm dừng". Bản đầu cho ESP32-P4, các màn khác dùng cùng một trang theo `?dev=`.
 
 ## V2.9.196
-- Darboard → IPTV: thêm nút **"Mặc định"** cạnh "Tải lại kênh" (bấm 2 lần để xác nhận) — khôi phục 5 danh sách
+- Dashboard → IPTV: thêm nút **"Mặc định"** cạnh "Tải lại kênh" (bấm 2 lần để xác nhận) — khôi phục 5 danh sách
   mặc định + 8 kênh yêu thích. Trước đó nút này chỉ có trong app IPTV trên panel.
 
 ## V2.9.195
@@ -430,9 +439,9 @@
 - Đồng bộ `package.json` / `package-lock.json` = 2.9.187.
 
 ## V2.9.186
-- **Đổi tên hiển thị** add-on và kho: "Remote WebView Server" → **"DarboardOS Server"** (slug `remote_webview_server` giữ nguyên,
+- **Đổi tên hiển thị** add-on và kho: "Remote WebView Server" → **"Dashboard OS Server"** (slug `remote_webview_server` giữ nguyên,
   dữ liệu add-on không đổi). Kho GitHub mới: `minhquanghp86/DarboardOS-Server`
-  (kho cũ `HA-Darboard-Server` đã ngừng dùng).
+  (kho cũ `HA-Dashboard-Server` đã ngừng dùng).
 - Đồng bộ `package.json` / `package-lock.json` = 2.9.186.
 
 ## V2.9.185
@@ -450,10 +459,10 @@
 - Đồng bộ phiên bản: `package.json` / `package-lock.json` lên **2.9.185** (trước đó lệch ở 2.9.175 làm đỏ `src/version.test.ts`).
 - Rà soát lại tài liệu (README.md, DOCS.md): phiên bản + tag firmware, tên/mặc định ứng dụng trong menu, bảng giao thức
   WebSocket (thêm `MicFrame` loại 13), bảng tuỳ chọn add-on, bảng cổng (56790 là TCP), tham số kết nối, danh sách tệp
-  `/data`, `NET_HALF_HOLD_MS` (60 s), vị trí chuông cổng (trang chủ Darboard), số lượng test.
+  `/data`, `NET_HALF_HOLD_MS` (60 s), vị trí chuông cổng (trang chủ Dashboard), số lượng test.
 
 ## V2.9.175
-- **Chuông cửa hiện ở TRANG CHÍNH Darboard** (sửa lại vị trí của 2.9.174 — KHÔNG đặt trong app "Màn hình"):
+- **Chuông cửa hiện ở TRANG CHÍNH Dashboard** (sửa lại vị trí của 2.9.174 — KHÔNG đặt trong app "Màn hình"):
   - Dòng tổng thành "**N màn hình đang kết nối & M Chuông cửa.**"; phần chuông chỉ xuất hiện khi hệ thống **đã từng** có chuông.
   - Thẻ chuông nằm cùng các thẻ màn, lưới **2 cột** (3 màn + 1 chuông = 2 hàng, căn đều, vừa màn hình).
   - Chuông **đã từng kết nối** vẫn hiện thẻ khi đang offline (lưu id/tên/IP vào `/data/rwv-door.json`, khoá `known`).
@@ -461,7 +470,7 @@
   - Bỏ thẻ chuông khỏi trang "Màn hình" (đã thêm nhầm ở 2.9.174); `GET /screens/list` vẫn trả `doors` để trang chủ dùng.
 
 ## V2.9.174
-- **Darboard → "Màn hình": chuông cổng là một thiết bị của hệ thống** (hiển thị cùng các màn): `GET /screens/list` trả thêm
+- **Dashboard → "Màn hình": chuông cổng là một thiết bị của hệ thống** (hiển thị cùng các màn): `GET /screens/list` trả thêm
   `doors`; trang hiện thẻ chuông với **ID để chép** (`esp32-<MAC>` — dùng cho automation Home Assistant), IP, cổng
   MJPEG/ảnh, có mic/loa hay không, các màn được đổ chuông, trạng thái (trực tuyến / đang đổ chuông / đang nói chuyện),
   thống kê **nhật ký 30 ngày** (nhỡ / đã nghe / từ chối) + lần bấm gần nhất, **xem trước trực tiếp** (dùng chung một kết
@@ -499,7 +508,7 @@
 
 ## V2.9.169
 - Mới: **thông báo Telegram** — chuông cổng nhỡ, chuông cổng bị từ chối, mỗi lần bấm chuông (kèm ảnh khách) và cuộc gọi video nhỡ, có
-  thời gian + tên chuông / người gọi. Add-on gửi thẳng Telegram Bot API (không cần tích hợp Telegram của HA). Cài trong Darboard → Gọi → ⚙:
+  thời gian + tên chuông / người gọi. Add-on gửi thẳng Telegram Bot API (không cần tích hợp Telegram của HA). Cài trong Dashboard → Gọi → ⚙:
   token bot, chat ID (nút **Tìm chat ID**), chọn sự kiện, **Gửi thử**. Token không trả về trang, không ghi log; lỗi tạm thời thử lại.
 
 ## V2.9.168
@@ -519,7 +528,7 @@
   (`screens.itest.ts`). Nay toàn bộ bài tích hợp đạt.
 
 ## V2.9.165
-- Màn hình / trang chủ Darboard: mọi màn đang hiện màn hình chờ đều ghi **"Màn hình chờ"**; việc có khóa hay không là thông tin
+- Màn hình / trang chủ Dashboard: mọi màn đang hiện màn hình chờ đều ghi **"Màn hình chờ"**; việc có khóa hay không là thông tin
   phụ riêng ("Có khóa · vuốt lên để mở" / "Không khóa · chạm để mở"). Trước đây màn bật "Khóa màn hình" hiện "Đã khóa" còn màn tắt
   hiện "Màn hình chờ" dù cả hai đang ở cùng một màn hình chờ.
 
@@ -527,11 +536,11 @@
 - Giấy phép (không đổi chức năng): giữ Apache-2.0 + MIT nhưng siết chặt — mọi file mã nguồn có tiêu đề SPDX (kiểm bằng
   `npm run check:spdx`); ảnh Docker kèm `LICENSE`, `NOTICE`, `THIRD-PARTY-NOTICES.md` trong `/licenses` và nhãn giấy phép;
   `NOTICE` viết lại đầy đủ; thêm `THIRD-PARTY-NOTICES.md` (22 thư viện kèm toàn văn giấy phép, sinh bằng `npm run licenses`),
-  `TRADEMARKS.md` (tên / logo "Darboard" không cấp phép cho bản fork), `CONTRIBUTING.md`.
+  `TRADEMARKS.md` (tên / logo "Dashboard" không cấp phép cho bản fork), `CONTRIBUTING.md`.
 - Ghi rõ **âm lịch** (`public/lunar.js`, thuật toán của Hồ Ngọc Đức) chỉ được dùng **cá nhân, phi thương mại**, không thuộc Apache-2.0.
 
 ## V2.9.163
-- Màn hình / trang chủ Darboard: màn không lắp pin (P4) hiện **Cắm nguồn · không lắp pin** (trước đây không hiện gì về
+- Màn hình / trang chủ Dashboard: màn không lắp pin (P4) hiện **Cắm nguồn · không lắp pin** (trước đây không hiện gì về
   nguồn); màn có pin hiện thêm trạng thái "sạc" / "cắm nguồn" cạnh %.
 
 ## V2.9.162
@@ -539,12 +548,12 @@
   nhầm làm đổi màn người khác đang dùng.
 
 ## V2.9.161
-- Mới: ứng dụng **Màn hình** trên trang Darboard — điều khiển và cài đặt từng màn từ xa, không cần chạm vào màn. Ảnh màn
+- Mới: ứng dụng **Màn hình** trên trang Dashboard — điều khiển và cài đặt từng màn từ xa, không cần chạm vào màn. Ảnh màn
   đang hiển thị; 5 nhóm Tổng quan / Điều khiển / Ứng dụng / Thông báo / Cài đặt: trạng thái (mạng, pin, độ sáng, âm lượng,
   ứng dụng, thông báo, cuộc gọi nhỡ, có người), đánh thức / màn hình chờ / khóa / về màn chính / về HA / tải lại / khởi động
   lại, độ sáng, âm lượng phát / thông báo / báo thức, Không làm phiền, trình phát (phát, tạm dừng, ±10 s, kênh trước / sau,
   dừng — cả ứng dụng phát nền), mở / đóng ứng dụng, mở trang web, gửi thông báo, đọc to, mọi cài đặt của màn.
-- Trang chủ Darboard: thẻ rút gọn từng màn ở đầu trang (chạm để mở chi tiết).
+- Trang chủ Dashboard: thẻ rút gọn từng màn ở đầu trang (chạm để mở chi tiết).
 - Cài đặt chuông cổng: thời gian đổ chuông chọn nhanh 5/10/20/30/50/70/90/100 s hoặc nhập số giây (5–300); mở khóa cổng
   chọn nhanh hoặc nhập (1–120 s).
 - Radio: điều khiển từ xa phát tiếp kênh cuối, chuyển kênh trước / sau; tên kênh hiện ở trình phát.
@@ -557,17 +566,17 @@
   hẹp: ngày giờ và nhãn không gãy dòng.
 
 ## V2.9.159
-- Chuông cổng (trang Darboard): "‹ Trang chủ" + biểu tượng + tên nằm trên hàng tiêu đề như các mục khác (trước nổi đè lên
+- Chuông cổng (trang Dashboard): "‹ Trang chủ" + biểu tượng + tên nằm trên hàng tiêu đề như các mục khác (trước nổi đè lên
   tiêu đề và lên tiêu đề ảnh đang xem); ảnh thu nhỏ có thêm ngày / tháng ("16/10 07:10").
 - Gọi: thanh trên "‹ Trang chủ" + biểu tượng + "Cuộc gọi"; nút cài đặt chuông cổng thành biểu tượng bánh răng.
 
 ## V2.9.158
-- IPTV (trang Darboard): hàng thẻ trạng thái từng màn hình ở đầu trang — Đang phát (kênh gì) / Đang mở / IPTV chạy nền /
+- IPTV (trang Dashboard): hàng thẻ trạng thái từng màn hình ở đầu trang — Đang phát (kênh gì) / Đang mở / IPTV chạy nền /
   Không phát — kèm nút **Dừng** (đóng IPTV trên màn, về màn chính) và **Màn chính** (IPTV vào nền). Tự làm mới 3 s. Trước:
   phát lên màn rồi không dừng được từ trang này.
 
 ## V2.9.157
-- Trang Darboard — thiết kế lại, giai đoạn 2:
+- Trang Dashboard — thiết kế lại, giai đoạn 2:
   - Màn khóa: ô "Xem trước màn khóa" (6 chỉ số đúng như trên màn, số liệu trực tiếp); cảm biến năng lượng thành danh sách gọn
     theo đúng thứ tự 6 chỉ số (biểu tượng, tên cảm biến, giá trị) — bấm một dòng để đổi cảm biến.
   - Menu ứng dụng: ô "Xem trước menu trên màn" (lưới biểu tượng theo nhóm, chỉ ứng dụng đang bật; bấm để sửa); nút Sửa thành
@@ -577,12 +586,12 @@
 - Menu ứng dụng không tải được: hiện lý do.
 
 ## V2.9.156
-- Trang Darboard (thanh bên Home Assistant) — THIẾT KẾ LẠI, giai đoạn 1:
+- Trang Dashboard (thanh bên Home Assistant) — THIẾT KẾ LẠI, giai đoạn 1:
   - Trang chủ dạng biểu tượng ứng dụng như điện thoại (Tin nhắn có huy hiệu số tin chưa đọc, IPTV, Quản lý file, Màn khóa,
     Chuông cổng, Gọi, Menu ứng dụng) + danh sách màn hình đang kết nối. Mỗi ứng dụng có nút "‹ Trang chủ" ở thanh trên.
   - IPTV: ô tìm kênh luôn ở trên; chip Yêu thích / Gần đây / Tất cả / từng danh sách + chọn nhóm; lưới thẻ kênh (logo, ngôi
     sao yêu thích); chạm thẻ = chọn màn để phát hoặc "Xem trong trình duyệt". Quản lý danh sách M3U chỉ mở khi bấm
-    "Danh sách kênh". Mới: "Gần đây" — kênh phát từ Darboard và kênh xem trên màn.
+    "Danh sách kênh". Mới: "Gần đây" — kênh phát từ Dashboard và kênh xem trên màn.
 - Quản lý file: chỉ liệt kê màn ĐANG có thẻ nhớ (trước: cả màn đã rút thẻ); màn đang xem vừa rút thẻ thì tự chuyển sang màn
   còn thẻ; chỉ một màn thì ghi tên màn cạnh "Thẻ SD".
 
@@ -612,7 +621,7 @@
 ## V2.9.151
 - Màn hình chờ / khoá: dải năng lượng nay có 6 chỉ số, xếp lưới 3 × 2 — PV hôm nay · Công suất PV · Tải hôm nay · Tiêu thụ
   lưới · Tiêu thụ tải · Pin % (đang sạc / xả bao nhiêu). Thiếu cảm biến nào thì bỏ ô đó.
-- Trang Darboard → Màn khoá: thêm ô chọn cảm biến "Điện tải hôm nay" (kWh, tự về 0 lúc nửa đêm — vd Hòa lưới hôm nay).
+- Trang Dashboard → Màn khoá: thêm ô chọn cảm biến "Điện tải hôm nay" (kWh, tự về 0 lúc nửa đêm — vd Hòa lưới hôm nay).
 - Màn ngang có thẻ "Cuộc gọi nhỡ": đồng hồ nhỏ lại để không bị cắt mép trên (P4).
 
 ## V2.9.150
@@ -626,7 +635,7 @@
 
 ## V2.9.149
 - Sửa: giờ của tệp trên thẻ nhớ lệch +7 giờ (vd tệp chép lúc 18:02 hiện "Thứ sáu 16/10 01:02") ở Thư viện / Tệp trên màn
-  và Quản lý file trên trang Darboard. Firmware trả giờ của tệp theo giờ địa phương; trang trước đây đổi múi giờ thêm một
+  và Quản lý file trên trang Dashboard. Firmware trả giờ của tệp theo giờ địa phương; trang trước đây đổi múi giờ thêm một
   lần. Ảnh/video quay bằng Camera P4 không bị (giờ lấy từ tên tệp). Đã thử với thẻ nhớ trên S3 480×480.
 
 ## V2.9.148
@@ -642,7 +651,7 @@
   tệp đang xem đã bị xoá thì đóng trình xem. Đã thử trên P4.
 
 ## V2.9.146
-- Sửa: Thư viện để trình xem video mở, rồi tệp bị xoá (ở trang Darboard hoặc nơi khác) — mở lại ứng dụng thấy video báo
+- Sửa: Thư viện để trình xem video mở, rồi tệp bị xoá (ở trang Dashboard hoặc nơi khác) — mở lại ứng dụng thấy video báo
   lỗi "Format error" và đứng im. Nay khi mở lại, Thư viện đọc lại thẻ: tệp không còn thì đóng trình xem, về lưới và báo
   "Tệp đã bị xoá".
 - Firmware mới nhất: **fw-2026.10.19** (P4: thêm ~18 KB RAM trong, đáy RAM khi quay 14–22 KB → 36 KB).
@@ -653,7 +662,7 @@
   đóng băng đúng (trước: video vẫn chạy).
 
 ## V2.9.144
-- Xoá thư mục trên thẻ nhớ (Quản lý file trên trang Darboard, ứng dụng Tệp trên màn): gửi xác nhận `dir=1` sau khi người
+- Xoá thư mục trên thẻ nhớ (Quản lý file trên trang Dashboard, ứng dụng Tệp trên màn): gửi xác nhận `dir=1` sau khi người
   dùng đã đồng ý — firmware **fw-2026.10.17** trở lên từ chối xoá thư mục nếu thiếu xác nhận (chốt an toàn chống xoá nhầm
   cả thư mục). Firmware cũ bỏ qua tham số này.
 
@@ -673,9 +682,9 @@
     `media/audio/chuong-cua.mp3`), màn hình chuông kiểu màn chuông hình chuyên dụng: hình cổng trực tiếp, **Nói chuyện**
     (tiếng hai chiều), **Mở khóa cổng** (chạm 2 lần), Chụp ảnh, Từ chối. Hiện đè lên màn khóa, khóa lại sau chuông.
     Không ai nghe → thông báo "Cuộc gọi nhỡ ở cổng" kèm ảnh. Sự kiện HA `darboard_doorbell`.
-  - **Nhật ký chuông cổng** (ứng dụng "Chuông cổng" + tab trong Darboard): ảnh mỗi lần bấm chuông, Nhỡ / Đã nghe /
+  - **Nhật ký chuông cổng** (ứng dụng "Chuông cổng" + tab trong Dashboard): ảnh mỗi lần bấm chuông, Nhỡ / Đã nghe /
     Từ chối / Ảnh chụp, giữ 30 ngày, chọn + xóa; chạm thông báo gọi nhỡ mở đúng ảnh.
-  - **Gọi video kiểu điện thoại** giữa các màn có camera + mic và tab **"Gọi"** trong Darboard (trình duyệt, HTTPS):
+  - **Gọi video kiểu điện thoại** giữa các màn có camera + mic và tab **"Gọi"** trong Dashboard (trình duyệt, HTTPS):
     cuộc gọi đến đè lên màn khóa (nhạc chuông `media/audio/zalo.mp3`), tắt mic / camera, máy bận, gọi nhỡ.
   - Cài đặt chuông cổng trong tab "Gọi": màn đổ chuông, thời gian đổ chuông, thời gian mở cổng.
   - Luồng camera P4 dùng chung cho Frigate + cuộc gọi (một kết nối tới P4); mọi luồng qua WebSocket (dùng được qua
@@ -719,7 +728,7 @@
 - Đi kèm firmware fw-2026.10.15: **quay video 10 fps** (trước 5 fps) — cảm biến chỉ tăng nhịp khi đang quay.
 
 ## V2.9.135
-- **Sửa: phát IPTV lên màn (thẻ IPTV trang Darboard) có lúc đứng hình rồi màn tự khoá** — server đang "đóng băng" tab IPTV
+- **Sửa: phát IPTV lên màn (thẻ IPTV trang Dashboard) có lúc đứng hình rồi màn tự khoá** — server đang "đóng băng" tab IPTV
   ở nền đúng lúc tab được đưa lên hiển thị, nên video bị dừng. Nay mỗi bước đóng băng kiểm lại; tab vừa hiện thì huỷ
   đóng băng và phát lại. Đo S3: 4/4 lần phát lại đều chạy (trước: 2/3 lượt đứng hình).
 - Trợ giúp YouTube có giới hạn thời gian + không chồng lượt (tab YouTube treo không còn dồn lời gọi).
@@ -731,12 +740,12 @@
 - **Trang hệ thống của panel dùng đường dẫn tương đối theo `location`** — `ui.css` / `ui.js` / `icons.js` / `lunar.js` và mọi
   lời gọi máy chủ (`/api/...`, `/ha/...`, `/frigate/...`, `/alarm/...`, `/cam.html`, `/go2rtc/`, …) nay tự gắn gốc của trang
   (`ui.js` bọc `window.fetch` + thêm hàm `window.rwvRel`; `camera.html`, `cam.html`, `doorbell.html` tự gắn gốc). Nhờ vậy mở
-  các trang này trong tab Trình duyệt từ trang Darboard (đường dẫn ingress `/api/hassio_ingress/<token>/`) không còn
+  các trang này trong tab Trình duyệt từ trang Dashboard (đường dẫn ingress `/api/hassio_ingress/<token>/`) không còn
   **trắng trang / không tải được dữ liệu** — cùng họ lỗi đã sửa cho `iptv.html` ở 2.9.133. Trên panel (gốc `/`) hành vi
   không đổi; đã kiểm chứng trên máy thật (S3 480×480: trang Tệp hiển thị đúng thẻ SD + dữ liệu).
 
 ## V2.9.133
-- **Thẻ IPTV (trang Darboard) có danh sách kênh + 2 nút cho mỗi kênh** (trước đây thẻ chỉ quản lý danh sách M3U):
+- **Thẻ IPTV (trang Dashboard) có danh sách kênh + 2 nút cho mỗi kênh** (trước đây thẻ chỉ quản lý danh sách M3U):
   - **Phát trên màn hình** (icon *cast*): hiện danh sách màn đang kết nối để chọn **một màn** hoặc **Tất cả màn hình** →
     máy chủ tự mở ứng dụng IPTV của màn đó và phát kênh (`iptv.html?dev=<id>&play=<kênh>`), log
     `[iptv] phat "<kênh>" tren N man: …`. Màn không kết nối thì báo rõ, không gửi.
@@ -744,9 +753,9 @@
   - Thêm ô **chọn danh sách** + **ô tìm kênh**; hiện 200 kênh mỗi lần, có nút “Hiện thêm”.
 - Trang phát `iptv.html` nay dùng **đường dẫn tương đối theo `location`** (`ui.css`, `ui.js`, `icons.js`, mọi API `/iptv/...`,
   thư viện `/vendor/...`) và **đoạn phim trong playlist HLS được viết lại thành tương đối** (`p?...`) — nhờ vậy trang phát
-  chạy được cả khi mở trong tab Trình duyệt từ trang Darboard (đường dẫn ingress `/api/hassio_ingress/<token>/`). Trước đây
+  chạy được cả khi mở trong tab Trình duyệt từ trang Dashboard (đường dẫn ingress `/api/hassio_ingress/<token>/`). Trước đây
   mở ở tab mới thì trắng trang, hoặc kẹt ở “Đang mở …” với kênh HLS.
-- Proxy luồng `/iptv/p` và `/iptv/probe` nay chấp nhận cả **trang Darboard (ingress — đã xác thực Home Assistant)**, vẫn
+- Proxy luồng `/iptv/p` và `/iptv/probe` nay chấp nhận cả **trang Dashboard (ingress — đã xác thực Home Assistant)**, vẫn
   **bắt buộc mã phiên**, để nút “Phát trong trình duyệt” xem được cả kênh cần header Referer/User-Agent.
 
 ## V2.9.132
@@ -767,7 +776,7 @@
 - Thư viện: thẻ không có thư mục `/DCIM` thì xem ảnh / video ở gốc thẻ.
 
 ## V2.9.128
-- **Quản lý file (trang Darboard) chọn được màn hình:** nhà có từ 2 màn có thẻ nhớ thì đầu thẻ Quản lý file có ô chọn
+- **Quản lý file (trang Dashboard) chọn được màn hình:** nhà có từ 2 màn có thẻ nhớ thì đầu thẻ Quản lý file có ô chọn
   màn; xem / tải lên / đổi tên / xoá đều làm trên thẻ của màn đã chọn. Màn đã chọn đang tắt thì báo rõ, không ghi nhầm
   sang thẻ màn khác. Danh sách “Tải lên” ghi tên màn đích.
 - **IPTV:** hộp “Chọn trên thẻ nhớ…” cũng chọn được màn; danh sách trên thẻ màn khác lưu dạng `sd@<màn>:/…`
@@ -787,7 +796,7 @@
   của bạn" / điểm khởi hành dùng được. Ứng dụng Google Maps mở giao diện đầy đủ (có nút Đường đi), căn giữa nhà, lớp giao thông.
 
 ## V2.9.125
-- **Sửa địa chỉ ứng dụng web có sẵn** trong Darboard → Menu panel (ô "Địa chỉ web"): YouTube, Tin tức, Solar… Để trống =
+- **Sửa địa chỉ ứng dụng web có sẵn** trong Dashboard → Menu panel (ô "Địa chỉ web"): YouTube, Tin tức, Solar… Để trống =
   mặc định; "Khôi phục mặc định" bỏ địa chỉ riêng. Trang hệ thống của add-on và Home Assistant (ô riêng) không đổi.
 - **Solar** là ứng dụng chung, địa chỉ mặc định trống — chưa nhập thì mở trang hướng dẫn.
 - **Sửa lỗi:** cấu hình Menu panel (ứng dụng ẩn, thứ tự, ứng dụng tự thêm, tên / biểu tượng đã sửa, bố cục màn hình
@@ -796,7 +805,7 @@
 ## V2.9.124
 ### Dùng được ở nhà khác (không còn gắn với hệ thống của tác giả)
 - **Lịch không phụ thuộc Home Assistant:** màn hình khóa và trang "Hôm nay" lấy lịch của HA (nếu có) và **lịch Google /
-  tệp .ics** — dán "Địa chỉ bí mật ở định dạng iCal" trong trang Darboard → Màn khóa → Lịch (sự kiện lặp lại, múi giờ).
+  tệp .ics** — dán "Địa chỉ bí mật ở định dạng iCal" trong trang Dashboard → Màn khóa → Lịch (sự kiện lặp lại, múi giờ).
 - **Camera không cần mở cổng go2rtc 1984:** các trang camera, lưới Frigate, ảnh trong thông báo đi qua add-on (`/go2rtc/`),
   add-on tự tìm go2rtc của Frigate. Ứng dụng Camera tự nhận luồng của chính màn hình (không gắn tên `p4_panel`).
 - Ẩn ứng dụng "Frigate" / "Sự kiện camera" khi nhà không có Frigate. Bản đồ không còn gắn một vị trí cố định.
@@ -827,7 +836,7 @@
 ### Mật khẩu luồng camera (P4)
 - Cài đặt → Camera & Phát hiện → **Mật khẩu luồng camera**: bật / tắt, tên đăng nhập, đổi mật khẩu ngay trên màn hình
   (cần firmware fw-2026.10.07). Áp dụng cho luồng `:8080/live` và ứng dụng Camera / thẻ nhớ; máy chủ Home Assistant
-  (Darboard, Frigate cài trên HA) không cần mật khẩu.
+  (Dashboard, Frigate cài trên HA) không cần mật khẩu.
 
 ### Sửa lỗi
 - **Vuốt từ mép**: gói "nhấc tay" của firmware mang toạ độ (0,0) nên vuốt mép phải / từ dưới lên (màn xoay 180°) và mép
@@ -839,7 +848,7 @@
 ### Đổi Wi-Fi ngay trên màn hình
 - Cài đặt → Wi-Fi & Mạng kiểu iPhone: mạng đang dùng (vạch sóng, dấu ✓), danh sách mạng xung quanh (tự quét khi mở
   trang, không làm rớt mạng), "Mạng khác…" cho mạng ẩn, trang nhập mật khẩu (bàn phím ảo, "Hiện mật khẩu").
-- An toàn: màn hình thử mạng mới trong ~40 giây; không vào được, hoặc vào được nhưng không thấy máy chủ Darboard, thì tự
+- An toàn: màn hình thử mạng mới trong ~40 giây; không vào được, hoặc vào được nhưng không thấy máy chủ Dashboard, thì tự
   quay lại mạng đang dùng. Mạng mới chỉ được lưu khi đã chạy được; mất điện giữa chừng thì khởi động lại vẫn ở mạng cũ.
 - Thông tin đầy đủ: tên mạng, BSSID, IP, MAC, DNS, cường độ sóng; Chẩn đoán thêm thời gian chạy; Giới thiệu thêm tên
   ESPHome.
@@ -866,7 +875,7 @@
   tới** (lịch tự sinh mỗi ngày như âm lịch được bỏ qua) và **lần camera phát hiện gần nhất** trong 1 giờ (đang diễn ra thì
   hiện đỏ; camera của chính panel được bỏ qua).
 - Bật / tắt từng loại trên mỗi panel: Cài đặt → Màn hình khóa. Không có số liệu thì widget tự ẩn.
-- Chọn cảm biến năng lượng ở trang Darboard → thẻ mới **Màn khóa** (gợi ý cảm biến, xem giá trị ngay, đảo dấu pin / lưới).
+- Chọn cảm biến năng lượng ở trang Dashboard → thẻ mới **Màn khóa** (gợi ý cảm biến, xem giá trị ngay, đảo dấu pin / lưới).
   Chưa chọn thì lấy theo trang Năng lượng của Home Assistant.
 - Số liệu vẽ lại cùng lúc đổi phút (không tốn thêm khung hình); màn vuông và khi có ảnh nền thì gọn hơn.
 
@@ -910,7 +919,7 @@
 - Menu → Giải trí → **IPTV**: xem kênh từ danh sách M3U của bạn. Kênh xếp theo nhóm, tìm theo tên (không cần gõ dấu),
   kênh yêu thích (☆), "Xem tiếp" kênh cuối. Đang xem: chạm hiện thông tin kênh, **vuốt lên / xuống** để đổi kênh.
 - **Quản lý danh sách ngay trong ứng dụng** (nút danh sách ở góc trên, như app IPTV thật): thêm bằng **đường link** hoặc
-  **tệp .m3u trên thẻ nhớ**, bật / tắt, sửa, xoá, cập nhật. Cũng làm được ở trang **Darboard → IPTV** trong Home Assistant.
+  **tệp .m3u trên thẻ nhớ**, bật / tắt, sửa, xoá, cập nhật. Cũng làm được ở trang **Dashboard → IPTV** trong Home Assistant.
 - Phát được HLS (m3u8), MPEG-TS / FLV qua HTTP, mp4, **DASH và kênh mã hoá ClearKey** (TV360, VTVPrime… trong các danh
   sách VN); dùng được User-Agent / Referer riêng của từng kênh. Không phát được: DRM Widevine / PlayReady.
 - Máy chủ chuyển tiếp luồng (không vướng CORS); rời ứng dụng là ngắt luồng, quay lại thì phát tiếp kênh đang xem.
@@ -965,9 +974,9 @@
 - Khôi phục từ bản sao lưu: lần đầu mở mỗi trang tải chậm hơn một chút (tải lại từ mạng), sau đó như bình thường.
 
 ## V2.9.104
-### Quản lý file (thẻ SD của P4) trên trang Darboard
+### Quản lý file (thẻ SD của P4) trên trang Dashboard
 
-- Thẻ mới **Quản lý file** trên trang Darboard (thanh bên Home Assistant): duyệt thẻ SD của màn hình có camera (P4),
+- Thẻ mới **Quản lý file** trên trang Dashboard (thanh bên Home Assistant): duyệt thẻ SD của màn hình có camera (P4),
   xem ảnh / phát video ngay trên trang, **tải về**, **tải lên** (từ điện thoại / máy tính), **đổi tên**, **tạo thư mục**,
   **xoá** (chọn nhiều), thanh dung lượng. Dùng được cả khi ở ngoài nhà (qua đăng nhập HA).
 - **Tải về dạng MP4**: video quay là .mkv (iPhone không phát được) — máy chủ chép nguyên hình, đổi tiếng sang AAC
@@ -1063,9 +1072,9 @@
   Màn không loa (S3) hiện tin nhưng không phát.
 
 ## V2.9.94
-### Tin nhắn nội bộ, Thư viện + Tệp (thẻ SD của P4), trang thanh bên "Darboard"
+### Tin nhắn nội bộ, Thư viện + Tệp (thẻ SD của P4), trang thanh bên "Dashboard"
 
-- **Tin nhắn** (mọi màn hình): nhắn qua lại giữa trang **Darboard** trên thanh bên Home Assistant và các panel — chữ, ảnh,
+- **Tin nhắn** (mọi màn hình): nhắn qua lại giữa trang **Dashboard** trên thanh bên Home Assistant và các panel — chữ, ảnh,
   video. Mỗi cuộc trò chuyện gồm Home Assistant + các màn hình đã chọn (hoặc "Mọi màn hình"). Trên panel: danh sách
   cuộc trò chuyện, tạo mới / xoá (giữ ngón tay hoặc nút thùng rác), trang nhắn tin kiểu điện thoại, trả lời nhanh;
   màn có camera (P4) gửi được ảnh chụp ngay hoặc ảnh/video từ thẻ SD. Tin mới: màn hình sáng lên + thẻ thông báo,
@@ -1079,7 +1088,7 @@
   thẻ, mở thanh kéo xuống (thông báo thường), đọc cuộc trò chuyện trong Tin nhắn (tin nhắn). Màn khác chưa xem vẫn còn
   chuông. Chạm "tin nhắn" trên màn hình chờ mở thẳng Tin nhắn. Biểu tượng Tin nhắn có huy hiệu số tin chưa đọc. Nhiều
   tin cùng cuộc trò chuyện gộp một thông báo ("3 tin mới · …"). Thông báo + trạng thái đã xem lưu qua cập nhật addon.
-- **Trang thanh bên** đổi tên "Menu panel" -> **Darboard**, hai thẻ: *Tin nhắn* (mặc định) và *Menu ứng dụng* (như cũ).
+- **Trang thanh bên** đổi tên "Menu panel" -> **Dashboard**, hai thẻ: *Tin nhắn* (mặc định) và *Menu ứng dụng* (như cũ).
   Gửi ảnh/video bằng nút ghim, kéo thả hoặc dán; ảnh tự thu nhỏ (≤ 2048 px), video ≤ 200 MB tải lên từng đoạn có tiến độ.
 - **Thư viện** (P4): ảnh/video trong DCIM theo ngày, lọc Ảnh/Video, xem ảnh (vuốt, chạm đúp phóng to), trình phát video
   (tua, ±10 s), chọn nhiều để xoá. Nút thư viện trong ứng dụng Camera mở thẳng vào đây.
@@ -1404,7 +1413,7 @@
 - Giao thức **DIAL** (SSDP UDP 1900 + HTTP cổng `dial_port`, mặc định 56790) — không phải Chromecast (Google khoá bằng
   chứng chỉ phần cứng), nên chỉ YouTube dùng được.
 - **Cài đặt → Màn hình**: **Nhận truyền YouTube** (bật/tắt riêng từng màn hình) và **Tên khi truyền** (mặc định
-  "Darboard" + 4 ký tự cuối mã màn hình).
+  "Dashboard" + 4 ký tự cuối mã màn hình).
 - Ứng dụng mới **YouTube TV** (nhóm Giải trí): mở tay để *Liên kết với mã TV* khi điện thoại không tự thấy màn hình.
 - Tuỳ chọn addon mới: `cast_enabled`, `dial_port`. Server chỉ nhận các tham số an toàn từ điện thoại (mã ghép nối…),
   không cho máy lạ trong LAN điều hướng màn hình tới trang tuỳ ý.

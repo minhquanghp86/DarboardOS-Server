@@ -1,4 +1,4 @@
-"""Cau hinh qua giao dien: dia chi add-on DarboardOS."""
+"""Cau hinh qua giao dien: dia chi add-on Dashboard OS."""
 from __future__ import annotations
 
 import voluptuous as vol
@@ -26,7 +26,7 @@ class DashboardOSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_NAME, default="DarboardOS"): str,
+                    vol.Required(CONF_NAME, default="Dashboard OS"): str,
                     vol.Required(CONF_HOST, default=DEFAULT_HOST): str,
                 }
             ),

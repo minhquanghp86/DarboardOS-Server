@@ -4,8 +4,8 @@
 // Licensed under the Apache License, Version 2.0 (see LICENSE).
 
 /**
- * (16/10/2026) TRANG DARBOARD → "MÀN HÌNH" (public/screens.html + dai the rut gon tren trang chu launcher-config.html):
- * xem va dieu khien TUNG man hinh tu xa, khong can cham man. Chi trang Darboard (ingress HA, da xac thuc) hoac chinh may
+ * (16/10/2026) TRANG DASHBOARD → "MÀN HÌNH" (public/screens.html + dai the rut gon tren trang chu launcher-config.html):
+ * xem va dieu khien TUNG man hinh tu xa, khong can cham man. Chi trang Dashboard (ingress HA, da xac thuc) hoac chinh may
  * chu (127.0.0.1) goi duoc. Logic nam o deviceManager (screen* / applySetting) — file nay chi la lop HTTP.
  *
  *   GET  /screens/list               -> { screens: [tom tat + ten] }
@@ -50,7 +50,7 @@ function readJson(req: http.IncomingMessage, max: number): Promise<any> {
 export function handleScreenCtlApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL): boolean {
   const p = url.pathname;
   if (!p.startsWith('/screens/')) return false;
-  if (!isLocal(req) && !fromIngress(req) && !isLan(req)) { json(res, 403, { ok: false, error: 'Chỉ dùng được từ trang Darboard.' }); return true; }
+  if (!isLocal(req) && !fromIngress(req) && !isLan(req)) { json(res, 403, { ok: false, error: 'Chỉ dùng được từ trang Dashboard.' }); return true; }
   const id = url.searchParams.get('id') || '';
   const named = <T extends { id: string }>(s: T) => ({ ...s, name: nameOf(s.id) || s.id });
   if (p === '/screens/dbg' && req.method === 'GET') {
