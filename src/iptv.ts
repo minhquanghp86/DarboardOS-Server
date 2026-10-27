@@ -594,10 +594,11 @@ async function probe(target: string, h: Record<string, string>): Promise<{ kind:
 function isLocal(req: http.IncomingMessage): boolean { return /^(::ffff:)?127\.0\.0\.1$|^::1$/.test(req.socket.remoteAddress || ''); }
 function fromIngress(req: http.IncomingMessage): boolean {
   if (process.env.LAUNCHER_CONFIG_OPEN === '1') return true;
-  // (27/10/2026) Cho ca dai supervisor 172.30.32.0/24: HA core goi tu 172.30.32.1, add-on khac tu .2/.3...
-  // Truoc day chi dung .2 nen tich hop HA (cast IPTV) bi tu choi.
+  // (27/10/2026) Add-on chay host_network: HA core goi toi bang IP LAN cua may HA (vd 192.168.10.2),
+  // add-on khac bang 172.30.32.x. Truoc day chi nhan 172.30.32.2 nen tich hop HA (cast IPTV) bi 403.
   const ip = (req.socket.remoteAddress || '').replace(/^::ffff:/, '');
-  return ip === '172.30.32.2' || /^172\.30\.32\.\d{1,3}$/.test(ip);
+  if (ip === '172.30.32.2' || /^172\.30\.32\.\d{1,3}$/.test(ip)) return true;
+  return /^10\./.test(ip) || /^192\.168\./.test(ip) || /^172\.(1[6-9]|2\d|3[01])\./.test(ip);
 }
 function json(res: http.ServerResponse, code: number, body: unknown): void {
   res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });

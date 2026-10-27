@@ -1,3 +1,8 @@
+## V2.9.270
+- **Sửa quyền `/iptv/*` cho tích hợp HA**: add-on chạy `host_network` nên HA core gọi tới bằng IP LAN của máy HA
+  (vd `192.168.10.2`), không phải `172.30.32.x` → trước đó bị 403. Nay cho cả LAN/Tailscale như các API khác
+  (`/screens/*`, `/alarm/*`).
+
 ## V2.9.269
 - **IPTV cast gọi được từ tích hợp HA**: `/iptv/*` trước chỉ cho `172.30.32.2` (ingress), nay cho cả dải
   supervisor `172.30.32.0/24` — HA core gọi từ `172.30.32.1` nên trước đó bị 403 khi dùng `dashboard_os.cast_iptv`.
