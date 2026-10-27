@@ -1,3 +1,12 @@
+## V2.9.266
+- **Sửa lỗi "hình bị co nhỏ" sau khi bấm Gần đây rồi Màn hình chính.** Ảnh thu nhỏ cho thẻ "Gần đây" trước đây chụp bằng
+  `Page.captureScreenshot({clip:{..., scale: 320/width}})`; trên Chromium headless lệnh này làm surface/screencast
+  lệch kích thước, các khung sau đó ra đúng cỡ thumbnail (320×188 với màn 1024×600 — tỉ lệ 0,3125) nên panel vẽ
+  ảnh nhỏ vào góc khung đầy. Chỉ xảy ra khi lệnh chụp chen đúng nhịp screencast → **thỉnh thoảng**, ở mọi màn.
+  Nay: thu nhỏ **từ khung vừa gửi** bằng sharp, không dùng CDP; nếu chưa có khung thì chụp toàn khung (không clip).
+- **Lưới an toàn:** khung screencast có kích thước < 75% màn hình (khi không ở chế độ nửa phân giải) bị bỏ qua,
+  tự khôi phục viewport và xin khung đầy đủ.
+
 ## V2.9.265
 - Thêm `GET /screens/dbg?id=<man>` (LAN): trả viewport THẬT của tab đang hiện (`innerWidth/innerHeight`, DPR, zoom,
   kích thước `<html>`, URL) để chẩn đoán lỗi hình bị co nhỏ.

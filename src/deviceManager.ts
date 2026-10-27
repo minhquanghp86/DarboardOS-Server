@@ -66,6 +66,10 @@ export type DeviceSession = {
   selfTestRunner: SelfTestRunner;
 
   pendingB64?: string;
+  /** (27/10/2026) Khung JPEG gan nhat da nhan (dung lam thumbnail 'Gan day', tranh chup CDP). */
+  lastFrameB64?: string;
+  /** (27/10/2026) Lan cuoi phat hien khung screencast sai kich thuoc -> khoi phuc viewport. */
+  vpFixAt?: number;
   throttleTimer?: NodeJS.Timeout;
   lastProcessedMs?: number;
   /** (17/09/2026) han che tan suat log canh bao ap luc nguoc */
@@ -2303,12 +2307,24 @@ function closeIdleTabs(dev: DeviceSession, now: number): void {
  * sap roi man hinh (activateTab) — luc do trang con dang dung dung trang thai nguoi dung vua thay. Toi da 1,5 s.
  */
 async function captureThumb(dev: DeviceSession, tab: Tab): Promise<void> {
-  const scale = Math.min(1, 320 / dev.cfg.width);
+  // (27/10/2026) FIX 'hinh bi co nho sau khi bam Gan day': truoc day chup bang
+  //   Page.captureScreenshot({ clip:{..., scale: 320/width} })
+  // Tren Chromium headless, captureScreenshot co clip.scale lam surface/screencast lech kich thuoc: cac khung
+  // screencast sau do ra dung 320x188 (dung bang ti le 320/1024) va panel ve anh nho vao goc trai khung day.
+  // Thinh thoai moi bi (tuy luc capture chen vao nhip screencast) — dung khop voi bao cao "thinh thoang".
+  // Nay: thu nho TU KHUNG VUA GUI bang sharp (khong dung CDP), chi khi khong co khung moi dung captureScreenshot
+  // TOAN KHUNG (khong clip/scale) — dung cach the dieu khien van lam moi 55 ms ma khong gay loi.
+  try {
+    if (dev.lastFrameB64) {
+      const b = await sharp(Buffer.from(dev.lastFrameB64, 'base64'))
+        .resize(320, null, { withoutEnlargement: true }).jpeg({ quality: 60 }).toBuffer();
+      tab.thumb = 'data:image/jpeg;base64,' + b.toString('base64');
+      return;
+    }
+  } catch { /* roi ve cach cu */ }
   try {
     const r = await Promise.race([
-      tab.session.send('Page.captureScreenshot', {
-        format: 'jpeg', quality: 60, clip: { x: 0, y: 0, width: dev.cfg.width, height: dev.cfg.height, scale },
-      }) as Promise<{ data: string }>,
+      tab.session.send('Page.captureScreenshot', { format: 'jpeg', quality: 60 }) as Promise<{ data: string }>,
       new Promise<never>((_, rej) => setTimeout(() => rej(new Error('het gio')), 1500)),
     ]);
     if (r?.data) tab.thumb = 'data:image/jpeg;base64,' + r.data;
@@ -2865,6 +2881,21 @@ async function createTab(dev: DeviceSession, key: string, kind: string, pinned: 
     if (dev.activeTabKey !== key) return;
     if (broadcaster.getClientCount(dev.deviceId) === 0) return;
     dev.lastActive = Date.now();
+    // (27/10/2026) LUOI AN TOAN: khung screencast nho hon han man hinh (vd 320x188 sau mot lan capture co clip.scale)
+    // -> KHONG gui khung do; khoi phuc viewport va xin khung day du. Chi ap khi khong o che do nua do phan giai.
+    const md = (evt.metadata || {}) as { width?: number; height?: number };
+    if (!dev.halfOn && !dev.cfg.rotation && md.width && md.height
+        && (md.width < dev.cfg.width * 0.75 || md.height < dev.cfg.height * 0.75)) {
+      const t = Date.now();
+      if (!dev.vpFixAt || t - dev.vpFixAt > 3000) {
+        dev.vpFixAt = t;
+        console.warn(`[frame] ${dev.deviceId}: khung ${md.width}x${md.height} < ${dev.cfg.width}x${dev.cfg.height} -> khoi phuc viewport`);
+        setupStableViewport(session, dev.cfg.width, dev.cfg.height).catch(() => { });
+        requestFullFrameFor(dev);
+      }
+      return;
+    }
+    dev.lastFrameB64 = evt.data;
     dev.pendingB64 = evt.data;
     const now = Date.now();
     const since = dev.lastProcessedMs ? (now - dev.lastProcessedMs) : Infinity;
