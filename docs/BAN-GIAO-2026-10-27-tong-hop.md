@@ -170,3 +170,35 @@ Bảng màn: P4 `esp32-80f1b2d35fb5` (.200) · 480×272 `esp32-1cdbd49b2260` (.1
   select không xuất hiện vì chỉ tạo khi rotation đã có → tạo cho mọi màn + cache giá trị.
 - **Lưu ý**: `notify.send_message` của HA 2026.10 **không nhận** `data` (400) → muốn `priority`/media thì dùng
   `dashboard_os.send`.
+
+---
+
+## I. Cuối ngày 27/10 — đổi tên, HACS, sự cố đã xử lý
+
+### Đã hoàn tất
+| Việc | Kết quả |
+|---|---|
+| Sự kiện HA | `dashboard_doorbell`, `dashboard_chat_message` (add-on 2.9.271+) |
+| Tên thực thể | 5/5 thiết bị dùng `…_ha_dashboard_server` (OTA cả 4 panel + chuông cổng `.207`) |
+| Blueprints | 6 file trong `blueprints/automation/dashboard/`, dùng `dashboard_os.*` |
+| `rest_command` | đã xoá `panel_notify` + `hien_camera` (giữ `reload`, `youtube_play_on_go2rtc`, `yt_search`) |
+| Repo | `DashboardOS-Server` / `DashboardOS-Client` (remote đã đổi, link trong metadata cập nhật) |
+| Image GHCR | `ghcr.io/minhquanghp86/dashboardos-server` — add-on **2.9.272** đang chạy image này |
+| README | viết lại cho người dùng cuối (177 dòng) |
+| HACS | thêm `hacs.json` + `info.md`, release **v1.9.0** |
+
+### Sự cố trong ngày (ghi để phiên sau tránh)
+1. **CI đỏ** ở commit `895d822`: `error writing layer blob: not_found` — lỗi cache buildx sau khi đổi tên repo.
+   Chạy lại với commit mới là xong, **không phải lỗi code**.
+2. **`configuration.yaml` bị xoá quá nhiều** khi dùng regex để bỏ 2 khối `rest_command` (210 → 81 dòng) → cả 8
+   automation thành `unavailable`. Đã khôi phục từ `configuration.yaml.bak-rename` rồi cắt đúng 21 dòng.
+   → **Quy tắc: sửa `configuration.yaml` của HA phải cắt theo SỐ DÒNG đã xác định, không dùng regex nhiều dòng.**
+3. `notify.send_message` của HA 2026.10 **không nhận** `data` → dùng `dashboard_os.send` khi cần priority/media.
+
+### Việc còn mở
+1. **HACS yêu cầu repo PUBLIC** — repo đang private nên HACS Custom repositories sẽ báo lỗi. Chọn một trong:
+   (a) chuyển repo Integration sang public; (b) tách riêng repo `dashboard_os` (public) chỉ chứa `custom_components/`;
+   (c) tiếp tục cài tay vào `/config/custom_components/`.
+2. Repo hiện chứa cả add-on + integration; nếu muốn vào **HACS Store mặc định** thì nên tách repo riêng và gửi PR
+   tới `hacs/default` (cần repo public, release semver, brand icon).
+3. Automation cũ (nếu còn) dùng `event_type`/`rest_command` cũ cần sửa — đã quét `automations.yaml`, hiện sạch.
