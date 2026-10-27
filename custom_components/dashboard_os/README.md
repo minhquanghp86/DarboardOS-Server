@@ -25,7 +25,7 @@ target:
   device_id: bec48a5c7ee6e67f028a4fb37e2af01e   # màn 480x272
 ```
 
-## Danh sách hành động (18)
+## Danh sách hành động (24)
 
 ### Thông báo
 | Hành động | Trường |
@@ -56,6 +56,18 @@ target:
 | `dashboard_os.set_screensaver` | `enabled`* | Màn hình chờ (bật = hiện, tắt = đánh thức) |
 | `dashboard_os.set_setting` | `setting`* (`rwv.*` hoặc entity_id), `value`* | Đổi cài đặt bất kỳ |
 | `dashboard_os.say` | `message`* | Đọc TTS trên loa của màn |
+
+### Báo thức
+| Hành động | Trường | Việc |
+|---|---|---|
+| `dashboard_os.alarm_create` | `time`*, `days`, `label`, `snooze`, `enabled` | Tạo báo thức cho màn chọn (bỏ trống target = mọi màn), **trả** báo thức vừa tạo |
+| `dashboard_os.alarm_list` | — | **Trả** danh sách báo thức + giờ reo kế tiếp |
+| `dashboard_os.alarm_delete` | `alarm_id` **hoặc** `time` + `label` | Xoá báo thức, trả danh sách id đã xoá |
+| `dashboard_os.alarm_set_enabled` | `alarm_id`*, `enabled`* | Bật/tắt |
+| `dashboard_os.alarm_stop` | `alarm_id`* | Tắt chuông đang reo |
+| `dashboard_os.alarm_snooze` | `alarm_id`* | Báo lại theo số phút đã đặt |
+
+`days`: 0 = Chủ nhật … 6 = Thứ bảy; bỏ trống = báo một lần.
 
 \* = bắt buộc
 
@@ -99,6 +111,20 @@ action:
       data: { photo: "{{ shot.screenshots[0].path }}" }
 ```
 
+Đặt báo thức 06:30 hằng ngày cho màn 480×272:
+
+```yaml
+action:
+  - action: dashboard_os.alarm_create
+    target: { device_id: bec48a5c7ee6e67f028a4fb37e2af01e }
+    data:
+      time: "06:30"
+      days: [1, 2, 3, 4, 5]
+      label: "Dậy đi học"
+      snooze: 10
+    response_variable: tao
+```
+
 Đọc thông báo bằng giọng nói:
 
 ```yaml
@@ -116,5 +142,6 @@ action:
 
 ## Lịch sử
 
+- **1.5.0** (27/10/2026): 6 hành động báo thức (GĐ 3), test thật 7/7.
 - **1.4.0** (27/10/2026): 17 hành động mới (GĐ 1+2), tách `api.py` dùng chung; đổi tên hiển thị sang **Dashboard OS**.
 - **1.2.0**: `send` + entity notify.

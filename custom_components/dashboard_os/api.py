@@ -177,6 +177,33 @@ class DarboardApi:
     async def shot(self, device: str) -> bytes:
         return await self._request("GET", f"/screens/shot?id={device}", raw=True, timeout=SHOT_TIMEOUT)
 
+    # ── Báo thức ────────────────────────────────────────────────────────────
+    async def alarms(self, device: str | None = None) -> dict:
+        """Danh sách báo thức + giờ reo kế tiếp + thông tin màn hình."""
+        path = "/alarm/list" + (f"?dev={device}" if device else "")
+        payload = await self._request("GET", path)
+        return payload if isinstance(payload, dict) else {"alarms": []}
+
+    async def alarm_save(self, alarm: dict) -> dict:
+        payload = await self._request("POST", "/alarm/save", json=alarm)
+        return payload if isinstance(payload, dict) else {}
+
+    async def alarm_delete(self, alarm_id: str) -> bool:
+        payload = await self._request("POST", "/alarm/del", json={"id": alarm_id})
+        return bool((payload or {}).get("ok")) if isinstance(payload, dict) else True
+
+    async def alarm_toggle(self, alarm_id: str, enabled: bool) -> bool:
+        payload = await self._request("POST", f"/alarm/toggle?id={alarm_id}&on={1 if enabled else 0}", json={})
+        return bool((payload or {}).get("ok")) if isinstance(payload, dict) else True
+
+    async def alarm_stop(self, alarm_id: str) -> bool:
+        payload = await self._request("POST", f"/alarm/stop?id={alarm_id}", json={})
+        return bool((payload or {}).get("ok")) if isinstance(payload, dict) else False
+
+    async def alarm_snooze(self, alarm_id: str) -> bool:
+        payload = await self._request("POST", f"/alarm/snooze?id={alarm_id}", json={})
+        return bool((payload or {}).get("ok")) if isinstance(payload, dict) else False
+
     async def info(self, device: str) -> dict:
         payload = await self._request("GET", f"/screens/info?id={device}")
         screen = payload.get("screen") if isinstance(payload, dict) else None

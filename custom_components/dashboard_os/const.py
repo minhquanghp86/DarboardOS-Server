@@ -26,3 +26,11 @@ SERVICE_SET_NO_SLEEP = "set_no_sleep"
 SERVICE_SET_SCREENSAVER = "set_screensaver"
 SERVICE_SET_SETTING = "set_setting"
 SERVICE_SAY = "say"
+
+# (27/10/2026) GĐ 3 — báo thức
+SERVICE_ALARM_CREATE = "alarm_create"
+SERVICE_ALARM_DELETE = "alarm_delete"
+SERVICE_ALARM_LIST = "alarm_list"
+SERVICE_ALARM_SET_ENABLED = "alarm_set_enabled"
+SERVICE_ALARM_STOP = "alarm_stop"
+SERVICE_ALARM_SNOOZE = "alarm_snooze"

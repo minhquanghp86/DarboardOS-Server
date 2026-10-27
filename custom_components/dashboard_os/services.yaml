@@ -301,3 +301,112 @@ say:
       selector:
         text:
           multiline: true
+
+alarm_create:
+  name: Tạo báo thức
+  description: Tạo báo thức trên màn hình chọn (hoặc mọi màn). Trả về báo thức vừa tạo.
+  target:
+    device:
+      integration: dashboard_os
+  fields:
+    time:
+      name: Giờ
+      description: "Định dạng HH:MM (00:00–23:59)."
+      required: true
+      example: "06:30"
+      selector:
+        text:
+    days:
+      name: Lặp lại
+      description: "0 = Chủ nhật … 6 = Thứ bảy. Bỏ trống = báo một lần."
+      selector:
+        select:
+          multiple: true
+          options:
+            - "0"
+            - "1"
+            - "2"
+            - "3"
+            - "4"
+            - "5"
+            - "6"
+    label:
+      name: Nhãn
+      selector:
+        text:
+    snooze:
+      name: Báo lại (phút)
+      default: 10
+      selector:
+        select:
+          options: ["5", "10", "15", "20", "30"]
+    enabled:
+      name: Bật
+      default: true
+      selector:
+        boolean:
+
+alarm_list:
+  name: Danh sách báo thức
+  description: Trả về danh sách báo thức (kèm giờ reo kế tiếp) của màn hình chọn.
+  target:
+    device:
+      integration: dashboard_os
+
+alarm_delete:
+  name: Xoá báo thức
+  description: Xoá theo `alarm_id`, hoặc theo `time`/`label` (xoá mọi báo thức khớp).
+  target:
+    device:
+      integration: dashboard_os
+  fields:
+    alarm_id:
+      name: ID báo thức
+      selector:
+        text:
+    time:
+      name: Giờ
+      example: "06:30"
+      selector:
+        text:
+    label:
+      name: Nhãn
+      selector:
+        text:
+
+alarm_set_enabled:
+  name: Bật/tắt báo thức
+  target:
+    device:
+      integration: dashboard_os
+  fields:
+    alarm_id:
+      name: ID báo thức
+      required: true
+      selector:
+        text:
+    enabled:
+      name: Bật
+      required: true
+      selector:
+        boolean:
+
+alarm_stop:
+  name: Tắt chuông báo thức
+  description: Dừng báo thức đang reo trên mọi màn.
+  fields:
+    alarm_id:
+      name: ID báo thức
+      required: true
+      selector:
+        text:
+
+alarm_snooze:
+  name: Báo lại
+  description: Báo lại sau số phút đã đặt cho báo thức đang reo.
+  fields:
+    alarm_id:
+      name: ID báo thức
+      required: true
+      selector:
+        text:

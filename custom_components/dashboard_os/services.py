@@ -20,6 +20,12 @@ from homeassistant.helpers import config_validation as cv
 from .api import DarboardApi, apply_to_targets
 from .const import (
     DOMAIN,
+    SERVICE_ALARM_CREATE,
+    SERVICE_ALARM_DELETE,
+    SERVICE_ALARM_LIST,
+    SERVICE_ALARM_SET_ENABLED,
+    SERVICE_ALARM_SNOOZE,
+    SERVICE_ALARM_STOP,
     SERVICE_CLOSE_APP,
     SERVICE_LOCK,
     SERVICE_NAV,
@@ -73,6 +79,30 @@ SCHEMA_SETTING = vol.Schema(
     {vol.Required("setting"): cv.string, vol.Required("value"): vol.Any(str, int, float, bool), **SCHEMA_TARGET}
 )
 SCHEMA_SAY = vol.Schema({vol.Required("message"): cv.string, **SCHEMA_TARGET})
+TIME_RE = r"^([01]\d|2[0-3]):([0-5]\d)$"
+SCHEMA_ALARM_CREATE = vol.Schema(
+    {
+        vol.Required("time"): vol.All(cv.string, vol.Match(TIME_RE, msg="Giờ phải dạng HH:MM (00:00–23:59).")),
+        vol.Optional("days"): vol.All(cv.ensure_list, [vol.All(vol.Coerce(int), vol.Range(min=0, max=6))]),
+        vol.Optional("label", default=""): cv.string,
+        vol.Optional("snooze", default=10): vol.All(vol.Coerce(int), vol.In([5, 10, 15, 20, 30])),
+        vol.Optional("enabled", default=True): cv.boolean,
+        **SCHEMA_TARGET,
+    }
+)
+SCHEMA_ALARM_DELETE = vol.Schema(
+    {
+        vol.Optional("alarm_id"): cv.string,
+        vol.Optional("time"): cv.string,
+        vol.Optional("label"): cv.string,
+        **SCHEMA_TARGET,
+    }
+)
+SCHEMA_ALARM_ENABLED = vol.Schema(
+    {vol.Required("alarm_id"): cv.string, vol.Required("enabled"): cv.boolean}
+)
+SCHEMA_ALARM_ID = vol.Schema({vol.Required("alarm_id"): cv.string})
+SCHEMA_ALARM_LIST = vol.Schema({**SCHEMA_TARGET})
 
 
 def _base(hass: HomeAssistant) -> str | None:
@@ -271,6 +301,73 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
         await _with_api(hass, dict(call.data), run)
 
+    # ── GĐ 3: báo thức ───────────────────────────────────────────────────────
+    async def _alarm_devices(data: dict) -> Any:
+        """Chọn màn reo: 'all' khi không chỉ định, ngược lại danh sách id esp32-…"""
+        api = DarboardApi(hass, _base(hass) or "")
+        targets = await api.resolve(dict(data))
+        if targets == ["all"]:
+            return "all"
+        return targets
+
+    async def handle_alarm_create(call: ServiceCall) -> dict[str, Any]:
+        api = DarboardApi(hass, _base(hass) or "")
+        devices = await _alarm_devices(dict(call.data))
+        alarm = {
+            "time": str(call.data["time"]),
+            "days": list(call.data.get("days") or []),
+            "label": str(call.data.get("label") or ""),
+            "snooze": int(call.data.get("snooze") or 10),
+            "enabled": bool(call.data.get("enabled", True)),
+            "devices": devices,
+        }
+        res = await api.alarm_save(alarm)
+        created = res.get("alarm") if isinstance(res, dict) else None
+        return {"alarm": created}
+
+    async def handle_alarm_list(call: ServiceCall) -> dict[str, Any]:
+        api = DarboardApi(hass, _base(hass) or "")
+        targets = await api.resolve(dict(call.data))
+        dev = None if targets == ["all"] else targets[0]
+        data = await api.alarms(dev)
+        return data
+
+    async def handle_alarm_delete(call: ServiceCall) -> dict[str, Any]:
+        api = DarboardApi(hass, _base(hass) or "")
+        alarm_id = call.data.get("alarm_id")
+        removed: list[str] = []
+        if alarm_id:
+            await api.alarm_delete(str(alarm_id))
+            removed.append(str(alarm_id))
+        else:
+            want_time = call.data.get("time")
+            want_label = (call.data.get("label") or "").strip().lower()
+            if not want_time and not want_label:
+                raise HomeAssistantError("Cần `alarm_id`, hoặc `time`/`label` để chọn báo thức.")
+            data = await api.alarms()
+            for alarm in data.get("alarms") or []:
+                if want_time and alarm.get("time") != want_time:
+                    continue
+                if want_label and str(alarm.get("label") or "").strip().lower() != want_label:
+                    continue
+                await api.alarm_delete(str(alarm["id"]))
+                removed.append(str(alarm["id"]))
+        return {"removed": removed}
+
+    async def handle_alarm_set_enabled(call: ServiceCall) -> None:
+        api = DarboardApi(hass, _base(hass) or "")
+        await api.alarm_toggle(str(call.data["alarm_id"]), bool(call.data["enabled"]))
+
+    async def handle_alarm_stop(call: ServiceCall) -> None:
+        api = DarboardApi(hass, _base(hass) or "")
+        if not await api.alarm_stop(str(call.data["alarm_id"])):
+            raise HomeAssistantError("Báo thức này hiện không reo (hoặc không tồn tại).")
+
+    async def handle_alarm_snooze(call: ServiceCall) -> None:
+        api = DarboardApi(hass, _base(hass) or "")
+        if not await api.alarm_snooze(str(call.data["alarm_id"])):
+            raise HomeAssistantError("Báo thức này hiện không reo (hoặc không tồn tại).")
+
     registrations: list[tuple[str, Any, Any]] = [
         (SERVICE_OPEN_APP, handle_open_app, SCHEMA_OPEN_APP),
         (SERVICE_OPEN_URL, handle_open_url, SCHEMA_OPEN_URL),
@@ -289,13 +386,19 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         (SERVICE_SET_SCREENSAVER, handle_screensaver, SCHEMA_BOOL),
         (SERVICE_SET_SETTING, handle_setting, SCHEMA_SETTING),
         (SERVICE_SAY, handle_say, SCHEMA_SAY),
+        (SERVICE_ALARM_CREATE, handle_alarm_create, SCHEMA_ALARM_CREATE),
+        (SERVICE_ALARM_LIST, handle_alarm_list, SCHEMA_ALARM_LIST),
+        (SERVICE_ALARM_DELETE, handle_alarm_delete, SCHEMA_ALARM_DELETE),
+        (SERVICE_ALARM_SET_ENABLED, handle_alarm_set_enabled, SCHEMA_ALARM_ENABLED),
+        (SERVICE_ALARM_STOP, handle_alarm_stop, SCHEMA_ALARM_ID),
+        (SERVICE_ALARM_SNOOZE, handle_alarm_snooze, SCHEMA_ALARM_ID),
     ]
 
     for name, handler, schema in registrations:
         if already(name):
             continue
         extra: dict[str, Any] = {}
-        if name == SERVICE_SCREENSHOT:
+        if name in (SERVICE_SCREENSHOT, SERVICE_ALARM_CREATE, SERVICE_ALARM_LIST, SERVICE_ALARM_DELETE):
             extra["supports_response"] = SupportsResponse.OPTIONAL
         hass.services.async_register(DOMAIN, name, handler, schema=schema, **extra)
         _LOGGER.debug("DarboardOS: đăng ký hành động %s.%s", DOMAIN, name)

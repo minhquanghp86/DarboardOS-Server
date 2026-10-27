@@ -133,3 +133,11 @@ Bảng màn: P4 `esp32-80f1b2d35fb5` (.200) · 480×272 `esp32-1cdbd49b2260` (.1
   trong `api._request` (gây AttributeError → HTTP 500).
 - Cài lên HA: chép `custom_components/dashboard_os` → restart HA (HA chỉ import module 1 lần).
 - Còn lại: GĐ 3 (báo thức), GĐ 4 (list_screens/get_status/cast IPTV/touch), GĐ 5 (entities + events).
+
+### GĐ 3 — báo thức (component 1.5.0, test 7/7)
+6 hành động: `alarm_create` (trả báo thức vừa tạo), `alarm_list` (trả danh sách + giờ reo kế tiếp),
+`alarm_delete` (theo `alarm_id` hoặc `time`+`label`), `alarm_set_enabled`, `alarm_stop`, `alarm_snooze`.
+- `alarm_create` bỏ trống target = báo thức **mọi màn**; có target = gắn danh sách màn cụ thể.
+- `alarm_stop`/`alarm_snooze` báo lỗi rõ khi báo thức không reo (server trả `ok:false` → HA nêu lý do).
+- Test thật: tạo (target device_id → `devices=['esp32-…']`), tạo mọi màn (`devices='all'`), list, bật/tắt,
+  xoá theo time+label, xoá theo id, stop/snooze báo lỗi đúng. Dữ liệu test đã dọn (còn đúng 2 báo thức của bạn).
