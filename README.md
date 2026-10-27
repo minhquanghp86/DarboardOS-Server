@@ -1,18 +1,60 @@
 # Dashboard OS — biến màn hình ESP32 thành bảng điều khiển Home Assistant
 
-**Dashboard OS** truyền giao diện Home Assistant (hoặc bất kỳ trang web nào) xuống các màn hình ESP32-S3 / ESP32-P4
+**Dashboard OS** truyền giao diện Home Assistant (hoặc bất kỳ trang web nào) xuống màn hình **ESP32-S3 / ESP32-P4**
 theo thời gian thực, kèm bộ giao diện kiểu điện thoại: màn hình chính, thanh trạng thái, ứng dụng, thông báo,
 chuông cửa, báo thức, tin nhắn, IPTV.
 
 - Cài và cấu hình hoàn toàn bằng giao diện web — không sửa file.
-- Mỗi màn hình tự xuất hiện trong Home Assistant thành một thiết bị: nút bấm, thanh trượt, cảm biến.
+- Mỗi màn hình là một thiết bị trong Home Assistant (nút bấm, thanh trượt, cảm biến).
 - Chạy trong mạng nội bộ (LAN/Tailscale), không cần Internet.
 
 ![Màn hình chính](images/menu.png)
 
 ---
 
-## 1. Cần gì để bắt đầu
+## 1. Tính năng
+
+### Hiển thị
+- Chiếu **dashboard Home Assistant** hoặc URL bất kỳ, nhiều tab cho mỗi màn, chuyển tab tức thì.
+- Tự điều chỉnh chất lượng hình và nhịp khung theo mạng; chế độ nửa phân giải khi xem video.
+- **Màn hình chờ**: đồng hồ lớn, ngày âm lịch, thời tiết, ảnh gia đình (Google Photos hoặc thư mục media).
+- Xoay 0/90/180/270, độ sáng, âm lượng, tắt tiếng, chế độ Không làm phiền.
+
+![Màn hình chờ](images/weather.png)
+
+### Giao diện điện thoại
+- Màn hình chính dạng lưới: ẩn/hiện ứng dụng, đổi thứ tự, biểu tượng, màu, gom thư mục.
+- Thanh trạng thái (pin, Wi-Fi, giờ), kéo xuống để mở bảng thông báo, khoá màn hình bằng vuốt.
+- Ứng dụng gần đây, phím Trở lại / Màn hình chính, cử chỉ vuốt bám theo tay.
+
+![Giao diện OS](images/oshome.png)
+
+### Ứng dụng có sẵn
+Camera (xem, chụp, quay lưu thẻ SD), Frigate, IPTV, YouTube, YouTube TV, nhạc, radio, tin tức, lịch, thời tiết,
+ảnh, ghi chú, tệp, gọi video giữa các màn, chuông cửa, **báo thức**, tin nhắn nội bộ.
+
+![Lịch](images/calendar.png) ![Radio](images/radio.png) ![IPTV](images/iptv.png)
+
+### Chuông cửa
+Bấm chuông ở cổng → mọi màn đổ chuông, hiện hình người bấm, nói chuyện 2 chiều, mở cổng.
+Không ai nghe → thông báo "cuộc gọi nhỡ" kèm ảnh, lưu nhật ký 30 ngày.
+
+### Báo thức
+Đặt trên màn hoặc từ trang Dashboard: lặp theo thứ, báo lại, chọn màn nào reo.
+Báo thức lưu ở server nên **màn tắt vẫn reo đúng giờ**.
+
+![Báo thức](images/alarm.png)
+
+### Tin nhắn nội bộ
+Gửi tin, ảnh, video giữa các màn hình và điện thoại; màn hình bắn sự kiện về Home Assistant để báo lên điện thoại.
+
+### Điều khiển từ xa
+Trang **Điều khiển** trên điện thoại: xem màn hình trực tiếp, chạm/vuốt, phím **Trở lại / Màn hình chính /
+Gần đây / Mở khoá**, chụp màn hình.
+
+![Điều khiển](images/control.png)
+
+## 2. Cần gì để bắt đầu
 
 | Thành phần | Yêu cầu |
 |---|---|
@@ -20,67 +62,49 @@ chuông cửa, báo thức, tin nhắn, IPTV.
 | Màn hình | ESP32-S3 / ESP32-P4 đã nạp firmware Dashboard OS |
 | Mạng | Màn hình và Home Assistant cùng một mạng LAN |
 
-## 2. Cài đặt (5 phút)
+## 3. Cài đặt (5 phút)
 
 1. **Settings → Add-ons → Add-on Store → ⋮ → Repositories** → dán
    `https://github.com/minhquanghp86/DashboardOS-Server` → **Add**.
-2. Tìm **Dashboard OS Server** → **Install** → chờ tải xong → **Start**.
-3. Bật **Show in sidebar** để mở nhanh trang quản lý. Thanh bên xuất hiện mục **Dashboard**.
-4. Nạp firmware cho màn hình (xem repo `DashboardOS-Client`, file YAML tương ứng từng loại màn).
-   Lần đầu màn hình phát Wi-Fi riêng tên `dashboard-…` để bạn nhập Wi-Fi nhà.
-5. Mở **Dashboard → Màn hình**: màn hình vừa kết nối sẽ xuất hiện trong danh sách.
+2. Tìm **Dashboard OS Server** → **Install** → **Start**.
+3. Bật **Show in sidebar**. Thanh bên xuất hiện mục **Dashboard**.
+4. Nạp firmware cho màn hình (repo `DashboardOS-Client`, chọn YAML theo loại màn).
+   Lần đầu màn hình phát Wi-Fi riêng `dashboard-…` để nhập Wi-Fi nhà.
+5. Mở **Dashboard → Màn hình**: màn hình vừa kết nối xuất hiện trong danh sách.
 
-![Danh sách màn hình](images/tiled_preview.png)
+![Danh sách màn hình](images/screens.png)
 
-## 3. Sử dụng hằng ngày
+## 4. Sử dụng hằng ngày
 
-### Trang quản lý trên điện thoại
-Mở **Sidebar → Dashboard**. Từ đây bạn:
-- Xem trạng thái từng màn (đang mở gì, pin, Wi-Fi, độ sáng).
-- **Điều khiển**: xem màn hình, chạm/vuốt, phím **Trở lại / Màn hình chính / Gần đây**, chụp màn hình.
-- Mở/sửa từng ứng dụng trên màn, đổi Wi-Fi, độ sáng, âm lượng, chất lượng hình.
+### Trên điện thoại (trang Dashboard)
+- **Màn hình**: trạng thái từng màn (đang mở gì, pin, Wi-Fi, độ sáng), mở/sửa ứng dụng, đổi Wi-Fi,
+  độ sáng, chất lượng hình.
+- **Điều khiển**: xem và thao tác màn hình từ xa.
+- **Báo thức**, **Tin nhắn**, **IPTV**, **Quản lý file** (thẻ SD), **Chuông cổng**, **Gọi video**.
+- **Menu ứng dụng**: bật/tắt, sắp xếp, đổi biểu tượng/màu cho lưới ứng dụng của từng màn.
 
-### Trên chính màn hình
+![Cài đặt](images/settings.png)
+
+### Trên màn hình
 - Vuốt từ đáy lên: về màn hình chính. Vuốt từ mép trái/phải: quay lại.
-- Trên màn hình chính: chạm để mở ứng dụng; giữ để sắp xếp lại.
-- Cài đặt của màn: Wi-Fi, độ sáng, chế độ màn hình chờ, âm thanh.
+- Chạm để mở ứng dụng; giữ để sắp xếp lưới.
+- Cài đặt màn hình: Wi-Fi, độ sáng, màn hình chờ, âm thanh.
 
-### Màn hình chờ
-Sau một lúc không chạm, màn hình chuyển sang đồng hồ lớn + ngày âm lịch + thời tiết, có thể kèm ảnh gia đình
-(Google Photos hoặc thư mục media). Chạm để quay lại.
+## 5. Dùng với Home Assistant (tích hợp Dashboard OS)
 
-![Màn hình chờ](images/weather.png)
-
-### Ứng dụng có sẵn
-Camera (xem, chụp, quay lưu thẻ SD), Frigate, IPTV, YouTube, YouTube TV, nhạc, radio, tin tức, lịch, thời tiết,
-ảnh, ghi chú, tệp, gọi video giữa các màn, chuông cửa, **báo thức**, tin nhắn nội bộ, màn hình khoá.
-
-![Lịch](images/calendar.png) ![Radio](images/radio.png)
-
-### Chuông cửa
-Bấm chuông ở cổng → mọi màn hình đổ chuông, hiện hình người bấm, nói chuyện 2 chiều, mở cổng.
-Không ai nghe → thông báo "cuộc gọi nhỡ" kèm ảnh, lưu nhật ký 30 ngày.
-
-### Báo thức
-Đặt trên màn hoặc từ trang Dashboard: lặp theo thứ, báo lại, chọn màn nào reo. Báo thức lưu ở server nên
-màn tắt vẫn reo đúng giờ.
-
-## 4. Dùng với Home Assistant (tích hợp Dashboard OS)
-
-Mỗi màn hình là một thiết bị trong HA, kèm sẵn:
+Mỗi màn hình là một thiết bị trong HA:
 
 | Loại | Dùng để |
 |---|---|
-| Cảm biến | Biết màn đang kết nối, đang mở ứng dụng gì, đang khoá hay ở màn hình chờ |
+| Cảm biến | Màn có kết nối không, đang mở ứng dụng gì, đang khoá / màn hình chờ / đang dùng |
 | Nút bấm | Về màn hình chính, quay lại, ứng dụng gần đây, đánh thức, tải lại, chụp màn hình |
-| Công tắc | Bật/tắt màn hình chờ, Không làm phiền, giữ màn luôn sáng |
+| Công tắc | Màn hình chờ, Không làm phiền, giữ màn luôn sáng |
 | Thanh trượt | Độ sáng, âm lượng, chất lượng hình |
 | Chọn | Góc xoay 0/90/180/270 |
 
 ### Cài tích hợp
-1. HACS → **Integrations** → ⋮ → **Custom repositories** → dán `https://github.com/minhquanghp86/DashboardOS-Server`,
-   chọn *Integration* → **Add**.
-2. Tìm **Dashboard OS** → **Download** → **Restart Home Assistant**.
+1. HACS → **Integrations** → ⋮ → **Custom repositories** → dán repo này, chọn *Integration* → **Add**.
+2. **Dashboard OS** → **Download** → **Restart Home Assistant**.
 3. **Settings → Devices & Services → + Add Integration → Dashboard OS** → giữ địa chỉ mặc định → **Submit**.
 
 ### Thông báo từ automation
@@ -96,39 +120,38 @@ action:
       priority: urgent
 ```
 
-Mức ưu tiên:
-
-| Mức | Hành vi |
+| Mức ưu tiên | Hành vi |
 |---|---|
 | `urgent` (mặc định) | Mở khoá màn, bật đèn nền, phủ toàn màn hình |
 | `critical` | Như urgent, hiện cả khi đang Không làm phiền |
 | `high` | Phủ toàn màn, tôn trọng Không làm phiền |
 | `normal` | Chỉ hiện thẻ thông báo |
 
-### Các hành động khác
+### Ví dụ khác
 
 ```yaml
-# Mở dashboard buổi sáng, tối về màn hình chính
-- action: dashboard_os.open_url
+- action: dashboard_os.open_url          # mở dashboard buổi sáng
   target: { device_id: <id màn hình> }
   data: { url: "http://192.168.10.2:8123/dashboard-mobile/3" }
 
-# Đọc thông báo bằng giọng nói (màn có loa)
-- action: dashboard_os.say
+- action: dashboard_os.say               # đọc thông báo bằng giọng nói
   target: { device_id: <id màn hình> }
   data: { message: "Đã bật máy lạnh" }
 
-# Đổi chất lượng hình khi mạng yếu
-- action: dashboard_os.set_quality
+- action: dashboard_os.set_quality       # giảm chất lượng khi mạng yếu
   target: { device_id: <id màn hình> }
   data: { quality: 40 }
+
+- action: dashboard_os.alarm_create      # đặt báo thức cho một màn
+  target: { device_id: <id màn hình> }
+  data: { time: "06:30", days: [1,2,3,4,5], label: "Dậy đi học", snooze: 10 }
 ```
 
-Danh sách đầy đủ 30 hành động: [custom_components/dashboard_os/README.md](custom_components/dashboard_os/README.md).
+Danh sách đầy đủ **30 hành động**: [custom_components/dashboard_os/README.md](custom_components/dashboard_os/README.md).
 Blueprint sẵn có (thông báo, nhắc lịch, chào buổi sáng, camera, chuông cổng, cảnh báo an ninh):
 repo `DashboardOS-Client` → `examples/home-assistant/`.
 
-## 5. Vận hành
+## 6. Vận hành
 
 | Việc | Ở đâu |
 |---|---|
@@ -139,7 +162,7 @@ repo `DashboardOS-Client` → `examples/home-assistant/`.
 
 Cổng dùng trong LAN: `18080` (web, điều khiển) và `8081` (màn hình kết nối).
 
-## 6. Xử lý sự cố
+## 7. Xử lý sự cố
 
 | Hiện tượng | Cách xử lý |
 |---|---|
@@ -149,7 +172,7 @@ Cổng dùng trong LAN: `18080` (web, điều khiển) và `8081` (màn hình k�
 | Không điều khiển được từ điện thoại | Mở bằng IP LAN (`http://<ip-ha>:18080`), không qua tên miền |
 | Báo thức không reo | Kiểm tra màn có trong danh sách "Reo trên" của báo thức |
 
-## 7. Giấy phép
+## 8. Giấy phép
 
 Apache-2.0 — xem [LICENSE](LICENSE), [NOTICE](NOTICE), [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 Nhãn hiệu: [TRADEMARKS.md](TRADEMARKS.md).
