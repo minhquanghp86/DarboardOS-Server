@@ -1,3 +1,7 @@
+## V2.9.274
+- **Bàn phím ở màn ngang**: tăng chiều cao phím (`min(300px, 56vh)`), các hàng sát nhau hơn (giảm gap), cỡ chữ theo vmin
+  để phím cân đối giữa cao và rộng.
+
 ## V2.9.273
 - **Bàn phím ảo: sửa hàng phím cuối bị che và phím không đều.** Chiều cao `min(196px, 50vh)` + `margin-bottom` từng hàng
   làm 5 hàng vượt khung trên màn thấp (480×272) và khi xoay 90/270. Nay: cao tối đa `min(196px, 62vh)` và `max-height:100%`,

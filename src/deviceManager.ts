@@ -780,6 +780,7 @@ const KIOSK_KEYBOARD_SCRIPT = `(function(){
         'user-select:none;-webkit-user-select:none;font-family:sans-serif;touch-action:manipulation;border:none;}'+
         '#kiosk-vkb-container:popover-open{display:flex;}'+
         '#kiosk-vkb-container.vkb-visible{bottom:0 !important;}'+
+        '@media (orientation:landscape){#kiosk-vkb-container{height:min(300px,56vh) !important;}.vkb-row{gap:clamp(2px,0.5vmin,5px) !important;margin-bottom:0 !important;}.vkb-key{font-size:clamp(10px,2.4vmin,16px) !important;}}'+
         '.vkb-row{display:flex;justify-content:center;margin-bottom:0;width:100%;gap:clamp(3px,0.8vmin,6px);flex:1 1 0;min-height:0;}'+
         '.vkb-row:last-child{margin-bottom:0;}'+
         // (25/10/2026) Nen sang hon, phim BO GOC (10px) thay vi 2px, them do noi + hieu ung nhan phim.
