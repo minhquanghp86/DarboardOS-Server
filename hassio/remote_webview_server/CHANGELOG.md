@@ -1,3 +1,6 @@
+## V2.9.264
+- Trang Báo thức: dòng "Báo thức chung" hết bị tô màu link (thêm `color: inherit; text-decoration: none`).
+
 ## V2.9.263
 - **Sửa trang Báo thức khi mở qua tên miền/HA ingress**: trang gọi `/screens/list` và `/alarm/list` bằng đường dẫn
   tuyệt đối nên khi URL có tiền tố `/api/hassio_ingress/<token>/` sẽ trỏ ra gốc domain → 404, danh sách màn hình
