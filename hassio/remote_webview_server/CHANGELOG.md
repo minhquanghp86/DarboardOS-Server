@@ -1,3 +1,7 @@
+## V2.9.272
+- **Đổi tên image GHCR**: `ghcr.io/minhquanghp86/darboardos-server` → **`dashboardos-server`** (theo tên repo mới).
+  Slug add-on không đổi nên cập nhật bình thường, không mất dữ liệu.
+
 ## V2.9.271
 - **Đổi tên sự kiện HA**: `darboard_doorbell` → **`dashboard_doorbell`**, `darboard_chat_message` →
   **`dashboard_chat_message`**. (Automation dùng tên cũ cần sửa trigger.)

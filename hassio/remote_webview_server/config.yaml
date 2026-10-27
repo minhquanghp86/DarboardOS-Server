@@ -1,10 +1,10 @@
 name: "Dashboard OS Server"
-version: "2.9.271"
+version: "2.9.272"
 slug: "remote_webview_server"
 # (02/10/2026) Anh dung san tren ghcr (CI tag = version). Truoc day addon build tai may HA tu build.yaml + Dockerfile,
 # va Supervisor xuat ca anh Docker (~1,1 GB sau nen) vao moi ban sao luu; anh keo ve thi khong. build.yaml/Dockerfile
 # giu lai lam cong thuc cho CI (.github/workflows/release-docker.yml, buoc "Build & Push addon image").
-image: "ghcr.io/minhquanghp86/darboardos-server"
+image: "ghcr.io/minhquanghp86/dashboardos-server"
 description: "Truyền bảng điều khiển HA hoặc bất kỳ trang web nào tới màn hình hiển thị dựa trên ESP32 dưới dạng ô thông qua WebSocket."
 url: "https://github.com/minhquanghp86/DashboardOS-Server/tree/main/hassio/remote_webview_server"
 # Chi amd64: image dua tren Google Chrome (H.264) — Chrome cho Linux chi co ban amd64.
