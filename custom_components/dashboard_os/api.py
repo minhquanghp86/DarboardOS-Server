@@ -204,6 +204,24 @@ class DarboardApi:
         payload = await self._request("POST", f"/alarm/snooze?id={alarm_id}", json={})
         return bool((payload or {}).get("ok")) if isinstance(payload, dict) else False
 
+    # ── GĐ 4: nâng cao ──────────────────────────────────────────────────────
+    async def metrics(self) -> dict[str, dict]:
+        """Chỉ số từng màn (fps, decode, heap, chất lượng, gói tin)."""
+        payload = await self._request("GET", "/metrics")
+        devices = payload.get("devices") if isinstance(payload, dict) else None
+        return {str(d.get("id")): d for d in devices or [] if isinstance(d, dict)}
+
+    async def cast_iptv(self, device: str, channel: str) -> dict:
+        payload = await self._request("POST", "/iptv/cast", json={"dev": device, "ch": channel})
+        return payload if isinstance(payload, dict) else {}
+
+    async def touch(self, device: str, kind: str, x: float, y: float) -> None:
+        await self._request("POST", "/control/input", json={"dev": device, "kind": kind, "x": x, "y": y})
+
+    async def gesture(self, device: str, points: list[dict], start: bool = True, end: bool = True) -> None:
+        await self._request("POST", "/control/gesture",
+                            json={"dev": device, "points": points, "start": start, "end": end})
+
     async def info(self, device: str) -> dict:
         payload = await self._request("GET", f"/screens/info?id={device}")
         screen = payload.get("screen") if isinstance(payload, dict) else None

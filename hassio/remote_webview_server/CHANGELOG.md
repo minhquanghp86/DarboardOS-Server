@@ -1,3 +1,7 @@
+## V2.9.269
+- **IPTV cast gọi được từ tích hợp HA**: `/iptv/*` trước chỉ cho `172.30.32.2` (ingress), nay cho cả dải
+  supervisor `172.30.32.0/24` — HA core gọi từ `172.30.32.1` nên trước đó bị 403 khi dùng `dashboard_os.cast_iptv`.
+
 ## V2.9.268
 - **Đổi tên hiển thị: "Darboard" → "Dashboard"** (sửa lỗi chính tả). Áp dụng cho toàn bộ giao diện, tài liệu, log và
   tên add-on: **"Dashboard OS Server"**, tiêu đề thanh bên **"Dashboard"**, tích hợp HA **"Dashboard OS"**.

@@ -5,6 +5,7 @@ Mọi hành động đều nhận `target` (device) chuẩn HA, đồng thời v
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from pathlib import Path
@@ -20,6 +21,12 @@ from homeassistant.helpers import config_validation as cv
 from .api import DarboardApi, apply_to_targets
 from .const import (
     DOMAIN,
+    SERVICE_CAST_IPTV,
+    SERVICE_GET_STATUS,
+    SERVICE_LIST_SCREENS,
+    SERVICE_SEND_COMMAND,
+    SERVICE_SWIPE,
+    SERVICE_TOUCH,
     SERVICE_ALARM_CREATE,
     SERVICE_ALARM_DELETE,
     SERVICE_ALARM_LIST,
@@ -103,6 +110,29 @@ SCHEMA_ALARM_ENABLED = vol.Schema(
 )
 SCHEMA_ALARM_ID = vol.Schema({vol.Required("alarm_id"): cv.string})
 SCHEMA_ALARM_LIST = vol.Schema({**SCHEMA_TARGET})
+SCHEMA_LIST_SCREENS = vol.Schema({})
+SCHEMA_CAST_IPTV = vol.Schema({vol.Required("channel"): cv.string, **SCHEMA_TARGET})
+SCHEMA_TOUCH = vol.Schema(
+    {
+        vol.Required("x"): vol.All(vol.Coerce(float), vol.Range(min=0, max=4096)),
+        vol.Required("y"): vol.All(vol.Coerce(float), vol.Range(min=0, max=4096)),
+        vol.Optional("kind", default="tap"): vol.In(["tap", "down", "up"]),
+        **SCHEMA_TARGET,
+    }
+)
+SCHEMA_SWIPE = vol.Schema(
+    {
+        vol.Required("x1"): vol.All(vol.Coerce(float), vol.Range(min=0, max=4096)),
+        vol.Required("y1"): vol.All(vol.Coerce(float), vol.Range(min=0, max=4096)),
+        vol.Required("x2"): vol.All(vol.Coerce(float), vol.Range(min=0, max=4096)),
+        vol.Required("y2"): vol.All(vol.Coerce(float), vol.Range(min=0, max=4096)),
+        vol.Optional("duration", default=0.25): vol.All(vol.Coerce(float), vol.Range(min=0.05, max=3)),
+        **SCHEMA_TARGET,
+    }
+)
+SCHEMA_SEND_COMMAND = vol.Schema(
+    {vol.Required("action"): cv.string, vol.Optional("data", default={}): dict, **SCHEMA_TARGET}
+)
 
 
 def _base(hass: HomeAssistant) -> str | None:
@@ -368,6 +398,108 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         if not await api.alarm_snooze(str(call.data["alarm_id"])):
             raise HomeAssistantError("Báo thức này hiện không reo (hoặc không tồn tại).")
 
+    # ── GĐ 4: nâng cao ───────────────────────────────────────────────────────
+    def _status_row(screen: dict, metric: dict | None) -> dict[str, Any]:
+        metric = metric or {}
+        cfg = metric.get("config") or {}
+        return {
+            "id": str(screen.get("id")),
+            "name": screen.get("name") or str(screen.get("id")),
+            "online": bool(screen.get("online") or screen.get("on")),
+            "width": cfg.get("width"),
+            "height": cfg.get("height"),
+            "app": (screen.get("app") or {}).get("l"),
+            "state": "khoá" if screen.get("locked") else ("màn hình chờ" if screen.get("saver") else "đang dùng"),
+            "brightness": screen.get("b"),
+            "volume": screen.get("v"),
+            "dnd": screen.get("dnd"),
+            "quality": metric.get("appliedQuality"),
+            "interval_ms": metric.get("appliedMinFrameIntervalMs"),
+            "decode_ms": metric.get("recentMedianDecodeMs"),
+            "frame_bytes": metric.get("recentFrameBytes"),
+            "heap_free": metric.get("deviceHeapFree"),
+            "connection": (screen.get("nw") or {}).get("k") if isinstance(screen.get("nw"), dict) else None,
+        }
+
+    async def handle_list_screens(call: ServiceCall) -> dict[str, Any]:
+        api = DarboardApi(hass, _base(hass) or "")
+        screens = await api.screens()
+        metrics = await api.metrics()
+        return {"screens": [_status_row(s, metrics.get(str(s.get("id")))) for s in screens],
+                "count": len(screens)}
+
+    async def handle_get_status(call: ServiceCall) -> dict[str, Any]:
+        api = DarboardApi(hass, _base(hass) or "")
+        metrics = await api.metrics()
+
+        async def run(device: str) -> None:
+            screen = next((s for s in await api.screens() if str(s.get("id")) == device), None)
+            rows.append(_status_row(screen or {"id": device, "name": device}, metrics.get(device)))
+
+        rows: list[dict[str, Any]] = []
+        await _with_api(hass, dict(call.data), run)
+        return {"screens": rows, "count": len(rows)}
+
+    async def handle_cast_iptv(call: ServiceCall) -> dict[str, Any]:
+        channel = str(call.data["channel"]).strip()
+        sent: list[str] = []
+
+        async def run(device: str) -> None:
+            api = DarboardApi(hass, _base(hass) or "")
+            await api.cast_iptv(device, channel)
+            sent.append(device)
+
+        await _with_api(hass, dict(call.data), run)
+        return {"sent": sent, "channel": channel}
+
+    async def handle_touch(call: ServiceCall) -> None:
+        x, y, kind = float(call.data["x"]), float(call.data["y"]), str(call.data.get("kind") or "tap")
+
+        async def run(device: str) -> None:
+            api = DarboardApi(hass, _base(hass) or "")
+            if kind == "tap":
+                await api.touch(device, "down", x, y)
+                await asyncio.sleep(0.08)
+                await api.touch(device, "up", x, y)
+            else:
+                await api.touch(device, kind, x, y)
+
+        await _with_api(hass, dict(call.data), run)
+
+    async def handle_swipe(call: ServiceCall) -> None:
+        x1, y1 = float(call.data["x1"]), float(call.data["y1"])
+        x2, y2 = float(call.data["x2"]), float(call.data["y2"])
+        duration = float(call.data.get("duration") or 0.25)
+        steps = 6
+
+        async def run(device: str) -> None:
+            api = DarboardApi(hass, _base(hass) or "")
+            points = []
+            for i in range(steps + 1):
+                f = i / steps
+                points.append({
+                    "x": round(x1 + (x2 - x1) * f),
+                    "y": round(y1 + (y2 - y1) * f),
+                    "t": round(duration * 1000 * f),
+                })
+            await api.gesture(device, points)
+
+        await _with_api(hass, dict(call.data), run)
+
+    async def handle_send_command(call: ServiceCall) -> None:
+        action = str(call.data["action"]).strip()
+        extra = call.data.get("data") or {}
+        if not isinstance(extra, dict) or len(extra) > 20:
+            raise HomeAssistantError("`data` phải là object (tối đa 20 khoá).")
+        if action in ("id",):
+            raise HomeAssistantError("`action` không được là `id`.")
+
+        async def run(device: str) -> None:
+            api = DarboardApi(hass, _base(hass) or "")
+            await api.act(device, act=action, **extra)
+
+        await _with_api(hass, dict(call.data), run)
+
     registrations: list[tuple[str, Any, Any]] = [
         (SERVICE_OPEN_APP, handle_open_app, SCHEMA_OPEN_APP),
         (SERVICE_OPEN_URL, handle_open_url, SCHEMA_OPEN_URL),
@@ -392,13 +524,20 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         (SERVICE_ALARM_SET_ENABLED, handle_alarm_set_enabled, SCHEMA_ALARM_ENABLED),
         (SERVICE_ALARM_STOP, handle_alarm_stop, SCHEMA_ALARM_ID),
         (SERVICE_ALARM_SNOOZE, handle_alarm_snooze, SCHEMA_ALARM_ID),
+        (SERVICE_LIST_SCREENS, handle_list_screens, SCHEMA_LIST_SCREENS),
+        (SERVICE_GET_STATUS, handle_get_status, SCHEMA_TARGET_ONLY),
+        (SERVICE_CAST_IPTV, handle_cast_iptv, SCHEMA_CAST_IPTV),
+        (SERVICE_TOUCH, handle_touch, SCHEMA_TOUCH),
+        (SERVICE_SWIPE, handle_swipe, SCHEMA_SWIPE),
+        (SERVICE_SEND_COMMAND, handle_send_command, SCHEMA_SEND_COMMAND),
     ]
 
     for name, handler, schema in registrations:
         if already(name):
             continue
         extra: dict[str, Any] = {}
-        if name in (SERVICE_SCREENSHOT, SERVICE_ALARM_CREATE, SERVICE_ALARM_LIST, SERVICE_ALARM_DELETE):
+        if name in (SERVICE_SCREENSHOT, SERVICE_ALARM_CREATE, SERVICE_ALARM_LIST, SERVICE_ALARM_DELETE,
+                    SERVICE_LIST_SCREENS, SERVICE_GET_STATUS, SERVICE_CAST_IPTV):
             extra["supports_response"] = SupportsResponse.OPTIONAL
         hass.services.async_register(DOMAIN, name, handler, schema=schema, **extra)
         _LOGGER.debug("DarboardOS: đăng ký hành động %s.%s", DOMAIN, name)

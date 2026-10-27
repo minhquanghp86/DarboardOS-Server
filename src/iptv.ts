@@ -594,7 +594,10 @@ async function probe(target: string, h: Record<string, string>): Promise<{ kind:
 function isLocal(req: http.IncomingMessage): boolean { return /^(::ffff:)?127\.0\.0\.1$|^::1$/.test(req.socket.remoteAddress || ''); }
 function fromIngress(req: http.IncomingMessage): boolean {
   if (process.env.LAUNCHER_CONFIG_OPEN === '1') return true;
-  return (req.socket.remoteAddress || '').replace(/^::ffff:/, '') === '172.30.32.2';
+  // (27/10/2026) Cho ca dai supervisor 172.30.32.0/24: HA core goi tu 172.30.32.1, add-on khac tu .2/.3...
+  // Truoc day chi dung .2 nen tich hop HA (cast IPTV) bi tu choi.
+  const ip = (req.socket.remoteAddress || '').replace(/^::ffff:/, '');
+  return ip === '172.30.32.2' || /^172\.30\.32\.\d{1,3}$/.test(ip);
 }
 function json(res: http.ServerResponse, code: number, body: unknown): void {
   res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });

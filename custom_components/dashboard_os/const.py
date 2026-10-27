@@ -34,3 +34,11 @@ SERVICE_ALARM_LIST = "alarm_list"
 SERVICE_ALARM_SET_ENABLED = "alarm_set_enabled"
 SERVICE_ALARM_STOP = "alarm_stop"
 SERVICE_ALARM_SNOOZE = "alarm_snooze"
+
+# (27/10/2026) GĐ 4 — nâng cao
+SERVICE_LIST_SCREENS = "list_screens"
+SERVICE_GET_STATUS = "get_status"
+SERVICE_CAST_IPTV = "cast_iptv"
+SERVICE_TOUCH = "touch"
+SERVICE_SWIPE = "swipe"
+SERVICE_SEND_COMMAND = "send_command"

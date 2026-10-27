@@ -538,3 +538,152 @@ alarm_snooze:
       required: true
       selector:
         text:
+
+list_screens:
+  name: Danh sách màn hình
+  description: Trả về trạng thái tất cả màn hình (online, ứng dụng, độ sáng, chất lượng, fps, heap…).
+
+get_status:
+  name: Trạng thái màn hình
+  description: Trả về trạng thái chi tiết của màn hình chọn.
+  fields:
+    device:
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
+
+cast_iptv:
+  name: Phát kênh IPTV
+  description: Mở ứng dụng IPTV trên màn hình và phát kênh chỉ định.
+  fields:
+    device:
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
+    channel:
+      name: Kênh / URL
+      description: Tên kênh trong danh sách IPTV, hoặc URL luồng trực tiếp.
+      required: true
+      example: VTV1
+      selector:
+        text:
+
+touch:
+  name: Chạm màn hình
+  description: Gửi một điểm chạm (hoặc down/up) vào màn hình — toạ độ theo pixel của màn.
+  fields:
+    device:
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
+    x:
+      name: X
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 4096
+          mode: box
+    y:
+      name: Y
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 4096
+          mode: box
+    kind:
+      name: Kiểu
+      default: tap
+      selector:
+        select:
+          options:
+            - tap
+            - down
+            - up
+
+swipe:
+  name: Vuốt màn hình
+  description: Vuốt từ điểm A tới điểm B (toạ độ pixel), có thời lượng.
+  fields:
+    device:
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
+    x1:
+      name: X bắt đầu
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 4096
+          mode: box
+    y1:
+      name: Y bắt đầu
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 4096
+          mode: box
+    x2:
+      name: X kết thúc
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 4096
+          mode: box
+    y2:
+      name: Y kết thúc
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 4096
+          mode: box
+    duration:
+      name: Thời lượng (giây)
+      default: 0.25
+      selector:
+        number:
+          min: 0.05
+          max: 3
+          step: 0.05
+          mode: box
+
+send_command:
+  name: Gửi lệnh nâng cao
+  description: Gửi trực tiếp một lệnh của add-on (dùng khi chưa có hành động riêng).
+  fields:
+    device:
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
+    action:
+      name: Lệnh
+      description: "Tên lệnh của add-on, ví dụ: saver, dnd, media, close, tab, ntClear."
+      required: true
+      example: media
+      selector:
+        text:
+    data:
+      name: Dữ liệu
+      description: Object JSON kèm theo (ví dụ {"cmd":"play"}).
+      selector:
+        object:
