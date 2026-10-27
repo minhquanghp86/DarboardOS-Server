@@ -1,7 +1,7 @@
 # Kế hoạch: mở rộng tích hợp Home Assistant cho Dashboard OS (27/10/2026)
 
 > **TRẠNG THÁI: HOÀN THÀNH GĐ 1→5** — component **2.0.0**: **30 hành động**, **16 entity/màn**, Options flow,
-> `priority` cho `send`, alias `darboard_os.*`. Test thật: 15/15 (GĐ1-2), 7/7 (GĐ3), 7/7 (GĐ4), 9/9 (GĐ5).
+> `priority` cho `send`. Test thật: 15/15 (GĐ1-2), 7/7 (GĐ3), 7/7 (GĐ4), 9/9 (GĐ5).
 > Chi tiết: `custom_components/dashboard_os/README.md`.
 
 > **TRẠNG THÁI:** GĐ 1 + 2 + 3 **ĐÃ XONG**, GĐ 5 **một phần** (entity: kết nối, ứng dụng, trạng thái, 6 nút) — component **1.6.0**, 24 hành động.

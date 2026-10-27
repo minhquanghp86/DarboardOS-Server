@@ -165,7 +165,7 @@ Bảng màn: P4 `esp32-80f1b2d35fb5` (.200) · 480×272 `esp32-1cdbd49b2260` (.1
 - **select** (1/màn): `goc_xoay` 0/90/180/270 (đọc từ `/screens/settings`, có cache khi mất kết nối).
 - **Options flow**: `scan_interval` 10–300 s, `controls` bật/tắt nhóm switch/number/select.
 - **`send` có `priority`**: urgent (mặc định) / critical / high / normal.
-- **Alias**: mọi hành động đăng ký thêm `darboard_os.*` (tên cũ) — `darboard_os.send` chạy đúng.
+- **Không còn alias tên cũ**: chỉ dùng `dashboard_os.*` (đã dẹp hẳn theo yêu cầu; sửa automation nếu có dùng tên cũ).
 - Lỗi đã gặp khi test: entity điều khiển cập nhật trễ 30 s → đổi `async_request_refresh` → **`async_refresh`**;
   select không xuất hiện vì chỉ tạo khi rotation đã có → tạo cho mọi màn + cache giá trị.
 - **Lưu ý**: `notify.send_message` của HA 2026.10 **không nhận** `data` (400) → muốn `priority`/media thì dùng
