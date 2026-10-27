@@ -1,3 +1,8 @@
+## V2.9.267
+- **Nút "Màn hình chính" nay đóng "Gần đây"**: khi đang ở tab hệ thống, `goOsHome()` gọi `activateTab()` và hàm này
+  return sớm (tab đã active) nên không gửi gì xuống Shell → lớp "Gần đây"/bảng điều khiển vẫn nằm trên màn.
+  Nay server gọi `window.__rwvShell.home()` (đóng cả hai lớp) khi tab đích đã là tab hệ thống.
+
 ## V2.9.266
 - **Sửa lỗi "hình bị co nhỏ" sau khi bấm Gần đây rồi Màn hình chính.** Ảnh thu nhỏ cho thẻ "Gần đây" trước đây chụp bằng
   `Page.captureScreenshot({clip:{..., scale: 320/width}})`; trên Chromium headless lệnh này làm surface/screencast

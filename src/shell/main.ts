@@ -1127,6 +1127,11 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     /** (01/10/2026) Phat thu chuong (Cai dat) tren man chua tu phat am: strong = kieu bao thuc. */
     chime,
     close() { closeShade(true); },
+    /**
+     * (27/10/2026) Nút "Màn hình chính" khi ĐANG ở tab hệ thống: server không còn gì để điều hướng
+     * (activateTab() return sớm) nên phải đóng lớp "Gần đây" / bảng điều khiển ngay tại Shell.
+     */
+    home() { closeRecents(); closeShade(true); },
     isOpen() { return shadeVisible > 0; },
     alarm,
     voice,

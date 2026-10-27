@@ -2106,6 +2106,14 @@ function loadShellJs(): string {
 /** (26/09/2026 OS-2) Ve Home cua OS: mo/kich hoat tab '__system' (ghim — tao lan dau thi giu luon, khong tai lai
  * nhung lan sau). Goi tu cu chi vuot len tu mep duoi (inputRouter.ts) va nut/bieu tuong "Ung dung" trong Shell. */
 export function goOsHome(dev: DeviceSession): void {
+  // (27/10/2026) Đang ở tab hệ thống thì openApp() → activateTab() RETURN SỚM (không gửi gì xuống Shell),
+  // nên lớp "Gần đây" / bảng điều khiển còn nguyên trên màn. Bảo Shell tự đóng chúng lại.
+  if (dev.activeTabKey === '__system') {
+    dev.cdp.send('Runtime.evaluate', {
+      expression: 'window.__rwvShell && window.__rwvShell.home && window.__rwvShell.home()',
+    }).catch(() => { });
+    return;
+  }
   openApp(dev, '__system').catch((e: unknown) => console.warn(`[shell] ${dev.deviceId}: ve Home that bai:`, e));
 }
 
