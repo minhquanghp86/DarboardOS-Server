@@ -108,7 +108,8 @@ Bảng màn: P4 `esp32-80f1b2d35fb5` (.200) · 480×272 `esp32-1cdbd49b2260` (.1
   slug `remote_webview_server`, image `ghcr.io/minhquanghp86/darboardos-server`, repo GitHub `DarboardOS-Server`,
   domain `dashboard_os`, sự kiện `darboard_doorbell` / `darboard_chat_message`, `rest_command.darboard_hien_camera`,
   `darboard_ring`, component ESPHome `darboard_door`, thực thể `…_ha_darboard_server`, và `TRADEMARKS.md`.
-- **Còn 2 chỗ cần 1 lần khởi động lại Home Assistant** (đã cài component mới 1.3.1 vào `/config/custom_components`):
-  1. Tên tích hợp + nhà sản xuất/model của 4 thiết bị sẽ tự đổi khi HA nạp lại module Python (bản chất: HA chỉ
-     import module 1 lần, thay file không đủ).
-  2. Tiêu đề entry "DarboardOS" trong Settings → Devices & Services: đổi bằng ⋮ → **Rename** (HA không cho API đổi).
+- **ĐÃ HOÀN TẤT (27/10, sau khi restart HA):**
+  - Tích hợp: `Dashboard OS` · entry title: `Dashboard OS` (sửa trong `.storage/core.config_entries` lúc HA dừng,
+    đã backup `.storage/core.config_entries.bak-dashboard-rename`).
+  - 4 thiết bị: manufacturer `Dashboard OS`, model `Màn hình Dashboard OS`.
+  - `notify.dashboard_os` hoạt động, service `dashboard_os.send` còn nguyên 9 trường; 4/4 màn online.
