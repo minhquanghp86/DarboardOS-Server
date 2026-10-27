@@ -333,6 +333,7 @@ kèm toàn bộ giấy phép trong `/licenses`.
   gỡ / thay phần âm lịch hoặc xin phép tác giả thuật toán. Ảnh Docker còn chứa Google Chrome theo điều khoản riêng của Google.
 - **Tên, logo** "HA Darboard" / "Darboard" không được cấp phép dùng cho bản fork — xem [`TRADEMARKS.md`](TRADEMARKS.md).
 - **Đóng góp** theo [`CONTRIBUTING.md`](CONTRIBUTING.md) (Apache-2.0 mục 5, mã phải có nguồn gốc rõ ràng).
+- **Sửa lỗi hình co nhỏ (Gần đây → Màn hình chính)**: [`docs/SUA-LOI-HINH-CO-NHO.md`](docs/SUA-LOI-HINH-CO-NHO.md) — nguyên nhân thumbnail `captureScreenshot clip.scale`, cách sửa + kiểm thử 4 màn.
 - **Báo thức (27/10)**: [`docs/BAO-THUC-DARBOARD.md`](docs/BAO-THUC-DARBOARD.md) — app Báo thức trên Darboard: chọn màn → trình báo thức của màn đó, đồng bộ với app trên panel.
 - **Mốc ổn định 27/10 — 480×272**: [`docs/ON-DINH-2026-10-27-480x272.md`](docs/ON-DINH-2026-10-27-480x272.md) — 12.1 fps YouTube / 11.4 fps YouTube TV, q40, nhịp 80 ms; 3 lỗi đã sửa + cách đo tái lập.
 - **Bàn giao phiên 27/10 (ĐỌC TRƯỚC)**: [`docs/BAN-GIAO-2026-10-27-chat-luong-fps.md`](docs/BAN-GIAO-2026-10-27-chat-luong-fps.md) — trạng thái 2.9.252 + fix chất lượng không tới encoder + kế hoạch nghiệm thu fps.
