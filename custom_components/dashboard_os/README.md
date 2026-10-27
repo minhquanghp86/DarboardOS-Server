@@ -159,6 +159,8 @@ action:
 
 ## Lịch sử
 
+- **1.8.0** (27/10/2026): mọi trường có `example` (hiện làm gợi ý trong form) + mô tả chi tiết; sửa trùng khoá YAML.
+- **1.7.0** (27/10/2026): 6 hành động nâng cao (GĐ 4): list_screens, get_status, cast_iptv, touch, swipe, send_command.
 - **1.6.0** (27/10/2026): trường chọn `device` cho mọi hành động (giống `send`); thêm entity mỗi màn: kết nối, ứng dụng đang mở, trạng thái + 6 nút bấm.
 - **1.5.0** (27/10/2026): 6 hành động báo thức (GĐ 3), test thật 7/7.
 - **1.4.0** (27/10/2026): 17 hành động mới (GĐ 1+2), tách `api.py` dùng chung; đổi tên hiển thị sang **Dashboard OS**.

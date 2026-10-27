@@ -1,13 +1,12 @@
 
 
 send:
-send:
   name: Dashboard OS
   description: Gửi thông báo ưu tiên cao (mở khoá, bật đèn nền, phủ toàn màn hình) tới màn hình Dashboard OS.
   fields:
     message:
       name: Nội dung
-      description: Nội dung thông báo.
+      description: "Câu cần đọc, tối đa 300 ký tự."
       required: true
       example: "Cửa chính vừa mở lúc 22:15"
       selector:
@@ -15,12 +14,14 @@ send:
           multiline: true
     title:
       name: Tiêu đề
+      description: "Tiêu đề ngắn hiện phía trên nội dung."
       example: "Cảnh báo"
       selector:
         text:
     duration:
       name: Thời gian hiển thị
-      description: Số giây hiển thị toàn màn hình trước khi thu gọn. Nhập 0 = không tự thoát, chạm màn hình để đóng.
+      example: "10"
+      description: "Số giây hiển thị toàn màn hình (0 = phải chạm để đóng)."
       default: 10
       selector:
         number:
@@ -58,17 +59,18 @@ send:
             - audio/*
     camera:
       name: Camera
-      description: Chọn camera có trong Home Assistant (Frigate, go2rtc, Tapo…)
+      example: "camera.chuong_cua"
+      description: "Chọn camera có trong Home Assistant."
       selector:
         entity:
           domain: camera
     camera_stream:
       name: Đường dẫn luồng go2rtc
-      description: Tên luồng go2rtc nếu camera không có thực thể, ví dụ chuong_cua
+      example: "chuong_cua"
+      description: "Tên luồng go2rtc nếu camera không có thực thể."
       selector:
         text:
 
-open_app:
 open_app:
   name: Mở ứng dụng
   description: Mở một ứng dụng trên màn hình DarboardOS (id ứng dụng trong menu của màn).
@@ -82,12 +84,12 @@ open_app:
           multiple: true
     app:
       name: Ứng dụng
+      description: "Mã ứng dụng trong menu của màn: youtube, yttv, iptv, camera, music, radio, news, photos, calendar, settings, browser, today, board."
       required: true
       example: youtube
       selector:
         text:
 
-open_url:
 open_url:
   name: Mở địa chỉ web
   description: Mở một trang web trên màn hình.
@@ -101,12 +103,12 @@ open_url:
           multiple: true
     url:
       name: Địa chỉ
+      description: "Địa chỉ đầy đủ, phải bắt đầu bằng http:// hoặc https://."
       required: true
       example: http://192.168.10.2:8123/dashboard-mobile/3
       selector:
         text:
 
-nav:
 nav:
   name: Điều hướng
   description: Phím điều hướng của màn hình (như nút cứng trên điện thoại).
@@ -120,6 +122,7 @@ nav:
           multiple: true
     key:
       name: Phím
+      description: "home = màn hình chính · back = quay lại · recents = ứng dụng gần đây · unlock = mở khoá."
       required: true
       selector:
         select:
@@ -129,7 +132,6 @@ nav:
             - recents
             - unlock
 
-wake:
 wake:
   name: Đánh thức
   description: Bật đèn nền màn hình.
@@ -143,7 +145,6 @@ wake:
           multiple: true
 
 lock:
-lock:
   name: Khoá màn hình
   description: Hiện màn hình khoá (phải vuốt lên để mở).
   fields:
@@ -155,7 +156,6 @@ lock:
           integration: dashboard_os
           multiple: true
 
-reload:
 reload:
   name: Tải lại trang
   description: Tải lại trang đang hiện trên màn hình.
@@ -169,7 +169,6 @@ reload:
           multiple: true
 
 close_app:
-close_app:
   name: Đóng ứng dụng
   description: Đóng một ứng dụng đang mở trên màn hình.
   fields:
@@ -182,12 +181,12 @@ close_app:
           multiple: true
     app:
       name: Ứng dụng
+      description: "Mã ứng dụng trong menu của màn: youtube, yttv, iptv, camera, music, radio, news, photos, calendar, settings, browser, today, board."
       required: true
       example: youtube
       selector:
         text:
 
-screenshot:
 screenshot:
   name: Chụp màn hình
   description: Lưu ảnh chụp màn hình vào /config/www/dashboard/ và trả về đường dẫn + URL.
@@ -201,11 +200,11 @@ screenshot:
           multiple: true
     filename:
       name: Tên tệp
-      description: Bỏ trống = tự đặt tên theo màn hình và thời gian.
+      example: "p4-hien-tai"
+      description: "Bỏ trống = tự đặt tên theo màn hình và thời gian. Ảnh lưu ở /config/www/dashboard/."
       selector:
         text:
 
-set_brightness:
 set_brightness:
   name: Độ sáng
   description: Đặt độ sáng đèn nền (0-100).
@@ -219,6 +218,8 @@ set_brightness:
           multiple: true
     brightness:
       name: Độ sáng (%)
+      example: "70"
+      description: "0 = tối nhất, 100 = sáng nhất."
       required: true
       selector:
         number:
@@ -226,7 +227,6 @@ set_brightness:
           max: 100
           mode: slider
 
-set_volume:
 set_volume:
   name: Âm lượng
   description: Đặt âm lượng (0-100), tuỳ chọn tắt tiếng.
@@ -240,6 +240,8 @@ set_volume:
           multiple: true
     volume:
       name: Âm lượng (%)
+      example: "40"
+      description: "0–100. Chỉ màn có loa (P4) mới nghe được."
       required: true
       selector:
         number:
@@ -253,7 +255,6 @@ set_volume:
         boolean:
 
 set_quality:
-set_quality:
   name: Chất lượng hình
   description: Chất lượng JPEG gửi xuống màn hình (0 = tự động, khuyến nghị 40-70).
   fields:
@@ -266,6 +267,8 @@ set_quality:
           multiple: true
     quality:
       name: Chất lượng (%)
+      example: "40"
+      description: "0 = tự động, khuyến nghị 40–70. Càng cao càng nét nhưng chậm hơn."
       required: true
       selector:
         number:
@@ -273,7 +276,6 @@ set_quality:
           max: 90
           mode: slider
 
-set_rotation:
 set_rotation:
   name: Góc xoay
   description: Xoay giao diện màn hình (0/90/180/270).
@@ -287,6 +289,8 @@ set_rotation:
           multiple: true
     rotation:
       name: Góc
+      example: "90"
+      description: "0 / 90 / 180 / 270 độ."
       required: true
       selector:
         select:
@@ -296,7 +300,6 @@ set_rotation:
             - "180"
             - "270"
 
-set_dnd:
 set_dnd:
   name: Không làm phiền
   description: Bật/tắt chế độ không làm phiền trên màn hình.
@@ -310,11 +313,11 @@ set_dnd:
           multiple: true
     enabled:
       name: Bật
+      description: "Bật = true, tắt = false."
       default: true
       selector:
         boolean:
 
-set_no_sleep:
 set_no_sleep:
   name: Không cho màn ngủ
   description: Bật/tắt chế độ giữ màn hình luôn sáng.
@@ -328,11 +331,11 @@ set_no_sleep:
           multiple: true
     enabled:
       name: Bật
+      description: "Bật = true, tắt = false."
       default: true
       selector:
         boolean:
 
-set_screensaver:
 set_screensaver:
   name: Màn hình chờ
   description: Bật/tắt màn hình chờ (đồng hồ + ảnh).
@@ -346,11 +349,11 @@ set_screensaver:
           multiple: true
     enabled:
       name: Bật
+      description: "Bật = true, tắt = false."
       default: true
       selector:
         boolean:
 
-set_setting:
 set_setting:
   name: Đổi cài đặt của màn
   description: Đổi trực tiếp một khoá cài đặt (rwv.*) hoặc một thực thể của màn hình.
@@ -364,17 +367,19 @@ set_setting:
           multiple: true
     setting:
       name: Khoá cài đặt
+      description: "Khoá cài đặt rwv.* (rwv.quality, rwv.saver_photos, rwv.yt_skip_ads…) hoặc entity_id của màn."
       required: true
       example: rwv.quality
       selector:
         text:
     value:
       name: Giá trị
+      example: "40"
+      description: "Giá trị mới, ví dụ 40 (chất lượng) hoặc true/false."
       required: true
       selector:
         text:
 
-say:
 say:
   name: Đọc thông báo (TTS)
   description: Đọc thành tiếng một câu trên loa của màn hình.
@@ -388,12 +393,13 @@ say:
           multiple: true
     message:
       name: Nội dung
+      example: "Đã bật máy lạnh"
+      description: "Câu cần đọc, tối đa 300 ký tự."
       required: true
       selector:
         text:
           multiline: true
 
-alarm_create:
 alarm_create:
   name: Tạo báo thức
   description: Tạo báo thức trên màn hình chọn (hoặc mọi màn). Trả về báo thức vừa tạo.
@@ -407,7 +413,7 @@ alarm_create:
           multiple: true
     time:
       name: Giờ
-      description: "Định dạng HH:MM (00:00–23:59)."
+      description: "Định dạng 24 giờ HH:MM, ví dụ 06:30."
       required: true
       example: "06:30"
       selector:
@@ -428,21 +434,25 @@ alarm_create:
             - "6"
     label:
       name: Nhãn
+      example: "Dậy đi học"
+      description: "Tên hiển thị của báo thức, tối đa 40 ký tự."
       selector:
         text:
     snooze:
       name: Báo lại (phút)
+      example: "10"
+      description: "Số phút báo lại: 5, 10, 15, 20 hoặc 30."
       default: 10
       selector:
         select:
           options: ["5", "10", "15", "20", "30"]
     enabled:
       name: Bật
+      description: "Bật = true, tắt = false."
       default: true
       selector:
         boolean:
 
-alarm_list:
 alarm_list:
   name: Danh sách báo thức
   description: Trả về danh sách báo thức (kèm giờ reo kế tiếp) của màn hình chọn.
@@ -456,7 +466,6 @@ alarm_list:
           multiple: true
 
 alarm_delete:
-alarm_delete:
   name: Xoá báo thức
   description: Xoá theo `alarm_id`, hoặc theo `time`/`label` (xoá mọi báo thức khớp).
   fields:
@@ -469,19 +478,23 @@ alarm_delete:
           multiple: true
     alarm_id:
       name: ID báo thức
+      example: "3f9c2a7b1d4e"
+      description: "Lấy từ dashboard_os.alarm_list (trường id) hoặc trong thông báo khi báo thức reo."
       selector:
         text:
     time:
       name: Giờ
+      description: "Định dạng 24 giờ HH:MM, ví dụ 06:30."
       example: "06:30"
       selector:
         text:
     label:
       name: Nhãn
+      example: "Dậy đi học"
+      description: "Tên hiển thị của báo thức, tối đa 40 ký tự."
       selector:
         text:
 
-alarm_set_enabled:
 alarm_set_enabled:
   name: Bật/tắt báo thức
   fields:
@@ -494,16 +507,18 @@ alarm_set_enabled:
           multiple: true
     alarm_id:
       name: ID báo thức
+      example: "3f9c2a7b1d4e"
+      description: "Lấy từ dashboard_os.alarm_list (trường id) hoặc trong thông báo khi báo thức reo."
       required: true
       selector:
         text:
     enabled:
       name: Bật
+      description: "Bật = true, tắt = false."
       required: true
       selector:
         boolean:
 
-alarm_stop:
 alarm_stop:
   name: Tắt chuông báo thức
   description: Dừng báo thức đang reo trên mọi màn.
@@ -517,11 +532,12 @@ alarm_stop:
           multiple: true
     alarm_id:
       name: ID báo thức
+      example: "3f9c2a7b1d4e"
+      description: "Lấy từ dashboard_os.alarm_list (trường id) hoặc trong thông báo khi báo thức reo."
       required: true
       selector:
         text:
 
-alarm_snooze:
 alarm_snooze:
   name: Báo lại
   description: Báo lại sau số phút đã đặt cho báo thức đang reo.
@@ -535,6 +551,8 @@ alarm_snooze:
           multiple: true
     alarm_id:
       name: ID báo thức
+      example: "3f9c2a7b1d4e"
+      description: "Lấy từ dashboard_os.alarm_list (trường id) hoặc trong thông báo khi báo thức reo."
       required: true
       selector:
         text:
@@ -568,7 +586,7 @@ cast_iptv:
           multiple: true
     channel:
       name: Kênh / URL
-      description: Tên kênh trong danh sách IPTV, hoặc URL luồng trực tiếp.
+      description: "Tên kênh đúng như trong ứng dụng IPTV (VTV1, VTV3, VTV6…) hoặc URL luồng .m3u8. Xem danh sách kênh ở Darboard → IPTV → tab Kênh."
       required: true
       example: VTV1
       selector:
@@ -587,6 +605,8 @@ touch:
           multiple: true
     x:
       name: X
+      example: "240"
+      description: "Toạ độ ngang theo pixel của màn (0 → chiều rộng)."
       required: true
       selector:
         number:
@@ -595,6 +615,8 @@ touch:
           mode: box
     y:
       name: Y
+      example: "150"
+      description: "Toạ độ dọc theo pixel của màn (0 → chiều cao)."
       required: true
       selector:
         number:
@@ -656,6 +678,8 @@ swipe:
           mode: box
     duration:
       name: Thời lượng (giây)
+      example: "10"
+      description: "Số giây hiển thị toàn màn hình (0 = phải chạm để đóng)."
       default: 0.25
       selector:
         number:
@@ -677,13 +701,14 @@ send_command:
           multiple: true
     action:
       name: Lệnh
-      description: "Tên lệnh của add-on, ví dụ: saver, dnd, media, close, tab, ntClear."
+      description: "Tên lệnh của add-on: saver, dnd, media, close, tab, ntClear…"
       required: true
       example: media
       selector:
         text:
     data:
       name: Dữ liệu
-      description: Object JSON kèm theo (ví dụ {"cmd":"play"}).
+      example: "{cmd: play}"
+      description: "Object JSON kèm theo, ví dụ {cmd: play} hoặc {v: 1}."
       selector:
         object:

@@ -149,3 +149,12 @@ Bảng màn: P4 `esp32-80f1b2d35fb5` (.200) · 480×272 `esp32-1cdbd49b2260` (.1
 - **Bỏ `target:` trong services.yaml** — mọi hành động nay có trường **`device`** với `selector: device`
   (`integration: dashboard_os`, chọn nhiều), giống `dashboard_os.send`. Vẫn nhận `target: {device_id: …}` trong YAML.
 - Kiểm chứng: 12 entity/màn xuất hiện; bấm `button.…_danh_thuc` → màn hết khoá/chờ; services.yaml còn 0 `target:`.
+
+### GĐ 4 — dịch vụ nâng cao (component 1.7.0, test 7/7)
+`list_screens` (trả trạng thái 4 màn: online, app, chất lượng, decode, heap…), `get_status` (theo màn),
+`cast_iptv` (phát kênh/URL), `touch`, `swipe`, `send_command` (escape hatch, chặn `id`).
+- Phát hiện: `/iptv/*` chặn HA vì add-on chạy `host_network` (HA gọi từ IP LAN, không phải 172.30.32.x) →
+  server **2.9.270** mở quyền LAN cho `/iptv/*`.
+- `example` + mô tả cho **mọi trường** của 30 hành động (1.8.0) để form trong HA dễ điền.
+- Lỗi đã gặp: YAML services.yaml bị trùng khoá + chuỗi mô tả chứa dấu `"` chưa escape → HA cảnh báo/không load;
+  đã sửa và kiểm bằng `yaml.safe_load` trong container HA (30 dịch vụ, 0 cảnh báo).
