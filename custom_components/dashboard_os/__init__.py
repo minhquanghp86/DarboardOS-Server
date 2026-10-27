@@ -13,7 +13,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import DOMAIN
+from .const import DOMAIN, MANUFACTURER, MODEL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -65,12 +65,20 @@ def _sync_devices(hass: HomeAssistant, entry: ConfigEntry, screens: list[dict]) 
         if not dev_id:
             continue
         seen.add((DOMAIN, dev_id))
+        name = str(item.get("name") or dev_id)
+        existing = registry.async_get_device(identifiers={(DOMAIN, dev_id)})
+        if existing is not None:
+            # (27/10/2026) Cap nhat ten/nha san xuat khi doi ten hien thi (Darboard -> Dashboard)
+            # async_get_or_create KHONG sua thiet bi da co.
+            if existing.name != name or existing.manufacturer != MANUFACTURER or existing.model != MODEL:
+                registry.async_update_device(existing.id, name=name, manufacturer=MANUFACTURER, model=MODEL)
+            continue
         registry.async_get_or_create(
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, dev_id)},
-            name=str(item.get("name") or dev_id),
-            manufacturer="Dashboard OS",
-            model="Man hinh Dashboard OS",
+            name=name,
+            manufacturer=MANUFACTURER,
+            model=MODEL,
         )
     for device in dr.async_entries_for_config_entry(registry, entry.entry_id):
         if not (device.identifiers & seen):
