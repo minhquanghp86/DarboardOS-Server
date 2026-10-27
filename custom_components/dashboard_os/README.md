@@ -17,13 +17,30 @@ Mỗi màn hình trong add-on tự xuất hiện thành **một thiết bị** t
 
 ## Cách chọn màn hình
 
-Mọi hành động đều nhận `target` chuẩn của HA (chọn một hay nhiều thiết bị), **hoặc** trường `device`
-(id `esp32-…` hay tên màn). Bỏ trống = **mọi màn hình đang kết nối**.
+Mọi hành động đều có trường **`device`** — cùng kiểu chọn với `dashboard_os.send`: bấm vào là hiện danh sách
+**4 màn hình của tích hợp Dashboard OS** để chọn (chọn được nhiều màn). Bỏ trống = mọi màn đang kết nối.
 
 ```yaml
-target:
-  device_id: bec48a5c7ee6e67f028a4fb37e2af01e   # màn 480x272
+action:
+  - action: dashboard_os.set_brightness
+    data:
+      device:
+        - 4.3 Guition JC4827w543 9b2260     # chọn trong UI, hoặc gõ id esp32-…
+      brightness: 70
 ```
+
+> Trong YAML bạn cũng có thể dùng `target: {device_id: …}` như mọi hành động khác của HA — cả hai đều chạy.
+
+## Entities (mỗi màn hình một thiết bị)
+
+Mỗi màn có sẵn các entity để dùng trực tiếp trong dashboard/automation:
+
+| Entity | Việc |
+|---|---|
+| `binary_sensor.<màn>_ket_noi` | Đang kết nối add-on hay không |
+| `sensor.<màn>_ung_dung_dang_mo` | Ứng dụng đang mở |
+| `sensor.<màn>_trang_thai_man_hinh` | `đang dùng` / `màn hình chờ` / `khoá` / `không làm phiền` / `offline` (kèm độ sáng, âm lượng, DND…) |
+| `button.<màn>_man_hinh_chinh` · `_quay_lai` · `_gan_day` · `_danh_thuc` · `_tai_lai_trang` · `_chup_man_hinh` | Nút bấm nhanh |
 
 ## Danh sách hành động (24)
 
@@ -142,6 +159,7 @@ action:
 
 ## Lịch sử
 
+- **1.6.0** (27/10/2026): trường chọn `device` cho mọi hành động (giống `send`); thêm entity mỗi màn: kết nối, ứng dụng đang mở, trạng thái + 6 nút bấm.
 - **1.5.0** (27/10/2026): 6 hành động báo thức (GĐ 3), test thật 7/7.
 - **1.4.0** (27/10/2026): 17 hành động mới (GĐ 1+2), tách `api.py` dùng chung; đổi tên hiển thị sang **Dashboard OS**.
 - **1.2.0**: `send` + entity notify.

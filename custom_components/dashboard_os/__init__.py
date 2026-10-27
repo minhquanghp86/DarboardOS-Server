@@ -18,7 +18,7 @@ from .services import async_setup_services
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = [Platform.NOTIFY]
+PLATFORMS = [Platform.NOTIFY, Platform.BINARY_SENSOR, Platform.SENSOR, Platform.BUTTON]
 UPDATE_INTERVAL = timedelta(seconds=30)
 
 
@@ -31,6 +31,9 @@ class DashboardOSCoordinator(DataUpdateCoordinator[list[dict]]):
 
     async def _async_update_data(self) -> list[dict]:
         session = async_get_clientsession(self.hass)
+        screens = await self._try_json(session, "/screens/list", "screens")
+        if screens is not None:
+            return screens
         screens = await self._try_json(session, "/devices", "screens")
         if screens is not None:
             return screens
@@ -69,10 +72,21 @@ def _sync_devices(hass: HomeAssistant, entry: ConfigEntry, screens: list[dict]) 
         name = str(item.get("name") or dev_id)
         existing = registry.async_get_device(identifiers={(DOMAIN, dev_id)})
         if existing is not None:
-            # (27/10/2026) Cap nhat ten/nha san xuat khi doi ten hien thi (Darboard -> Dashboard)
-            # async_get_or_create KHONG sua thiet bi da co.
-            if existing.name != name or existing.manufacturer != MANUFACTURER or existing.model != MODEL:
-                registry.async_update_device(existing.id, name=name, manufacturer=MANUFACTURER, model=MODEL)
+            # (27/10/2026) Cap nhat ten/nha san xuat khi doi ten hien thi (Darboard -> Dashboard).
+            # QUAN TRONG: thiet bi cu co the KHONG gan config entry (config_entries rong) -> bo chon "Muc tieu"
+            # trong automation cua HA loc theo integration se KHONG thay thiet bi nao. Luon bo sung lien ket.
+            changes: dict[str, object] = {}
+            if existing.name != name:
+                changes["name"] = name
+            if existing.manufacturer != MANUFACTURER:
+                changes["manufacturer"] = MANUFACTURER
+            if existing.model != MODEL:
+                changes["model"] = MODEL
+            if entry.entry_id not in (existing.config_entries or set()):
+                changes["add_config_entry_id"] = entry.entry_id
+            if changes:
+                registry.async_update_device(existing.id, **changes)
+                _LOGGER.info("Dashboard OS: cap nhat thiet bi %s (%s)", name, ",".join(changes))
             continue
         registry.async_get_or_create(
             config_entry_id=entry.entry_id,

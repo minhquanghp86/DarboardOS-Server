@@ -141,3 +141,11 @@ Bảng màn: P4 `esp32-80f1b2d35fb5` (.200) · 480×272 `esp32-1cdbd49b2260` (.1
 - `alarm_stop`/`alarm_snooze` báo lỗi rõ khi báo thức không reo (server trả `ok:false` → HA nêu lý do).
 - Test thật: tạo (target device_id → `devices=['esp32-…']`), tạo mọi màn (`devices='all'`), list, bật/tắt,
   xoá theo time+label, xoá theo id, stop/snooze báo lỗi đúng. Dữ liệu test đã dọn (còn đúng 2 báo thức của bạn).
+
+### GĐ 5 (một phần) — entity + trường chọn thiết bị (component 1.6.0)
+- **Nguyên nhân picker trống:** thiết bị của tích hợp **không có entity nào** → bộ chọn "Mục tiêu" không hiện gì.
+  Nay mỗi màn có: `binary_sensor …_ket_noi`, `sensor …_ung_dung_dang_mo`, `sensor …_trang_thai_man_hinh`
+  (kèm độ sáng/âm lượng/DND/saver), và 6 `button` (home/back/recents/wake/reload/screenshot).
+- **Bỏ `target:` trong services.yaml** — mọi hành động nay có trường **`device`** với `selector: device`
+  (`integration: dashboard_os`, chọn nhiều), giống `dashboard_os.send`. Vẫn nhận `target: {device_id: …}` trong YAML.
+- Kiểm chứng: 12 entity/màn xuất hiện; bấm `button.…_danh_thuc` → màn hết khoá/chờ; services.yaml còn 0 `target:`.

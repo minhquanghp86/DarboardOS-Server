@@ -1,3 +1,6 @@
+
+
+send:
 send:
   name: Dashboard OS
   description: Gửi thông báo ưu tiên cao (mở khoá, bật đèn nền, phủ toàn màn hình) tới màn hình Dashboard OS.
@@ -66,12 +69,17 @@ send:
         text:
 
 open_app:
+open_app:
   name: Mở ứng dụng
   description: Mở một ứng dụng trên màn hình DarboardOS (id ứng dụng trong menu của màn).
-  target:
-    device:
-      integration: dashboard_os
   fields:
+    device:
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
     app:
       name: Ứng dụng
       required: true
@@ -80,12 +88,17 @@ open_app:
         text:
 
 open_url:
+open_url:
   name: Mở địa chỉ web
   description: Mở một trang web trên màn hình.
-  target:
-    device:
-      integration: dashboard_os
   fields:
+    device:
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
     url:
       name: Địa chỉ
       required: true
@@ -94,12 +107,17 @@ open_url:
         text:
 
 nav:
+nav:
   name: Điều hướng
   description: Phím điều hướng của màn hình (như nút cứng trên điện thoại).
-  target:
-    device:
-      integration: dashboard_os
   fields:
+    device:
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
     key:
       name: Phím
       required: true
@@ -112,33 +130,56 @@ nav:
             - unlock
 
 wake:
+wake:
   name: Đánh thức
   description: Bật đèn nền màn hình.
-  target:
+  fields:
     device:
-      integration: dashboard_os
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
 
+lock:
 lock:
   name: Khoá màn hình
   description: Hiện màn hình khoá (phải vuốt lên để mở).
-  target:
+  fields:
     device:
-      integration: dashboard_os
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
 
+reload:
 reload:
   name: Tải lại trang
   description: Tải lại trang đang hiện trên màn hình.
-  target:
+  fields:
     device:
-      integration: dashboard_os
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
 
+close_app:
 close_app:
   name: Đóng ứng dụng
   description: Đóng một ứng dụng đang mở trên màn hình.
-  target:
-    device:
-      integration: dashboard_os
   fields:
+    device:
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
     app:
       name: Ứng dụng
       required: true
@@ -147,12 +188,17 @@ close_app:
         text:
 
 screenshot:
+screenshot:
   name: Chụp màn hình
   description: Lưu ảnh chụp màn hình vào /config/www/dashboard/ và trả về đường dẫn + URL.
-  target:
-    device:
-      integration: dashboard_os
   fields:
+    device:
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
     filename:
       name: Tên tệp
       description: Bỏ trống = tự đặt tên theo màn hình và thời gian.
@@ -160,12 +206,17 @@ screenshot:
         text:
 
 set_brightness:
+set_brightness:
   name: Độ sáng
   description: Đặt độ sáng đèn nền (0-100).
-  target:
-    device:
-      integration: dashboard_os
   fields:
+    device:
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
     brightness:
       name: Độ sáng (%)
       required: true
@@ -176,12 +227,17 @@ set_brightness:
           mode: slider
 
 set_volume:
+set_volume:
   name: Âm lượng
   description: Đặt âm lượng (0-100), tuỳ chọn tắt tiếng.
-  target:
-    device:
-      integration: dashboard_os
   fields:
+    device:
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
     volume:
       name: Âm lượng (%)
       required: true
@@ -197,12 +253,17 @@ set_volume:
         boolean:
 
 set_quality:
+set_quality:
   name: Chất lượng hình
   description: Chất lượng JPEG gửi xuống màn hình (0 = tự động, khuyến nghị 40-70).
-  target:
-    device:
-      integration: dashboard_os
   fields:
+    device:
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
     quality:
       name: Chất lượng (%)
       required: true
@@ -213,12 +274,17 @@ set_quality:
           mode: slider
 
 set_rotation:
+set_rotation:
   name: Góc xoay
   description: Xoay giao diện màn hình (0/90/180/270).
-  target:
-    device:
-      integration: dashboard_os
   fields:
+    device:
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
     rotation:
       name: Góc
       required: true
@@ -231,12 +297,17 @@ set_rotation:
             - "270"
 
 set_dnd:
+set_dnd:
   name: Không làm phiền
   description: Bật/tắt chế độ không làm phiền trên màn hình.
-  target:
-    device:
-      integration: dashboard_os
   fields:
+    device:
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
     enabled:
       name: Bật
       default: true
@@ -244,12 +315,17 @@ set_dnd:
         boolean:
 
 set_no_sleep:
+set_no_sleep:
   name: Không cho màn ngủ
   description: Bật/tắt chế độ giữ màn hình luôn sáng.
-  target:
-    device:
-      integration: dashboard_os
   fields:
+    device:
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
     enabled:
       name: Bật
       default: true
@@ -257,12 +333,17 @@ set_no_sleep:
         boolean:
 
 set_screensaver:
+set_screensaver:
   name: Màn hình chờ
   description: Bật/tắt màn hình chờ (đồng hồ + ảnh).
-  target:
-    device:
-      integration: dashboard_os
   fields:
+    device:
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
     enabled:
       name: Bật
       default: true
@@ -270,12 +351,17 @@ set_screensaver:
         boolean:
 
 set_setting:
+set_setting:
   name: Đổi cài đặt của màn
   description: Đổi trực tiếp một khoá cài đặt (rwv.*) hoặc một thực thể của màn hình.
-  target:
-    device:
-      integration: dashboard_os
   fields:
+    device:
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
     setting:
       name: Khoá cài đặt
       required: true
@@ -289,12 +375,17 @@ set_setting:
         text:
 
 say:
+say:
   name: Đọc thông báo (TTS)
   description: Đọc thành tiếng một câu trên loa của màn hình.
-  target:
-    device:
-      integration: dashboard_os
   fields:
+    device:
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
     message:
       name: Nội dung
       required: true
@@ -303,12 +394,17 @@ say:
           multiline: true
 
 alarm_create:
+alarm_create:
   name: Tạo báo thức
   description: Tạo báo thức trên màn hình chọn (hoặc mọi màn). Trả về báo thức vừa tạo.
-  target:
-    device:
-      integration: dashboard_os
   fields:
+    device:
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
     time:
       name: Giờ
       description: "Định dạng HH:MM (00:00–23:59)."
@@ -347,19 +443,30 @@ alarm_create:
         boolean:
 
 alarm_list:
+alarm_list:
   name: Danh sách báo thức
   description: Trả về danh sách báo thức (kèm giờ reo kế tiếp) của màn hình chọn.
-  target:
+  fields:
     device:
-      integration: dashboard_os
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
 
+alarm_delete:
 alarm_delete:
   name: Xoá báo thức
   description: Xoá theo `alarm_id`, hoặc theo `time`/`label` (xoá mọi báo thức khớp).
-  target:
-    device:
-      integration: dashboard_os
   fields:
+    device:
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
     alarm_id:
       name: ID báo thức
       selector:
@@ -375,11 +482,16 @@ alarm_delete:
         text:
 
 alarm_set_enabled:
+alarm_set_enabled:
   name: Bật/tắt báo thức
-  target:
-    device:
-      integration: dashboard_os
   fields:
+    device:
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
     alarm_id:
       name: ID báo thức
       required: true
@@ -392,9 +504,17 @@ alarm_set_enabled:
         boolean:
 
 alarm_stop:
+alarm_stop:
   name: Tắt chuông báo thức
   description: Dừng báo thức đang reo trên mọi màn.
   fields:
+    device:
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
     alarm_id:
       name: ID báo thức
       required: true
@@ -402,9 +522,17 @@ alarm_stop:
         text:
 
 alarm_snooze:
+alarm_snooze:
   name: Báo lại
   description: Báo lại sau số phút đã đặt cho báo thức đang reo.
   fields:
+    device:
+      name: Thiết bị
+      description: Chọn một hoặc nhiều màn hình. Bỏ trống = mọi màn hình đang kết nối.
+      selector:
+        device:
+          integration: dashboard_os
+          multiple: true
     alarm_id:
       name: ID báo thức
       required: true
