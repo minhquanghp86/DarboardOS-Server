@@ -17,7 +17,7 @@
  *   POST /screens/set  {id, sid, v}  -> doi 1 cai dat
  */
 import http from 'node:http';
-import { screenAct, screenDetail, screenMedia, screenSettingSet, screenSettings, screenShot, screensOverview } from './deviceManager.js';
+import { screenAct, screenDebug, screenDetail, screenMedia, screenSettingSet, screenSettings, screenShot, screensOverview } from './deviceManager.js';
 import { doorInfo } from './door.js';
 
 let nameOf: (id: string) => string | undefined = () => undefined;
@@ -53,6 +53,10 @@ export function handleScreenCtlApi(req: http.IncomingMessage, res: http.ServerRe
   if (!isLocal(req) && !fromIngress(req) && !isLan(req)) { json(res, 403, { ok: false, error: 'Chỉ dùng được từ trang Darboard.' }); return true; }
   const id = url.searchParams.get('id') || '';
   const named = <T extends { id: string }>(s: T) => ({ ...s, name: nameOf(s.id) || s.id });
+  if (p === '/screens/dbg' && req.method === 'GET') {
+    screenDebug(id).then((d) => json(res, d ? 200 : 404, d ?? { ok: false, error: 'Không có màn hình này.' }));
+    return true;
+  }
   if (p === '/screens/list' && req.method === 'GET') {
     const list = screensOverview().map(named).sort((a, b) => Number(b.online) - Number(a.online) || b.w * b.h - a.w * a.h);
     // (17/10/2026) Chuông cổng là một thiết bị của hệ thống: trả kèm để trang "Màn hình" vẽ thẻ như các màn.

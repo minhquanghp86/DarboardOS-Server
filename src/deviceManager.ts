@@ -4303,6 +4303,37 @@ export function screenDetail(id: string) {
 }
 
 /** Anh man dang hien (tab dang hien + lop Shell: man hinh cho / khoa / thong bao). JPEG; null = man khong ket noi. */
+/**
+ * (27/10/2026) CHAN DOAN: so lieu viewport THAT cua tab dang hien (dung khi hinh bi co nho bat thuong).
+ * Tra ve innerWidth/innerHeight, devicePixelRatio, zoom, kich thuoc <html>, URL, so tab.
+ */
+export async function screenDebug(id: string): Promise<Record<string, unknown> | null> {
+  const dev = devices.get(id);
+  if (!dev) return null;
+  const tab = dev.tabs.get(dev.activeTabKey);
+  const expr = `(() => {
+    const de = document.documentElement;
+    return {
+      url: location.href, title: document.title,
+      iw: innerWidth, ih: innerHeight, dpr: devicePixelRatio,
+      cw: de.clientWidth, ch: de.clientHeight,
+      zoom: getComputedStyle(de).zoom, bodyZoom: getComputedStyle(document.body).zoom,
+      vvScale: (window.visualViewport && visualViewport.scale) || null,
+      scrollW: de.scrollWidth, scrollH: de.scrollHeight
+    };
+  })()`;
+  const r = await dev.cdp.send('Runtime.evaluate', { expression: expr, returnByValue: true })
+    .catch((e: unknown) => ({ __err: (e as Error).message })) as { result?: { value?: unknown }; __err?: string };
+  return {
+    device: id,
+    cfg: { w: dev.cfg.width, h: dev.cfg.height, halfScale: dev.cfg.halfScale, halfVideo: dev.cfg.halfVideo },
+    activeTab: dev.activeTabKey,
+    tabVw: tab ? (tab as unknown as { vw?: number }).vw : null,
+    tabVh: tab ? (tab as unknown as { vh?: number }).vh : null,
+    page: r.__err ? { error: r.__err } : r.result?.value,
+  };
+}
+
 export async function screenShot(id: string): Promise<Buffer | null> {
   const dev = devices.get(id);
   if (!dev || broadcaster.getClientCount(id) === 0) return null;

@@ -1,3 +1,7 @@
+## V2.9.265
+- Thêm `GET /screens/dbg?id=<man>` (LAN): trả viewport THẬT của tab đang hiện (`innerWidth/innerHeight`, DPR, zoom,
+  kích thước `<html>`, URL) để chẩn đoán lỗi hình bị co nhỏ.
+
 ## V2.9.264
 - Trang Báo thức: dòng "Báo thức chung" hết bị tô màu link (thêm `color: inherit; text-decoration: none`).
 
