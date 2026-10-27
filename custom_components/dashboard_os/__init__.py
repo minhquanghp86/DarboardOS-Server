@@ -14,6 +14,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import DOMAIN, MANUFACTURER, MODEL
+from .services import async_setup_services
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ class DashboardOSCoordinator(DataUpdateCoordinator[list[dict]]):
 
     def __init__(self, hass: HomeAssistant, host: str) -> None:
         super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=UPDATE_INTERVAL)
-        self._base = host.rstrip("/")
+        self.base = host.rstrip("/")
 
     async def _async_update_data(self) -> list[dict]:
         session = async_get_clientsession(self.hass)
@@ -45,7 +46,7 @@ class DashboardOSCoordinator(DataUpdateCoordinator[list[dict]]):
     async def _try_json(self, session, path: str, key: str):
         try:
             async with session.get(
-                f"{self._base}{path}", timeout=aiohttp.ClientTimeout(total=10)
+                f"{self.base}{path}", timeout=aiohttp.ClientTimeout(total=10)
             ) as resp:
                 if resp.status >= 400:
                     return None
@@ -94,6 +95,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         coordinator.async_add_listener(lambda: _sync_devices(hass, entry, coordinator.data))
     )
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    # (27/10/2026) GĐ 1+2: đăng ký toàn bộ hành động điều khiển (open_app, nav, brightness, …).
+    await async_setup_services(hass)
     return True
 
 

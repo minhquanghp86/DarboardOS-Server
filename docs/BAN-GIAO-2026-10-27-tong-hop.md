@@ -113,3 +113,23 @@ Bảng màn: P4 `esp32-80f1b2d35fb5` (.200) · 480×272 `esp32-1cdbd49b2260` (.1
     đã backup `.storage/core.config_entries.bak-dashboard-rename`).
   - 4 thiết bị: manufacturer `Dashboard OS`, model `Màn hình Dashboard OS`.
   - `notify.dashboard_os` hoạt động, service `dashboard_os.send` còn nguyên 9 trường; 4/4 màn online.
+
+## H. Tích hợp HA — GĐ 1 + 2 đã xong (component 1.4.0)
+
+**18 hành động** (1 cũ + 17 mới), đã test thật trên panel: **15/15 đạt**.
+
+| Nhóm | Hành động |
+|---|---|
+| Thông báo | `send` |
+| Điều hướng/hiển thị | `open_app`, `open_url`, `nav` (home/back/recents/unlock), `wake`, `lock`, `reload`, `close_app`, `screenshot` (trả `{path,url}`) |
+| Hiển thị/âm thanh/cài đặt | `set_brightness`, `set_volume`, `set_quality`, `set_rotation`, `set_dnd`, `set_no_sleep`, `set_screensaver`, `set_setting`, `say` (TTS) |
+
+- Kiến trúc: `api.py` (client HTTP dùng chung, ánh xạ device_id ↔ `esp32-…`, đọc lỗi JSON của add-on) +
+  `services.py` (đăng ký + schema) + `services.yaml` (mô tả cho UI).
+- Mọi hành động nhận `target` chuẩn HA **và** `device` (id/tên); bỏ trống = mọi màn đang kết nối.
+- `screenshot` lưu vào `/config/www/dashboard/` và trả `{device,path,url}` (`supports_response`).
+- Panel không có loa: `say`/`set_volume` trả lỗi rõ ràng (`DarboardOS: Không đọc được: thiet bi khong co media_player`).
+- **Đã sửa 2 lỗi khi test:** ham `self._base` (coordinator không setup được) và **tham số `json` che module `json`**
+  trong `api._request` (gây AttributeError → HTTP 500).
+- Cài lên HA: chép `custom_components/dashboard_os` → restart HA (HA chỉ import module 1 lần).
+- Còn lại: GĐ 3 (báo thức), GĐ 4 (list_screens/get_status/cast IPTV/touch), GĐ 5 (entities + events).

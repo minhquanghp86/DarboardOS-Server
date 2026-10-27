@@ -64,3 +64,240 @@ send:
       description: Tên luồng go2rtc nếu camera không có thực thể, ví dụ chuong_cua
       selector:
         text:
+
+open_app:
+  name: Mở ứng dụng
+  description: Mở một ứng dụng trên màn hình DarboardOS (id ứng dụng trong menu của màn).
+  target:
+    device:
+      integration: dashboard_os
+  fields:
+    app:
+      name: Ứng dụng
+      required: true
+      example: youtube
+      selector:
+        text:
+
+open_url:
+  name: Mở địa chỉ web
+  description: Mở một trang web trên màn hình.
+  target:
+    device:
+      integration: dashboard_os
+  fields:
+    url:
+      name: Địa chỉ
+      required: true
+      example: http://192.168.10.2:8123/dashboard-mobile/3
+      selector:
+        text:
+
+nav:
+  name: Điều hướng
+  description: Phím điều hướng của màn hình (như nút cứng trên điện thoại).
+  target:
+    device:
+      integration: dashboard_os
+  fields:
+    key:
+      name: Phím
+      required: true
+      selector:
+        select:
+          options:
+            - home
+            - back
+            - recents
+            - unlock
+
+wake:
+  name: Đánh thức
+  description: Bật đèn nền màn hình.
+  target:
+    device:
+      integration: dashboard_os
+
+lock:
+  name: Khoá màn hình
+  description: Hiện màn hình khoá (phải vuốt lên để mở).
+  target:
+    device:
+      integration: dashboard_os
+
+reload:
+  name: Tải lại trang
+  description: Tải lại trang đang hiện trên màn hình.
+  target:
+    device:
+      integration: dashboard_os
+
+close_app:
+  name: Đóng ứng dụng
+  description: Đóng một ứng dụng đang mở trên màn hình.
+  target:
+    device:
+      integration: dashboard_os
+  fields:
+    app:
+      name: Ứng dụng
+      required: true
+      example: youtube
+      selector:
+        text:
+
+screenshot:
+  name: Chụp màn hình
+  description: Lưu ảnh chụp màn hình vào /config/www/dashboard/ và trả về đường dẫn + URL.
+  target:
+    device:
+      integration: dashboard_os
+  fields:
+    filename:
+      name: Tên tệp
+      description: Bỏ trống = tự đặt tên theo màn hình và thời gian.
+      selector:
+        text:
+
+set_brightness:
+  name: Độ sáng
+  description: Đặt độ sáng đèn nền (0-100).
+  target:
+    device:
+      integration: dashboard_os
+  fields:
+    brightness:
+      name: Độ sáng (%)
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 100
+          mode: slider
+
+set_volume:
+  name: Âm lượng
+  description: Đặt âm lượng (0-100), tuỳ chọn tắt tiếng.
+  target:
+    device:
+      integration: dashboard_os
+  fields:
+    volume:
+      name: Âm lượng (%)
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 100
+          mode: slider
+    mute:
+      name: Tắt tiếng
+      default: false
+      selector:
+        boolean:
+
+set_quality:
+  name: Chất lượng hình
+  description: Chất lượng JPEG gửi xuống màn hình (0 = tự động, khuyến nghị 40-70).
+  target:
+    device:
+      integration: dashboard_os
+  fields:
+    quality:
+      name: Chất lượng (%)
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 90
+          mode: slider
+
+set_rotation:
+  name: Góc xoay
+  description: Xoay giao diện màn hình (0/90/180/270).
+  target:
+    device:
+      integration: dashboard_os
+  fields:
+    rotation:
+      name: Góc
+      required: true
+      selector:
+        select:
+          options:
+            - "0"
+            - "90"
+            - "180"
+            - "270"
+
+set_dnd:
+  name: Không làm phiền
+  description: Bật/tắt chế độ không làm phiền trên màn hình.
+  target:
+    device:
+      integration: dashboard_os
+  fields:
+    enabled:
+      name: Bật
+      default: true
+      selector:
+        boolean:
+
+set_no_sleep:
+  name: Không cho màn ngủ
+  description: Bật/tắt chế độ giữ màn hình luôn sáng.
+  target:
+    device:
+      integration: dashboard_os
+  fields:
+    enabled:
+      name: Bật
+      default: true
+      selector:
+        boolean:
+
+set_screensaver:
+  name: Màn hình chờ
+  description: Bật/tắt màn hình chờ (đồng hồ + ảnh).
+  target:
+    device:
+      integration: dashboard_os
+  fields:
+    enabled:
+      name: Bật
+      default: true
+      selector:
+        boolean:
+
+set_setting:
+  name: Đổi cài đặt của màn
+  description: Đổi trực tiếp một khoá cài đặt (rwv.*) hoặc một thực thể của màn hình.
+  target:
+    device:
+      integration: dashboard_os
+  fields:
+    setting:
+      name: Khoá cài đặt
+      required: true
+      example: rwv.quality
+      selector:
+        text:
+    value:
+      name: Giá trị
+      required: true
+      selector:
+        text:
+
+say:
+  name: Đọc thông báo (TTS)
+  description: Đọc thành tiếng một câu trên loa của màn hình.
+  target:
+    device:
+      integration: dashboard_os
+  fields:
+    message:
+      name: Nội dung
+      required: true
+      selector:
+        text:
+          multiline: true

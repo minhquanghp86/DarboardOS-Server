@@ -1,5 +1,9 @@
 # Kế hoạch: mở rộng tích hợp Home Assistant cho Dashboard OS (27/10/2026)
 
+> **TRẠNG THÁI:** GĐ 1 + GĐ 2 **ĐÃ XONG** (component 1.4.0, 18 hành động, test thật 15/15 đạt trên panel).
+> GĐ 3 → 5 còn lại. Chi tiết từng hành động: `custom_components/dashboard_os/README.md`.
+
+
 ## 1. Hiện trạng (đã đọc toàn bộ `custom_components/dashboard_os/`)
 
 | Thành phần | Nội dung |

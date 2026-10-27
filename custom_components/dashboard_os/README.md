@@ -1,75 +1,120 @@
 # Dashboard OS — tích hợp Home Assistant
 
-Gửi thông báo **ưu tiên cao** tới các màn hình ESP32 chạy Dashboard OS: mở khoá, bật đèn nền,
-hiển thị phủ toàn màn hình trên ứng dụng đang chạy, kèm ảnh / video / âm thanh.
+Điều khiển các màn hình ESP32 chạy **Dashboard OS** từ Home Assistant: gửi thông báo ưu tiên cao, mở ứng dụng/URL,
+điều hướng, chỉnh độ sáng/âm lượng/chất lượng hình, đọc TTS, chụp màn hình.
 
-## Yêu cầu
-
-- Add-on **Dashboard OS Server ≥ 2.9.191** (cài từ kho add-on của bạn)
-- Home Assistant (đã thử với 2026.10)
+- Yêu cầu: add-on **Dashboard OS Server ≥ 2.9.261** (khuyến nghị ≥ 2.9.268)
+- Đã thử với Home Assistant 2026.10
 
 ## Cài đặt
 
-1. Chép thư mục `dashboard_os` vào `/config/custom_components/` của Home Assistant.
+1. Chép thư mục `dashboard_os` vào `/config/custom_components/`.
 2. Khởi động lại Home Assistant.
-3. **Settings → Devices & Services → + Add Integration** → tìm **Dashboard OS**.
-4. Giữ địa chỉ mặc định `http://172.30.32.1:18080` (đúng với Home Assistant OS) → **Submit**.
+3. **Settings → Devices & Services → + Add Integration** → **Dashboard OS**.
+4. Giữ địa chỉ mặc định `http://172.30.32.1:18080` (đúng với HA OS) → **Submit**.
 
-## Hành động `dashboard_os.send`
+Mỗi màn hình trong add-on tự xuất hiện thành **một thiết bị** trong Home Assistant (cập nhật 30 giây/lần).
 
-| Trường | Kiểu | Mô tả |
-|---|---|---|
-| `message` | text (bắt buộc) | Nội dung thông báo |
-| `title` | text | Tiêu đề |
-| `duration` | số 0–600, mặc định 10 | Số giây hiển thị toàn màn hình. **0 = không tự thoát**, chạm màn hình để đóng |
-| `device` | chọn nhiều thiết bị | Màn hình nhận thông báo. Bỏ trống = mọi màn hình |
-| `image` | media / URL / đường dẫn | Ảnh đính kèm |
-| `video` | media / URL / đường dẫn | Video |
-| `audio` | media / URL / đường dẫn | Âm thanh |
-| `camera` | chọn thực thể camera | Chụp ảnh từ camera có trong Home Assistant |
-| `camera_stream` | text | Tên luồng go2rtc nếu camera không có thực thể (ví dụ `chuong_cua`), ưu tiên hơn `camera` |
+## Cách chọn màn hình
 
-Mức ưu tiên luôn là **urgent** — không cần chọn.
-
-### Ví dụ
+Mọi hành động đều nhận `target` chuẩn của HA (chọn một hay nhiều thiết bị), **hoặc** trường `device`
+(id `esp32-…` hay tên màn). Bỏ trống = **mọi màn hình đang kết nối**.
 
 ```yaml
-action:
-  - action: dashboard_os.send
-    data:
-      message: "Cửa chính vừa mở lúc 22:15"
-      title: "Cảnh báo"
-      duration: 10
-      device:
-        - 7.0 Guition JC1060P470C
-      camera: camera.chuong_cua
+target:
+  device_id: bec48a5c7ee6e67f028a4fb37e2af01e   # màn 480x272
 ```
 
-Thông báo không tự thoát (phải chạm để đóng):
+## Danh sách hành động (18)
+
+### Thông báo
+| Hành động | Trường |
+|---|---|
+| `dashboard_os.send` | `message`*, `title`, `duration` (0-600 s), `image`, `video`, `audio`, `camera`, `camera_stream` |
+
+### Điều hướng và hiển thị
+| Hành động | Trường | Việc |
+|---|---|---|
+| `dashboard_os.open_app` | `app`* | Mở ứng dụng theo id (vd `youtube`, `settings`) |
+| `dashboard_os.open_url` | `url`* | Mở trang web |
+| `dashboard_os.nav` | `key`* = `home` / `back` / `recents` / `unlock` | Phím điều hướng |
+| `dashboard_os.wake` | — | Bật đèn nền |
+| `dashboard_os.lock` | — | Hiện màn hình khoá |
+| `dashboard_os.reload` | — | Tải lại trang hiện tại |
+| `dashboard_os.close_app` | `app`* | Đóng ứng dụng |
+| `dashboard_os.screenshot` | `filename` | Lưu ảnh vào `/config/www/dashboard/`, **trả** `{device,path,url}` |
+
+### Hiển thị, âm thanh, cài đặt
+| Hành động | Trường | Việc |
+|---|---|---|
+| `dashboard_os.set_brightness` | `brightness`* 0-100 | Độ sáng đèn nền |
+| `dashboard_os.set_volume` | `volume`* 0-100, `mute` | Âm lượng (màn có loa) |
+| `dashboard_os.set_quality` | `quality`* 0-90 (0 = tự động) | Chất lượng JPEG gửi xuống màn |
+| `dashboard_os.set_rotation` | `rotation`* = 0/90/180/270 | Góc xoay giao diện |
+| `dashboard_os.set_dnd` | `enabled`* | Không làm phiền |
+| `dashboard_os.set_no_sleep` | `enabled`* | Giữ màn luôn sáng |
+| `dashboard_os.set_screensaver` | `enabled`* | Màn hình chờ (bật = hiện, tắt = đánh thức) |
+| `dashboard_os.set_setting` | `setting`* (`rwv.*` hoặc entity_id), `value`* | Đổi cài đặt bất kỳ |
+| `dashboard_os.say` | `message`* | Đọc TTS trên loa của màn |
+
+\* = bắt buộc
+
+## Ví dụ
+
+Thông báo chuông cổng:
 
 ```yaml
 action:
   - action: dashboard_os.send
     data:
       message: "Có khách ở cổng"
-      duration: 0
+      title: "Chuông cổng"
+      duration: 10
+      camera: camera.chuong_cua
 ```
 
-## Thiết bị tự động
+Sáng mở dashboard, tối về màn hình chính:
 
-Tích hợp hỏi add-on mỗi **30 giây** (`GET /devices`) danh sách màn hình đang kết nối và
-tạo/xoá thiết bị Home Assistant tương ứng:
+```yaml
+action:
+  - action: dashboard_os.open_url
+    target: { device_id: bec48a5c7ee6e67f028a4fb37e2af01e }
+    data: { url: "http://192.168.10.2:8123/dashboard-mobile/3" }
+  - action: dashboard_os.set_brightness
+    target: { device_id: bec48a5c7ee6e67f028a4fb37e2af01e }
+    data: { brightness: 70 }
+```
 
-- Thêm màn hình vào add-on → dropdown tự có sau ≤ 30 giây
-- Màn hình mất kết nối khỏi add-on → thiết bị Home Assistant tương ứng bị xoá
-- Chuông cổng không nằm trong danh sách (add-on trả `config: null` cho nó)
+Chụp màn hình rồi gửi Telegram:
 
-## Media
+```yaml
+action:
+  - action: dashboard_os.screenshot
+    target: { device_id: 1196b7c26248724af14af1bfc44fab76 }
+    data: { filename: p4-hien-tai }
+    response_variable: shot
+  - action: notify.telegram
+    data:
+      message: "Màn P4"
+      data: { photo: "{{ shot.screenshots[0].path }}" }
+```
 
-- Chọn từ **thư viện media** của Home Assistant: component tự tải file, đẩy lên add-on
-  (`POST /notify/upload`) rồi gắn URL vào thông báo.
-- Có thể dán URL `http(s)` hoặc đường dẫn file trong `/config`.
+Đọc thông báo bằng giọng nói:
 
-## Logo
+```yaml
+action:
+  - action: dashboard_os.say
+    target: { device_id: 1196b7c26248724af14af1bfc44fab76 }
+    data: { message: "Đã bật máy lạnh" }
+```
 
-`brand/icon.png` và `brand/logo.png` — hiển thị ở trang Integrations.
+## Ghi chú
+
+- `say` và `set_volume` chỉ chạy trên màn **có loa** (P4). Màn không loa báo lỗi rõ ràng.
+- `screenshot` lưu ảnh vào `/config/www/dashboard/` → truy cập qua `/local/dashboard/<tên>.jpg`.
+- Mọi hành động trả lỗi tiếng Việt kèm lý do từ add-on (kết nối, màn offline, màn không có loa…).
+
+## Lịch sử
+
+- **1.4.0** (27/10/2026): 17 hành động mới (GĐ 1+2), tách `api.py` dùng chung; đổi tên hiển thị sang **Dashboard OS**.
+- **1.2.0**: `send` + entity notify.
