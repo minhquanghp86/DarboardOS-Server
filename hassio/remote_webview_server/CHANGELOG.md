@@ -1,3 +1,7 @@
+## V2.9.275
+- **Bàn phím màn ngang: chữ to hơn** — cỡ chữ phím đổi từ `2.4vmin` (nhỏ vì vmin = chiều cao thấp) sang
+  `clamp(15px, 3.4vh, 28px)`, `line-height: 1`.
+
 ## V2.9.274
 - **Bàn phím ở màn ngang**: tăng chiều cao phím (`min(300px, 56vh)`), các hàng sát nhau hơn (giảm gap), cỡ chữ theo vmin
   để phím cân đối giữa cao và rộng.
