@@ -15,7 +15,7 @@
 | Add-on đang chạy | **2.9.252** (`state: started`) |
 | Server repo | `main` = `56258b4`, sạch, đã push |
 | Client repo | `main` = `618e813`, sạch |
-| Tag ổn định | `stable-2026-10-26` → **2.9.241** (CHƯA dời — xem mục 6) |
+| Tag ổn định | `stable-2026-10-27` → **2.9.241** (CHƯA dời — xem mục 6) |
 | Panel 480×272 | `esp32-1cdbd49b2260` · IP `.184` · q40 (UI) · full-res · gói 64 KB |
 | Đo gần nhất (480×272, YouTube) | **9.8 fps**, nhịp 100 ms, decode 59 ms, 18.3 KB/khung |
 | Còn dở | Chất lượng q40/q50/q60 **không đổi byte/khung** → nghi dùng hằng số q90 |
@@ -85,7 +85,7 @@ Sau khi sửa, kiểm tra thêm hợp đồng giữa `setTuning` và đường c
 6. Chỉ khi đạt mới chốt tag (mục 6).
 
 ### 1.5 Rollback
-`git revert` commit fix, hoặc `git checkout stable-2026-10-26` rồi CI + update add-on (mục 5).
+`git revert` commit fix, hoặc `git checkout stable-2026-10-27` rồi CI + update add-on (mục 5).
 
 ---
 
@@ -211,7 +211,7 @@ HA host `192.168.10.2`, add-on web `:18080`, domain công khai `hass.mqsmarthome
 
 ## 6. CHỐT BẢN ỔN ĐỊNH (chỉ sau khi mục 1.4 đạt)
 1. Cập nhật mục 0 + CHANGELOG + `docs/ON-DINH-2026-10-26-control.md`.
-2. `git tag -f stable-2026-10-26 <sha>` (dời từ 2.9.241 → bản mới), `git push -f origin tag stable-2026-10-26`.
+2. `git tag -f stable-2026-10-27 <sha>` (dời từ 2.9.241 → bản mới), `git push -f origin tag stable-2026-10-27`.
 3. Ghi lại số đo nghiệm thu (fps/byte/decode/q) vào tài liệu này.
 4. Dọn file tạm: `swipe*.cjs`, ảnh preview, `/tmp/yt*.py` nếu muốn.
 

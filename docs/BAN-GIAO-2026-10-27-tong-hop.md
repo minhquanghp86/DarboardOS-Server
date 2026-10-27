@@ -1,0 +1,101 @@
+# BÀN GIAO TỔNG HỢP — 27/10/2026 (đọc file này trước)
+
+> Phiên này làm 3 việc: **(A)** chốt chất lượng/fps cho panel 480×272, **(B)** thêm ứng dụng Báo thức trên
+> Darboard, **(C)** sửa lỗi hình bị co nhỏ sau "Gần đây → Màn hình chính".
+> Trạng thái cuối: add-on **2.9.267**, tag `stable-2026-10-27` trỏ về commit chốt phiên.
+
+---
+
+## 0. TRẠNG THÁI HIỆN TẠI
+
+| Hạng mục | Giá trị |
+|---|---|
+| Add-on | **2.9.267** (started) |
+| Server repo | `main` sạch, đã push; tag `stable-2026-10-27` → commit chốt phiên |
+| Client repo | sạch, YAML 480×272 đã đồng bộ `jpeg_quality: 65` |
+| 4 màn | P4 1024×600 · 480×272 · 480×480 · 800×480 (q40 đặt chung từ Darboard UI) |
+| Test | 307/307 pass |
+
+---
+
+## A. 480×272 — chất lượng & fps
+
+**Kết quả chốt: 12.1 fps (YouTube) · 11.4 fps (YouTube TV) · q40 · nhịp 80 ms · full-res.**
+Chi tiết + cách đo: [`ON-DINH-2026-10-27-480x272.md`](ON-DINH-2026-10-27-480x272.md).
+
+Ba lỗi đã sửa (2.9.253 → 2.9.260):
+1. **Chất lượng trong UI không tới encoder** — `videoScreencastQuality()` dùng hằng số 90 và bỏ qua
+   `qualityOverride`. Nay `effectiveJpegQuality() = qualityOverride ?? cfg.jpegQuality`.
+   (Lưu ý: hạ ngưỡng passthrough 128 KB → 64 KB là SAI, đã trả lại ở 2.9.255.)
+2. **Sàn hồi phục nhịp vượt trần** — `recoverFloorOf()` bỏ qua `maxIntervalMs` → kẹt 200 ms (5 fps).
+3. **Bộ điều tiết đứng yên** — panel nhỏ không gửi mẫu decode; nay ép cứng nhịp 80 ms
+   (`SMALL_PANEL_INTERVAL_MS`).
+
+Trần thực tế của S3: decode 55-70 ms/khung (không có giải mã JPEG phần cứng). Muốn >12 fps phải giảm số pixel.
+
+---
+
+## B. Ứng dụng Báo thức trên Darboard (2.9.261 → 2.9.264)
+
+Chi tiết: [`BAO-THUC-DARBOARD.md`](BAO-THUC-DARBOARD.md).
+
+- Ô **Báo thức** trong lưới ứng dụng trang chủ → chọn màn → mở trình Báo thức của **đúng màn đó**
+  (`alarm.html?dev=<id>`); thẻ mỗi màn hiện số báo thức đang bật + giờ reo kế tiếp.
+- Khối **"Báo thức chung (mọi màn hình)"** ở đầu trang.
+- Dùng chung `/data/rwv-alarms.json` với app trên panel → đồng bộ mọi nơi.
+- API `/alarm/*` mở cho **LAN/Tailscale + HA ingress** (trước chỉ 127.0.0.1).
+- **Bài học quan trọng:** mọi trang trong `public/` phải gọi API bằng **đường dẫn tương đối**
+  (`screens/list`, `alarm/list`), KHÔNG dùng `/screens/...` — nếu không sẽ 404 khi mở qua tên miền HA ingress
+  (URL có tiền tố `/api/hassio_ingress/<token>/`).
+
+---
+
+## C. Lỗi hình bị co nhỏ (2.9.266 + 2.9.267)
+
+Chi tiết: [`SUA-LOI-HINH-CO-NHO.md`](SUA-LOI-HINH-CO-NHO.md).
+
+- **Gốc:** thumbnail "Gần đây" chụp bằng `Page.captureScreenshot({clip:{..., scale: 320/width}})`; trên Chromium
+  headless lệnh này làm surface/screencast lệch cỡ → khung ra đúng 320×188 (31,25%) → panel vẽ ảnh nhỏ góc trái.
+  Thỉnh thoảng mới xảy ra vì phụ thuộc việc chèn đúng nhịp screencast.
+- **Sửa:** thumbnail tạo từ khung vừa gửi bằng `sharp` (không dùng CDP clip.scale); thêm **lưới an toàn** bỏ khung
+  < 75% màn hình + khôi phục viewport.
+- **Kèm:** nút "Màn hình chính" khi đang ở tab hệ thống nay gọi `window.__rwvShell.home()` để đóng "Gần đây"
+  (trước đó `activateTab()` return sớm nên không có tác dụng).
+- **Chẩn đoán:** `GET /screens/dbg?id=<màn>` (LAN) trả viewport thật/DPR/zoom/URL — dùng lại khi gặp sự cố hình.
+
+---
+
+## D. Vận hành (đúng trình tự, đã dùng trong phiên)
+
+```bash
+# phát hành
+git push origin main            # CI build ~2-3 phút
+# chờ: DONE completed success <sha>
+ssh hass 'ha store reload'      # nếu "No update available" -> chạy reload lần 2-3
+ssh hass 'ha apps update b39feb53_remote_webview_server'
+ssh hass 'ha apps info b39feb53_remote_webview_server'   # xác nhận version
+
+# đo fps (panel phải ĐANG PHÁT video và KHÔNG bị khoá)
+scp scripts/measure-fps.py hass:/tmp/
+ssh hass 'DUR=180 LABEL="2.9.267" python3 /tmp/measure-fps.py'
+```
+
+Bảng màn: P4 `esp32-80f1b2d35fb5` (.200) · 480×272 `esp32-1cdbd49b2260` (.184) ·
+480×480 `esp32-28372f8a0218` (.173) · 800×480 `esp32-84fce66ba3ec` (.167).
+
+---
+
+## E. Việc còn mở (không chặn)
+
+1. `cdp.mjs` (tự mở YouTube để đo) vẫn thiếu — muốn đo hoàn toàn tự động thì viết lại và commit vào `scripts/`.
+2. Muốn > 12 fps trên 480×272: chỉ còn cách giảm kích thước khung (~90% → decode ~45 ms → 14-15 fps, mềm nhẹ).
+3. Báo thức: có thể thêm nút "＋" ngay trên thẻ màn ở trang chọn để thêm nhanh.
+
+---
+
+## F. Bài học
+1. Trang tĩnh gọi API **tương đối** (ingress).
+2. `appliedQuality` chỉ là con số báo cáo — kiểm tra bằng `recentFrameBytes`.
+3. Không dùng `captureScreenshot` có `clip.scale` trên tab đang screencast (làm lệch cỡ khung).
+4. Khi hình sai: `GET /screens/dbg` trước, đừng đoán.
+5. Đo fps: kiểm tra cột "video đang phát" và màn không bị khoá, nếu không sẽ ra 0 fps vô nghĩa.
