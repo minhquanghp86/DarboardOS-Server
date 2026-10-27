@@ -1,3 +1,9 @@
+## V2.9.263
+- **Sửa trang Báo thức khi mở qua tên miền/HA ingress**: trang gọi `/screens/list` và `/alarm/list` bằng đường dẫn
+  tuyệt đối nên khi URL có tiền tố `/api/hassio_ingress/<token>/` sẽ trỏ ra gốc domain → 404, danh sách màn hình
+  rỗng ("Chưa có màn hình nào kết nối"). Nay dùng đường dẫn **tương đối** (như `screens.html`).
+- Trang chọn màn có thêm khối **"Báo thức chung (mọi màn hình)"** để thấy ngay các báo thức đặt cho tất cả màn.
+
 ## V2.9.262
 - **Sửa bố cục trang Báo thức trên Darboard**: tên màn và dòng trạng thái bị chồng lên nhau (span inline) → nay
   mỗi dòng một hàng, badge số báo thức không đè lên tên.

@@ -92,7 +92,8 @@
   function api(p, body) {
     var init = { cache: 'no-store' };
     if (body !== undefined) { init.method = 'POST'; init.headers = { 'content-type': 'application/json' }; init.body = JSON.stringify(body || {}); }
-    return fetch('/alarm/' + p, init).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || 'Lỗi ' + r.status); return j; }); });
+    // (27/10/2026) Duong dan TUONG DOI: mo qua HA ingress (/api/hassio_ingress/<token>/alarm.html) van dung.
+    return fetch('alarm/' + p, init).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || 'Lỗi ' + r.status); return j; }); });
   }
   var p2 = function (n) { return String(n).padStart(2, '0'); };
   // Thu: 0 = CN. Hien theo thu tu T2..CN nhu lich Viet.

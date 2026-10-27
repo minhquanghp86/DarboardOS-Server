@@ -39,6 +39,9 @@
   .dot.off { background: #64748b; }
   .badge { flex: none; font-size: .8em; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: rgba(99,102,241,.18); color: #a5b4fc; }
   .all .ic { background: linear-gradient(145deg, #0ea5e9, #0369a1); }
+  .sec { color: var(--muted); font-size: .8em; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin: 4px 2px -4px; }
+  .gl { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); }
+  .gl .tm { font-weight: 700; font-variant-numeric: tabular-nums; font-size: 1.15em; flex: none; }
   .empty { padding: 22px; text-align: center; color: var(--muted); background: var(--surface); border-radius: 16px; border: 1px solid var(--line); }
 </style>
 </head>
@@ -52,6 +55,7 @@
     <span class="ic" id="icAll"></span>
     <span class="tx"><span class="nm">Tất cả màn hình</span><span class="st">Xem và quản lý mọi báo thức</span></span>
   </a>
+  <div id="globals"></div>
   <div class="grid" id="grid"></div>
   <div class="empty" id="empty" hidden>Chưa có màn hình nào kết nối.</div>
 </div>
@@ -72,8 +76,8 @@
   }
 
   Promise.all([
-    fetch('/screens/list', { cache: 'no-store' }).then(function (r) { return r.json(); }).catch(function () { return { screens: [] }; }),
-    fetch('/alarm/list', { cache: 'no-store' }).then(function (r) { return r.json(); }).catch(function () { return { alarms: [], tz: 420 }; })
+    fetch('screens/list', { cache: 'no-store' }).then(function (r) { return r.json(); }).catch(function () { return { screens: [] }; }),
+    fetch('alarm/list', { cache: 'no-store' }).then(function (r) { return r.json(); }).catch(function () { return { alarms: [], tz: 420 }; })
   ]).then(function (res) {
     var screens = (res[0] && res[0].screens) || [];
     var data = res[1] || {};
@@ -100,6 +104,22 @@
       a.append(ic, tx, bd, dot);
       grid.append(a);
     });
+    var globals = alarms.filter(function (a) { return a.devices === 'all'; });
+    if (globals.length) {
+      var wrap = document.getElementById('globals');
+      wrap.append(el('div', 'sec', 'Báo thức chung (mọi màn hình)'));
+      var box = el('div'); box.style.display = 'flex'; box.style.flexDirection = 'column'; box.style.gap = '8px';
+      globals.sort(function (x, y) { return x.time < y.time ? -1 : 1; }).forEach(function (a) {
+        var row = el('a', 'gl'); row.href = 'alarm.html';
+        row.append(el('span', 'tm', a.time));
+        var tx = el('span', 'tx');
+        tx.append(el('span', 'nm', a.label || 'Báo thức chung'));
+        tx.append(el('span', 'st', a.enabled ? (a.next ? 'Tiếp theo sau ' + inText(a.next - Date.now()) : 'Đang bật') : 'Đang tắt'));
+        row.append(tx);
+        box.append(row);
+      });
+      wrap.append(box);
+    }
     if (!screens.length) document.getElementById('empty').hidden = false;
   });
 })();
