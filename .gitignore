@@ -4,3 +4,7 @@ coverage
 .DS_Store
 kb_sizes.png
 kb_press.png
+
+# Python (custom component)
+__pycache__/
+*.pyc

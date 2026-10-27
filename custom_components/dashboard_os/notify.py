@@ -58,9 +58,6 @@ async def async_setup_entry(
         hass.services.async_register(
             DOMAIN, SERVICE_SEND, handle, schema=SERVICE_SCHEMA
         )
-    # (27/10/2026) Alias tên cũ `darboard_os.send` (gõ sai chính tả) — cùng handler.
-    if not hass.services.has_service("darboard_os", SERVICE_SEND):
-        hass.services.async_register("darboard_os", SERVICE_SEND, handle, schema=SERVICE_SCHEMA)
 
 
 class DashboardOSNotify(NotifyEntity):

@@ -163,11 +163,6 @@ Settings → Devices & Services → **Dashboard OS** → **Configure**:
 | `scan_interval` | Chu kỳ cập nhật trạng thái (10–300 giây, mặc định 30) |
 | `controls` | Bật/tắt nhóm entity điều khiển (switch/number/select) — tắt nếu không muốn quá nhiều entity |
 
-## Alias tên cũ
-
-Mọi hành động được đăng ký **hai lần**: `dashboard_os.*` (tên đúng) và `darboard_os.*` (tên cũ gõ sai) —
-automation cũ dùng `darboard_os.send` vẫn chạy.
-
 ## Ghi chú
 
 - `say` và `set_volume` chỉ chạy trên màn **có loa** (P4). Màn không loa báo lỗi rõ ràng.
@@ -178,7 +173,7 @@ automation cũ dùng `darboard_os.send` vẫn chạy.
 
 - **1.8.0** (27/10/2026): mọi trường có `example` (hiện làm gợi ý trong form) + mô tả chi tiết; sửa trùng khoá YAML.
 - **1.7.0** (27/10/2026): 6 hành động nâng cao (GĐ 4): list_screens, get_status, cast_iptv, touch, swipe, send_command.
-- **2.0.0** (27/10/2026): switch/number/select 2 chiều (3+3+1 entity/màn), Options flow (chu kỳ + bật/tắt nhóm điều khiển), `priority` cho `send`, alias `darboard_os.*`. Test 9/9.
+- **2.0.0** (27/10/2026): switch/number/select 2 chiều (3+3+1 entity/màn), Options flow (chu kỳ + bật/tắt nhóm điều khiển), `priority` cho `send`. Test 9/9.
 - **1.6.0** (27/10/2026): trường chọn `device` cho mọi hành động (giống `send`); thêm entity mỗi màn: kết nối, ứng dụng đang mở, trạng thái + 6 nút bấm.
 - **1.5.0** (27/10/2026): 6 hành động báo thức (GĐ 3), test thật 7/7.
 - **1.4.0** (27/10/2026): 17 hành động mới (GĐ 1+2), tách `api.py` dùng chung; đổi tên hiển thị sang **Dashboard OS**.
