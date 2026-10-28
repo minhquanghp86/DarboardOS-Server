@@ -1,3 +1,6 @@
+## V2.9.280
+- Trang chủ: IP hiện **ngay sau "Wi-Fi" / "Cáp"**, bỏ icon cáp gây hiểu nhầm khi màn đang dùng Wi-Fi.
+
 ## V2.9.279
 - Trang chủ: thẻ **Chuông cửa** cũng hiện IP (server đã có sẵn `ip` từ lúc camera cổng kết nối).
 

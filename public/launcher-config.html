@@ -1175,14 +1175,13 @@
         var st = !s.online ? 'Mất kết nối' : s.ring ? 'Đang đổ chuông' : s.on === false ? 'Tắt đèn nền' : s.saver ? (s.locked ? 'Màn hình chờ · có khóa' : 'Màn hình chờ') : 'Đang dùng';
         var n = mk('div', 'sn'); n.append(mk('span', 'sd' + (s.online ? '' : ' off')), mk('span', '', s.name || s.id));
         var si = mk('div', 'si');
-        if (s.online) si.append(item(!s.nw || s.nw.k === 'eth' ? 'ethernet' : ['wifi-strength-1', 'wifi-strength-2', 'wifi-strength-3', 'wifi-strength-4'][s.nw.q], !s.nw ? 'Mạng' : s.nw.k === 'eth' ? 'Cáp' : 'Wi-Fi'));
+        if (s.online) si.append(item(!s.nw || s.nw.k === 'eth' ? 'ethernet' : ['wifi-strength-1', 'wifi-strength-2', 'wifi-strength-3', 'wifi-strength-4'][s.nw.q], (!s.nw ? 'Mạng' : s.nw.k === 'eth' ? 'Cáp' : 'Wi-Fi') + (s.ip ? ' ' + s.ip : '')));
         if (s.bt != null) si.append(item(s.ch === 'chg' ? 'battery-charging' : s.ch === 'full' ? 'power-plug' : 'battery-high', s.bt + '%' + (s.ch === 'chg' ? ' · sạc' : s.ch === 'full' ? ' · cắm nguồn' : ''), s.bt < 20 && s.ch === 'bat' ? 'red' : ''));
         else if (s.ch === 'none') si.append(item('power-plug', 'Cắm nguồn'));
         if (s.np && s.np.length) si.append(item('play', 'Đang phát'));
         if (s.mc) si.append(item('phone-missed', s.mc + ' nhỡ', 'red'));
         if (s.nu) si.append(item('bell-badge-outline', String(s.nu)));
         if (s.dnd) si.append(item('moon-waning-crescent', 'Im lặng'));
-        if (s.ip) si.append(item('ethernet', s.ip));
         a.append(n, mk('div', 'sa', st + ' · ' + (s.app ? s.app.l : '—')), si);
         if (s.online) {
           var ctl = mk('span', 'sctl'); ctl.setAttribute('role', 'button'); ctl.tabIndex = 0;
@@ -1206,7 +1205,7 @@
         var n = mk('div', 'sn'); n.append(mk('span', 'sd' + (d.online ? '' : ' off')), mk('span', '', d.name || d.id));
         var si = mk('div', 'si');
         si.append(item('video', 'Camera cổng'));
-        if (d.ip) si.append(item('ethernet', d.ip));
+        if (d.ip) si.append(mk('span', '', d.ip));
         if (d.canTalk) si.append(item('phone', 'Nói chuyện 2 chiều'));
         if (d.counts && d.counts.missed) si.append(item('phone-missed', d.counts.missed + ' nhỡ', 'red'));
         if (d.last) si.append(item('bell-badge-outline', new Date(d.last.ts).toLocaleDateString('vi-VN')));
