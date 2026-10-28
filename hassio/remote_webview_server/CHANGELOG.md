@@ -1,3 +1,6 @@
+## V2.9.279
+- Trang chủ: thẻ **Chuông cửa** cũng hiện IP (server đã có sẵn `ip` từ lúc camera cổng kết nối).
+
 ## V2.9.278
 - Sửa lỗi build 2.9.277 (đặt sai vị trí hàm `clientIp` trong lớp Broadcaster) — bản này thay thế 2.9.277.
 

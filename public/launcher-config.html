@@ -1206,6 +1206,7 @@
         var n = mk('div', 'sn'); n.append(mk('span', 'sd' + (d.online ? '' : ' off')), mk('span', '', d.name || d.id));
         var si = mk('div', 'si');
         si.append(item('video', 'Camera cổng'));
+        if (d.ip) si.append(item('ethernet', d.ip));
         if (d.canTalk) si.append(item('phone', 'Nói chuyện 2 chiều'));
         if (d.counts && d.counts.missed) si.append(item('phone-missed', d.counts.missed + ' nhỡ', 'red'));
         if (d.last) si.append(item('bell-badge-outline', new Date(d.last.ts).toLocaleDateString('vi-VN')));
