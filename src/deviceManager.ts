@@ -4311,6 +4311,7 @@ function screenSummary(dev: DeviceSession) {
     nu: nts.unseen('nt'), cu: chatUnread(dev.deviceId).total, mc: recent.filter((n) => n.missed && !n.seen).length,
     dnd: dndOf(dev.deviceId), ring: !!dev.doorbell || !!alarms.ringingOn(dev.deviceId),
     pr: dev.presence ? dev.presence.on : null, touch: dev.lastTouchMs || null,
+    ip: broadcaster.clientIp(dev.deviceId),
   };
 }
 

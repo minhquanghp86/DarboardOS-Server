@@ -1,3 +1,6 @@
+## V2.9.277
+- **Trang chủ Dashboard hiển thị IP từng màn hình** — lấy từ socket WebSocket đang kết nối, không phụ thuộc cảm biến firmware.
+
 ## V2.9.276
 - Bàn phím màn ngang: chữ to thêm — `clamp(18px, 3.9vh, 32px)`.
 

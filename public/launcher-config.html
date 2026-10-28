@@ -1182,6 +1182,7 @@
         if (s.mc) si.append(item('phone-missed', s.mc + ' nhỡ', 'red'));
         if (s.nu) si.append(item('bell-badge-outline', String(s.nu)));
         if (s.dnd) si.append(item('moon-waning-crescent', 'Im lặng'));
+        if (s.ip) si.append(item('ethernet', s.ip));
         a.append(n, mk('div', 'sa', st + ' · ' + (s.app ? s.app.l : '—')), si);
         if (s.online) {
           var ctl = mk('span', 'sctl'); ctl.setAttribute('role', 'button'); ctl.tabIndex = 0;
