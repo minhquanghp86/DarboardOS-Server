@@ -35,6 +35,18 @@ export function trackStall(prev: StallTrack | undefined, sent: number, backlog: 
 
 export class DeviceBroadcaster {
   private _clients = new Map<string, Set<WebSocket>>();
+
+  /** (28/10/2026) IP cua man hinh: lay tu socket WS dang ket noi (khong phu thuoc cam bien tren firmware). */
+  clientIp(id: string): string | null {
+    const set = this._clients.get(id);
+    if (!set) return null;
+    for (const ws of set) {
+      const s = (ws as unknown as { _socket?: { remoteAddress?: string } })._socket;
+      const ip = (s?.remoteAddress || '').replace(/^::ffff:/, '');
+      if (ip && ip !== '127.0.0.1' && ip !== '::1') return ip;
+    }
+    return null;
+  }
   private _state = new Map<string, BroadcasterState>();
   // (24/09/2026) Tong byte DA GIAO cho tung socket. Tru di bufferedAmount ra so byte
   // da THUC SU roi khoi server — dung de uoc luong bang thong that cua duong truyen.
@@ -131,18 +143,6 @@ export class DeviceBroadcaster {
   private _backlog(ws: WebSocket): number {
     let b = ws.bufferedAmount;
     if (tuning().kernelBacklog !== false) {
-  /** (28/10/2026) IP cua man hinh: lay tu socket WS dang ket noi (khong phu thuoc cam bien tren firmware). */
-  clientIp(id: string): string | null {
-    const set = this._clients.get(id);
-    if (!set) return null;
-    for (const ws of set) {
-      const s = (ws as unknown as { _socket?: { remoteAddress?: string } })._socket;
-      const ip = (s?.remoteAddress || '').replace(/^::ffff:/, '');
-      if (ip && ip !== '127.0.0.1' && ip !== '::1') return ip;
-    }
-    return null;
-  }
-
       const s = (ws as unknown as { _socket?: { remoteAddress?: string; remotePort?: number; localPort?: number } })._socket;
       if (s) b += kernelTxQueue(s.remoteAddress, s.remotePort, s.localPort);
     }

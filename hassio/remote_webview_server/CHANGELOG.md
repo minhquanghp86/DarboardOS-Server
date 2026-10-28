@@ -1,3 +1,6 @@
+## V2.9.278
+- Sửa lỗi build 2.9.277 (đặt sai vị trí hàm `clientIp` trong lớp Broadcaster) — bản này thay thế 2.9.277.
+
 ## V2.9.277
 - **Trang chủ Dashboard hiển thị IP từng màn hình** — lấy từ socket WebSocket đang kết nối, không phụ thuộc cảm biến firmware.
 
