@@ -88,7 +88,16 @@ function panels(): { id: string; name: string }[] {
 export function contacts(self: string): { id: string; kind: Party['kind']; name: string; busy: boolean }[] {
   const out: { id: string; kind: Party['kind']; name: string; busy: boolean }[] =
     panels().filter((p) => p.id !== self).map((p) => ({ id: p.id, kind: 'panel', name: p.name, busy: busy(p.id) }));
-  for (const w of webs.values()) if (w.id !== self) out.push({ id: w.id, kind: 'web', name: w.name, busy: !!w.call });
+  // (30/10/2026) Phien web la TAM (mo tab la co, dong tab la mat) nen danh ba bi nhap nhay.
+  // Gop cac phien web TRUNG TEN thanh 1 muc (uu tien muc dang ban) de danh ba on dinh, de doc.
+  const webByName = new Map<string, { id: string; kind: Party['kind']; name: string; busy: boolean }>();
+  for (const w of webs.values()) {
+    if (w.id === self) continue;
+    const cur = webByName.get(w.name);
+    if (!cur) { webByName.set(w.name, { id: w.id, kind: 'web', name: w.name, busy: !!w.call }); continue; }
+    if (!cur.busy && w.call) { cur.id = w.id; cur.busy = true; }
+  }
+  for (const c of webByName.values()) out.push(c);
   // (10/11/2026) Dien thoai da dang ky: nhan "Điện thoại" (call-ui.js hien ten + phu de theo kind).
   for (const p of phones.list()) if (p.id !== self) out.push({ id: p.id, kind: 'phone', name: phoneLabel(p), busy: busy(p.id) });
   return out;

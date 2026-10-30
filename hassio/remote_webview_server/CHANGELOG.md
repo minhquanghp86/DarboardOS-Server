@@ -1,3 +1,8 @@
+## V2.9.304
+- **Danh bạ gọi ổn định**: các phiên trình duyệt trùng tên ("Dashboard · điện thoại") được gộp thành một mục thay vì
+  mỗi lần mở tab lại hiện thêm thiết bị. Phiên trình duyệt vốn là tạm (mở tab là có, đóng tab là mất) nên trước đây
+  danh sách nhấp nháy.
+
 ## V2.9.303
 - **Kết thúc cuộc gọi luôn đóng màn hình**: bấm Kết thúc/Từ chối ở bất kỳ bên nào đều đóng ngay tại máy đó và gửi
   `ended` cho mọi phiên còn giữ cuộc gọi (kể cả phiên web đã nối lại sau khi rớt WS — thêm `{type:'resume'}` và
