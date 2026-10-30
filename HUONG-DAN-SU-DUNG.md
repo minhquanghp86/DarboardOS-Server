@@ -117,7 +117,7 @@ vuốt lên ở màn khoá để mở — trong một video: [`images/swipe-gest
 - Hiệu ứng chuyển ảnh: Mờ dần, Trượt, Thu phóng, Mờ ảo, Chậm (Ken Burns), Xoay vào/ra, Rơi từ trên, Lật 3D.
 - Thời gian chuyển ảnh: 5 giây → 5 phút. Chạm vào màn để quay lại.
 
-![Màn hình chờ](images/weather.png)
+![Màn hình chờ có ảnh gia đình](images/saver.png)
 
 ### Các ứng dụng có sẵn
 Camera (xem/chụp/quay lưu thẻ SD), Frigate, IPTV, YouTube, YouTube TV, nhạc, radio, tin tức, lịch, thời tiết,
