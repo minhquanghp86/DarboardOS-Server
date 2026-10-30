@@ -20,6 +20,7 @@ import { handleFileManager, setFileManagerHooks } from './fileManager.js';
 import { handleChatApi, requestOpenConv, setChatHooks, unreadForScreen } from './chat.js';
 import { castUrlToDevices, chatChanged, connectedScreens, isMediaPlaying, isUserViewing, setChatUnreadProvider, setNoticeArgHook, syncSoundToDevice } from './deviceManager.js';
 import { handleAlarmApi } from './alarms.js';
+import { handlePushApi, initPush } from './push.js';
 import { getRegistry, haFetch, haGetRaw, callService, getSettingsView } from './haSettings.js';
 import { findDeviceByMac, macFromDeviceId } from './settingsModel.js';
 import { InputRouter } from "./inputRouter.js";
@@ -221,7 +222,7 @@ const STATIC_PAGES = ['no-url.html', 'cam.html', 'camera.html', 'weather.html', 
   // (07/10/2026) IPTV (src/iptv.ts). (08/10/2026) Su kien camera Frigate (src/frigate.ts).
   'iptv.html', 'events.html', 'media.html', 'call-test.html', 'door.html', 'call.html', 'call-web.html', 'call-ui.js', 'call-ui.css', 'door-log.html',
   // (21/10/2026) Trang dieu khien man hinh tu Dashboard (src/controlApi.ts).
-  'control.html',
+  'control.html', 'sw.js',
   'screens.html'];   // (16/10/2026) Dashboard → Màn hình
 const staticCache = new Map<string, Buffer>();
 for (const name of STATIC_PAGES) {
@@ -257,6 +258,7 @@ http.createServer((req, res) => {
   // (02/10/2026) Quan ly file (the SD cua P4) tu trang Dashboard — chi ingress.
   if (handleFileManager(req, res, reqUrl)) return;
   // (07/10/2026) IPTV: danh sach kenh, proxy luong, yeu thich, cau hinh tu trang Dashboard (src/iptv.ts).
+  if (handlePushApi(req, res, reqUrl)) return;
   if (handleIptvApi(req, res, reqUrl)) return;
   if (handleScreenCtlApi(req, res, reqUrl)) return;   // (16/10/2026) Dashboard → Màn hình
   if (handleControlApi(req, res, reqUrl)) return;     // (21/10/2026) Dashboard → điều khiển màn hình
@@ -445,6 +447,7 @@ http.createServer((req, res) => {
 
   res.writeHead(200); res.end('ok');
 }).on('upgrade', (req, socket, head) => { if (!handleCallUpgrade(req, socket, head) && !handleCallsUpgrade(req, socket, head) && !handleGo2rtcUpgrade(req, socket, head) && !handleControlUpgrade(req, socket, head)) socket.destroy(); }).listen(HEALTH_PORT);
+initPush();
 
 setInterval(() => cleanupIdleAsync(), 60_000);
 
