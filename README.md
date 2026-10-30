@@ -90,7 +90,89 @@ Gần đây / Mở khoá**, chụp màn hình.
 - Chạm để mở ứng dụng; giữ để sắp xếp lưới.
 - Cài đặt màn hình: Wi-Fi, độ sáng, màn hình chờ, âm thanh.
 
-## 5. Dùng với Home Assistant (tích hợp Dashboard OS)
+## 5. Ứng dụng Android Dashboard OS
+
+Ứng dụng **Dashboard OS** cho Android mang bảng điều khiển vào một app riêng và biến điện thoại thành
+**một thiết bị gọi được**: chuông reo cả khi bạn đã đóng app, bấm **Nghe** là nói chuyện được với màn hình P4.
+
+### 5.1. Tải và cài đặt
+
+1. Tải tệp **`DashboardOS-debug.apk`** (~3,5 MB) trong thư mục `android/` của repo
+   [DashboardOS-Server](https://github.com/minhquanghp86/DashboardOS-Server) — mở tệp rồi bấm **Download**.
+2. Trên điện thoại, cho phép cài từ nguồn ngoài: **Cài đặt → Bảo mật → Cài đặt đặc biệt → Cài ứng dụng không rõ
+   nguồn gốc** → chọn ứng dụng bạn dùng để mở tệp (Trình quản lý tệp hoặc Chrome).
+3. Mở tệp APK → **Cài** → **Mở**.
+
+> Đây là bản **debug** (chưa ký phát hành), dùng để cài trực tiếp. Cài đè bản mới **không mất** địa chỉ đã lưu và
+> mã máy — nhờ vậy danh bạ gọi không sinh thêm thiết bị trùng.
+
+### 5.2. Nhập một ô địa chỉ
+
+App chỉ hỏi **một ô**: địa chỉ Home Assistant. Bạn nhập **tên miền** hoặc **IP LAN**, app tự tìm cả trang lẫn API.
+
+| Bạn nhập | App dùng | Gọi video được? |
+|---|---|---|
+| Tên miền, vd `hass.example.com` | `https://hass.example.com/api/hassio_ingress/<token>/` cho **cả trang lẫn API**, gửi kèm cookie đăng nhập Home Assistant | **Có** micro + camera |
+| IP LAN, vd `192.168.10.2` | `http://192.168.10.2:18080` | **Không** — chỉ xem và điều khiển |
+
+- **Nên dùng tên miền**: trang chạy HTTPS thì mới được cấp micro/camera (trình duyệt chỉ cho dùng micro/camera
+  trên HTTPS).
+- Lần đầu, app mở trang đăng nhập Home Assistant. Đăng nhập **một lần**; app giữ cookie cho những lần sau.
+- Bấm **Kết nối** → dòng trạng thái hiện "Đã kết nối: …".
+- App **tự đăng ký** với server: sau vài giây, điện thoại xuất hiện trong danh bạ gọi với nhãn **Điện thoại**
+  (trên P4: ứng dụng **Gọi**; trên Dashboard: trang **Gọi**).
+
+### 5.3. Cấp quyền (làm một lần)
+
+Trong app: **Cài đặt** → bật **Nhận cuộc gọi khi app đóng**, rồi bấm lần lượt các nút cấp quyền:
+
+| Quyền | Để làm gì |
+|---|---|
+| Thông báo | Hiện thông báo cuộc gọi — không có quyền này thì không có chuông |
+| Micro, Camera | Nói và gửi hình trong cuộc gọi |
+| Bỏ tối ưu pin | Android không dừng dịch vụ nền khi máy để lâu |
+| Hiện toàn màn hình | Màn hình gọi bật lên cả khi máy đang khoá |
+| Cửa sổ nổi | Cho phép mở màn hình gọi khi app đang ở nền |
+| Bỏ qua Không làm phiền | Chuông vẫn kêu khi máy để Im lặng / Không làm phiền |
+
+### 5.4. Nhận cuộc gọi khi app đóng
+
+- App chạy một **dịch vụ nền**, 2 giây hỏi server một lần → **không cần mở app** vẫn đổ chuông.
+- Có cuộc gọi: màn hình gọi **toàn màn** (kể cả khi máy khoá) + chuông + rung theo **kênh thông báo**
+  "Cuộc gọi đến", kèm hai nút **Nghe** / **Từ chối** ngay trên thông báo.
+- Chuông do kênh thông báo phát nên bạn **tự chọn được nhạc chuông**: Cài đặt → Thông báo → Dashboard OS →
+  "Cuộc gọi đến" → Âm thanh. Bản nhạc dài **không bị cắt** (thông báo chỉ đăng lại mỗi 30 giây).
+- Máy khởi động lại → app **tự chạy lại** dịch vụ nền (trên Xiaomi/MIUI cần bật thêm "Tự khởi động").
+
+### 5.5. Gọi và nhận cuộc gọi
+
+1. Bấm **Nghe** (trên thông báo hoặc màn hình gọi) → app mở trang gọi và **tự vào cuộc gọi**.
+2. Nói chuyện hai chiều; trên màn P4 hiện **hình camera điện thoại**.
+3. Bấm **Kết thúc** ở bất kỳ bên nào → cả hai bên đóng ngay. Bấm **Từ chối** thì bên gọi biết ngay, không bị treo.
+4. Rớt Wi-Fi vài giây: app tự nối lại, cuộc gọi được giữ trong **6 giây**.
+5. Muốn **gọi đi** từ điện thoại: mở trang **Gọi** trong app rồi chọn màn P4.
+
+Chi tiết đầy đủ (sơ đồ, bảng nút, xử lý lỗi): **chương 7** của [`HUONG-DAN-SU-DUNG.md`](HUONG-DAN-SU-DUNG.md).
+
+![Ứng dụng Gọi trên màn P4](images/app-call.png)
+
+### 5.6. Xử lý sự cố thường gặp
+
+| Hiện tượng | Cách xử lý |
+|---|---|
+| Trang báo **401** / "Cần đăng nhập Home Assistant" | Bấm **Đăng nhập** trong app, đăng nhập HA rồi bấm **Tôi đã đăng nhập**. Nếu vẫn 401: Cài đặt → **Đăng nhập lại Home Assistant** |
+| Không có **micro/camera** (không gọi video được) | Bạn đang nhập **IP LAN** (chỉ `http`). Đổi sang **tên miền** của Home Assistant để có HTTPS |
+| Không đổ chuông khi đã đóng app | Cài đặt trong app: bật **Nhận cuộc gọi khi app đóng**; cấp **Thông báo**; **Bỏ tối ưu pin**; bật **Toàn màn hình** + **Cửa sổ nổi** |
+| **MIUI/Xiaomi** chặn chuông, không hiện màn gọi | Bật **Autostart (Tự khởi động)**, **Cửa sổ nổi**, **Hiện trên màn khoá**, **Toàn màn hình khi có cuộc gọi**, **Bỏ tối ưu pin**; trong kênh "Cuộc gọi đến" chọn mức **Khẩn cấp**, bật Âm thanh + Rung + bỏ qua Không làm phiền |
+| Chuông kêu 4–5 giây rồi lặp lại | App bản cũ. Cài bản APK mới (thông báo chỉ đăng lại mỗi 30 giây) |
+| App báo "Không tìm thấy Dashboard OS" | Kiểm tra add-on đang chạy, điện thoại cùng Wi-Fi, nhập đúng tên miền/IP máy HA; nếu dùng tên miền, kiểm tra TOKEN ingress ở Cài đặt app |
+| Điện thoại không có trong danh bạ | Mở app, bấm **Kết nối** (app tự đăng ký lại mỗi 60 giây); kiểm tra dòng "Đã kết nối" |
+| Bấm Nghe nhưng không nghe thấy gì | Kiểm tra quyền **Micro** và âm lượng cuộc gọi; cuộc gọi phải từ **P4** (màn có micro + camera) |
+| Danh bạ có mục trùng | Trong trang **Gọi**, dùng nút **sửa tên** / **xoá** để dọn; app tự gộp bản ghi của cùng một máy |
+
+(ảnh sẽ bổ sung: màn hình nhập địa chỉ và màn hình cuộc gọi đến của app)
+
+## 6. Dùng với Home Assistant (tích hợp Dashboard OS)
 
 Mỗi màn hình là một thiết bị trong HA:
 
@@ -151,7 +233,7 @@ Danh sách đầy đủ **30 hành động**: [custom_components/dashboard_os/RE
 Blueprint sẵn có (thông báo, nhắc lịch, chào buổi sáng, camera, chuông cổng, cảnh báo an ninh):
 repo `DashboardOS-Client` → `examples/home-assistant/`.
 
-## 6. Vận hành
+## 7. Vận hành
 
 | Việc | Ở đâu |
 |---|---|
@@ -162,7 +244,7 @@ repo `DashboardOS-Client` → `examples/home-assistant/`.
 
 Cổng dùng trong LAN: `18080` (web, điều khiển) và `8081` (màn hình kết nối).
 
-## 7. Xử lý sự cố
+## 8. Xử lý sự cố
 
 | Hiện tượng | Cách xử lý |
 |---|---|
@@ -172,7 +254,7 @@ Cổng dùng trong LAN: `18080` (web, điều khiển) và `8081` (màn hình k�
 | Không điều khiển được từ điện thoại | Mở bằng IP LAN (`http://<ip-ha>:18080`), không qua tên miền |
 | Báo thức không reo | Kiểm tra màn có trong danh sách "Reo trên" của báo thức |
 
-## 8. Giấy phép
+## 9. Giấy phép
 
 Apache-2.0 — xem [LICENSE](LICENSE), [NOTICE](NOTICE), [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 Nhãn hiệu: [TRADEMARKS.md](TRADEMARKS.md).

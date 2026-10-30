@@ -163,6 +163,22 @@ Settings → Devices & Services → **Dashboard OS** → **Configure**:
 | `scan_interval` | Chu kỳ cập nhật trạng thái (10–300 giây, mặc định 30) |
 | `controls` | Bật/tắt nhóm entity điều khiển (switch/number/select) — tắt nếu không muốn quá nhiều entity |
 
+## Điện thoại và trình duyệt trong danh bạ gọi
+
+Tích hợp này chỉ tạo thiết bị cho **các màn hình ESP32**. Điện thoại và trình duyệt **không** phải thiết bị của
+tích hợp — chúng đăng ký trực tiếp với add-on và xuất hiện trong **danh bạ gọi**:
+
+| Thiết bị | Đăng ký ở đâu | Thấy ở đâu |
+|---|---|---|
+| Màn hình P4 | Add-on (tự kết nối) | Ứng dụng **Gọi** trên màn; trang **Gọi** |
+| Điện thoại — ứng dụng **Dashboard OS** | App tự gọi `/app/register` (2 giây/lần kiểm tra cuộc gọi đến) | Trang **Gọi**; nhãn *Điện thoại* |
+| Trình duyệt — tab **Gọi** | Trang gọi tự đăng ký, id giữ trong trình duyệt | Trang **Gọi**; nhãn *Samsung · Chrome*, *Máy tính · trình duyệt* |
+
+- Điện thoại **không có entity** trong Home Assistant: chuông cuộc gọi do dịch vụ nền của app lo, không đi qua HA.
+- Mọi hành động `dashboard_os.*` chỉ áp dụng cho **màn hình** (điện thoại không nhận `send`, `say`…).
+- Thiết bị trùng được gộp theo mã máy; sửa tên hoặc xoá ngay trong trang **Gọi** (nút bút / thùng rác).
+- Cần add-on **≥ 2.9.306** để danh bạ có đủ điện thoại + trình duyệt ổn định (id bền, không nhấp nháy).
+
 ## Ghi chú
 
 - `say` và `set_volume` chỉ chạy trên màn **có loa** (P4). Màn không loa báo lỗi rõ ràng.
