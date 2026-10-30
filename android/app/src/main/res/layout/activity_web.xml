@@ -1,35 +1,91 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+  (14/11/2026) GD7 — màn WebView + THANH THÔNG BÁO ĐĂNG NHẬP Home Assistant.
+
+  Cấu trúc: LinearLayout dọc
+    ├── haLoginBar (40dp, nền tối) — CHỈ hiện khi cần đăng nhập HA. Nằm trong luồng layout nên ĐẨY WebView
+    │    xuống, KHÔNG che nội dung trang. Gồm câu "Đăng nhập Home Assistant để tiếp tục" + nút "Tôi đã đăng nhập".
+    └── FrameLayout (weight 1) — WebView full phần còn lại + nút "URL" 40dp ở góc phải dưới.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FF000000">
+    android:background="#FF000000"
+    android:orientation="vertical">
 
-    <WebView
-        android:id="@+id/webView"
+    <LinearLayout
+        android:id="@+id/haLoginBar"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
-
-    <!-- Small overlay to get back to the URL screen. It hides itself a few
-         seconds after launch (and on any tap elsewhere) so the dashboard really
-         is full screen, and it stays visible when a page fails to load. -->
-    <!-- (12/11/2026) Nut tron nho o goc phai DUOI: goc phai TREN bi cac trang dung mat (nut "Chọn" của trang
-         Chuông cổng, nut banh rang cua trang Cuoc goi) -> chuyen xuong duoi, 40dp, alpha 0.45, van luon bam duoc. -->
-    <Button
-        android:id="@+id/changeUrlButton"
-        android:layout_width="40dp"
         android:layout_height="40dp"
-        android:layout_gravity="bottom|end"
-        android:layout_marginBottom="14dp"
-        android:layout_marginEnd="96dp"
-        android:alpha="0.45"
-        android:background="@drawable/url_button_bg"
-        android:contentDescription="@string/action_change_url"
-        android:minWidth="0dp"
-        android:paddingStart="0dp"
-        android:paddingEnd="0dp"
-        android:text="@string/url_button_short"
-        android:textAllCaps="false"
-        android:textColor="#FFFFFFFF"
-        android:textSize="11sp" />
+        android:background="#FF16202F"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingEnd="8dp"
+        android:visibility="gone">
 
-</FrameLayout>
+        <TextView
+            android:id="@+id/haLoginText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:text="@string/ha_login_banner"
+            android:textColor="#FFE8EEF7"
+            android:textSize="12sp" />
+
+        <!-- (14/11/2026) GD7 — dự phòng khi không dò được cookie (trình duyệt nhúng không ghi cookie...). -->
+        <Button
+            android:id="@+id/haLoginDoneButton"
+            android:layout_width="wrap_content"
+            android:layout_height="30dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/ha_login_button_bg"
+            android:minHeight="0dp"
+            android:minWidth="0dp"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:text="@string/ha_login_done"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFFFF"
+            android:textSize="11sp" />
+
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <WebView
+            android:id="@+id/webView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <!-- Small overlay to get back to the URL screen. It hides itself a few
+             seconds after launch (and on any tap elsewhere) so the dashboard really
+             is full screen, and it stays visible when a page fails to load. -->
+        <!-- (12/11/2026) Nut tron nho o goc phai DUOI: goc phai TREN bi cac trang dung mat (nut "Chọn" của trang
+             Chuông cổng, nut banh rang cua trang Cuoc goi) -> chuyen xuong duoi, 40dp, alpha 0.45, van luon bam duoc. -->
+        <Button
+            android:id="@+id/changeUrlButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="bottom|end"
+            android:layout_marginBottom="14dp"
+            android:layout_marginEnd="96dp"
+            android:alpha="0.45"
+            android:background="@drawable/url_button_bg"
+            android:contentDescription="@string/action_change_url"
+            android:minWidth="0dp"
+            android:paddingStart="0dp"
+            android:paddingEnd="0dp"
+            android:text="@string/url_button_short"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFFFF"
+            android:textSize="11sp" />
+
+    </FrameLayout>
+
+</LinearLayout>

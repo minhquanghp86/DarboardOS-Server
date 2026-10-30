@@ -35,14 +35,24 @@ import android.widget.Toast
  *  1. **"Trang điều khiển (https)"** — domain hoặc URL đầy đủ. Nếu người dùng chỉ gõ domain, app thử lần lượt
  *     `https://<domain>/api/hassio_ingress/<TOKEN>/launcher-config.html` → `https://<domain>/<slug>/launcher-config.html`
  *     → `https://<domain>/launcher-config.html` ([WebTargetResolver.webCandidates]). Đúng add-on khi mã **200 hoặc 401**
- *     và body KHÔNG phải SPA của Home Assistant (`<title>Home Assistant</title>`). 401 = add-on đúng nhưng WebView chưa
- *     có cookie HA → vẫn mở bình thường để người dùng đăng nhập HA.
+ *     và body KHÔNG phải SPA của Home Assistant (`<title>Home Assistant</title>`).
  *  2. **"Máy chủ API (LAN)"** — mặc định giá trị đã lưu hoặc `192.168.10.2:18080`; kiểm tra `GET <base>/app/ping`
  *     phải trả `{"service":"dashboard-os"}` ([ServerResolver.probe]). Bỏ trống ô này = suy ra `http://<ip>:18080` từ ô 1
  *     khi ô 1 là IP LAN ([WebTargetResolver.apiBaseOrNull]).
  *
  * Lưu 2 giá trị RIÊNG: [Prefs.KEY_WEB_URL] cho WebView, [Prefs.KEY_API_BASE] cho PhoneService / register / incoming /
  * answer / decline. Không suy ra cái này từ cái kia khi đã có cả hai.
+ *
+ * (14/11/2026) GD7 — **401 nghĩa là "phải đăng nhập Home Assistant", KHÔNG phải "mở trang lỗi"**:
+ *  - dò thấy 401/403 → lưu `webUrl` **và** đặt [Prefs.KEY_NEED_HA_LOGIN] = true (KHÔNG mở thẳng webUrl nữa, vì
+ *    Home Assistant trả body text `401: Unauthorized` chứ không redirect sang trang đăng nhập);
+ *  - cần đăng nhập → mở WebView tại **origin của HA** (`https://<domain>/`) + thanh thông báo 40dp phía trên
+ *    ("Đăng nhập Home Assistant để tiếp tục" + nút "Tôi đã đăng nhập");
+ *  - **dò cookie mỗi 1,5 s**: `CookieManager.getInstance().getCookie(origin)` có `ingress_session` (hoặc
+ *    `hassio_ingress`) → tự chuyển sang `webUrl`, ẩn thanh thông báo, lưu `need_ha_login = false`;
+ *  - nút "Tôi đã đăng nhập" làm đúng việc đó ngay (dự phòng khi không dò được cookie);
+ *  - `onReceivedHttpError` 401/403 trên ingress → **không load nội dung lỗi thô**: quay về origin (nếu là chính
+ *    trang điều khiển) hoặc hiện màn hình "Cần đăng nhập Home Assistant" có nút Đăng nhập.
  *
  * Vẫn giữ nguyên: WebView full screen + WebRTC (micro/camera), tự đăng ký thiết bị, PhoneService nhận cuộc gọi khi
  * app đóng, chuông theo kênh thông báo, nút "URL" ở góc phải dưới để quay lại màn nhập.
@@ -53,11 +63,20 @@ class MainActivity : Activity() {
         /** (10/11/2026) Mo WebView thang mot URL (vd call-web.html?call=<id> sau khi bam "Nghe"). */
         const val EXTRA_OPEN_URL = "open_url"
 
+        /**
+         * (14/11/2026) GD7 — mở WebView RỒI vào thẳng bước đăng nhập Home Assistant (thanh thông báo + dò cookie),
+         * dùng cho nút "Đăng nhập lại Home Assistant" ở Cài đặt (url kèm theo là origin của HA).
+         */
+        const val EXTRA_HA_LOGIN = "ha_login"
+
         private const val REQ_WEB_MEDIA = 1001
         private const val OVERLAY_VISIBLE_MS = 4000L
 
         /** Do dam luc nghi cua nut URL o goc phai duoi (van bam duoc, khong che noi dung). */
         private const val URL_BUTTON_ALPHA = 0.45f
+
+        /** (14/11/2026) GD7 — nhịp dò cookie phiên Home Assistant khi đang ở bước đăng nhập. */
+        private const val COOKIE_POLL_MS = 1500L
     }
 
     private lateinit var prefs: SharedPreferences
@@ -69,6 +88,29 @@ class MainActivity : Activity() {
     private var statusView: TextView? = null
     private var showingWeb = false
     private var pendingPermissionRequest: PermissionRequest? = null
+
+    /** Thanh thông báo 40dp + câu chữ của nó (chỉ có ở màn WebView). */
+    private var loginBar: View? = null
+    private var loginBarText: TextView? = null
+
+    /** Trang điều khiển đã lưu ([Prefs.KEY_WEB_URL]) — đích thật của WebView. */
+    private var targetUrl: String? = null
+
+    /** Origin của Home Assistant (`https://<domain>`), null khi webUrl không phải URL http(s). */
+    private var haOrigin: String? = null
+
+    /** Đang ở bước "đăng nhập HA": thanh thông báo hiện + dò cookie 1,5 s. */
+    private var loginFlowActive = false
+
+    /** URL sẽ mở sau khi đăng nhập xong (mặc định = [targetUrl]). */
+    private var afterLoginUrl: String? = null
+
+    /**
+     * (14/11/2026) GD7 — số lần đã tự chuyển về origin vì 401. Chặn vòng lặp
+     * origin → webUrl → 401 → origin → … (cookie không đủ): từ lần thứ 3 thì hiện màn hình
+     * "Cần đăng nhập Home Assistant" để người dùng tự bấm Đăng nhập.
+     */
+    private var authRedirects = 0
 
     /** Đang dò máy chủ ở luồng nền (chặn bấm "Kết nối" 2 lần). */
     @Volatile
@@ -85,6 +127,24 @@ class MainActivity : Activity() {
         }?.start()
     }
 
+    /**
+     * (14/11/2026) GD7 — nhịp dò cookie 1,5 s trong lúc chờ người dùng đăng nhập Home Assistant.
+     *
+     * Không dùng `onPageFinished` để đoán "đã đăng nhập" vì trang 401 cũng bắn sự kiện đó; cookie là bằng chứng
+     * duy nhất đáng tin (HA đặt `ingress_session` cho domain ngay khi đăng nhập thành công).
+     */
+    private val cookieWatchRunnable = object : Runnable {
+        override fun run() {
+            if (isFinishing || isDestroyed) return
+            if (!showingWeb || !loginFlowActive) return
+            if (hasHaCookie()) {
+                onLoginDetected()
+                return
+            }
+            mainHandler.postDelayed(this, COOKIE_POLL_MS)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = Prefs.get(this)
@@ -93,7 +153,8 @@ class MainActivity : Activity() {
         if (Prefs.receiveEnabled(this)) PhoneService.start(this)
 
         if (openFromIntent(intent)) return
-        // (13/11/2026) GD6: đã có webUrl đã lưu -> vào thẳng WebView (trang có thể 401 = hãy đăng nhập HA).
+        // (13/11/2026) GD6 / (14/11/2026) GD7: đã có webUrl → vào WebView; nếu lần dò trước trả 401 thì mở
+        // origin của HA để đăng nhập trước (không mở thẳng webUrl = chỉ hiện "401: Unauthorized").
         autoConnectSaved()
     }
 
@@ -108,8 +169,20 @@ class MainActivity : Activity() {
         val raw = intent?.getStringExtra(EXTRA_OPEN_URL) ?: return false
         val url = raw.trim()
         if (!url.startsWith("http://") && !url.startsWith("https://")) return false
-        openWeb(url)
+        val startLogin = intent.getBooleanExtra(EXTRA_HA_LOGIN, false)
         intent.removeExtra(EXTRA_OPEN_URL)
+        intent.removeExtra(EXTRA_HA_LOGIN)
+
+        buildWebScreen()
+        if (startLogin) {
+            // (14/11/2026) GD7: "Đăng nhập lại Home Assistant" — mở trang đăng nhập + thanh thông báo + dò cookie.
+            afterLoginUrl = targetUrl ?: url
+            // Chưa có webUrl để lấy origin thì dùng chính URL được truyền vào (Cài đặt truyền origin của HA).
+            if (haOrigin == null) haOrigin = WebTargetResolver.originUrl(url)
+            startLoginFlow(openOrigin = true)
+        } else {
+            webView?.loadUrl(url)
+        }
         return true
     }
 
@@ -118,9 +191,10 @@ class MainActivity : Activity() {
     /**
      * (13/11/2026) GD6 — lần sau mở app: có [Prefs.KEY_WEB_URL] thì mở WebView luôn.
      *
-     * Cố ý KHÔNG chặn khi trang trả 401: 401 = add-on đúng nhưng WebView chưa đăng nhập Home Assistant, phải hiện
-     * trang để người dùng đăng nhập (đăng nhập một lần, cookie được giữ cho các lần sau). API (LAN) do PhoneService
-     * tự poll ở nền; hỏng thì Cài đặt hiện giá trị đang dùng để sửa.
+     * (14/11/2026) GD7 — nhưng nếu [Prefs.KEY_NEED_HA_LOGIN] đang bật (lần dò trước trả 401) và WebView chưa có
+     * cookie phiên HA thì [openWeb] sẽ đưa người dùng tới trang đăng nhập của HA trước.
+     *
+     * API (LAN) do PhoneService tự poll ở nền; hỏng thì Cài đặt hiện giá trị đang dùng để sửa.
      */
     private fun autoConnectSaved() {
         val web = Prefs.webUrl(this)
@@ -175,7 +249,9 @@ class MainActivity : Activity() {
     private fun defaultStatus(): String {
         val web = Prefs.webUrl(this) ?: return ""
         val api = Prefs.apiBase(this) ?: WebTargetResolver.DEFAULT_API_INPUT
-        return getString(R.string.status_connected, web, api, Prefs.phoneName())
+        val base = getString(R.string.status_connected, web, api, Prefs.phoneName())
+        // (14/11/2026) GD7 — nói rõ vì sao lần trước dừng ở trang đăng nhập.
+        return if (Prefs.needHaLogin(this)) "$base\n${getString(R.string.status_need_login)}" else base
     }
 
     private fun setStatus(text: String?) {
@@ -190,6 +266,9 @@ class MainActivity : Activity() {
      *  2. ô 2 → [WebTargetResolver.apiCandidates]; trống thì [WebTargetResolver.apiBaseOrNull] suy ra từ ô 1
      *     (chỉ khi ô 1 là IP LAN — không thì báo lỗi rõ ràng),
      *  3. lưu webUrl + apiBase (2 giá trị riêng), đăng ký thiết bị, khởi động PhoneService, mở WebView.
+     *
+     * (14/11/2026) GD7 — 401/403 ở bước 1 KHÔNG mở thẳng webUrl: lưu `webUrl` + `need_ha_login = true` rồi vào
+     * bước đăng nhập Home Assistant ([startLoginFlow]).
      */
     private fun connect() {
         if (searching) return
@@ -223,6 +302,7 @@ class MainActivity : Activity() {
         Thread {
             // ── 1) trang điều khiển
             var foundWeb: String? = null
+            var foundCheck: WebTargetResolver.WebCheck? = null
             val triedWeb = ArrayList<String>(webList.size)
             for ((index, url) in webList.withIndex()) {
                 if (token != searchToken) return@Thread
@@ -231,6 +311,7 @@ class MainActivity : Activity() {
                 val check = WebTargetResolver.probeWeb(url)
                 if (check != null && check.accepted) {
                     foundWeb = check.url
+                    foundCheck = check
                     break
                 }
             }
@@ -244,6 +325,8 @@ class MainActivity : Activity() {
                 }
                 return@Thread
             }
+            // (14/11/2026) GD7 — 401/403 = đúng add-on nhưng CHƯA có cookie HA.
+            val needLogin = WebTargetResolver.needsHaLogin(foundCheck?.status ?: 0)
 
             // ── 2) máy chủ API (LAN)
             var foundApi: String? = null
@@ -269,8 +352,9 @@ class MainActivity : Activity() {
                 return@Thread
             }
 
-            // ── 3) lưu 2 giá trị RIÊNG, đăng ký, khởi động service, mở trang.
+            // ── 3) lưu 2 giá trị RIÊNG (+ cờ cần đăng nhập HA), đăng ký, khởi động service, mở trang.
             Prefs.saveTargets(this, webUrl, apiBase, webText, apiText)
+            Prefs.setNeedHaLogin(this, needLogin)
             val id = Prefs.phoneId(this)
             val registered = PhoneApi.register(apiBase, webUrl, id, Prefs.phoneName())
             if (Prefs.receiveEnabled(this)) PhoneService.start(this)
@@ -280,6 +364,7 @@ class MainActivity : Activity() {
                 searching = false
                 setSearchingUi(false)
                 toast(getString(if (registered) R.string.connect_ok else R.string.connect_ok_noreg))
+                // openWeb() tự quyết: need_ha_login = true → mở origin của HA để đăng nhập trước.
                 openWeb(webUrl)
             }
         }.also { it.isDaemon = true; it.name = "target-probe" }.start()
@@ -301,7 +386,31 @@ class MainActivity : Activity() {
 
     // ------------------------------------------------------------------ Web screen
 
+    /**
+     * (14/11/2026) GD7 — mở WebView cho [url].
+     *
+     * Nếu [url] chính là trang điều khiển đã lưu (`webUrl`) mà lần dò trước trả 401 (`need_ha_login`) và WebView
+     * chưa có cookie HA → KHÔNG mở thẳng (sẽ chỉ thấy "401: Unauthorized") mà vào bước đăng nhập Home Assistant.
+     * Các URL khác (trang gọi `call-web.html?call=…`) vẫn mở ngay như trước.
+     */
     private fun openWeb(url: String) {
+        buildWebScreen()
+
+        val target = targetUrl
+        if (target != null && WebTargetResolver.sameUrl(url, target)) {
+            afterLoginUrl = target
+            if (hasHaCookie()) {
+                Prefs.setNeedHaLogin(this, false)
+            } else if (Prefs.needHaLogin(this)) {
+                startLoginFlow(openOrigin = true)
+                return
+            }
+        }
+        webView?.loadUrl(url)
+    }
+
+    /** Dựng màn WebView + thanh thông báo + nút URL (dùng chung cho mọi đường vào). */
+    private fun buildWebScreen() {
         showingWeb = true
         disposeWebView()
         statusView = null
@@ -311,7 +420,17 @@ class MainActivity : Activity() {
         val web = findViewById<WebView>(R.id.webView)
         webView = web
         configureWebView(web)
-        web.loadUrl(url)
+
+        targetUrl = Prefs.webUrl(this)
+        haOrigin = WebTargetResolver.originUrl(targetUrl)
+        afterLoginUrl = targetUrl
+        authRedirects = 0
+
+        loginBar = findViewById(R.id.haLoginBar)
+        loginBarText = findViewById(R.id.haLoginText)
+        loginBarText?.text = getString(R.string.ha_login_banner)
+        findViewById<Button>(R.id.haLoginDoneButton).setOnClickListener { onLoginConfirmed() }
+        showLoginBar(false)
 
         val changeUrlButton = findViewById<Button>(R.id.changeUrlButton)
         // (30/10/2026) GD4: nút URL mở lại màn nhập ĐỊA CHỈ (điền sẵn giá trị cũ) để đổi máy chủ nhanh.
@@ -331,7 +450,7 @@ class MainActivity : Activity() {
      * (13/11/2026) GD6 — WebView cho trang HTTPS của add-on (ingress HA):
      *  - `domStorageEnabled` + cookie bật sẵn (localStorage của launcher-config.html, phiên đăng nhập HA),
      *  - `mediaPlaybackRequiresUserGesture=false` + WebChromeClient cấp micro/camera (secure context https),
-     *  - trang trả **401** được hiển thị BÌNH THƯỜNG (để người dùng đăng nhập HA), không chặn.
+     *  - (14/11/2026) GD7 — 401/403 của ingress KHÔNG được hiện ra: xem [DashboardWebClient.onReceivedHttpError].
      */
     @SuppressLint("SetJavaScriptEnabled")
     private fun configureWebView(web: WebView) {
@@ -365,6 +484,10 @@ class MainActivity : Activity() {
 
     private fun disposeWebView() {
         mainHandler.removeCallbacks(hideOverlayRunnable)
+        stopCookieWatch()
+        loginFlowActive = false
+        loginBar = null
+        loginBarText = null
         val web = webView ?: return
         webView = null
         (web.parent as? ViewGroup)?.removeView(web)
@@ -372,6 +495,162 @@ class MainActivity : Activity() {
         web.webChromeClient = null
         web.loadUrl("about:blank")
         web.destroy()
+    }
+
+    // ------------------------------------------------------------------ đăng nhập Home Assistant (GD7)
+
+    private fun showLoginBar(shown: Boolean) {
+        loginBar?.visibility = if (shown) View.VISIBLE else View.GONE
+    }
+
+    /**
+     * (14/11/2026) GD7 — bước "đăng nhập Home Assistant": hiện thanh thông báo 40dp, (tuỳ chọn) mở origin của HA
+     * (`https://<domain>/` — Lovelace tự hiện form đăng nhập) và bắt đầu dò cookie mỗi 1,5 s.
+     *
+     * openOrigin = false dùng khi phía trên đã có nội dung khác (màn "Cần đăng nhập Home Assistant").
+     */
+    private fun startLoginFlow(openOrigin: Boolean) {
+        loginFlowActive = true
+        Prefs.setNeedHaLogin(this, true)
+        showLoginBar(true)
+        startCookieWatch()
+
+        val origin = haOrigin
+        if (origin == null) {
+            // webUrl không phải URL http(s) (vd apiBase LAN): không có trang đăng nhập để mở.
+            showLoginRequiredPanel()
+            return
+        }
+        if (openOrigin) webView?.loadUrl(loginPageUrl(origin))
+    }
+
+    /** `https://<domain>` → `https://<domain>/` (đúng origin của HA). */
+    private fun loginPageUrl(origin: String): String = origin.trimEnd('/') + "/"
+
+    /**
+     * (14/11/2026) GD7 — đã có phiên HA: ẩn thanh thông báo, xoá cờ, chuyển sang [afterLoginUrl] (= `webUrl`).
+     * Dùng chung cho nhịp dò cookie và nút "Tôi đã đăng nhập".
+     */
+    private fun finishLoginFlow() {
+        stopCookieWatch()
+        loginFlowActive = false
+        authRedirects = 0
+        Prefs.setNeedHaLogin(this, false)
+        showLoginBar(false)
+        val next = afterLoginUrl ?: targetUrl
+        if (next != null) {
+            webView?.loadUrl(next)
+        } else {
+            showUrlScreen()
+        }
+    }
+
+    /**
+     * (14/11/2026) GD7 — nút "Tôi đã đăng nhập": chuyển sang `webUrl` NGAY, không cần dò được cookie
+     * (dự phòng khi trình duyệt nhúng không ghi cookie hoặc cookie nằm ở path khác).
+     */
+    private fun onLoginConfirmed() {
+        runCatching { CookieManager.getInstance().flush() }
+        toast(getString(R.string.ha_login_ok))
+        finishLoginFlow()
+    }
+
+    /** Nhịp dò cookie phát hiện phiên HA → tự chuyển sang `webUrl`. */
+    private fun onLoginDetected() {
+        runCatching { CookieManager.getInstance().flush() }
+        toast(getString(R.string.ha_login_ok))
+        finishLoginFlow()
+    }
+
+    private fun startCookieWatch() {
+        mainHandler.removeCallbacks(cookieWatchRunnable)
+        mainHandler.postDelayed(cookieWatchRunnable, COOKIE_POLL_MS)
+    }
+
+    private fun stopCookieWatch() {
+        mainHandler.removeCallbacks(cookieWatchRunnable)
+    }
+
+    /**
+     * (14/11/2026) GD7 — WebView đã có phiên Home Assistant chưa?
+     *
+     * Dò `CookieManager.getInstance().getCookie(origin)` (và cả cookie của chính `webUrl`, vì một số bản HA đặt
+     * cookie theo path ingress) tìm [WebTargetResolver.SESSION_COOKIE_NAMES] = `ingress_session` / `hassio_ingress`.
+     */
+    private fun hasHaCookie(): Boolean {
+        val cm = CookieManager.getInstance()
+        val urls = listOfNotNull(haOrigin, targetUrl).distinct()
+        for (url in urls) {
+            val header = try {
+                cm.getCookie(url)
+            } catch (t: Throwable) {
+                null
+            }
+            if (WebTargetResolver.hasSessionCookie(header)) return true
+        }
+        return false
+    }
+
+    /**
+     * (14/11/2026) GD7 — màn hình thay thế cho trang lỗi thô: "Cần đăng nhập Home Assistant" + nút **Đăng nhập**
+     * (mở origin). Không bao giờ để người dùng thấy `401: Unauthorized`.
+     */
+    private fun showLoginRequiredPanel() {
+        val web = webView ?: return
+        val base = haOrigin?.let { loginPageUrl(it) }
+        val href = base.orEmpty()
+        val html = """
+            <!doctype html>
+            <html><head><meta charset="utf-8">
+            <meta name="viewport" content="width=device-width,initial-scale=1">
+            <style>
+            body{margin:0;min-height:100vh;background:#0b1220;color:#e8eef7;font-family:sans-serif;
+            display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;
+            text-align:center;box-sizing:border-box}
+            h1{font-size:20px;margin:0 0 10px}
+            p{color:#9aa7bd;font-size:14px;line-height:1.45;margin:0 0 22px;max-width:520px}
+            a{display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:14px 26px;
+            border-radius:10px;font-size:16px;font-weight:bold}
+            </style></head>
+            <body>
+            <h1>${getString(R.string.ha_login_required_title)}</h1>
+            <p>${getString(R.string.ha_login_required_hint)}</p>
+            <a href="$href">${getString(R.string.ha_login_button)}</a>
+            </body></html>
+        """.trimIndent()
+        web.loadDataWithBaseURL(base, html, "text/html", "utf-8", null)
+    }
+
+    /**
+     * (14/11/2026) GD7 — gặp 401/403 trên ingress:
+     *  - nếu đúng là trang điều khiển đã lưu → quay về origin của HA để đăng nhập lại (kèm thanh thông báo),
+     *  - ngược lại (trang gọi, URL ingress khác) → hiện màn "Cần đăng nhập Home Assistant" có nút Đăng nhập.
+     * Cả hai trường hợp: đặt `need_ha_login = true` và bắt đầu dò cookie.
+     */
+    private fun onAuthRequired(url: String) {
+        Prefs.setNeedHaLogin(this, true)
+        afterLoginUrl = if (WebTargetResolver.sameUrl(url, targetUrl)) targetUrl else url
+
+        val control = targetUrl
+        if (control != null && WebTargetResolver.sameUrl(url, control) && haOrigin != null) {
+            // Chống vòng lặp: đã tự chuyển về origin 2 lần mà vẫn 401 → cho người dùng tự đăng nhập.
+            if (authRedirects >= 2) {
+                showAuthPanel()
+                return
+            }
+            authRedirects++
+            startLoginFlow(openOrigin = true)
+            return
+        }
+        showAuthPanel()
+    }
+
+    /** 401/403 không tự chuyển được: thanh thông báo + màn hình "Cần đăng nhập Home Assistant". */
+    private fun showAuthPanel() {
+        loginFlowActive = true
+        showLoginBar(true)
+        startCookieWatch()
+        showLoginRequiredPanel()
     }
 
     // ------------------------------------------------------------------ WebView clients
@@ -394,9 +673,10 @@ class MainActivity : Activity() {
         }
 
         /**
-         * (13/11/2026) GD6 — 401/403 của trang là CHUYỆN BÌNH THƯỜNG: add-on đi qua ingress nên Home Assistant
-         * yêu cầu đăng nhập. Không chặn, không báo lỗi — cứ để WebView hiện trang để người dùng đăng nhập HA
-         * (sau đó tải lại là vào được launcher-config.html).
+         * (13/11/2026) GD6 — 401/403 của ingress = add-on đúng nhưng Home Assistant yêu cầu đăng nhập.
+         *
+         * (14/11/2026) GD7 — KHÔNG để nội dung lỗi (`401: Unauthorized`) hiện ra: `stopLoading()` rồi đưa người
+         * dùng về trang đăng nhập của HA (hoặc màn "Cần đăng nhập Home Assistant"), bật thanh thông báo + dò cookie.
          */
         override fun onReceivedHttpError(
             view: WebView?,
@@ -404,8 +684,16 @@ class MainActivity : Activity() {
             errorResponse: WebResourceResponse?
         ) {
             val code = errorResponse?.statusCode ?: return
-            if (code == 401 || code == 403) return
             if (request?.isForMainFrame != true) return
+            val url = request.url?.toString().orEmpty()
+
+            val authError = WebTargetResolver.needsHaLogin(code) &&
+                (WebTargetResolver.isIngressUrl(url) || WebTargetResolver.sameUrl(url, targetUrl))
+            if (authError) {
+                view?.stopLoading()   // chặn body "401: Unauthorized"
+                onAuthRequired(url)
+                return
+            }
             if (code >= 500) toast(getString(R.string.err_load))
         }
 
@@ -506,10 +794,17 @@ class MainActivity : Activity() {
 
     // ------------------------------------------------------------------ Lifecycle helpers
 
+    override fun onResume() {
+        super.onResume()
+        // (14/11/2026) GD7 — quay lại app giữa lúc đăng nhập: dò cookie tiếp.
+        if (showingWeb && loginFlowActive) startCookieWatch()
+    }
+
     override fun onDestroy() {
         searchToken++
         searching = false
         mainHandler.removeCallbacks(hideOverlayRunnable)
+        stopCookieWatch()
         pendingPermissionRequest?.let {
             it.deny()
             pendingPermissionRequest = null

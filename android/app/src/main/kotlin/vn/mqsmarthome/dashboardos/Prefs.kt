@@ -42,6 +42,13 @@ object Prefs {
     /** TOKEN ingress Home Assistant (phan sau `/api/hassio_ingress/`). */
     const val KEY_INGRESS_TOKEN = "ingress_token"
 
+    /**
+     * (14/11/2026) GD7 — `true` = trang dieu khien ([KEY_WEB_URL]) tra 401/403 o lan do gan nhat, tuc la
+     * WebView CHUA co cookie phien Home Assistant: lan mo app / bam "Ket noi" ke tiep phai mo ORIGIN cua HA
+     * (`https://<domain>/`) de dang nhap TRUOC, khong mo thang webUrl (mo thang chi hien "401: Unauthorized").
+     */
+    const val KEY_NEED_HA_LOGIN = "need_ha_login"
+
     const val KEY_PHONE_ID = "phone_id"
 
     /** "Nhan cuoc goi khi app dong" (foreground service + poll). Mac dinh BAT. */
@@ -99,7 +106,18 @@ object Prefs {
     }
 
     fun clearServer(ctx: Context) {
-        get(ctx).edit().remove(KEY_API_BASE).remove(KEY_WEB_URL).apply()
+        get(ctx).edit().remove(KEY_API_BASE).remove(KEY_WEB_URL).remove(KEY_NEED_HA_LOGIN).apply()
+    }
+
+    /**
+     * (14/11/2026) GD7 — lan do gan nhat co phai "can dang nhap Home Assistant" (401/403) khong.
+     * Mac dinh `false`: giu nguyen hanh vi cu (mo thang webUrl) voi du lieu cua ban cu.
+     */
+    fun needHaLogin(ctx: Context): Boolean = get(ctx).getBoolean(KEY_NEED_HA_LOGIN, false)
+
+    /** Dat co "can dang nhap HA": `true` sau khi do thay 401, `false` khi da chuyen duoc sang webUrl. */
+    fun setNeedHaLogin(ctx: Context, on: Boolean) {
+        get(ctx).edit().putBoolean(KEY_NEED_HA_LOGIN, on).apply()
     }
 
     /** TOKEN ingress dang dung (mac dinh = [WebTargetResolver.DEFAULT_INGRESS_TOKEN]). */

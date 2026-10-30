@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- (14/11/2026) GD7 — nền chữ nhật bo góc cho nút "Tôi đã đăng nhập" trong thanh thông báo 40dp. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#FF2563EB" />
+    <corners android:radius="8dp" />
+</shape>

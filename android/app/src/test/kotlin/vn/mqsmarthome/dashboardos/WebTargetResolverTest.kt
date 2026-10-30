@@ -317,4 +317,79 @@ class WebTargetResolverTest {
         assertNull(WebTargetResolver.originUrl(""))
         assertNull(WebTargetResolver.originUrl("$domain/x.html"))
     }
+
+    // ─────────────────────────────────────────── 6) đăng nhập Home Assistant (GD7)
+
+    @Test
+    fun ma_401_403_la_can_dang_nhap_ha() {
+        assertTrue(WebTargetResolver.needsHaLogin(401))
+        assertTrue(WebTargetResolver.needsHaLogin(403))
+        assertFalse(WebTargetResolver.needsHaLogin(200))
+        assertFalse(WebTargetResolver.needsHaLogin(301))
+        assertFalse(WebTargetResolver.needsHaLogin(404))
+        assertFalse(WebTargetResolver.needsHaLogin(500))
+        assertFalse(WebTargetResolver.needsHaLogin(0))
+    }
+
+    @Test
+    fun nhan_dien_url_ingress_de_chan_hien_loi_tho() {
+        assertTrue(
+            WebTargetResolver.isIngressUrl("https://$domain/api/hassio_ingress/$token/launcher-config.html")
+        )
+        assertTrue(WebTargetResolver.isIngressUrl("https://$domain/api/hassio_ingress/$token/call-web.html?call=x"))
+        assertTrue(WebTargetResolver.isIngressUrl("https://hass/api/hassio_ingress/t/launcher-config.html"))
+        assertFalse(WebTargetResolver.isIngressUrl("https://$domain/$slug/launcher-config.html"))
+        assertFalse(WebTargetResolver.isIngressUrl("https://$domain/launcher-config.html"))
+        assertFalse(WebTargetResolver.isIngressUrl("https://$domain/"))
+        assertFalse(WebTargetResolver.isIngressUrl(null))
+        assertFalse(WebTargetResolver.isIngressUrl(""))
+    }
+
+    @Test
+    fun doc_cookie_phien_ha_theo_ten() {
+        // Có phiên: một trong hai tên xuất hiện trong header.
+        assertTrue(WebTargetResolver.hasSessionCookie("ingress_session=abc123"))
+        assertTrue(WebTargetResolver.hasSessionCookie("hassio_ingress=xyz"))
+        assertTrue(WebTargetResolver.hasSessionCookie("a=1; ingress_session=abc; b=2"))
+        assertTrue(WebTargetResolver.hasSessionCookie("a=1;hassio_ingress=xyz;b=2"))
+        assertTrue(WebTargetResolver.hasSessionCookie("  INGRESS_SESSION=abc  "))
+        // Chưa có phiên / header rỗng / chỉ cookie khác.
+        assertFalse(WebTargetResolver.hasSessionCookie(null))
+        assertFalse(WebTargetResolver.hasSessionCookie(""))
+        assertFalse(WebTargetResolver.hasSessionCookie("   "))
+        assertFalse(WebTargetResolver.hasSessionCookie("refresh_token=abc; session=def"))
+        // Không được khớp "gần giống".
+        assertFalse(WebTargetResolver.hasSessionCookie("ingress_session_old=abc"))
+        assertFalse(WebTargetResolver.hasSessionCookie("xingress_session=abc"))
+    }
+
+    @Test
+    fun login_url_la_goc_ha_co_gach_cheo_cuoi() {
+        assertEquals(
+            "https://$domain/",
+            WebTargetResolver.loginUrl("https://$domain/api/hassio_ingress/$token/launcher-config.html")
+        )
+        assertEquals("https://$domain/", WebTargetResolver.loginUrl("https://$domain/$slug/launcher-config.html"))
+        assertEquals("http://192.168.10.2:18080/", WebTargetResolver.loginUrl("http://192.168.10.2:18080/app/ping"))
+        assertNull(WebTargetResolver.loginUrl(null))
+        assertNull(WebTargetResolver.loginUrl(""))
+        assertNull(WebTargetResolver.loginUrl("$domain/x.html"))
+    }
+
+    @Test
+    fun same_url_bo_qua_query_va_gach_cheo_cuoi() {
+        val web = "https://$domain/api/hassio_ingress/$token/launcher-config.html"
+        assertTrue(WebTargetResolver.sameUrl(web, web))
+        assertTrue(WebTargetResolver.sameUrl("$web?x=1", web))
+        assertTrue(WebTargetResolver.sameUrl("$web#top", web))
+        assertTrue(WebTargetResolver.sameUrl("https://$domain/", "https://$domain"))
+        assertFalse(
+            WebTargetResolver.sameUrl(
+                "https://$domain/api/hassio_ingress/$token/call-web.html?call=1",
+                web
+            )
+        )
+        assertFalse(WebTargetResolver.sameUrl(null, web))
+        assertFalse(WebTargetResolver.sameUrl(web, null))
+    }
 }

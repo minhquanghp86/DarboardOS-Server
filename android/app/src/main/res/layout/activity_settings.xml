@@ -95,6 +95,34 @@
             android:minHeight="48dp"
             android:text="@string/st_ha_home_button" />
 
+        <!-- (14/11/2026) GD7 — trạng thái phiên HA (dò cookie) + "Đăng nhập lại Home Assistant". -->
+        <TextView
+            android:id="@+id/haStatusView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:background="#FF16202F"
+            android:padding="12dp"
+            android:textColor="#FFC7D2E2"
+            android:textIsSelectable="true"
+            android:textSize="12sp" />
+
+        <Button
+            android:id="@+id/haReloginButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:minHeight="48dp"
+            android:text="@string/st_ha_relogin_button" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/st_ha_relogin_hint"
+            android:textColor="#FF9AA7BD"
+            android:textSize="12sp" />
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

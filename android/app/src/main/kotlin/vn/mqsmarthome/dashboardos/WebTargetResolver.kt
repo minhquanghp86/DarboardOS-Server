@@ -29,6 +29,13 @@ import java.net.URLEncoder
  *  - [apiBaseOrNull]  : chọn apiBase (ô 2, hoặc suy ra từ ô 1 khi ô 1 là IP LAN),
  *  - [callPageUrl]    : webUrl → trang gọi (cùng thư mục ingress) khi bấm "Nghe".
  *
+ * (14/11/2026) GD7 — ĐĂNG NHẬP HOME ASSISTANT (401 KHÔNG còn được mở thẳng ra WebView):
+ *  - [needsHaLogin]      : mã HTTP của lần dò → có phải "cần đăng nhập HA" (401/403) hay không,
+ *  - [isIngressUrl]      : URL có nằm sau ingress của HA (`/api/hassio_ingress/…`) hay không,
+ *  - [SESSION_COOKIE_NAMES] / [hasSessionCookie] : cookie header có `ingress_session` / `hassio_ingress` không,
+ *  - [loginUrl]          : webUrl → `https://<domain>/` (trang đăng nhập Lovelace của HA),
+ *  - [sameUrl]           : so 2 URL cùng đích (bỏ query/fragment).
+ *
  * Cả tệp chỉ dùng java.net (không có API Android) → chạy được trong unit test JVM.
  */
 object WebTargetResolver {
@@ -59,6 +66,15 @@ object WebTargetResolver {
 
     /** Timeout mỗi lần GET (đủ cho 1 trang HTML; sai địa chỉ thì thất bại nhanh). */
     const val TIMEOUT_MS = 4000
+
+    /**
+     * (14/11/2026) GD7 — Tên cookie mà Home Assistant đặt khi một phiên đăng nhập đi qua ingress.
+     *
+     * Vì sao dò hai tên: HA đặt `ingress_session` cho phiên ingress hiện tại, và một số bản
+     * (supervisor / ingress proxy) dùng `hassio_ingress`. Chỉ cần MỘT trong hai xuất hiện trong
+     * `CookieManager.getInstance().getCookie(origin)` là WebView đã có phiên → ingress trả trang thay vì 401.
+     */
+    val SESSION_COOKIE_NAMES = listOf("ingress_session", "hassio_ingress")
 
     /** Chỉ cần đầu trang để thấy `<title>` — không tải cả 180 KB của launcher-config.html. */
     private const val BODY_MAX = 16_384
@@ -225,6 +241,77 @@ object WebTargetResolver {
     fun sanitizeToken(token: String?): String {
         val t = token?.trim()?.trim('/')?.trim().orEmpty()
         return if (t.isEmpty()) DEFAULT_INGRESS_TOKEN else t
+    }
+
+    // ────────────────────────────────────────────────────────────── đăng nhập Home Assistant (GD7)
+
+    /**
+     * (14/11/2026) GD7 — mã HTTP của lần dò có nghĩa "phải đăng nhập Home Assistant" hay không.
+     *
+     * `launcher-config.html` nằm sau ingress của HA nên khi WebView CHƯA có cookie phiên HA, HA trả
+     * **401** (body là text `401: Unauthorized`, KHÔNG redirect sang trang đăng nhập); một số cấu hình
+     * reverse proxy trả **403**. Cả hai đều là "đúng add-on, cần đăng nhập" — không phải lỗi địa chỉ.
+     */
+    fun needsHaLogin(status: Int): Boolean =
+        status == HttpURLConnection.HTTP_UNAUTHORIZED || status == HttpURLConnection.HTTP_FORBIDDEN
+
+    /**
+     * (14/11/2026) GD7 — URL có nằm sau ingress của Home Assistant không
+     * (`https://<domain>/api/hassio_ingress/<TOKEN>/…`, hoặc dạng `/hassio/ingress/…`).
+     * Dùng để chặn hiển thị nội dung lỗi thô (`401: Unauthorized`) của ingress.
+     */
+    fun isIngressUrl(url: String?): Boolean {
+        val u = url?.trim().orEmpty()
+        if (u.isEmpty()) return false
+        return u.contains("$INGRESS_PREFIX/", ignoreCase = true) ||
+            u.contains("/hassio/ingress/", ignoreCase = true)
+    }
+
+    /**
+     * (14/11/2026) GD7 — cookie header (`CookieManager.getCookie(origin)`) đã có phiên HA chưa?
+     *
+     * Chỉ dò TÊN cookie trong header dạng `a=1; ingress_session=…; b=2`; không cần giá trị. Header rỗng /
+     * null → false. Đây là toàn bộ logic "đã đăng nhập chưa" (dùng chung cho poll 1,5 s, nút "Tôi đã đăng
+     * nhập" và dòng trạng thái ở Cài đặt) nên tách ra để unit test được, không cần WebView.
+     */
+    fun hasSessionCookie(cookieHeader: String?): Boolean {
+        val header = cookieHeader ?: return false
+        if (header.isBlank()) return false
+        for (part in header.split(';')) {
+            val name = part.substringBefore('=').trim()
+            if (name.isEmpty()) continue
+            for (known in SESSION_COOKIE_NAMES) {
+                if (known.equals(name, ignoreCase = true)) return true
+            }
+        }
+        return false
+    }
+
+    /**
+     * (14/11/2026) GD7 — webUrl → trang đăng nhập Home Assistant: `https://<domain>/` (Lovelace tự chuyển
+     * sang form đăng nhập). null = webUrl không phải URL http(s) (không có gì để mở).
+     */
+    fun loginUrl(webUrl: String?): String? = originUrl(webUrl)?.trimEnd('/')?.plus("/")
+
+    /**
+     * (14/11/2026) GD7 — hai URL có cùng đích không (bỏ query + fragment, bỏ `/` cuối).
+     *
+     * Dùng để biết "trang WebView đang lỗi 401 có đúng là trang điều khiển đã lưu (`webUrl`) không": nếu đúng
+     * thì tự chuyển về origin của HA để đăng nhập, nếu không (vd trang gọi `call-web.html?call=…`) thì hiện màn
+     * hình "Cần đăng nhập Home Assistant" có nút Đăng nhập.
+     */
+    fun sameUrl(a: String?, b: String?): Boolean {
+        val x = normalizeUrl(a) ?: return false
+        val y = normalizeUrl(b) ?: return false
+        return x == y
+    }
+
+    private fun normalizeUrl(url: String?): String? {
+        val u = url?.trim().orEmpty()
+        if (u.isEmpty()) return null
+        val cut = u.indexOfAny(charArrayOf('?', '#'))
+        val noQuery = if (cut >= 0) u.substring(0, cut) else u
+        return noQuery.trimEnd('/').lowercase()
     }
 
     // ────────────────────────────────────────────────────────────── gọi mạng

@@ -14,6 +14,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
+import android.webkit.CookieManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Switch
@@ -28,6 +29,8 @@ import java.util.Locale
  * (11/11/2026) GD3 — thêm lối tắt cài đặt MIUI, cài đặt thông báo/kênh cuộc gọi, và khối trạng thái debug.
  * (13/11/2026) GD6 — thêm khối "Máy chủ đang dùng" (hiện ĐÚNG 2 giá trị webUrl / apiBase + TOKEN ingress),
  * nút "Đăng nhập Home Assistant" (mở webUrl trong WebView của app) và ô sửa TOKEN ingress.
+ * (14/11/2026) GD7 — thêm "Đã đăng nhập: có/không" (dò cookie `ingress_session` / `hassio_ingress` của origin) và
+ * nút "Đăng nhập lại Home Assistant" (xoá cookie của origin rồi mở origin trong chế độ đăng nhập của MainActivity).
  *
  * Những thứ quyết định chuông có kêu + màn hình gọi có bật lên khi máy khoá:
  *   1. quyền POST_NOTIFICATIONS (Android 13+) — không có thì không có thông báo full-screen,
@@ -46,6 +49,7 @@ class SettingsActivity : Activity() {
     private lateinit var receiveSwitch: Switch
     private lateinit var statusView: TextView
     private lateinit var targetsView: TextView
+    private lateinit var haStatusView: TextView
     private lateinit var tokenInput: EditText
     private var receiverRegistered = false
 
@@ -62,6 +66,7 @@ class SettingsActivity : Activity() {
         receiveSwitch = findViewById(R.id.receiveSwitch)
         statusView = findViewById(R.id.statusView)
         targetsView = findViewById(R.id.targetsView)
+        haStatusView = findViewById(R.id.haStatusView)
         tokenInput = findViewById(R.id.tokenInput)
 
         receiveSwitch.isChecked = Prefs.receiveEnabled(this)
@@ -79,8 +84,10 @@ class SettingsActivity : Activity() {
         findViewById<Button>(R.id.haLoginButton).setOnClickListener { openInWeb(Prefs.webUrl(this)) }
         // 401 từ ingress cần đăng nhập HA ở chính domain: mở trang chủ HA rồi quay lại trang điều khiển.
         findViewById<Button>(R.id.haHomeButton).setOnClickListener {
-            openInWeb(WebTargetResolver.originUrl(Prefs.webUrl(this)))
+            openInWeb(WebTargetResolver.loginUrl(Prefs.webUrl(this)) ?: WebTargetResolver.originUrl(Prefs.webUrl(this)))
         }
+        // (14/11/2026) GD7 — "Đăng nhập lại Home Assistant": xoá cookie của origin rồi mở origin (banner + dò cookie).
+        findViewById<Button>(R.id.haReloginButton).setOnClickListener { reloginHomeAssistant() }
 
         findViewById<Button>(R.id.notifButton).setOnClickListener { requestNotifications() }
         findViewById<Button>(R.id.batteryButton).setOnClickListener { requestIgnoreBattery() }
@@ -332,6 +339,121 @@ class SettingsActivity : Activity() {
         }
     }
 
+    // ── đăng nhập Home Assistant (GD7)
+
+    /**
+     * (14/11/2026) GD7 — "Đã đăng nhập: có/không", dò bằng cookie thật của WebView:
+     * `CookieManager.getInstance().getCookie(origin)` có `ingress_session` / `hassio_ingress` hay không
+     * ([WebTargetResolver.hasSessionCookie]). Không có webUrl → coi như "không".
+     */
+    private fun renderHaLogin() {
+        val web = Prefs.webUrl(this)
+        val origin = WebTargetResolver.originUrl(web)
+        var cookie: String? = null
+        if (origin != null) {
+            cookie = try {
+                CookieManager.getInstance().getCookie(origin)
+            } catch (t: Throwable) {
+                null
+            }
+        }
+        val logged = WebTargetResolver.hasSessionCookie(cookie)
+        haStatusView.text = buildString {
+            append(
+                getString(
+                    R.string.st_ha_status,
+                    getString(if (logged) R.string.st_ha_yes else R.string.st_ha_no)
+                )
+            )
+            if (Prefs.needHaLogin(this@SettingsActivity)) {
+                append('\n').append(getString(R.string.status_need_login))
+            }
+        }
+    }
+
+    /**
+     * (14/11/2026) GD7 — "Đăng nhập lại Home Assistant": xoá cookie phiên của origin (và cookie theo path ingress
+     * của webUrl), đặt `need_ha_login = true`, rồi mở origin trong WebView của app ở CHẾ ĐỘ đăng nhập
+     * (thanh thông báo 40dp + dò cookie 1,5 s → tự sang trang điều khiển khi đăng nhập xong).
+     */
+    private fun reloginHomeAssistant() {
+        val web = Prefs.webUrl(this)
+        val origin = WebTargetResolver.originUrl(web)
+        if (origin == null) {
+            toast(getString(R.string.st_ha_login_no_web))
+            return
+        }
+        clearHaCookies(origin, web)
+        Prefs.setNeedHaLogin(this, true)
+        renderHaLogin()
+
+        val loginUrl = WebTargetResolver.loginUrl(web) ?: "$origin/"
+        val i = Intent(this, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            .putExtra(MainActivity.EXTRA_OPEN_URL, loginUrl)
+            .putExtra(MainActivity.EXTRA_HA_LOGIN, true)
+        if (!tryStart(i)) toast(getString(R.string.st_no_settings_screen))
+    }
+
+    /**
+     * Xoá cookie phiên Home Assistant của [origin] (và của [webUrl] — cookie ingress có thể nằm ở path
+     * `/api/hassio_ingress/<TOKEN>/`). Dùng `Max-Age=0` cho đúng từng (tên, path) đã có, nên không cần biết giá trị;
+     * kèm 2 tên cookie phiên để chắc chắn sạch kể cả khi `getCookie` không trả về (cookie HttpOnly).
+     */
+    private fun clearHaCookies(origin: String, webUrl: String?) {
+        val cm = CookieManager.getInstance()
+        cm.setAcceptCookie(true)
+        val names = LinkedHashSet<String>(WebTargetResolver.SESSION_COOKIE_NAMES)
+        val paths = LinkedHashSet<String>()
+        paths.add("/")
+        webTargetPaths(webUrl).forEach { paths.add(it) }
+
+        for (target in listOfNotNull(origin, webUrl).distinct()) {
+            val header = try {
+                cm.getCookie(target)
+            } catch (t: Throwable) {
+                null
+            }
+            if (!header.isNullOrBlank()) {
+                for (part in header.split(';')) {
+                    val name = part.substringBefore('=').trim()
+                    if (name.isNotEmpty()) names.add(name)
+                }
+            }
+        }
+
+        for (target in listOfNotNull(origin, webUrl).distinct()) {
+            for (path in paths) {
+                for (name in names) {
+                    try {
+                        cm.setCookie(target, "$name=; Max-Age=0; Path=$path")
+                    } catch (t: Throwable) {
+                        // bỏ qua: cookie của domain khác thì CookieManager từ chối, không sao
+                    }
+                }
+            }
+        }
+        cm.flush()
+    }
+
+    /** Các path có thể chứa cookie của [url]: thư mục của chính URL (vd `/api/hassio_ingress/<TOKEN>/`). */
+    private fun webTargetPaths(url: String?): List<String> {
+        val u = url?.trim().orEmpty()
+        val schemeEnd = u.indexOf("://")
+        if (schemeEnd < 0) return emptyList()
+        val noQuery = u.substring(0, u.indexOfAny(charArrayOf('?', '#')).takeIf { it >= 0 } ?: u.length)
+        val slash = noQuery.indexOf('/', schemeEnd + 3)
+        if (slash < 0) return emptyList()
+        val path = noQuery.substring(slash)
+        val dir = path.substringBeforeLast('/')
+        val out = ArrayList<String>(2)
+        out.add(if (dir.isEmpty()) "/" else "$dir/")
+        // Cookie ingress của HA cũng có thể đặt ở path cha `/api/hassio_ingress`.
+        val parent = dir.substringBeforeLast('/')
+        if (parent.isNotEmpty()) out.add("$parent/")
+        return out.distinct()
+    }
+
     /** Lưu TOKEN ingress người dùng vừa sửa (áp dụng cho lần dò kế tiếp). */
     private fun saveToken() {
         val token = tokenInput.text?.toString()?.trim().orEmpty()
@@ -360,6 +482,7 @@ class SettingsActivity : Activity() {
 
     private fun renderStatus() {
         renderTargets()
+        renderHaLogin()
         val lines = StringBuilder()
         lines.append(getString(R.string.st_phone_id, Prefs.phoneId(this))).append('\n')
         lines.append(

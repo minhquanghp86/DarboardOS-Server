@@ -120,4 +120,18 @@
     <string name="st_token_button">Lưu TOKEN</string>
     <string name="st_token_hint">Là chuỗi nằm sau /api/hassio_ingress/ trong URL add-on (Home Assistant → Add-on → Dashboard OS → mở Web UI rồi copy URL). Đổi xong bấm “Lưu TOKEN” rồi quay lại màn hình chính bấm “Kết nối” để dò lại.</string>
     <string name="st_token_saved">Đã lưu TOKEN ingress</string>
+
+    <!-- (14/11/2026) GD7 — đăng nhập Home Assistant trước khi mở ingress (401 không còn hiện ra WebView). -->
+    <string name="ha_login_banner">Đăng nhập Home Assistant để tiếp tục</string>
+    <string name="ha_login_done">Tôi đã đăng nhập</string>
+    <string name="ha_login_ok">Đã có phiên Home Assistant — đang mở trang điều khiển…</string>
+    <string name="ha_login_required_title">Cần đăng nhập Home Assistant</string>
+    <string name="ha_login_required_hint">Trang điều khiển nằm sau ingress của Home Assistant nên cần một phiên đăng nhập. Bấm nút dưới để mở trang đăng nhập, sau khi đăng nhập app sẽ tự quay lại trang điều khiển.</string>
+    <string name="ha_login_button">Đăng nhập</string>
+    <string name="status_need_login">Đang cần đăng nhập Home Assistant — bấm “Kết nối” để đăng nhập rồi mở trang điều khiển.</string>
+    <string name="st_ha_relogin_button">Đăng nhập lại Home Assistant</string>
+    <string name="st_ha_status">Đã đăng nhập: %1$s</string>
+    <string name="st_ha_yes">có</string>
+    <string name="st_ha_no">không</string>
+    <string name="st_ha_relogin_hint">Xoá cookie phiên của domain rồi mở lại trang đăng nhập Home Assistant (dùng khi trang điều khiển báo 401 dù đã đăng nhập, hoặc đổi mật khẩu).</string>
 </resources>
