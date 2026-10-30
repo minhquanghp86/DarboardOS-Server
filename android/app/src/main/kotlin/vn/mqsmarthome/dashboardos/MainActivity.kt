@@ -3,7 +3,6 @@ package vn.mqsmarthome.dashboardos
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
@@ -28,27 +27,28 @@ import android.widget.EditText
 import android.widget.Toast
 
 /**
- * Phase 1 of Dashboard OS.
+ * Phase 1 + phase 2 of Dashboard OS.
  *
  * A deliberately tiny single-activity app:
- *  - a URL entry screen (prefilled with the last used URL),
+ *  - a URL entry screen (prefilled with the last used URL) + a small "Cài đặt" entry,
  *  - a full screen WebView that remembers the URL in SharedPreferences,
  *  - WebRTC microphone/camera support through WebChromeClient.onPermissionRequest,
- *  - sane hardware back handling (history -> goBack, otherwise exit).
+ *  - (10/11/2026 GD2) PhoneService: nhận cuộc gọi từ màn hình P4 khi app đóng/nền (polling 2 s),
+ *    xem SettingsActivity + IncomingCallActivity.
  *
  * Only framework (android.*) APIs are used, so the build stays dependency free.
  */
 class MainActivity : Activity() {
 
-    private companion object {
-        const val PREFS = "dashboard_os"
-        const val KEY_URL = "url"
+    companion object {
+        /** (10/11/2026) Mo WebView thang mot URL (vd call-web.html?call=<id> sau khi bam "Nghe"). */
+        const val EXTRA_OPEN_URL = "open_url"
 
-        const val DEFAULT_URL =
-            "https://hass.mqsmarthome.io.vn/b39feb53_remote_webview_server/call-web.html"
+        /** true = ghi URL nay lam dia chi nho (mac dinh false cho trang cuoc goi). */
+        const val EXTRA_OPEN_URL_KEEP = "open_url_keep"
 
-        const val REQ_WEB_MEDIA = 1001
-        const val OVERLAY_VISIBLE_MS = 4000L
+        private const val REQ_WEB_MEDIA = 1001
+        private const val OVERLAY_VISIBLE_MS = 4000L
     }
 
     private lateinit var prefs: SharedPreferences
@@ -68,14 +68,35 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        prefs = Prefs.get(this)
 
-        val saved = normalizeUrl(prefs.getString(KEY_URL, null))
-        if (saved != null) {
-            openWeb(saved)
-        } else {
-            showUrlScreen(prefill = null)
+        // (10/11/2026) GD2: nhan cuoc goi khi app dong — foreground service + poll 2 s (tat trong Cai dat).
+        if (Prefs.receiveEnabled(this)) PhoneService.start(this)
+
+        if (!openFromIntent(intent)) {
+            val saved = normalizeUrl(prefs.getString(Prefs.KEY_URL, null))
+            if (saved != null) {
+                openWeb(saved)
+            } else {
+                showUrlScreen(prefill = null)
+            }
         }
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (!openFromIntent(intent)) return
+    }
+
+    /** Mo URL tu extra (trang cuoc goi). true = da xu ly. */
+    private fun openFromIntent(intent: Intent?): Boolean {
+        val raw = intent?.getStringExtra(EXTRA_OPEN_URL) ?: return false
+        val url = normalizeUrl(raw) ?: return false
+        val keep = intent.getBooleanExtra(EXTRA_OPEN_URL_KEEP, false)
+        openWeb(url, persist = keep)
+        intent.removeExtra(EXTRA_OPEN_URL)
+        return true
     }
 
     // ------------------------------------------------------------------ URL screen
@@ -88,10 +109,14 @@ class MainActivity : Activity() {
 
         val input = findViewById<EditText>(R.id.urlInput)
         urlInput = input
-        input.setText(prefill ?: prefs.getString(KEY_URL, null) ?: DEFAULT_URL)
+        input.setText(prefill ?: prefs.getString(Prefs.KEY_URL, null) ?: Prefs.DEFAULT_URL)
         input.setSelection(input.text.length)
 
         findViewById<Button>(R.id.openButton).setOnClickListener { openFromInput() }
+        // (10/11/2026) GD2: Cai dat nhan cuoc goi khi app dong + quyen thong bao / toi uu pin.
+        findViewById<Button>(R.id.settingsButton).setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
 
         input.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_GO || actionId == EditorInfo.IME_ACTION_DONE) {
@@ -114,8 +139,8 @@ class MainActivity : Activity() {
 
     // ------------------------------------------------------------------ Web screen
 
-    private fun openWeb(url: String) {
-        prefs.edit().putString(KEY_URL, url).apply()
+    private fun openWeb(url: String, persist: Boolean = true) {
+        if (persist) prefs.edit().putString(Prefs.KEY_URL, url).apply()
 
         showingWeb = true
         disposeWebView()
@@ -128,7 +153,7 @@ class MainActivity : Activity() {
         web.loadUrl(url)
 
         val changeUrlButton = findViewById<Button>(R.id.changeUrlButton)
-        changeUrlButton.setOnClickListener { showUrlScreen(prefill = prefs.getString(KEY_URL, null)) }
+        changeUrlButton.setOnClickListener { showUrlScreen(prefill = prefs.getString(Prefs.KEY_URL, null)) }
         changeUrlButton.alpha = 0.75f
         changeUrlButton.visibility = View.VISIBLE
         mainHandler.removeCallbacks(hideOverlayRunnable)
@@ -315,20 +340,5 @@ class MainActivity : Activity() {
      * Trims the input, adds a https:// scheme when missing and rejects anything
      * that is not a usable absolute http(s) URL.
      */
-    private fun normalizeUrl(raw: String?): String? {
-        var value = raw?.trim().orEmpty()
-        if (value.isEmpty()) return null
-
-        if (!value.startsWith("http://", ignoreCase = true) &&
-            !value.startsWith("https://", ignoreCase = true)
-        ) {
-            value = "https://$value"
-        }
-
-        val uri = Uri.parse(value)
-        val host = uri.host
-        if (!uri.scheme.equals("http", true) && !uri.scheme.equals("https", true)) return null
-        if (host.isNullOrEmpty()) return null
-        return uri.toString()
-    }
+    private fun normalizeUrl(raw: String?): String? = PhoneApi.normalize(raw)
 }

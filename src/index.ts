@@ -47,6 +47,8 @@ import { endCall, handleCallApi, handleCallUpgrade, onMicFrame } from './callBri
 import { attachDoor, handleDoorApi, handleDoorMjpeg, requestOpenLog, setDoorHooks } from './door.js';
 import { handleRingtone } from './ringtone.js';
 import { handleCallsApi, handleCallsUpgrade, setCallHooks } from './calls.js';
+// (10/11/2026) GD2: dien thoai Android dang ky + poll cuoc goi den (src/phones.ts).
+import { handlePhoneApi } from './phones.js';
 import { handleFrigateApi } from './frigate.js';
 import { handleLockWidgetsApi, noteDeviceIp } from './lockWidgets.js';
 import { handleCalendarApi } from './calendarSource.js';
@@ -275,6 +277,8 @@ http.createServer((req, res) => {
   if (handleRingtone(req, res, pathname)) return;
   // (14/10/2026) Cuoc goi video man <-> man / trinh duyet (src/calls.ts).
   if (handleCallsApi(req, res, reqUrl)) return;
+  // (10/11/2026) GD2: app Android dang ky / poll cuoc goi den / nghe / tu choi (src/phones.ts).
+  if (handlePhoneApi(req, res, reqUrl)) return;
   // (08/10/2026) Su kien camera Frigate: danh sach, anh, clip (src/frigate.ts) — chi 127.0.0.1.
   if (handleFrigateApi(req, res, reqUrl)) return;
   const vendor = vendorCache.get(pathname);

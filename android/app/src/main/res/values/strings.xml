@@ -4,9 +4,46 @@
     <string name="url_hint">Địa chỉ Dashboard (URL)</string>
     <string name="action_open">Mở</string>
     <string name="action_change_url">URL</string>
+    <string name="action_settings">Cài đặt</string>
+    <string name="action_close">Đóng</string>
     <string name="url_footer">Địa chỉ được ghi nhớ, lần sau mở app sẽ vào thẳng dashboard.</string>
     <string name="err_empty_url">Vui lòng nhập địa chỉ</string>
     <string name="err_load">Không tải được trang. Kiểm tra URL hoặc kết nối mạng.</string>
     <string name="perm_denied">Cần quyền micro/camera để dùng tính năng đàm thoại</string>
     <string name="url_button_short">URL</string>
+
+    <!-- (10/11/2026) GD2 — nhận cuộc gọi từ màn hình P4 khi app đóng / ở nền. -->
+    <string name="svc_title">Đang nhận cuộc gọi</string>
+    <string name="svc_text">Sẵn sàng nhận cuộc gọi từ màn hình</string>
+    <string name="svc_channel">Nhận cuộc gọi (chạy nền)</string>
+    <string name="svc_channel_desc">Giữ kết nối tới máy chủ Dashboard để báo cuộc gọi đến khi app đóng.</string>
+    <string name="call_channel">Cuộc gọi đến</string>
+    <string name="call_channel_desc">Thông báo toàn màn hình khi có cuộc gọi từ màn hình P4.</string>
+    <string name="call_notif_title">Cuộc gọi đến</string>
+    <string name="call_incoming">Cuộc gọi đến</string>
+    <string name="call_unknown_caller">Màn hình</string>
+    <string name="call_from">Từ %1$s</string>
+    <string name="call_answer">Nghe</string>
+    <string name="call_decline">Từ chối</string>
+    <string name="call_answer_failed">Không báo được cho máy chủ (vẫn mở trang gọi)</string>
+
+    <string name="settings_title">Cài đặt</string>
+    <string name="st_receive">Nhận cuộc gọi khi app đóng</string>
+    <string name="st_receive_hint">Bật: app chạy một dịch vụ nền, 2 giây hỏi máy chủ một lần nên vẫn đổ chuông khi bạn đóng app hoặc tắt màn hình.</string>
+    <string name="st_permissions">Quyền cần thiết</string>
+    <string name="st_notif_button">Cho phép thông báo</string>
+    <string name="st_battery_button">Bỏ tối ưu pin</string>
+    <string name="st_full_button">Cho phép hiện toàn màn hình</string>
+    <string name="st_notif_ok">Thông báo: đã bật</string>
+    <string name="st_notif_no">Thông báo: CHƯA bật — không có chuông khi app đóng</string>
+    <string name="st_battery_ok">Tối ưu pin: đã bỏ</string>
+    <string name="st_battery_no">Tối ưu pin: CHƯA bỏ — Android có thể dừng dịch vụ nền</string>
+    <string name="st_full_ok">Toàn màn hình: đã cho phép</string>
+    <string name="st_full_no">Toàn màn hình: chưa cho phép</string>
+    <string name="st_phone_id">Mã máy: %1$s</string>
+    <string name="st_server">Máy chủ: %1$s</string>
+    <string name="st_no_server">chưa có (nhập URL ở màn hình chính)</string>
+    <string name="st_service">Dịch vụ nền: %1$s</string>
+    <string name="st_on">đang chạy</string>
+    <string name="st_off">đang tắt</string>
 </resources>

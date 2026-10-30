@@ -57,6 +57,16 @@
         android:text="@string/action_open"
         android:textSize="16sp" />
 
+    <!-- (10/11/2026) GD2: mo man Cai dat (nhan cuoc goi khi app dong, quyen thong bao, toi uu pin). -->
+    <Button
+        android:id="@+id/settingsButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:minHeight="48dp"
+        android:text="@string/action_settings"
+        android:textSize="15sp" />
+
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

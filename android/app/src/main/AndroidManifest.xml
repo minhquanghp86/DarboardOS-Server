@@ -8,13 +8,18 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
-    <!-- Notifications / kiosk / background (declared now, used in phase 2) -->
+    <!-- Notifications / kiosk / background -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- (10/11/2026) GD2: PhoneService chay kieu dataSync (Android 10-13) / specialUse (Android 14+) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- (10/11/2026) GD2: rung lap khi co cuoc goi den. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
@@ -47,6 +52,48 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- (10/11/2026) GD2: Cai dat nhan cuoc goi khi app dong. -->
+        <activity
+            android:name=".SettingsActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
+            android:exported="false"
+            android:label="@string/settings_title" />
+
+        <!-- (10/11/2026) GD2: man hinh cuoc goi den toan man hinh, hien tren man khoa. -->
+        <activity
+            android:name=".IncomingCallActivity"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode|density|fontScale"
+            android:enableOnBackInvokedCallback="false"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            android:showOnLockScreen="true"
+            android:taskAffinity="vn.mqsmarthome.dashboardos.call"
+            android:theme="@style/AppTheme"
+            android:turnScreenOn="true" />
+
+        <!-- (10/11/2026) GD2: foreground service poll GET /app/incoming moi 2 s. -->
+        <service
+            android:name=".PhoneService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync|specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="DuytriKetNoiDeNhanCuocGoiTuManHinhDashboard" />
+        </service>
+
+        <!-- (10/11/2026) GD2: khoi dong lai PhoneService sau khi may khoi dong lai / cap nhat app. -->
+        <receiver
+            android:name=".BootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

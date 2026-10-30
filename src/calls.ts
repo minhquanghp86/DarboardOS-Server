@@ -12,6 +12,12 @@
 // API man (127.0.0.1): GET /calls/contacts?self=, POST /calls/start?from=&to=, GET /calls/state?call=,
 //   POST /calls/accept|decline|hangup?call=&dev=, POST /calls/mute|cam?call=&dev=&on=.
 // Phien web (ingress): WS /calls/web?name= — JSON dieu khien + nhi phan (0x01 tieng, 0x02 hinh).
+//
+// (10/11/2026) GD2 — DIEN THOAI (app Android, src/phoneStore.ts + src/phones.ts): moi dien thoai da dang ky la mot
+// "thiet bi goi duoc thuong tru", hien trong danh ba (contacts) voi nhan "Điện thoại". Dien thoai khong co phien WS
+// nen KHONG the "nhan" qua socket: server chi mo cuoc goi o trang thai `ringing` (hen gio RING_S nhu man hinh), app
+// poll GET /app/incoming?phone=<id> moi 2 s roi POST /app/answer | /app/decline. Het 30 s khong ai nhan -> missed
+// (finish(..., true): Thong bao + Telegram nhu cu). Luong man <-> trinh duyet khong doi.
 import http from 'node:http';
 import type { Duplex } from 'node:stream';
 import { WebSocket, WebSocketServer } from 'ws';
@@ -22,9 +28,10 @@ import { answerDoorbell, closeDoorbell, connectedScreens, openRingPage, postNoti
 import { LOCAL_ORIGIN } from './launcherApps.js';
 import type { FrameSink } from './mkvLive.js';
 import { ringtoneExists } from './ringtone.js';
+import { phoneLabel, phones } from './phoneStore.js';
 
 const RING_S = 30;
-export interface Party { kind: 'panel' | 'web'; id: string }
+export interface Party { kind: 'panel' | 'web' | 'phone'; id: string }
 interface WebSession { id: string; name: string; ws: WebSocket; call: string | null; vcfg: { codec: string; avcc: Buffer } | null; vsinks: Set<FrameSink> }
 interface Call {
   id: string; from: Party; to: Party; state: 'ringing' | 'active';
@@ -37,7 +44,8 @@ const webs = new Map<string, WebSession>();
 let nameOf: (id: string) => string | undefined = () => undefined;
 export function setCallHooks(h: { name: (id: string) => string | undefined }): void { nameOf = h.name; }
 
-const partyName = (p: Party) => (p.kind === 'web' ? webs.get(p.id)?.name || 'Trình duyệt' : nameOf(p.id) || p.id);
+const partyName = (p: Party) => (p.kind === 'web' ? webs.get(p.id)?.name || 'Trình duyệt'
+  : p.kind === 'phone' ? phoneLabel(phones.get(p.id)) : nameOf(p.id) || p.id);
 const busy = (id: string) => [...calls.values()].some((c) => c.from.id === id || c.to.id === id) || isInCall(id);
 const callOf = (id: string) => calls.get(id);
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -49,11 +57,15 @@ export function contacts(self: string): { id: string; kind: Party['kind']; name:
   const out: { id: string; kind: Party['kind']; name: string; busy: boolean }[] =
     panels().filter((p) => p.id !== self).map((p) => ({ id: p.id, kind: 'panel', name: p.name, busy: busy(p.id) }));
   for (const w of webs.values()) if (w.id !== self) out.push({ id: w.id, kind: 'web', name: w.name, busy: !!w.call });
+  // (10/11/2026) Dien thoai da dang ky: nhan "Điện thoại" (call-ui.js hien ten + phu de theo kind).
+  for (const p of phones.list()) if (p.id !== self) out.push({ id: p.id, kind: 'phone', name: phoneLabel(p), busy: busy(p.id) });
   return out;
 }
 function partyOf(id: string): Party | null {
   if (webs.has(id)) return { kind: 'web', id };
-  return panels().some((p) => p.id === id) ? { kind: 'panel', id } : null;
+  if (panels().some((p) => p.id === id)) return { kind: 'panel', id };
+  if (phones.get(id)) return { kind: 'phone', id };
+  return null;
 }
 function sendWeb(id: string, msg: unknown): void {
   const w = webs.get(id);
@@ -76,10 +88,12 @@ export function start(fromId: string, toId: string): { ok: boolean; call?: strin
       `&name=${encodeURIComponent(partyName(from))}`;
     c.ringId = 'c' + id;
     if (!openRingPage(to.id, c.ringId, url, RING_S + 2, 'cuoc goi den', !ringtoneExists('call'))) { finish(id, 'Không liên lạc được.'); return { ok: false, error: 'Không liên lạc được.' }; }
-  } else {
+  } else if (to.kind === 'web') {
     webs.get(to.id)!.call = id;
     sendWeb(to.id, { type: 'incoming', call: id, from: from.id, name: partyName(from) });
   }
+  // (10/11/2026) to.kind === 'phone': khong co trang/WS de mo — app Android tu thay cuoc goi khi poll
+  // GET /app/incoming?phone=<id> (2 s/lan). Het RING_S ma khong ai nhan -> finish(..., true) = cuoc goi nho.
   console.log(`[calls] ${id}: ${from.id} goi ${to.id}`);
   return { ok: true, call: id };
 }
@@ -96,17 +110,43 @@ export function accept(callId: string, by: string): { ok: boolean; error?: strin
   const legs = [c.from, c.to].filter((p) => p.kind === 'panel');
   for (const p of legs) if (!startCall(p.id)) { finish(callId, 'Máy bận.'); return { ok: false, error: 'Máy bận.' }; }
   if (legs.length === 2) linkCalls(c.from.id, c.to.id);
-  else {
+  else if (legs.length === 1) {
     // man <-> trinh duyet: mic man -> phien web; tieng web -> loa man (xem webMessage).
-    const panel = legs[0], web = c.from.kind === 'web' ? c.from : c.to;
-    c.unlisten.push(onMicListener(panel.id, (pcm) => {
-      const w = webs.get(web.id);
+    // (10/11/2026) man <-> dien thoai (GD2, chua co tieng): chi can mo leg tieng cua man; dien thoai khong co WS
+    // nen KHONG gan onMicListener (khong co noi nhan PCM).
+    const panel = legs[0], other = c.from.kind === 'panel' ? c.to : c.from;
+    if (other.kind === 'web') c.unlisten.push(onMicListener(panel.id, (pcm) => {
+      const w = webs.get(other.id);
       if (!c.muted.has(panel.id) && w && w.ws.readyState === WebSocket.OPEN && w.ws.bufferedAmount < 256 * 1024) w.ws.send(Buffer.concat([Buffer.from([1]), pcm]));
     }));
   }
   for (const p of [c.from, c.to]) if (p.kind === 'web') sendWeb(p.id, { type: 'active', call: callId, peer: p.id === c.from.id ? c.to.id : c.from.id });
   console.log(`[calls] ${callId}: ${by} nghe`);
   return { ok: true };
+}
+
+export interface IncomingCall { id: string; from: string; fromName: string }
+
+/**
+ * (10/11/2026) GD2 — cuoc goi dang DO CHUONG toi dien thoai `phoneId` (app Android poll 2 s/lan). Dong thoi cap nhat
+ * lastSeen de GET /app/list biet may con song. Chua dang ky -> null (app se tu dang ky lai).
+ */
+export function incomingFor(phoneId: string): IncomingCall | null {
+  if (!phoneId || !phones.get(phoneId)) return null;
+  phones.touch(phoneId);
+  for (const c of calls.values()) {
+    if (c.state === 'ringing' && c.to.kind === 'phone' && c.to.id === phoneId) {
+      return { id: c.id, from: c.from.id, fromName: partyName(c.from) };
+    }
+  }
+  return null;
+}
+
+/** Dien thoai tu choi (POST /app/decline): chi khi cuoc goi dung la dang do chuong toi may do. */
+export function declineFromPhone(callId: string, phoneId: string): boolean {
+  const c = callOf(callId);
+  if (!c || c.to.kind !== 'phone' || c.to.id !== phoneId) return false;
+  return finish(callId, 'Từ chối');
 }
 
 /** Ket thuc / tu choi / het gio. missed: bao "goi nho" cho ben nhan. */

@@ -1,3 +1,9 @@
+## V2.9.295
+- **Nhận cuộc gọi trên app Android (GĐ 2)**: API `/app/register`, `/app/list`, `/app/incoming`, `/app/answer`,
+  `/app/decline`; điện thoại đã đăng ký trở thành **thiết bị gọi được thường trú** (hiện trong danh bạ của P4 với nhãn
+  "· Điện thoại"). Gọi tới điện thoại mà không ai nhận trong 30 giây → ghi **cuộc gọi nhỡ** như chuông cổng.
+  Không đổi luồng P4 ↔ call-web cũ. Thêm 50 test (357 tổng).
+
 ## V2.9.294
 - **Web Push (bước 1)**: sinh VAPID, API `/push/*`, service worker `sw.js`, và nút **Bật chuông trên điện thoại**
   trong trang Cuộc gọi. Điện thoại sẽ reo khi có cuộc gọi kể cả khi tab đã đóng (chỉ chuông + thông báo,
