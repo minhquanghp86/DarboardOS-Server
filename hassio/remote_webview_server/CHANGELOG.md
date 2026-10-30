@@ -1,3 +1,7 @@
+## V2.9.293
+- Đồng bộ lại CHANGELOG trong add-on (các mục 2.9.288 → 2.9.292 bị thiếu do lỗi chèn chuỗi khi phát hành).
+  Không thay đổi mã nguồn.
+
 ## V2.9.292
 - Dọn log chẩn đoán `[notify] … dur=…` (thêm tạm ở 2.9.288).
 
