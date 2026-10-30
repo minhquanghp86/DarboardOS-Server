@@ -20,7 +20,7 @@ chuông cửa, báo thức, tin nhắn, IPTV.
 - **Màn hình chờ**: đồng hồ lớn, ngày âm lịch, thời tiết, ảnh gia đình (Google Photos hoặc thư mục media).
 - Xoay 0/90/180/270, độ sáng, âm lượng, tắt tiếng, chế độ Không làm phiền.
 
-![Màn hình chờ](images/weather.png)
+![Màn hình chờ](images/saver.png)
 
 ### Giao diện điện thoại
 - Màn hình chính dạng lưới: ẩn/hiện ứng dụng, đổi thứ tự, biểu tượng, màu, gom thư mục.
