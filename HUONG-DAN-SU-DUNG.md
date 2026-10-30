@@ -147,6 +147,9 @@ Trên trang Dashboard của add-on có ứng dụng **Gọi** (`call-web.html`) 
 Khi khách bấm nút chuông ở cổng:
 
 1. **Mọi màn hình được chọn** đổ chuông và hiện **hình camera cổng** toàn màn hình (kèm nút **Trả lời**, **Từ chối**, **Mở cổng**).
+
+   ![Màn đổ chuông cổng](images/doorbell-ring.png)
+
 2. Trả lời → **nói chuyện 2 chiều** với khách ngay trên màn (P4 có micro/loa; S3 chỉ nghe).
 3. **Mở cổng** → gửi lệnh mở cổng (thời gian mở đặt được, mặc định 3 giây).
 4. Không ai trả lời trong thời gian đổ chuông (mặc định 45 giây) → hệ thống ghi **"cuộc gọi nhỡ"**, gửi thông báo kèm **ảnh người bấm chuông** tới các màn khác.
