@@ -30,7 +30,7 @@ SERVICE_SCHEMA = vol.Schema(
     {
         vol.Required("message"): cv.string,
         vol.Optional("title", default=""): cv.string,
-        vol.Optional("duration", default=10): vol.All(vol.Coerce(int), vol.Range(min=0, max=600)),
+        vol.Optional("duration", default=10): vol.Any(cv.string, vol.All(vol.Coerce(int), vol.Range(min=0, max=600))),
         vol.Optional("device"): vol.Any(cv.string, [cv.string]),
         vol.Optional("image"): cv.string,
         vol.Optional("video"): cv.string,
@@ -102,6 +102,7 @@ class DashboardOSNotify(NotifyEntity):
             duration = int(duration) if duration is not None else 10
         except (TypeError, ValueError):
             duration = 10
+        duration = max(0, min(600, duration))
         duration = max(0, min(600, duration))
 
         devices = data.get("device")
