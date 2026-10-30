@@ -1,3 +1,9 @@
+## V2.9.284
+- **Hiệu ứng ảnh nền áp dụng đúng lựa chọn**: trước đây shell ép `fx = none` khi panel ở mức chuyển động thấp, nên
+  đặt hiệu ứng trong Cài đặt không có tác dụng. Nay hiệu ứng người dùng chọn được tôn trọng; chỉ khi chưa chọn mới
+  mặc định `fade` (motion full) hoặc `none` (màn yếu).
+- **Thêm 3 hiệu ứng**: `Xoay vào/ra` (rotate + scale), `Rơi từ trên` (drop), `Lật 3D` (flip).
+
 ## V2.9.283
 - **Sửa gốc lỗi sọc ảnh nền, giữ nguyên hiệu ứng**: lớp ảnh nền nay vẽ bằng thẻ `<img>` (`object-fit: cover`) thay vì
   `background-image`. Chrome headless raster sai lớp background khi ảnh lớn + scale; thẻ `<img>` không bị.

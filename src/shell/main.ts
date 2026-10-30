@@ -634,7 +634,9 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     if (!saverEl) return;
     const m: SaverPhotoMsg | null = typeof o === 'string' ? { url: o } : o;
     if (!m || !m.url) { saverEl.classList.remove('photo'); svPh.forEach((p) => { p.className = 'sv-ph'; p.replaceChildren(); }); setText(svCap, ''); return; }
-    const fx = CFG.motion === 'full' ? (m.fx || 'fade') : 'none';
+    // (30/10/2026) Hieu ung do NGUOI DUNG chon phai duoc ap dung ke ca khi panel o muc chuyen dong thap;
+    // chi khi chua chon gi moi ha xuong 'none' cho man yeu.
+    const fx = (m.fx && m.fx !== 'none') ? m.fx : (CFG.motion === 'full' ? 'fade' : 'none');
     const dir = (m.dir ?? 1) < 0 ? -1 : 1;
     const img = new Image();
     img.onload = () => {
