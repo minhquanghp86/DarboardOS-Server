@@ -43,23 +43,31 @@
       }).catch(function (e) { ui.toast(e.message); });
     },
     accept: function () { post('/calls/accept?call=' + enc(call) + '&dev=' + enc(DEV)).catch(function (e) { ui.toast(e.message); }); },
-    decline: function () { post('/calls/decline?call=' + enc(call)).catch(function () { }); },
-    hangup: function () { post('/calls/hangup?call=' + enc(call)).catch(function () { }); },
+    // (23/11/2026) GD10 — bấm Từ chối / Kết thúc thì ĐÓNG MÀN HÌNH NGAY tại máy này (không chờ nhịp hỏi 0,7 s):
+    // trước đây màn hình còn nguyên "đang gọi"/đồng hồ đếm cho tới lần hỏi kế tiếp, và nếu tin trạng thái không về
+    // thì treo luôn. Server vẫn được báo để bên kia nhận 'ended' ngay.
+    decline: function () { post('/calls/decline?call=' + enc(call)).catch(function () { }); endLocal('Từ chối'); },
+    hangup: function () { post('/calls/hangup?call=' + enc(call)).catch(function () { }); endLocal('Đã kết thúc'); },
     mute: function (on) { post('/calls/mute?call=' + enc(call) + '&dev=' + enc(DEV) + '&on=' + (on ? 1 : 0)).catch(function () { }); },
     cam: function (on) { post('/calls/cam?call=' + enc(call) + '&dev=' + enc(DEV) + '&on=' + (on ? 1 : 0)).catch(function () { }); },
     // Hinh cua minh: camera man nay (luong /live chia — khong ton them ket noi toi P4).
     selfVideo: function (t) { t.video.hidden = true; t.canvas.hidden = false; return CallUI.videoInto(t.canvas, '/call/video?dev=' + enc(DEV)); },
   });
+  // (23/11/2026) GD10 — đóng cuộc gọi NGAY (dùng chung cho "bấm nút" và "server báo đã kết thúc").
+  // Trang này do server mở làm chuông (mode=in) thì server tự đóng (closeDoorbell); trang danh bạ (mode=contacts)
+  // thì về lại danh bạ sau 0,7 s — trước đây 2,5 s, và nếu không bấm gì thì màn hình còn nguyên đồng hồ.
+  var endT = 0;
+  function endLocal(reason) {
+    clearTimeout(endT);
+    call = '';
+    ui.set({ view: 'ended', reason: reason || 'Đã kết thúc' });
+    endT = setTimeout(function () { if (!call && MODE === 'contacts') ui.set({ view: 'contacts', call: '' }); }, 700);
+  }
   // Hoi trang thai khi co cuoc goi.
   setInterval(function () {
     if (!call) return;
     fetch('/calls/state?call=' + enc(call), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (s) {
-      if (s.state === 'ended') {
-        var c = call; call = '';
-        ui.set({ view: 'ended', reason: s.reason });
-        setTimeout(function () { if (!call && MODE === 'contacts') ui.set({ view: 'contacts', call: '' }); }, 2500);
-        return void c;
-      }
+      if (s.state === 'ended') { endLocal(s.reason); return; }
       if (s.state === 'active') {
         var p = s.from === DEV ? s.to : s.from;
         ui.set({ view: 'active', call: call, peer: p, peerName: s.from === DEV ? s.toName : s.fromName, since: s.since,

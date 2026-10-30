@@ -17,8 +17,9 @@ import android.widget.Toast
 /**
  * (11/11/2026) GD3 — màn hình cuộc gọi đến TOÀN MÀN HÌNH (kể cả khi máy khoá).
  * (12/11/2026) GD5 — KHÔNG phát âm thanh, KHÔNG rung: chuông + rung do KÊNH THÔNG BÁO `incoming_call_v3`
- * phát (xem [CallNotifications]). Màn hình này chỉ hiện giao diện và giữ NHỊP ĐĂNG LẠI thông báo (~4 s) —
+ * phát (xem [CallNotifications]). Màn hình này chỉ hiện giao diện và giữ NHỊP ĐĂNG LẠI thông báo —
  * tức vẫn kêu cho tới khi người dùng Nghe / Từ chối hoặc server báo cuộc gọi đã hết.
+ * (23/11/2026) GD10 — nhịp đăng lại là [CallNotifications.REPOST_MS] = 30 s (trước 4 s, làm cắt nhạc chuông dài).
  *
  * Service gửi thông báo full-screen intent trỏ vào đây, nên activity tự bật lên trên màn khoá
  * (setShowWhenLocked + setTurnScreenOn + xin bỏ khoá tạm thời). Khi:
@@ -84,7 +85,9 @@ class IncomingCallActivity : Activity() {
         override fun run() {
             if (isFinishing || isDestroyed) return
             val id = callId
-            if (id.isNotBlank() && PhoneStatus.handledCallId != id) {
+            // (23/11/2026) GD10 — CHỈ đăng lại khi cuộc gọi CÒN đổ chuông và người dùng CHƯA Nghe/Từ chối.
+            // Nhịp thật do [RepostPolicy.due]/[CallNotifications.REPOST_MS] (30 s) quyết, không phải TICK_MS.
+            if (id.isNotBlank() && RingState.isRinging() && PhoneStatus.handledCallId != id) {
                 CallNotifications.notifyAgainIfDue(this@IncomingCallActivity, incoming())
                 PhoneStatus.ringing = RingState.isRinging()
                 uiHandler.postDelayed(this, TICK_MS)

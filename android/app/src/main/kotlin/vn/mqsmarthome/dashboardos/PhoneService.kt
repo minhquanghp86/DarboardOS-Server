@@ -15,7 +15,9 @@ import android.util.Log
  * (10/11/2026) GD2 — chuông báo cuộc gọi đến khi app ĐÓNG / ở nền.
  * (12/11/2026) GD5 — chuông/rung do KÊNH THÔNG BÁO `incoming_call_v3` phát (app không tự phát âm thanh nữa,
  * xem CallNotifications): kênh HIGH + nhạc chuông mặc định của máy + rung + bypassDnd. Vòng poll 2 s vừa phát
- * hiện cuộc gọi mới vừa ĐĂNG LẠI thông báo mỗi ~4 s (CallNotifications.REPOST_MS) để chuông kêu lặp.
+ * hiện cuộc gọi mới, vừa ĐĂNG LẠI thông báo khi đã quá CallNotifications.REPOST_MS.
+ * (23/11/2026) GD10 — REPOST_MS nay là 30 s (trước 4 s): đăng lại thông báo là kênh phát nhạc chuông LẠI TỪ ĐẦU,
+ * nên nhịp 4 s làm bản nhạc dài bị cắt/nghe như lặp mỗi 4-5 s. Nay chỉ đăng lại khi bản nhạc đã phát xong.
  *
  * Chạy như foreground service (kiểu `specialUse` từ Android 14, `dataSync` cho Android 10-13) và tự bơm 2 giây/lần:
  *   - POST /app/register (khi bắt đầu, khi đổi URL, và 60 giây/lần) — id lấy từ SharedPreferences,
@@ -37,6 +39,12 @@ class PhoneService : Service() {
 
         /** Chu kỳ hỏi server (yêu cầu GD2: 2 giây). */
         const val POLL_MS = 2_000L
+
+        /**
+         * (23/11/2026) GD10 — nhịp ĐĂNG LẠI thông báo cuộc gọi = [CallNotifications.REPOST_MS] (30 s, ≥ 25 s).
+         * Trước đây 4 s -> cắt nhạc chuông dài. Xem [RepostPolicy].
+         */
+        const val REPOST_MS = CallNotifications.REPOST_MS
 
         /** Dang ky lai dinh ky: so dang ky cua server co the mat (addon cap nhat lai, /data bi xoa) -> tu chua lanh. */
         private const val RE_REGISTER_MS = 60_000L
@@ -337,9 +345,13 @@ class PhoneService : Service() {
         PhoneStatus.ringing = true
 
         if (same) {
-            // 1) Đang đổ chuông: ĐĂNG LẠI thông báo mỗi ~4 s -> kênh phát âm thanh + rung lại (chuông kêu lặp).
-            //    Chưa tới nhịp thì thôi (poll 2 s nên lần nào cũng gọi vào đây).
-            if (CallNotifications.notifyAgainIfDue(this, call)) Log.d(TAG, "dang lai thong bao cuoc goi ${call.id}")
+            // 1) Đang đổ chuông: ĐĂNG LẠI thông báo khi đã quá CallNotifications.REPOST_MS (30 s) -> kênh phát âm
+            //    thanh + rung lại. Chưa tới nhịp thì thôi (poll 2 s nên lần nào cũng gọi vào đây).
+            //    (23/11/2026) GD10 — CHỈ re-post khi cuộc gọi CÒN đổ chuông và người dùng CHƯA Nghe/Từ chối: nhịp cũ
+            //    4 s cắt nhạc chuông dài; nhịp mới 30 s nên với bản nhạc dài hơn 30 s thực tế chỉ đăng MỘT lần.
+            if (PhoneStatus.ringing && PhoneStatus.handledCallId != call.id && CallNotifications.notifyAgainIfDue(this, call)) {
+                Log.d(TAG, "dang lai thong bao cuoc goi ${call.id} (nhip ${REPOST_MS} ms)")
+            }
             return
         }
 

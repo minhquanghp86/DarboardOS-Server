@@ -16,7 +16,12 @@
   quyen micro (getUserMedia audio) roi gui {type:'join'} tren WS /calls/web; server gan phien web lam dau cuoi tieng
   cua may (src/calls.ts join) nen tieng di 2 chieu: mic -> khung 0x01, PCM trong WS -> loa man. Ket thuc: nut
   "Kết thúc" (POST /app/hangup, hoac {type:'hangup'} khi khong biet id may) + tu ve danh ba khi server bao 'ended'
-  (hoac /calls/state tra state='ended' — hoi 2,5 s/lan).
+  (hoac /calls/state tra state='ended').
+
+  (23/11/2026) GD10 — KHÔNG CÒN "TREO MAN HINH CUOC GOI": bam "Kết thúc"/"Từ chối" -> đóng màn gọi NGAY tại máy
+  (nhả micro/camera, bỏ `?call=`, về danh bạ) và báo server kèm id cuộc gọi; MOI cuộc gọi đều hỏi /calls/state
+  (0,7 s khi đang đổ chuông, 2,5 s khi đã nói chuyện) và WS nối lại thì gửi {type:'resume', call} để server gắn
+  phiên mới vào cuộc gọi đang chạy.
 -->
 <html lang="vi">
 <head>
@@ -130,6 +135,13 @@
   var joined = false, joinPeer = '', joinName = '', joinSince = 0, joinPoll = 0, micFail = false, rev = 0, joinReq = false;
   // (17/11/2026) GD9 — trang duoc app Android mo bang `?call=` (sau khi bam "Nghe") hay khong, va con muon giu WS khong.
   var openedFromApp = !!JOIN_CALL, wantWs = true;
+  // (23/11/2026) GD10 — dong man goi NGAY tai may da bam "Ket thuc"/"Tu choi" (khong doi server/poll).
+  var left = false;
+  // Hoi /calls/state: 0,7 s khi dang do chuong (dong man hinh <= 1 s khi ben kia tu choi), 2,5 s khi da noi chuyen.
+  var POLL_RING_MS = 700, POLL_ACTIVE_MS = 2500;
+  // Man "Da ket thuc" hien bao lau truoc khi ve danh ba (cuoc goi chua vao "dang noi chuyen" thi dong ngay).
+  var END_QUICK_MS = 700, END_ACTIVE_MS = 2500;
+
 
   function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
   // (GD8) POST JSON toi API cua app (`app/rename`, `app/remove`) — loi HTTP/`ok:false` -> reject kem thong bao.
@@ -152,16 +164,31 @@
         return;
       }
       var m = JSON.parse(e.data);
-      if (m.type === 'hello') { me = m.id; list = m.list; if (wantList) { wantList(list); wantList = null; } if (JOIN_CALL) joinNow(); }
+      // (23/11/2026) GD10 — WS vua (noi lai): trang `?call=` xin `join`, trang dang trong cuoc goi xin `resume` de
+      // server gan lai phien MOI vao cuoc goi dang chay (truoc day phien moi khong biet gi -> mat tin 'ended').
+      if (m.type === 'hello') {
+        me = m.id; list = m.list;
+        if (wantList) { wantList(list); wantList = null; }
+        // (GD10) `?call=` chưa join (hoặc mic bị từ chối) -> xin join; đã vào cuộc gọi rồi (WS vừa nối lại) hoặc trang
+        // đang trong cuộc gọi -> xin `resume` để server gắn phiên MỚI vào cuộc gọi đang chạy.
+        if (JOIN_CALL && !joined) joinNow();
+        else if (JOIN_CALL || call) send({ type: 'resume', call: JOIN_CALL || call });
+      }
       else if (m.type === 'contacts') { list = m.list; if (wantList) { wantList(list); wantList = null; } }
-      else if (m.type === 'started') { if (!m.ok) { ui.toast(m.error || 'Không gọi được'); ui.set({ view: 'contacts', call: '' }); stopMedia(); } else { call = m.call; } }
-      else if (m.type === 'incoming') { call = m.call; peer = m.from; peerName = m.name; ui.set({ view: 'in', call: call, peer: peer, peerName: peerName }); }
-      else if (m.type === 'active') { ring(false); peer = m.peer; startAudio(); ui.set({ view: 'active', call: call, peer: peer, peerName: peerName, since: Date.now(), peerMuted: false, peerCamOff: false }); }
+      else if (m.type === 'started') {
+        if (!m.ok) { ui.toast(m.error || 'Không gọi được'); ui.set({ view: 'contacts', call: '' }); stopMedia(); }
+        else { call = m.call; endedOnce = false; left = false; pollState(); }
+      }
+      else if (m.type === 'incoming') { call = m.call; peer = m.from; peerName = m.name; endedOnce = false; left = false; ui.set({ view: 'in', call: call, peer: peer, peerName: peerName }); pollState(); }
+      else if (m.type === 'active') { ring(false); peer = m.peer; endedOnce = false; startAudio(); ui.set({ view: 'active', call: call, peer: peer, peerName: peerName, since: Date.now(), peerMuted: false, peerCamOff: false }); pollState(); }
       else if (m.type === 'flags') { if ((ui.get() || {}).view === 'active') ui.set({ view: 'active', peerMuted: m.muted.indexOf(peer) >= 0, peerCamOff: m.camOff.indexOf(peer) >= 0 }); }
       else if (m.type === 'keyframe') forceKey = true;
       // (GD3) Tra loi cho {type:'join'}: ok -> dang goi (audio 2 chieu), loi -> hien ly do + Thử lại.
       else if (m.type === 'joined') { onJoined(m); }
-      else if (m.type === 'ended') { ring(false); stopMedia(); call = ''; endUi(m.reason); }
+      // (23/11/2026) GD10 — server gan lai phien sau khi noi lai WS (xem resumeSession trong src/calls.ts).
+      else if (m.type === 'resumed') { onResumed(m); }
+      else if (m.type === 'ended') { onEnded(m.call, m.reason); }
+
     };
     ws.onclose = function () { if (wantWs) setTimeout(connect, 2000); };
   }
@@ -321,20 +348,27 @@
         .catch(function (e) { ui.toast(e.message || 'Không xoá được thiết bị.'); });
     },
     start: function (to, name) {
-      peer = to; peerName = name;
+      peer = to; peerName = name; left = false; endedOnce = false;   // (GD10) cuoc goi MOI trong cung trang
       getMedia().then(function () { ui.set({ view: 'out', call: '', peer: to, peerName: name }); send({ type: 'start', to: to }); })
         .catch(function (e) { ui.toast('Không mở được camera / micro: ' + e.message); });
     },
     accept: function () { getMedia().then(function () { send({ type: 'accept' }); }).catch(function (e) { ui.toast('Không mở được camera / micro: ' + e.message); }); },
-    decline: function () { send({ type: 'decline' }); },
-    // (GD3) "Kết thúc": đường cũ là JSON {type:'hangup'} trên WS. Điện thoại đã vào cuộc gọi bằng ?call= thì kết thúc
-    // bằng POST /app/hangup (đúng cả khi WS chưa/không còn vào được — vd quyền micro bị từ chối).
+    // (23/11/2026) GD10 — "TỪ CHỐI": báo server rồi ĐÓNG MÀN HÌNH NGAY tại máy này (không chờ 'ended' về).
+    decline: function () { send({ type: 'decline', call: call || JOIN_CALL }); closeCallNow(); },
+    // (23/11/2026) GD10 — "KẾT THÚC": trước đây chỉ gửi tin rồi CHỜ server -> phiên vừa nối lại (`w.call` = null)
+    // bị server bỏ qua nên màn hình không đóng, đồng hồ vẫn đếm. Nay: gửi kèm id cuộc gọi (server kết thúc được cả
+    // khi phiên vừa nối lại) + đóng màn gọi NGAY tại máy đã bấm: nhả micro/camera, xoá `?call=`, về danh bạ.
     hangup: function () {
-      if (!JOIN_CALL) { send({ type: 'hangup' }); return; }
-      if (JOIN_PHONE) { phonePost('app/hangup?phone=' + encodeURIComponent(JOIN_PHONE) + '&call=' + encodeURIComponent(JOIN_CALL)); }
-      else { send({ type: 'hangup' }); }
-      if (!joined) endUi('Đã kết thúc');     // chưa kịp vào cuộc gọi: không có tin 'ended' từ server
+      send({ type: 'hangup', call: call || JOIN_CALL });
+      if (JOIN_CALL && JOIN_PHONE) {
+        // Điện thoại: báo thêm bằng HTTP (đúng cả khi WS đã mất) rồi mới rời trang.
+        phonePost('app/hangup?phone=' + encodeURIComponent(JOIN_PHONE) + '&call=' + encodeURIComponent(JOIN_CALL)).then(closeCallNow);
+        setTimeout(closeCallNow, 800);
+        return;
+      }
+      closeCallNow();
     },
+
     mute: function (on) { muted = on; send({ type: 'mute', on: on }); },
     cam: function (on) { camOff = on; send({ type: 'cam', on: on }); if (!on) forceKey = true; },
     // (GD3) Nút "Thử lại" khi quyền micro bị từ chối.
@@ -375,6 +409,20 @@
     if (openedFromApp) { try { location.replace(BASE + 'launcher-config.html'); return; } catch (e) { /* */ } }
     ui.set({ view: 'contacts', call: '', peer: '', peerName: '' });
   }
+  // (23/11/2026) GD10 — ĐÓNG MÀN GỌI NGAY tại máy vừa bấm "Kết thúc" / "Từ chối": nhả micro + camera, bỏ `?call=`
+  // trên địa chỉ, về danh bạ (trang do app mở thì quay về trang điều khiển). Trước đây chỉ gửi tin rồi CHỜ server, nên
+  // khi tin 'ended' không về (phiên vừa nối lại / WS mất) màn hình cuộc gọi treo và đồng hồ vẫn đếm.
+  function closeCallNow() {
+    if (left) return;
+    left = true;
+    ring(false);
+    stopMedia();
+    clearTimeout(joinPoll); joinPoll = 0;
+    joined = false; joinReq = false; endedOnce = true;
+    call = ''; peer = ''; peerName = '';
+    if (JOIN_CALL || openedFromApp) { leaveCall(); return; }
+    ui.set({ view: 'contacts', call: '', peer: '', peerName: '' });
+  }
   // Màn "đã kết thúc" rồi tự về danh bạ (giữ nguyên hành vi cũ khi KHÔNG có ?call=).
   // (17/11/2026) GD9 — chạy MỘT lần: WS báo 'ended' và pollState cùng phát hiện thì không được dựng lại màn/ hẹn giờ 2 lần.
   var endedOnce = false;
@@ -382,26 +430,63 @@
     clearTimeout(joinPoll); joinPoll = 0; joined = false;
     if (endedOnce) return;
     endedOnce = true;
+    // (23/11/2026) GD10 — cuộc gọi CHƯA vào "đang nói chuyện" (còn đổ chuông / bị Từ chối) thì đóng ngay (≤ 1 s),
+    // không bắt người dùng đợi 2,5 s như trước; đang nói chuyện thì giữ màn "đã kết thúc" 2,5 s cho dễ đọc.
+    var wasActive = (ui.get() || {}).view === 'active';
     stopMedia();                                            // nhả micro/camera NGAY khi cuộc gọi hết
     ui.set({ view: 'ended', reason: reason, peerName: joinName || peerName });
-    setTimeout(function () { if (call) return; if (JOIN_CALL) leaveCall(); else ui.set({ view: 'contacts', call: '' }); }, 2500);
+    setTimeout(function () { if (call) return; if (JOIN_CALL) leaveCall(); else ui.set({ view: 'contacts', call: '' }); },
+      wasActive ? END_ACTIVE_MS : END_QUICK_MS);
   }
-  // Theo dõi cuộc gọi kết thúc phía bên kia (WS có thể mất khi WebView bị ẩn) — /calls/state mỗi 2,5 s.
+  // (23/11/2026) GD10 — CUỘC GỌI KẾT THÚC (WS báo 'ended' hoặc /calls/state trả state='ended').
+  // `id` = id cuộc gọi trong tin nhắn: bỏ qua tin cũ của cuộc gọi TRƯỚC ĐÓ (trang gọi liên tiếp nhiều cuộc).
+  function onEnded(id, reason) {
+    if (id && call && id !== call) return;
+    ring(false); stopMedia(); call = '';
+    endUi(reason || 'Đã kết thúc');
+  }
+  // (23/11/2026) GD10 — WS vừa nối lại: server gắn phiên mới vào cuộc gọi đang chạy và trả lại trạng thái.
+  function onResumed(m) {
+    if (!m) return;
+    if (m.state === 'ended') { onEnded(String(m.call || ''), m.reason); return; }
+    if (!m.ok) return;
+    call = m.call || call;
+    endedOnce = false; left = false;
+    var iAmFrom = !!m.from && m.from === me;
+    joinPeer = m.from || joinPeer; joinName = m.fromName || joinName;
+    peer = JOIN_CALL ? joinPeer : (iAmFrom ? m.to : m.from);
+    peerName = JOIN_CALL ? joinName : (iAmFrom ? m.toName : m.fromName);
+    if (m.state === 'active') {
+      joined = true;
+      startAudio();
+      ui.set({ view: 'active', call: call, peer: peer, peerName: peerName, since: m.since || Date.now(), peerMuted: false, peerCamOff: false, rev: ++rev });
+    } else {
+      ui.set({ view: JOIN_CALL ? 'join' : (iAmFrom ? 'out' : 'in'), call: call, peer: peer, peerName: peerName, sub: 'Đang kết nối…' });
+    }
+    pollState();
+    console.log('[call-web] nối lại cuộc gọi ' + call + ' (' + m.state + ')');
+  }
+  // (23/11/2026) GD10 — HỎI /calls/state trong MỌI cuộc gọi, không chỉ trang `?call=` của điện thoại: tin 'ended'
+  // trên WS có thể mất (WS rớt rồi nối lại tạo phiên mới, WebView bị ẩn) và trang NGƯỜI GỌI không có đường nào khác
+  // -> trước đây treo ở "Đang gọi…" mãi mãi khi bên kia bấm "Từ chối". Nhịp 0,7 s khi đang đổ chuông (đóng màn hình
+  // ≤ 1 s theo yêu cầu), 2,5 s khi đã nói chuyện.
   function pollState() {
     clearTimeout(joinPoll); joinPoll = 0;
+    var wait = POLL_RING_MS;
     (function tick() {
       joinPoll = setTimeout(function () {
-        if (!JOIN_CALL) return;
+        var id = JOIN_CALL || call;
         var v = (ui.get() || {}).view;
-        if (v !== 'join' && v !== 'active') return;          // đã về danh bạ / màn kết thúc: thôi hỏi
-        fetch(BASE + 'calls/state?call=' + encodeURIComponent(JOIN_CALL), { cache: 'no-store' })
+        if (!id || (v !== 'join' && v !== 'out' && v !== 'in' && v !== 'active')) { joinPoll = 0; return; }
+        fetch(BASE + 'calls/state?call=' + encodeURIComponent(id), { cache: 'no-store' })
           .then(function (r) { return r.json(); })
           .then(function (s) {
-            if (s && s.state === 'ended') { stopMedia(); call = ''; endUi(s.reason); return; }
+            if (s && s.state === 'ended') { onEnded(id, s.reason); return; }
+            wait = s && s.state === 'active' ? POLL_ACTIVE_MS : POLL_RING_MS;
             tick();
           })
           .catch(function () { tick(); });
-      }, 2500);
+      }, wait);
     })();
   }
   // Xin micro + camera (bắt buộc MIC, camera mặc định bật) rồi báo server cho vào cuộc gọi.
@@ -429,7 +514,7 @@
       pollState();                                          // để biết cuộc gọi đã kết thúc -> về danh bạ
       return;
     }
-    joined = true; call = m.call || JOIN_CALL;
+    joined = true; left = false; endedOnce = false; call = m.call || JOIN_CALL;
     joinPeer = m.peer || joinPeer; joinName = m.peerName || joinName;
     joinSince = m.since || Date.now();
     peer = joinPeer; peerName = joinName;                   // để tin 'flags' (tắt mic / tắt camera bên kia) so đúng id

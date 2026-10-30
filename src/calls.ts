@@ -25,6 +25,13 @@
 //   c.to (dien thoai) -> {kind:'web', id:<phien>}, giu `c.phone` = id may de biet may nao dang trong cuoc goi.
 // Tieng di y nhu luong man <-> trinh duyet: mic man -> 0x01 xuong WS; PCM trong WS -> loa man (sendToDevice).
 // Trang thai cuoc goi: GET /calls/state?call= (da co) — trang goi hoi 2,5 s/lan de biet cuoc goi ket thuc.
+//
+// (23/11/2026) GD10 — SUA 2 LOI "MAN HINH CUOC GOI KHONG DONG": bam "Ket thuc" o phia NGUOI GOI khong dong duoc man
+// hinh (dong ho van dem) va khi ben NHAN bam "Tu choi" thi may goi di treo o "Dang goi" mai mai. Goc: phien web la
+// thu the TAM (moi lan WS rot roi noi lai la mot id MOI) trong khi cuoc goi van tro toi id CU, ma 'ended' chi gui
+// cho [c.from, c.to] va `{type:'hangup'}` chi duoc xu ly khi `w.call` con dung. Nay: 'ended' gui cho MOI phien dang
+// giu cuoc goi (`finish`), ket thuc duoc theo id cuoc goi client gui kem (`webMessage`), phien noi lai xin
+// `{type:'resume'}` de gan lai (`resumeSession`), va mat WS co WS_GRACE_MS an han truoc khi coi la "Mat ket noi".
 import http from 'node:http';
 import type { Duplex } from 'node:stream';
 import { WebSocket, WebSocketServer } from 'ws';
@@ -52,6 +59,16 @@ interface Call {
   /** (GD3) Dien thoai dang trong cuoc goi bang trang call-web.html?call= (c.to da doi thanh phien web cua may). */
   phone?: string;
 }
+// (23/11/2026) GD10 — SUA LOI "NGUOI GOI BAM KET THUC KHONG DONG / BEN KIA TU CHOI MA MAY GOI TREO O 'DANG GOI'":
+//   Phien web (WS /calls/web) la thuc the TAM: moi lan WS rot roi noi lai (WebView bi an, ingress dong idle, doi
+//   mang) server tao MOT phien MOI voi id MOI, con cuoc goi van tro toi id phien CU. Truoc day:
+//     - trang NGUOI GOI khong he hoi /calls/state (chi trang `?call=` cua dien thoai hoi 2,5 s), nen 'ended' tren WS
+//       la duong DUY NHAT de biet cuoc goi ket thuc -> mat mot tin la man hinh treo vinh vien, dong ho van dem;
+//     - `{type:'hangup'}` bi bo qua khi `w.call` = null (phien vua noi lai) -> bam "Ket thuc" khong lam gi ca;
+//     - 'ended' chi gui cho [c.from, c.to] -> phien da bi thay the khong bao gio nhan duoc.
+//   Nay: ket thuc cuoc goi theo id phien / theo id cuoc goi client gui kem, 'ended' gui cho MOI phien dang giu cuoc
+//   goi, phien noi lai xin `{type:'resume'}` de gan lai, va mat WS co 6 s an han truoc khi coi la "Mat ket noi".
+const WS_GRACE_MS = 6000;
 const calls = new Map<string, Call>();
 const ended = new Map<string, { reason: string; at: number }>();   // trang thai cuoc goi vua het (trang hoi state)
 const webs = new Map<string, WebSession>();
@@ -85,6 +102,52 @@ function partyOf(id: string): Party | null {
 function sendWeb(id: string, msg: unknown): void {
   const w = webs.get(id);
   if (w && w.ws.readyState === WebSocket.OPEN) w.ws.send(JSON.stringify(msg));
+}
+
+/**
+ * (23/11/2026) GD10 — cuoc goi ma phien web `w` dang giu.
+ *
+ * `w.call` la duong chinh, nhung sau khi WS rot + noi lai thi phien MOI co `w.call` = null trong khi cuoc goi van
+ * tro toi id phien cu -> phai tim them: (1) id cuoc goi do CHINH client gui kem (`{type:'hangup', call}`), (2) phien
+ * web la mot dau cuoi cua cuoc goi (truong hop server da gan lai sau `join`/`resume`).
+ */
+function callOfWeb(w: WebSession, wanted = ''): Call | undefined {
+  const ok = (id: string) => (id ? callOf(id) : undefined);
+  return ok(w.call || '') || ok(wanted) || [...calls.values()].find((c) => c.from.id === w.id || c.to.id === w.id || c.phone === w.id);
+}
+
+/** (23/11/2026) GD10 — con it nhat MOT phien web dang song giu cuoc goi nay (dung cho an han khi mat WS). */
+function webBound(callId: string): boolean {
+  for (const w of webs.values()) if (w.call === callId) return true;
+  const c = callOf(callId);
+  if (!c) return false;
+  if (c.from.kind === 'web' && webs.has(c.from.id)) return true;
+  return c.to.kind === 'web' && webs.has(c.to.id);
+}
+
+/**
+ * (23/11/2026) GD10 — TRANG GOI NOI LAI WS (`{type:'resume', call}`): gan phien MOI vao cuoc goi dang chay de
+ * tieng/hinh va tin 'ended' di tiep. Chi chiem lai cho web khi dau cuoi web CU da chet (khong lay duoc phien cua
+ * trang khac dang song). Cuoc goi da ket thuc -> tra thang `ended` de trang dong man hinh ngay.
+ */
+function resumeSession(w: WebSession, callId: string): void {
+  const c = callOf(callId);
+  if (!c) {
+    w.call = null;
+    sendWeb(w.id, { type: 'ended', call: callId, reason: ended.get(callId)?.reason || 'Đã kết thúc' });
+    return;
+  }
+  const mine = c.from.id === w.id || c.to.id === w.id || c.phone === w.id;
+  if (!mine) {
+    const slot = c.from.kind === 'web' && !webs.has(c.from.id) ? 'from'
+      : c.to.kind === 'web' && !webs.has(c.to.id) ? 'to' : '';
+    if (!slot) { sendWeb(w.id, { type: 'resumed', ok: false, call: callId, error: 'Cuộc gọi đang do một trang khác giữ.' }); return; }
+    if (slot === 'from') c.from = { kind: 'web', id: w.id };
+    else c.to = { kind: 'web', id: w.id };
+  }
+  w.call = c.id;
+  sendWeb(w.id, { type: 'resumed', ok: true, call: c.id, ...(state(c.id) as object) });
+  console.log(`[calls] ${c.id}: ${w.id} noi lai (${c.state})`);
 }
 
 /** Bat dau goi. */
@@ -226,10 +289,20 @@ export function finish(callId: string, reason: string, missed = false): boolean 
   calls.delete(callId);
   clearTimeout(c.ringT);
   for (const u of c.unlisten) u();
-  for (const p of [c.from, c.to]) {
-    if (p.kind === 'panel') endCall(p.id);
-    else { const w = webs.get(p.id); if (w && w.call === callId) w.call = null; sendWeb(p.id, { type: 'ended', call: callId, reason }); }
-  }
+  // (23/11/2026) GD10 — 'ended' phai toi MOI phien web dang giu cuoc goi nay, khong chi `c.from` / `c.to`: phien vua
+  // noi lai (id moi) hoac phien con tro trong `w.call` khong con nam trong [c.from, c.to] -> truoc day KHONG nhan
+  // duoc 'ended' => man hinh cuoc goi treo va dong ho van dem (loi 1 va 2 nguoi dung bao).
+  const told = new Set<string>();
+  const notify = (p: Party): void => {
+    if (p.kind === 'panel') { endCall(p.id); return; }
+    if (p.kind !== 'web' || told.has(p.id)) return;
+    told.add(p.id);
+    const w = webs.get(p.id);
+    if (w && w.call === callId) w.call = null;
+    sendWeb(p.id, { type: 'ended', call: callId, reason });
+  };
+  for (const p of [c.from, c.to]) notify(p);
+  for (const w of webs.values()) if (w.call === callId && !told.has(w.id)) notify({ kind: 'web', id: w.id });
   if (c.ringId) closeDoorbell(c.ringId);   // dong trang cuoc goi tren man nhan, quay ve ung dung truoc
   ended.set(callId, { reason, at: Date.now() });
   for (const [k, v] of ended) if (Date.now() - v.at > 120_000) ended.delete(k);
@@ -333,7 +406,26 @@ function webMessage(w: WebSession, data: Buffer, isBinary: boolean): void {
       sendWeb(w.id, { type: 'joined', ...r });
     }
     else if (m?.type === 'accept' && w.call) accept(w.call, w.id);
-    else if ((m?.type === 'hangup' || m?.type === 'decline') && w.call) finish(w.call, m.type === 'decline' ? 'Từ chối' : 'Đã kết thúc');
+    // (23/11/2026) GD10 — KET THUC / TU CHOI do CHINH trang bam. Truoc day chi lam khi `w.call` con dung: phien vua
+    // noi lai (`w.call` = null) bam "Ket thuc" bi BO QUA -> cuoc goi van chay, dong ho van dem, ben kia khong nhan
+    // duoc 'ended'. Nay tim cuoc goi theo `w.call`, theo id cuoc goi trang gui kem, roi theo id phien; khong tim thay
+    // (cuoc goi da ket thuc) thi van tra 'ended' de trang dong man hinh ngay.
+    else if (m?.type === 'hangup' || m?.type === 'decline') {
+      const reason = m.type === 'decline' ? 'Từ chối' : 'Đã kết thúc';
+      const c = callOfWeb(w, String(m.call || ''));
+      if (c) {
+        finish(c.id, reason);
+        // Trang bấm luôn nhận được 'ended' (kể cả khi nó không còn là đầu cuối của cuộc gọi): client đóng màn hình
+        // ngay, không phụ thuộc thứ tự tin nhắn.
+        sendWeb(w.id, { type: 'ended', call: c.id, reason });
+      } else {
+        const id = String(m.call || w.call || '');
+        w.call = null;
+        sendWeb(w.id, { type: 'ended', call: id, reason });
+      }
+    }
+    // (23/11/2026) GD10 — trang goi noi lai WS sau khi mat ket noi: gan lai phien moi vao cuoc goi dang chay.
+    else if (m?.type === 'resume') resumeSession(w, String(m.call || ''));
     else if (m?.type === 'mute' && w.call) setFlag(w.call, w.id, 'mute', !!m.on);
     else if (m?.type === 'cam' && w.call) setFlag(w.call, w.id, 'cam', !!m.on);
     else if (m?.type === 'contacts') sendWeb(w.id, { type: 'contacts', list: contacts(w.id) });
@@ -386,7 +478,15 @@ export function handleCallsUpgrade(req: http.IncomingMessage, socket: Duplex, he
     console.log(`[calls] phien web ${w.id} (${w.name})`);
     sendWeb(w.id, { type: 'hello', id: w.id, list: contacts(w.id) });
     ws.on('message', (d, bin) => webMessage(w, Buffer.isBuffer(d) ? d : Buffer.from(d as ArrayBuffer), bin));
-    ws.on('close', () => { if (w.call) finish(w.call, 'Mất kết nối'); webs.delete(w.id); });
+    // (23/11/2026) GD10 — mat WS KHONG con ket thuc cuoc goi ngay: WebView bi an / ingress dong idle / doi mang lam
+    // WS rot vai giay (trang tu noi lai sau 2 s va xin `resume`). Truoc day cuoc goi bi huy ngay, con trang NGUOI GOI
+    // (khong he hoi /calls/state) thi cu de nguyen man hinh "dang goi" voi dong ho van dem. Nay an han WS_GRACE_MS.
+    ws.on('close', () => {
+      const id = w.call;
+      webs.delete(w.id);
+      if (!id) return;
+      setTimeout(() => { if (callOf(id) && !webBound(id)) finish(id, 'Mất kết nối'); }, WS_GRACE_MS).unref();
+    });
     ws.on('error', () => { /* close xu ly */ });
   });
   return true;

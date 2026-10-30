@@ -30,8 +30,14 @@ import android.util.Log
  *   - lockscreenVisibility PUBLIC -> hiện đầy đủ trên màn khoá.
  *
  * CHUÔNG KÊU LẶP: Android chỉ phát âm thanh của kênh khi thông báo được ĐĂNG (lại) và `setOnlyAlertOnce(false)`.
- * Vì vậy PhoneService / IncomingCallActivity đăng lại CÙNG một thông báo (cùng NOTIF_ID) mỗi [REPOST_MS] (~4 s)
- * chừng nào server còn trả về cuộc gọi đó — nghe như chuông lặp, KHÔNG dùng FLAG_INSISTENT.
+ * Vì vậy PhoneService / IncomingCallActivity đăng lại CÙNG một thông báo (cùng NOTIF_ID) khi đã quá [REPOST_MS]
+ * kể từ lần đăng trước, chừng nào server còn trả về cuộc gọi đó — KHÔNG dùng FLAG_INSISTENT.
+ *
+ * (23/11/2026) GD10 — NHẠC CHUÔNG KHÔNG BỊ CẮT NỮA: mỗi lần đăng lại là kênh phát âm thanh LẠI TỪ ĐẦU, nên nhịp cũ
+ * [RepostPolicy.LEGACY_REPOST_MS] = 4 s làm bản nhạc dài bị cắt mỗi 4 s (người dùng báo "phát lại mỗi 5 giây"). Nay
+ * nhịp là [REPOST_MS] = [RepostPolicy.DEFAULT_MS] = 30 s (yêu cầu ≥ 25 s): chỉ đăng lại khi bản nhạc đã phát xong, và
+ * với bản nhạc dài hơn 30 s thì thực tế chỉ đăng MỘT lần (cuộc gọi đổ chuông tối đa 30 s). Phép tính nhịp nằm ở
+ * [RepostPolicy.due] (thuần Kotlin, có unit test JVM).
  *
  * Vì sao đổi id kênh (_v2 -> _v3): thông số kênh chỉ áp dụng LÚC TẠO. Máy đã cài bản trước giữ nguyên thiết lập
  * cũ (im lặng, không rung), nên phải tạo kênh mới và xoá các kênh cũ (`incoming_call`, `incoming_call_v2`).
@@ -46,10 +52,13 @@ object CallNotifications {
     const val NOTIF_ID = 1002
 
     /**
-     * Chu kỳ đăng lại thông báo khi còn đổ chuông (~4 s): mỗi lần đăng lại là một lần kênh phát âm thanh + rung,
-     * nên chuông nghe như lặp liên tục tới khi Nghe / Từ chối / cuộc gọi hết.
+     * Giãn cách TỐI THIỂU giữa 2 lần đăng lại thông báo khi còn đổ chuông: **30 s** ([RepostPolicy.DEFAULT_MS]).
+     *
+     * (23/11/2026) GD10 — Trước đây là 4 s: mỗi lần đăng lại kênh phát nhạc chuông LẠI TỪ ĐẦU, nên nhạc chuông dài bị
+     * cắt/nghe như lặp mỗi 4-5 s. Nay 30 s (≥ 25 s theo yêu cầu): chỉ đăng lại khi bản nhạc đã phát xong; bản nhạc dài
+     * hơn 30 s thì coi như chỉ đăng MỘT lần (người dùng nghe trọn bản nhạc).
      */
-    const val REPOST_MS = 4_000L
+    const val REPOST_MS = RepostPolicy.DEFAULT_MS
 
     /** 0 ms chờ, rung 1 s, nghỉ 0,8 s, rung 1 s, nghỉ 0,8 s — "pattern rung dài" cho cuộc gọi đến. */
     private val VIBRATION_PATTERN = longArrayOf(0, 1_000, 800, 1_000, 800)
@@ -228,6 +237,9 @@ object CallNotifications {
     /**
      * Đăng LẠI thông báo khi đã đủ [REPOST_MS] — đây chính là thứ làm chuông kêu lặp (Android chỉ phát âm thanh
      * của kênh khi thông báo được đăng lại với `setOnlyAlertOnce(false)` + cùng id).
+     *
+     * (23/11/2026) GD10 — nhịp do [RepostPolicy.due] quyết (30 s): KHÔNG còn cắt nhạc chuông mỗi 4 s. Nơi gọi chỉ
+     * gọi hàm này khi cuộc gọi CÒN đổ chuông và người dùng CHƯA bấm Nghe/Từ chối.
      * true = vừa đăng (đã kêu thêm một nhịp).
      */
     fun notifyAgainIfDue(
@@ -236,14 +248,14 @@ object CallNotifications {
         now: Long = System.currentTimeMillis()
     ): Boolean {
         val last = synchronized(this) {
-            if (postedCallId == call.id) lastPostAt else null
+            if (postedCallId == call.id) lastPostAt else 0L
         }
         // Chưa có thông báo của cuộc gọi này (lần đầu / tiến trình vừa khởi động lại) -> đăng ngay.
-        if (last == null) {
+        if (last <= 0L) {
             notifyIncoming(ctx, call)
             return true
         }
-        if (now - last < REPOST_MS) return false
+        if (!RepostPolicy.due(last, now, REPOST_MS)) return false
         notifyIncoming(ctx, call)
         return true
     }

@@ -1,3 +1,10 @@
+## V2.9.303
+- **Kết thúc cuộc gọi luôn đóng màn hình**: bấm Kết thúc/Từ chối ở bất kỳ bên nào đều đóng ngay tại máy đó và gửi
+  `ended` cho mọi phiên còn giữ cuộc gọi (kể cả phiên web đã nối lại sau khi rớt WS — thêm `{type:'resume'}` và
+  ân hạn 6 giây). Trước đây bên gọi đi bị treo ở "Đang gọi" khi bên kia từ chối.
+- **Nhạc chuông không bị cắt**: thông báo cuộc gọi chỉ đăng lại mỗi **30 giây** (trước 4 giây) nên bản nhạc dài phát
+  trọn vẹn.
+
 ## V2.9.302
 - **Một ô địa chỉ duy nhất** trong app: nhập domain → dùng ingress HTTPS cho cả trang lẫn API (kèm cookie HA);
   nhập IP LAN → dùng `http://<ip>:18080` (cảnh báo mất micro/camera).
