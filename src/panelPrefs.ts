@@ -68,7 +68,7 @@ const BRIGHT_CHOICES: Choice<number>[] = [['Giữ nguyên', 0], ['5%', 5], ['10%
 const QUALITY_CHOICES: Choice<number>[] = [['Tự động', 0], ['20%', 20], ['30%', 30], ['40%', 40], ['50%', 50], ['60%', 60], ['70%', 70], ['80%', 80], ['90%', 90]];
 const NIGHT_CHOICES: Choice<number>[] = Array.from({ length: 25 }, (_, i) => (i === 24 ? ['Cả ngày (tắt đêm)', 24] : [`${String(i).padStart(2, '0')}:00`, i]) as Choice<number>);
 const CLOCK_CHOICES: Choice<ClockSize>[] = [['Vừa', 'm'], ['Lớn', 'l'], ['Rất lớn', 'xl']];
-const INTERVAL_CHOICES: Choice<number>[] = [['15 giây', 15], ['30 giây', 30], ['1 phút', 60], ['2 phút', 120], ['5 phút', 300]];
+const INTERVAL_CHOICES: Choice<number>[] = [['5 giây', 5], ['10 giây', 10], ['15 giây', 15], ['30 giây', 30], ['1 phút', 60], ['2 phút', 120], ['5 phút', 300]];
 const EFFECT_CHOICES: Choice<PhotoEffect>[] = [['Mờ dần', 'fade'], ['Trượt', 'slide'], ['Thu phóng', 'zoom'],
   ['Mờ ảo (blur)', 'blur'], ['Chậm (Ken Burns)', 'ken'],
   ['Xoay vào/ra', 'rotate'], ['Rơi từ trên', 'drop'], ['Lật 3D', 'flip'], ['Không', 'none']];

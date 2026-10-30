@@ -905,14 +905,25 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
 
   // (19/10/2026) Thong bao URGENT: phu toan man hinh tren moi ung dung, tu thu gon sau 6 s (hoac khi cham).
   let ovEl: HTMLElement | null = null, ovTimer = 0, ovNotice: Notice | null = null;
+  /** (30/10/2026) Trang thai khoa TRUOC khi hien thong bao — tra lai dung khi thong bao ket thuc. */
+  let ovWasLocked = false;
   function closeOverlay(collapse: boolean): void {
     clearTimeout(ovTimer);
     if (!ovEl) return;
     const n = ovNotice;
     ovEl.remove(); ovEl = null; ovNotice = null;
     if (collapse && n) toast(n, false);
+    // (30/10/2026) KET THUC thong bao (timeout hoac cham): tra lai dung trang thai truoc do.
+    //  - Truoc khi hien thong bao man DANG KHOA  -> khoa lai.
+    //  - Truoc khi hien thong bao man DANG MO   -> ve man hinh chinh (khong khoa).
+    if (collapse) {
+      if (ovWasLocked) screensaver({ lock: true });
+      else if (!saverEl) sendControl({ app: '__system' });
+      ovWasLocked = false;
+    }
   }
   function openOverlay(n: Notice): void {
+    ovWasLocked = !!(saverEl && svOpts.lock);
     closeOverlay(false); hideToast();
     const card = el('div', 'ov-card ' + n.p);
     const txt = el('div', 'ov-txt');

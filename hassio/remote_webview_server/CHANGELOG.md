@@ -1,3 +1,9 @@
+## V2.9.285
+- Ảnh nền: thêm mốc **5 giây** và **10 giây** cho thời gian chuyển ảnh.
+- Hiệu ứng chuyển ảnh **chậm hơn, dễ thấy**: 1,4–1,8 giây (trước 0,65–0,8 giây).
+- **Thông báo có camera trả lại đúng trạng thái khoá**: trước khi hiện thông báo màn đang khoá → khoá lại khi kết thúc;
+  đang mở khoá → về màn hình chính (không tự khoá).
+
 ## V2.9.284
 - **Hiệu ứng ảnh nền áp dụng đúng lựa chọn**: trước đây shell ép `fx = none` khi panel ở mức chuyển động thấp, nên
   đặt hiệu ứng trong Cài đặt không có tác dụng. Nay hiệu ứng người dùng chọn được tôn trọng; chỉ khi chưa chọn mới

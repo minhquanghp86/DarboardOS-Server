@@ -256,34 +256,34 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .sv-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .sv-ph.show { opacity: 1; }
 /* (27/09/2026) Hieu ung chuyen anh — chay mot lan (~0,7 s) moi lan doi, khong co chuyen dong lien tuc. */
-.sv-ph.fx-fade { transition: opacity 800ms ease; }
-.sv-ph.fx-slide { transition: transform 650ms cubic-bezier(.2,.8,.2,1); opacity: 1; }
+.sv-ph.fx-fade { transition: opacity 1600ms ease; }
+.sv-ph.fx-slide { transition: transform 1600ms cubic-bezier(.2,.8,.2,1); opacity: 1; }
 .sv-ph.fx-slide.fromR { transform: translateX(100%); transition: none; }
 .sv-ph.fx-slide.fromL { transform: translateX(-100%); transition: none; }
 .sv-ph.fx-slide.show { transform: translateX(0); }
 .sv-ph.fx-slide.toL { transform: translateX(-100%); }
 .sv-ph.fx-slide.toR { transform: translateX(100%); }
-.sv-ph.fx-zoom { transition: opacity 800ms ease, transform 800ms ease; }
+.sv-ph.fx-zoom { transition: opacity 1600ms ease, transform 1800ms ease; }
 .sv-ph.fx-zoom.fromR { transform: scale(1.25); }
 .sv-ph.fx-zoom.fromL { transform: scale(0.8); }
 /* Hieu ung moi */
-.sv-ph.fx-blur { transition: opacity 700ms ease, filter 700ms ease; }
+.sv-ph.fx-blur { transition: opacity 1500ms ease, filter 1600ms ease; }
 .sv-ph.fx-blur.show { filter: blur(0); }
 .sv-ph.fx-blur.fromR, .sv-ph.fx-blur.fromL { filter: blur(18px); }
 .sv-ph.fx-ken .sv-img { animation: svKen 18s ease-out forwards; }
 @keyframes svKen { from { transform: scale(1); } to { transform: scale(1.08); } }
 /* Hieu ung trinh chieu mo rong (30/10/2026) */
-.sv-ph.fx-rotate { transition: opacity 650ms ease, transform 750ms cubic-bezier(.2,.8,.2,1); }
+.sv-ph.fx-rotate { transition: opacity 1400ms ease, transform 1800ms cubic-bezier(.2,.8,.2,1); }
 .sv-ph.fx-rotate.fromR { transform: rotate(10deg) scale(1.18); opacity: 0; }
 .sv-ph.fx-rotate.fromL { transform: rotate(-10deg) scale(1.18); opacity: 0; }
 .sv-ph.fx-rotate.show { transform: rotate(0) scale(1); opacity: 1; }
 .sv-ph.fx-rotate.toL { transform: rotate(-6deg) scale(.92); opacity: 0; }
 .sv-ph.fx-rotate.toR { transform: rotate(6deg) scale(.92); opacity: 0; }
-.sv-ph.fx-drop { transition: transform 700ms cubic-bezier(.2,.9,.3,1.12), opacity 450ms ease; }
+.sv-ph.fx-drop { transition: transform 1800ms cubic-bezier(.2,.9,.3,1.12), opacity 1000ms ease; }
 .sv-ph.fx-drop.fromR, .sv-ph.fx-drop.fromL { transform: translateY(-110%); }
 .sv-ph.fx-drop.show { transform: translateY(0); }
 .sv-ph.fx-drop.toL, .sv-ph.fx-drop.toR { transform: translateY(30%); opacity: 0; }
-.sv-ph.fx-flip { transition: transform 800ms ease, opacity 500ms ease; }
+.sv-ph.fx-flip { transition: transform 1800ms ease, opacity 900ms ease; }
 .sv-ph.fx-flip.fromR { transform: perspective(1400px) rotateY(90deg); opacity: 0; }
 .sv-ph.fx-flip.fromL { transform: perspective(1400px) rotateY(-90deg); opacity: 0; }
 .sv-ph.fx-flip.show { transform: perspective(1400px) rotateY(0); opacity: 1; }
