@@ -8,4 +8,5 @@
     <string name="err_empty_url">Vui lòng nhập địa chỉ</string>
     <string name="err_load">Không tải được trang. Kiểm tra URL hoặc kết nối mạng.</string>
     <string name="perm_denied">Cần quyền micro/camera để dùng tính năng đàm thoại</string>
+    <string name="url_button_short">URL</string>
 </resources>
