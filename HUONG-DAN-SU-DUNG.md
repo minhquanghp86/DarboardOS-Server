@@ -119,28 +119,21 @@ vuốt lên ở màn khoá để mở — trong một video: [`images/swipe-gest
 
 ![Màn hình chờ có ảnh gia đình](images/saver.png)
 
-### Gọi video giữa các màn hình
+### Gọi video (P4 ↔ điện thoại)
 
-Ứng dụng **Gọi** có trên mọi màn. Cách dùng:
+Chỉ **P4** gọi được — vì đây là màn duy nhất có **camera + micro**. Các màn S3 **không gọi** được (không có
+mic/camera) nhưng vẫn **nhận chuông cổng** (xem mục dưới).
 
-1. Trên màn gọi: mở **Gọi** → danh sách **liên hệ** là các màn khác đang kết nối (kèm trạng thái rảnh/đang bận).
-2. Chạm vào màn cần gọi → màn kia **đổ chuông**, hiện màn hình cuộc gọi kèm hình camera của bên gọi.
-3. Bên nhận chạm **Nhận** để trả lời, hoặc **Từ chối**. Trong lúc gọi có nút **Tắt mic**, **Đổi camera**, **Kết thúc**.
-4. Cuộc gọi đến **hiện đè lên màn hình khoá** (kể cả khi màn đang khoá/đang ở app khác) để không bị bỏ lỡ.
+**Cách gọi**
+1. Trên P4: mở ứng dụng **Gọi** → danh sách liên hệ hiện các thiết bị có thể gọi.
+2. Trên điện thoại: mở **Dashboard → Gọi** (`call-web.html`) và **giữ trang này mở** — trang chính là “thiết bị” đăng ký
+   nhận cuộc gọi.
+3. Chọn bên cần gọi → bên kia đổ chuông → **Nhận** để nói chuyện.
+4. Trong cuộc gọi: **Tắt mic**, **Đổi camera**, **Kết thúc**. Cuộc gọi đến hiện **đè lên màn hình khoá** của P4.
 
-> Chỉ màn **có camera + micro** (P4) mới gửi được hình/tiếng; các màn S3 vẫn gọi được nhưng chỉ nghe/không thấy hình bên gọi.
-> Cuộc gọi đi trong LAN, không qua Internet.
-
-### Gọi từ điện thoại tới màn hình (và ngược lại)
-
-Trên trang Dashboard của add-on có ứng dụng **Gọi** (`call-web.html`) dùng cùng giao diện với màn hình:
-
-1. Mở **Sidebar → Dashboard → Gọi**.
-2. Chọn màn cần gọi trong danh sách (ví dụ **P4 – 7.0 Guition**).
-3. Màn sẽ đổ chuông; khi màn nhận, bạn thấy **hình camera của màn** ngay trên điện thoại và nói chuyện hai chiều bằng micro/loa của điện thoại.
-4. Màn gọi ngược lại điện thoại cũng được: trong danh sách liên hệ của màn sẽ có mục **Điện thoại** (trình duyệt đang mở trang Gọi).
-
-> Điện thoại cần mở trang bằng **IP LAN** (`http://<ip-ha>:18080/call-web.html`) để micro/loa hoạt động ổn định.
+> ⚠️ **Hạn chế hiện tại**: điện thoại chỉ nhận được cuộc gọi khi **trang Gọi còn mở** trong trình duyệt. Nếu bạn đóng tab
+> hoặc chuyển sang tab khác (ví dụ đang mở Dashboard ở Chrome), điện thoại sẽ **không đổ chuông**. Đây là điểm sẽ được
+> cải tiến ở giai đoạn sau (thông báo đẩy/web push để nhận cuộc gọi kể cả khi không mở trang).
 
 ### Chuông cổng có hình (video doorbell)
 
