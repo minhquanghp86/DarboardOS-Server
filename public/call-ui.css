@@ -57,6 +57,9 @@
 .call .cm { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .call .cm b { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .call .cm small { color: #9aa4b2; font-size: 13px; }
+/* (30/10/2026) Cham XANH "online" cho muc "Trình duyệt" (kind web, server tra online:true) — thiet bi dang mo trang goi. */
+.call .cm small .on { display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%;
+  background: #34c759; vertical-align: middle; box-shadow: 0 0 0 2px rgba(52, 199, 89, 0.22); }
 .call .cb { flex: none; width: 44px; height: 44px; border-radius: 50%; background: #34c759; display: flex; align-items: center; justify-content: center; }
 .call .cb svg { width: 22px; height: 22px; fill: #fff; }
 /* (GD8) Dong danh ba cua DIEN THOAI: nut goi + 2 nut nho (but chi = sua ten, thung rac = xoa). Chi hien voi

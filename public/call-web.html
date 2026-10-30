@@ -22,6 +22,12 @@
   (nhả micro/camera, bỏ `?call=`, về danh bạ) và báo server kèm id cuộc gọi; MOI cuộc gọi đều hỏi /calls/state
   (0,7 s khi đang đổ chuông, 2,5 s khi đã nói chuyện) và WS nối lại thì gửi {type:'resume', call} để server gắn
   phiên mới vào cuộc gọi đang chạy.
+
+  (30/10/2026) TRÌNH DUYỆT LÀ MỘT THIẾT BỊ ỔN ĐỊNH: id phiên KHÔNG còn ngẫu nhiên mỗi lần kết nối. Trang giữ
+  `localStorage['rwv-browser-id']` (UUID v4, public/call-browser.js) và gửi ngay `{type:'hello', id, name, kind:'web'}`
+  khi mở WS /calls/web (kèm `&id=` trên URL để phiên đầu tiên đã đúng id) -> danh ba của màn P4 hết nhấp nháy / trùng
+  mục, gọi lại được đúng thiết bị. Tên hiển thị: 'Samsung · Chrome' / 'iPhone · Safari' / 'Máy tính · trình duyệt'
+  (hàm thuần `browserLabel(ua)` trong call-browser.js, test: src/callBrowser.test.ts).
 -->
 <html lang="vi">
 <head>
@@ -33,6 +39,7 @@
 <script src="icons.js"></script>
 <script src="call-ui.js"></script>
 <script src="call-join.js"></script>
+<script src="call-browser.js"></script>
 <style>
   /* (16/10/2026) Thanh tren (danh ba): "‹ Trang chủ" + bieu tuong + "Cuộc gọi" nhu cac ung dung khac; nut cai dat chuong la bieu tuong. */
   .back { position: fixed; z-index: 5; left: 12px; top: 12px; display: none; align-items: center; gap: 10px; }
@@ -121,7 +128,13 @@
 (function () {
   'use strict';
   var BASE = location.pathname.replace(/[^/]*$/, '');
-  var NAME = /Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'Dashboard · điện thoại' : 'Dashboard · máy tính';
+  // (30/10/2026) ID BEN VUNG + NHAN RO RANG — xem public/call-browser.js (thuan, co test src/callBrowser.test.ts):
+  //   - BROWSER_ID: sinh MOT lan roi giu trong localStorage['rwv-browser-id'] -> mo lai tab / rot mang / mo them tab
+  //     van la CUNG mot thiet bi trong danh ba (truoc day moi ket noi la mot id moi -> nhap nhay, trung muc).
+  //   - NAME: '<Tên máy> · <trình duyệt>', vd 'Samsung · Chrome' / 'Máy tính · trình duyệt'.
+  var CB = window.RwvCallBrowser || { label: function () { return 'Trình duyệt'; }, id: function () { return ''; } };
+  var NAME = CB.label(navigator.userAgent);
+  var BROWSER_ID = CB.id();
   // (GD3) App Android mo trang nay SAU KHI bam "Nghe": call-web.html?call=<id>[&phone=<id>].
   // Co ?call= -> VAO THANG cuoc goi do (khong hien danh ba), xin quyen micro roi gui {type:'join'} qua WS.
   // Phan doc tham so / suy ra id may nam o call-join.js (thuan, co test rieng).
@@ -156,7 +169,11 @@
   }
   function connect() {
     var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    ws = new WebSocket(proto + '//' + location.host + BASE + 'calls/web?name=' + encodeURIComponent(NAME)); ws.binaryType = 'arraybuffer';
+    ws = new WebSocket(proto + '//' + location.host + BASE + 'calls/web?name=' + encodeURIComponent(NAME)
+      + (BROWSER_ID ? '&id=' + encodeURIComponent(BROWSER_ID) : '')); ws.binaryType = 'arraybuffer';
+    // (30/10/2026) GUI `hello` NGAY khi mo WS, TRUOC moi tin khac: id ben vung + ten hien thi. Server dung id nay
+    // lam id phien (thay phien cu cung id neu con) -> danh ba khong doi id, khong sinh muc moi.
+    ws.onopen = function () { send({ type: 'hello', id: BROWSER_ID, name: NAME, kind: 'web' }); };
     ws.onmessage = function (e) {
       if (typeof e.data !== 'string') {
         var b = new Uint8Array(e.data);
@@ -187,6 +204,9 @@
       else if (m.type === 'joined') { onJoined(m); }
       // (23/11/2026) GD10 — server gan lai phien sau khi noi lai WS (xem resumeSession trong src/calls.ts).
       else if (m.type === 'resumed') { onResumed(m); }
+      // (30/10/2026) Mot TAB KHAC cua cung trinh duyet vua mo trang goi -> server da chuyen thiet bi (cung id) sang
+      // tab do. Tab nay NGUNG noi lai: neu noi lai, hai tab se gianh id qua lai moi 2 s = nhap nhay nhu loi cu.
+      else if (m.type === 'replaced') { wantWs = false; ui.toast('Trang gọi này đã được chuyển sang tab khác của cùng trình duyệt.'); }
       else if (m.type === 'ended') { onEnded(m.call, m.reason); }
 
     };

@@ -1,3 +1,11 @@
+## V2.9.306
+- **Trình duyệt là thiết bị gọi được, ổn định**: mỗi trình duyệt có id bền trong `localStorage` và gửi `{type:'hello'}`
+  khi kết nối, nên mở lại tab / rớt mạng **không sinh thêm thiết bị** và **không đổi id**. Hai tab cùng máy: tab cũ
+  nhận `replaced` và ngừng giành phiên.
+- Nhãn rõ ràng: `Samsung · Chrome`, `iPhone · Safari`, `Máy tính · trình duyệt`…; danh bạ sắp xếp
+  **Màn hình → Điện thoại → Trình duyệt**, có chấm xanh online.
+- Bỏ quy tắc ẩn phiên mobile ở 2.9.305 (giữ đúng ý: trình duyệt vẫn hiện và gọi được từ P4).
+
 ## V2.9.305
 - **Ẩn mục "Dashboard · điện thoại" khỏi danh bạ**: khi đã có thiết bị điện thoại đăng ký thường trú, phiên trình duyệt
   mobile (mở tab Dashboard trên chính máy đó) không còn hiện thành một thiết bị riêng. Trình duyệt máy tính vẫn hiện.

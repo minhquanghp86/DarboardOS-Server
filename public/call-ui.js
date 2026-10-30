@@ -142,7 +142,13 @@
         if (!l.length) { box.append(el('div', 'empty', 'Chưa có màn hình hoặc trình duyệt nào khác để gọi.')); return; }
         l.forEach(function (c) {
           var r = el('button', 'ct'); r.type = 'button'; r.disabled = !!c.busy;
-          var m = el('span', 'cm'); m.append(el('b', '', c.name), el('small', '', c.busy ? 'Đang bận' : kindLabel(c.kind)));
+          var m = el('span', 'cm');
+          // (30/10/2026) Phien web = "Trình duyệt" + CHAM XANH online (server tra `online: true` trong /calls/contacts):
+          // thay ro day la thiet bi dang mo trang goi va goi duoc ngay (truoc day phu de la "Màn hình").
+          var sub = el('small', '');
+          if (c.kind === 'web' && c.online !== false) sub.append(el('i', 'on'));
+          sub.append(document.createTextNode(c.busy ? 'Đang bận' : kindLabel(c.kind)));
+          m.append(el('b', '', c.name), sub);
           var call = el('span', 'cb'); call.append(svg('phone'));
           r.append(avatar(c.name), m, call);
           r.onclick = function () { A.start(c.id, c.name); };

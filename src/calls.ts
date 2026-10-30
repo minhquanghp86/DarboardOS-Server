@@ -68,6 +68,16 @@ interface Call {
 //     - 'ended' chi gui cho [c.from, c.to] -> phien da bi thay the khong bao gio nhan duoc.
 //   Nay: ket thuc cuoc goi theo id phien / theo id cuoc goi client gui kem, 'ended' gui cho MOI phien dang giu cuoc
 //   goi, phien noi lai xin `{type:'resume'}` de gan lai, va mat WS co 6 s an han truoc khi coi la "Mat ket noi".
+//
+// (30/10/2026) TRINH DUYET = THIET BI GOI DUOC, ON DINH: id phien web KHONG con la thu the tam.
+//   - Trang goi giu MOT id ben vung (`localStorage['rwv-browser-id']`, public/call-browser.js) va gui
+//     `{type:'hello', id, name, kind:'web'}` ngay khi mo WS (kem `&id=` tren URL cho phien dau tien).
+//   - `WebSession.id` = `hello.id` (chi nhan 8–64 ky tu [A-Za-z0-9_-]); khong co / rac -> tu sinh `web-...` nhu cu.
+//   - Phien MOI cung id THAY THE phien cu (dong WS cu, chuyen `call` + nguoi xem hinh sang) -> danh ba khong doi id,
+//     khong sinh muc moi, khong nhap nhay / trung muc.
+//   - `contacts()`: BO hoan toan quy tac 2.9.305 an phien "Điện thoại" khi da co thiet bi dang ky (sai huong —
+//     nguoi dung muon giu tinh nang goi tu trinh duyet); moi phien web deu hien (gop theo ten), them `online: true`
+//     va sap xep man hinh -> dien thoai -> trinh duyet.
 const WS_GRACE_MS = 6000;
 const calls = new Map<string, Call>();
 const ended = new Map<string, { reason: string; at: number }>();   // trang thai cuoc goi vua het (trang hoi state)
@@ -85,28 +95,30 @@ const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2
 function panels(): { id: string; name: string }[] {
   return connectedScreens().filter((s) => s.mic && s.spk && s.cam).map((s) => ({ id: s.id, name: nameOf(s.id) || `Màn hình ${s.w}×${s.h}` }));
 }
-export function contacts(self: string): { id: string; kind: Party['kind']; name: string; busy: boolean }[] {
-  const out: { id: string; kind: Party['kind']; name: string; busy: boolean }[] =
-    panels().filter((p) => p.id !== self).map((p) => ({ id: p.id, kind: 'panel', name: p.name, busy: busy(p.id) }));
-  // (30/10/2026) Phien web la TAM (mo tab la co, dong tab la mat) nen danh ba bi nhap nhay.
-  // Gop cac phien web TRUNG TEN thanh 1 muc (uu tien muc dang ban) de danh ba on dinh, de doc.
-  const webByName = new Map<string, { id: string; kind: Party['kind']; name: string; busy: boolean }>();
+export interface Contact { id: string; kind: Party['kind']; name: string; busy: boolean; online: boolean }
+export function contacts(self: string): Contact[] {
+  const out: Contact[] = [];
+  const add = (c: Omit<Contact, 'online'>): void => { out.push({ ...c, online: true }); };
+  for (const p of panels()) if (p.id !== self) add({ id: p.id, kind: 'panel', name: p.name, busy: busy(p.id) });
+  // (10/11/2026) Dien thoai da dang ky: nhan "Điện thoại" (call-ui.js hien ten + phu de theo kind).
+  for (const p of phones.list()) if (p.id !== self) add({ id: p.id, kind: 'phone', name: phoneLabel(p), busy: busy(p.id) });
+  // (30/10/2026) PHIEN WEB (trang goi trong trinh duyet) = thiet bi BINH THUONG, hien DU.
+  //   - Bo hoan toan quy tac 2.9.305 "an phien web cua dien thoai khi da co thiet bi dang ky"
+  //     (`hasPhones && /điện thoại/i.test(...)`): do la huong SAI — tinh nang goi tu trinh duyet phai giu.
+  //   - Gop cac phien TRUNG TEN thanh 1 muc (uu tien muc dang ban) de danh ba on dinh, de doc.
+  //     Tu 30/10/2026 id phien la id BEN VUNG cua trinh duyet (localStorage 'rwv-browser-id') nen binh thuong
+  //     khong con phien trung; phep gop chi con tac dung voi hai may cung ten (vd hai may tinh).
+  const webByName = new Map<string, Contact>();
   for (const w of webs.values()) {
     if (w.id === self) continue;
     const cur = webByName.get(w.name);
-    if (!cur) { webByName.set(w.name, { id: w.id, kind: 'web', name: w.name, busy: !!w.call }); continue; }
+    if (!cur) { webByName.set(w.name, { id: w.id, kind: 'web', name: w.name, busy: !!w.call, online: true }); continue; }
     if (!cur.busy && w.call) { cur.id = w.id; cur.busy = true; }
   }
-  // (30/10/2026) Phien web cua DIEN THOAI ("Dashboard · điện thoại") trung voi thiet bi da dang ky
-  // -> an khoi danh ba, chi giu ban "· Điện thoại" thuong tru. Trinh duyet may tinh van hien.
-  const hasPhones = phones.list().length > 0;
-  for (const c of webByName.values()) {
-    if (hasPhones && /điện thoại/i.test(c.name) && !c.busy) continue;
-    out.push(c);
-  }
-  // (10/11/2026) Dien thoai da dang ky: nhan "Điện thoại" (call-ui.js hien ten + phu de theo kind).
-  for (const p of phones.list()) if (p.id !== self) out.push({ id: p.id, kind: 'phone', name: phoneLabel(p), busy: busy(p.id) });
-  return out;
+  out.push(...webByName.values());
+  // (30/10/2026) SAP XEP danh ba theo loai: man hinh -> dien thoai -> trinh duyet (on dinh giua cac lan tai).
+  const rank: Record<Party['kind'], number> = { panel: 0, phone: 1, web: 2 };
+  return out.sort((a, b) => rank[a.kind] - rank[b.kind] || a.name.localeCompare(b.name, 'vi'));
 }
 function partyOf(id: string): Party | null {
   if (webs.has(id)) return { kind: 'web', id };
@@ -117,6 +129,66 @@ function partyOf(id: string): Party | null {
 function sendWeb(id: string, msg: unknown): void {
   const w = webs.get(id);
   if (w && w.ws.readyState === WebSocket.OPEN) w.ws.send(JSON.stringify(msg));
+}
+
+// (30/10/2026) ID PHIEN WEB BEN VUNG — trang goi trong trinh duyet giu MOT id trong `localStorage['rwv-browser-id']`
+// (public/call-browser.js) va gui `{type:'hello', id, name, kind:'web'}` ngay khi mo WS. Nho vay danh ba khong con
+// nhap nhay / trung muc: mo lai tab, rot mang, mo them tab -> van la CUNG mot thiet bi, cung mot id.
+// Chi nhan id dung dinh dang; id rac (hoac khong co) -> server tu sinh nhu cu.
+const WEB_ID_RE = /^[A-Za-z0-9_-]{8,64}$/;
+/** Id phien web do client gui len, da kiem tra dinh dang; '' = khong dung duoc. */
+export function webIdOf(v: unknown): string {
+  const s = typeof v === 'string' ? v.trim() : '';
+  return WEB_ID_RE.test(s) ? s : '';
+}
+
+/**
+ * (30/10/2026) PHIEN MOI CUNG ID THAY THE PHIEN CU (khong sinh muc moi trong danh ba).
+ * Id khong doi nen `call.from.id` / `call.to.id` van dung: chi can chuyen `w.call` + nguoi xem hinh sang phien moi,
+ * dong WS cu (bo listener 'message' de tin cu khong tac dong), roi dang ky phien moi duoi cung id.
+ */
+function takeOver(old: WebSession, next: WebSession): void {
+  if (!next.call && old.call) next.call = old.call;          // dang giu cuoc goi -> chuyen sang phien moi (nhu `resume`)
+  old.call = null;
+  for (const s of old.vsinks) next.vsinks.add(s);             // nguoi xem /call/video khong bi dut hinh
+  if (!next.vcfg && old.vcfg) next.vcfg = old.vcfg;
+  if (old.ws !== next.ws) {
+    // Bao cho trang CU biet day la "bi thay the" (khong phai mat mang) -> trang ngung noi lai, neu khong hai tab
+    // cua cung mot trinh duyet se gianh id qua lai moi 2 s = nhap nhay dung nhu loi cu.
+    if (old.ws.readyState === WebSocket.OPEN) {
+      try { old.ws.send(JSON.stringify({ type: 'replaced', id: next.id })); } catch { /* dang dong */ }
+    }
+    old.ws.removeAllListeners('message');
+    try { old.ws.close(); } catch { /* da dong */ }
+  }
+  console.log(`[calls] phien web ${next.id} (${next.name}) thay the phien cu`);
+}
+
+/** Dang ky mot phien web vua mo WS (co the thay phien cu cung id). */
+function attachWeb(w: WebSession): void {
+  const old = webs.get(w.id);
+  if (old && old !== w) takeOver(old, w);
+  webs.set(w.id, w);
+  console.log(`[calls] phien web ${w.id} (${w.name}) ket noi`);
+}
+
+/**
+ * (30/10/2026) `{type:'hello', id, name, kind:'web'}` cua trang goi (tin DAU TIEN sau khi mo WS).
+ * Trang co the mo WS khong kem `&id=` -> server sinh id tam; hello doi phien sang id ben vung ngay lap tuc
+ * (thay phien cu cung id neu con, giu cuoc goi) roi tra lai `hello` + danh ba theo id moi.
+ */
+function webHello(w: WebSession, m: { id?: unknown; name?: unknown }): void {
+  const name = typeof m.name === 'string' && m.name.trim() ? m.name.trim().slice(0, 40) : w.name;
+  w.name = name;
+  const id = webIdOf(m.id);
+  if (!id || id === w.id) return;                             // id rac / khong doi -> giu phien dang co
+  const prev = w.id;
+  w.id = id;
+  const old = webs.get(id);
+  if (old && old !== w) takeOver(old, w);
+  webs.delete(prev);
+  webs.set(id, w);
+  sendWeb(id, { type: 'hello', id, list: contacts(id) });
 }
 
 /**
@@ -413,7 +485,8 @@ function webMessage(w: WebSession, data: Buffer, isBinary: boolean): void {
   if (!isBinary) {
     let m: any;
     try { m = JSON.parse(data.toString()); } catch { return; }
-    if (m?.type === 'start') { const r = start(w.id, String(m.to || '')); sendWeb(w.id, { type: 'started', ...r }); }
+    if (m?.type === 'hello') webHello(w, m);
+    else if (m?.type === 'start') { const r = start(w.id, String(m.to || '')); sendWeb(w.id, { type: 'started', ...r }); }
     // (GD3) Dien thoai: trang call-web.html?call=<id> xin VAO cuoc goi dang co (sound 2 chieu voi man).
     else if (m?.type === 'join') {
       const r = join(String(m.call || ''), w.id, String(m.phone || ''));
@@ -488,9 +561,12 @@ export function handleCallsUpgrade(req: http.IncomingMessage, socket: Duplex, he
   if (!url.pathname.endsWith('/calls/web')) return false;
   if (!isPage(req)) { socket.destroy(); return true; }
   wss.handleUpgrade(req, socket, head, (ws) => {
-    const w: WebSession = { id: 'web-' + newId(), name: (url.searchParams.get('name') || 'Trình duyệt').slice(0, 40), ws, call: null, vcfg: null, vsinks: new Set() };
-    webs.set(w.id, w);
-    console.log(`[calls] phien web ${w.id} (${w.name})`);
+    // (30/10/2026) Id BEN VUNG cua trinh duyet (localStorage 'rwv-browser-id') uu tien lay tu `&id=` de phien DAU TIEN
+    // da dung id; client con gui `{type:'hello', id}` ngay sau do (webHello) — hai duong deu cho cung mot ket qua.
+    const qid = webIdOf(url.searchParams.get('id'));
+    const w: WebSession = { id: qid || 'web-' + newId(), name: (url.searchParams.get('name') || 'Trình duyệt').slice(0, 40),
+      ws, call: null, vcfg: null, vsinks: new Set() };
+    attachWeb(w);
     sendWeb(w.id, { type: 'hello', id: w.id, list: contacts(w.id) });
     ws.on('message', (d, bin) => webMessage(w, Buffer.isBuffer(d) ? d : Buffer.from(d as ArrayBuffer), bin));
     // (23/11/2026) GD10 — mat WS KHONG con ket thuc cuoc goi ngay: WebView bi an / ingress dong idle / doi mang lam
@@ -498,7 +574,11 @@ export function handleCallsUpgrade(req: http.IncomingMessage, socket: Duplex, he
     // (khong he hoi /calls/state) thi cu de nguyen man hinh "dang goi" voi dong ho van dem. Nay an han WS_GRACE_MS.
     ws.on('close', () => {
       const id = w.call;
+      // (30/10/2026) WS CU cua cung mot trinh duyet (bi phien moi thay the): phien moi dang giu id nay -> KHONG xoa,
+      // KHONG coi la "mat ket noi" (truoc day se xoa nham phien moi va ket thuc cuoc goi dang chay).
+      if (webs.get(w.id) !== w) return;
       webs.delete(w.id);
+      console.log(`[calls] phien web ${w.id} (${w.name}) ngat`);
       if (!id) return;
       setTimeout(() => { if (callOf(id) && !webBound(id)) finish(id, 'Mất kết nối'); }, WS_GRACE_MS).unref();
     });
