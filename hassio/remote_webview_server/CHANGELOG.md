@@ -1,3 +1,7 @@
+## V2.9.297
+- **Khắc phục build lỗi 2.9.296**: image 2.9.296 bị hỏng tệp `node_modules/ical.js/dist/ical.js` (SyntaxError khi khởi
+  động). Không đổi mã nguồn — build lại sạch để thay image lỗi.
+
 ## V2.9.296
 - **Cài đặt một chạm cho app Android**: thêm `GET /app/ping` (có CORS, chấp nhận mọi tiền tố proxy) để app tự
   dò ra add-on. Người dùng chỉ cần nhập **IP hoặc domain của Home Assistant** — app tự thử 4–5 địa chỉ, tự đăng ký
