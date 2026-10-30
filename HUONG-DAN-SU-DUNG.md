@@ -14,6 +14,29 @@ automation. Đọc tuần tự nếu bạn mới bắt đầu; phần cuối là
 
 ---
 
+## 0. Cách hệ thống hoạt động (sơ đồ)
+
+```
+┌──────────────┐   WebSocket 8081    ┌─────────────────────────┐   CDP    ┌──────────────┐
+│  Màn hình    │ ◄──────────────────►│  Add-on (Chrome headless │ ◄──────► │  Trang web   │
+│  ESP32-S3/P4 │   khung JPEG + chạm │  + node server)          │          │  /dashboard  │
+└──────────────┘                     └───────────┬─────────────┘          └──────────────┘
+       ▲                                        │ HA API
+       │ HTTP (chạm/vuốt, chụp)                 ▼
+┌──────┴───────┐   hành động / entity  ┌──────────────────┐
+│ Tích hợp HA  │ ◄───────────────────► │  Home Assistant  │
+└──────────────┘                       └──────────────────┘
+```
+
+**Luồng cơ bản**
+1. Add-on mở trang web (dashboard HA, hoặc URL bất kỳ) bằng Chrome headless.
+2. Chrome chụp khung → add-on nén JPEG ở mức chất lượng/nhịp đã chọn → gửi xuống màn qua WebSocket (cổng 8081).
+3. Màn vẽ khung, gửi ngược lại thao tác chạm/vuốt → add-on chuyển thành sự kiện chuột/bàn phím cho trang.
+4. Tích hợp HA nói chuyện với add-on qua HTTP để gửi thông báo, đổi cài đặt và đọc trạng thái.
+
+**Vì sao mỗi màn là một thiết bị HA?** Để bạn gán hành động theo từng màn, thấy trạng thái riêng và đưa vào dashboard
+HA như mọi thiết bị khác.
+
 ## 1. Chuẩn bị
 
 | Hạng mục | Yêu cầu |
@@ -216,6 +239,11 @@ Ví dụ thường dùng:
 | Chọn | `goc_xoay` (0 / 90 / 180 / 270) |
 
 Dùng trực tiếp trong dashboard HA hoặc làm điều kiện automation.
+
+## 11.1. Automation mẫu
+
+10 kịch bản copy-paste sẵn (chuông cổng, báo động, chào buổi sáng, nhắc thuốc, báo mưa…):
+[`AUTOMATION-MAU.md`](AUTOMATION-MAU.md).
 
 ## 12. Xử lý sự cố
 
