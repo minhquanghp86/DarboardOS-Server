@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Dashboard OS</string>
+    <string name="url_hint">Địa chỉ Dashboard (URL)</string>
+    <string name="action_open">Mở</string>
+    <string name="action_change_url">URL</string>
+    <string name="url_footer">Địa chỉ được ghi nhớ, lần sau mở app sẽ vào thẳng dashboard.</string>
+    <string name="err_empty_url">Vui lòng nhập địa chỉ</string>
+    <string name="err_load">Không tải được trang. Kiểm tra URL hoặc kết nối mạng.</string>
+    <string name="perm_denied">Cần quyền micro/camera để dùng tính năng đàm thoại</string>
+</resources>

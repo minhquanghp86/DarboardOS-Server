@@ -1,0 +1,12 @@
+# Gradle / build outputs
+.gradle/
+build/
+app/build/
+.kotlin/
+local.properties
+*.iml
+.idea/
+
+# Signing material (never commit)
+*.jks
+*.keystore

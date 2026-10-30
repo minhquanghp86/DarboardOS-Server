@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FF000000">
+
+    <WebView
+        android:id="@+id/webView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Small overlay to get back to the URL screen. It hides itself a few
+         seconds after launch (and on any tap elsewhere) so the dashboard really
+         is full screen, and it stays visible when a page fails to load. -->
+    <Button
+        android:id="@+id/changeUrlButton"
+        android:layout_width="wrap_content"
+        android:layout_height="40dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="20dp"
+        android:layout_marginEnd="12dp"
+        android:alpha="0.75"
+        android:background="#CC16202F"
+        android:minWidth="0dp"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:text="@string/action_change_url"
+        android:textAllCaps="false"
+        android:textColor="#FFFFFFFF"
+        android:textSize="12sp" />
+
+</FrameLayout>
