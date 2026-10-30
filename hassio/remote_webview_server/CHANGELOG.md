@@ -1,3 +1,7 @@
+## V2.9.305
+- **Ẩn mục "Dashboard · điện thoại" khỏi danh bạ**: khi đã có thiết bị điện thoại đăng ký thường trú, phiên trình duyệt
+  mobile (mở tab Dashboard trên chính máy đó) không còn hiện thành một thiết bị riêng. Trình duyệt máy tính vẫn hiện.
+
 ## V2.9.304
 - **Danh bạ gọi ổn định**: các phiên trình duyệt trùng tên ("Dashboard · điện thoại") được gộp thành một mục thay vì
   mỗi lần mở tab lại hiện thêm thiết bị. Phiên trình duyệt vốn là tạm (mở tab là có, đóng tab là mất) nên trước đây

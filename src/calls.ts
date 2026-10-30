@@ -97,7 +97,13 @@ export function contacts(self: string): { id: string; kind: Party['kind']; name:
     if (!cur) { webByName.set(w.name, { id: w.id, kind: 'web', name: w.name, busy: !!w.call }); continue; }
     if (!cur.busy && w.call) { cur.id = w.id; cur.busy = true; }
   }
-  for (const c of webByName.values()) out.push(c);
+  // (30/10/2026) Phien web cua DIEN THOAI ("Dashboard · điện thoại") trung voi thiet bi da dang ky
+  // -> an khoi danh ba, chi giu ban "· Điện thoại" thuong tru. Trinh duyet may tinh van hien.
+  const hasPhones = phones.list().length > 0;
+  for (const c of webByName.values()) {
+    if (hasPhones && /điện thoại/i.test(c.name) && !c.busy) continue;
+    out.push(c);
+  }
   // (10/11/2026) Dien thoai da dang ky: nhan "Điện thoại" (call-ui.js hien ten + phu de theo kind).
   for (const p of phones.list()) if (p.id !== self) out.push({ id: p.id, kind: 'phone', name: phoneLabel(p), busy: busy(p.id) });
   return out;
