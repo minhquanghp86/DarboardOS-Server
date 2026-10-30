@@ -250,11 +250,10 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .saver.night .sv-date, .saver.night .sv-wx { color: #5e463d; }
 .saver.night .sv-wx .wx-ic { opacity: 0.4; filter: sepia(1); }
 /* (27/09/2026) Man hinh cho dang khung anh: anh phu kin, dong ho nho o goc duoi trai (van dich moi phut). */
-.sv-ph { position: absolute; inset: 0; background: #000 center/cover no-repeat; opacity: 0; }
-/* (30/10/2026) FIX soc doc tren anh nen: Chrome headless bi loi raster khi layer anh nen co transform/transition
-   (slide/zoom) va bi scale lon -> khung hinh bi soc. Ve TINH: khong transform, khong transition. */
-.sv-ph, .sv-ph.fx-slide, .sv-ph.fx-zoom { transition: none !important; transform: none !important;
-  will-change: auto !important; backface-visibility: hidden; }
+.sv-ph { position: absolute; inset: 0; background: #000; opacity: 0; overflow: hidden; }
+/* (30/10/2026) Anh nen ve bang <img> (object-fit: cover) thay background-image: Chrome headless raster
+   lop background bi soc khi scale anh lon; the <img> khong bi. Giu nguyen hieu ung chuyen. */
+.sv-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .sv-ph.show { opacity: 1; }
 /* (27/09/2026) Hieu ung chuyen anh — chay mot lan (~0,7 s) moi lan doi, khong co chuyen dong lien tuc. */
 .sv-ph.fx-fade { transition: opacity 800ms ease; }
@@ -265,6 +264,14 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .sv-ph.fx-slide.toL { transform: translateX(-100%); }
 .sv-ph.fx-slide.toR { transform: translateX(100%); }
 .sv-ph.fx-zoom { transition: opacity 800ms ease, transform 800ms ease; }
+.sv-ph.fx-zoom.fromR { transform: scale(1.25); }
+.sv-ph.fx-zoom.fromL { transform: scale(0.8); }
+/* Hieu ung moi */
+.sv-ph.fx-blur { transition: opacity 700ms ease, filter 700ms ease; }
+.sv-ph.fx-blur.show { filter: blur(0); }
+.sv-ph.fx-blur.fromR, .sv-ph.fx-blur.fromL { filter: blur(18px); }
+.sv-ph.fx-ken .sv-img { animation: svKen 18s ease-out forwards; }
+@keyframes svKen { from { transform: scale(1); } to { transform: scale(1.08); } }
 .sv-ph.fx-zoom.fromR, .sv-ph.fx-zoom.fromL { transform: scale(1.08); transition: none; }
 .sv-ph.fx-zoom.show { transform: scale(1); }
 .sv-ph.fx-none { transition: none; }

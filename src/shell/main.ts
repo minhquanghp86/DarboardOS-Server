@@ -633,14 +633,16 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
   function saverPhoto(o: SaverPhotoMsg | string | null): void {
     if (!saverEl) return;
     const m: SaverPhotoMsg | null = typeof o === 'string' ? { url: o } : o;
-    if (!m || !m.url) { saverEl.classList.remove('photo'); svPh.forEach((p) => { p.className = 'sv-ph'; }); setText(svCap, ''); return; }
+    if (!m || !m.url) { saverEl.classList.remove('photo'); svPh.forEach((p) => { p.className = 'sv-ph'; p.replaceChildren(); }); setText(svCap, ''); return; }
     const fx = CFG.motion === 'full' ? (m.fx || 'fade') : 'none';
     const dir = (m.dir ?? 1) < 0 ? -1 : 1;
     const img = new Image();
     img.onload = () => {
       if (!saverEl) return;
       const next = svPh[1 - svTop], cur = svPh[svTop];
-      next.style.backgroundImage = `url("${m.url}")`;
+      const im = document.createElement('img');
+      im.className = 'sv-img'; im.decoding = 'async'; im.src = m.url;
+      next.replaceChildren(im);
       // Vi tri bat dau (khong hieu ung) -> khung sau: vi tri cuoi (co hieu ung)
       next.className = `sv-ph fx-${fx} from${dir > 0 ? 'R' : 'L'}`;
       void next.offsetWidth;

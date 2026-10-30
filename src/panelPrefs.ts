@@ -30,7 +30,7 @@ export interface PanelPrefs {
   nightFrom?: number; nightTo?: number;
 }
 export type ClockSize = 'm' | 'l' | 'xl';
-export type PhotoEffect = 'fade' | 'slide' | 'zoom' | 'none';
+export type PhotoEffect = 'fade' | 'slide' | 'zoom' | 'blur' | 'ken' | 'none';
 /** Gia tri mac dinh = tuy chon addon (dung khi man hinh chua chinh). */
 export interface PanelDefaults { saverPhotos: boolean; morning: boolean; saverIdleS: number; cast?: boolean }
 export type PrefSec = 'screen' | 'frame' | 'lock';
@@ -69,7 +69,8 @@ const QUALITY_CHOICES: Choice<number>[] = [['Tự động', 0], ['20%', 20], ['3
 const NIGHT_CHOICES: Choice<number>[] = Array.from({ length: 25 }, (_, i) => (i === 24 ? ['Cả ngày (tắt đêm)', 24] : [`${String(i).padStart(2, '0')}:00`, i]) as Choice<number>);
 const CLOCK_CHOICES: Choice<ClockSize>[] = [['Vừa', 'm'], ['Lớn', 'l'], ['Rất lớn', 'xl']];
 const INTERVAL_CHOICES: Choice<number>[] = [['15 giây', 15], ['30 giây', 30], ['1 phút', 60], ['2 phút', 120], ['5 phút', 300]];
-const EFFECT_CHOICES: Choice<PhotoEffect>[] = [['Mờ dần', 'fade'], ['Trượt', 'slide'], ['Thu phóng', 'zoom'], ['Không', 'none']];
+const EFFECT_CHOICES: Choice<PhotoEffect>[] = [['Mờ dần', 'fade'], ['Trượt', 'slide'], ['Thu phóng', 'zoom'],
+  ['Mờ ảo (blur)', 'blur'], ['Chậm (Ken Burns)', 'ken'], ['Không', 'none']];
 const FIT_CHOICES: Choice<'cover' | 'frame'>[] = [['Lấp đầy', 'cover'], ['Vừa khung', 'frame']];
 const ORDER_CHOICES: Choice<'random' | 'name'>[] = [['Ngẫu nhiên', 'random'], ['Theo thứ tự', 'name']];
 const SOURCE_CHOICES: Choice<'folder' | 'google' | 'both'>[] = [['Thư mục', 'folder'], ['Google Photos', 'google'], ['Cả hai', 'both']];

@@ -1,3 +1,9 @@
+## V2.9.283
+- **Sửa gốc lỗi sọc ảnh nền, giữ nguyên hiệu ứng**: lớp ảnh nền nay vẽ bằng thẻ `<img>` (`object-fit: cover`) thay vì
+  `background-image`. Chrome headless raster sai lớp background khi ảnh lớn + scale; thẻ `<img>` không bị.
+  Nhờ vậy **khôi phục hiệu ứng trượt / thu phóng / mờ dần** (đã bỏ ở 2.9.282).
+- **Thêm 2 hiệu ứng mới**: `Mờ ảo (blur)` và `Chậm (Ken Burns)` — chọn trong Cài đặt → Ảnh → Hiệu ứng.
+
 ## V2.9.282
 - **Sửa lỗi sọc dọc trên ảnh nền màn hình chờ**: lớp `.sv-ph` bị Chrome headless raster sai khi có
   `transform`/`transition` (hiệu ứng trượt/thu phóng) + ảnh scale lớn. Nay lớp ảnh vẽ **tĩnh** (bỏ transform/
