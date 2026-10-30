@@ -18,6 +18,13 @@
 // nen KHONG the "nhan" qua socket: server chi mo cuoc goi o trang thai `ringing` (hen gio RING_S nhu man hinh), app
 // poll GET /app/incoming?phone=<id> moi 2 s roi POST /app/answer | /app/decline. Het 30 s khong ai nhan -> missed
 // (finish(..., true): Thong bao + Telegram nhu cu). Luong man <-> trinh duyet khong doi.
+//
+// (GD3 — thang 11/2026) TIENG 2 CHIEU CHO DIEN THOAI: sau khi bam "Nghe", app mo WebView toi
+// `call-web.html?call=<id>` (kem `&phone=<id>` neu app truyen). Trang do mo WS /calls/web (nhu tab "Gọi" cua trinh
+// duyet) roi gui `{type:'join', call, phone}`; `join()` ben duoi GAN phien web lam DAU CUOI TIENG cua dien thoai:
+//   c.to (dien thoai) -> {kind:'web', id:<phien>}, giu `c.phone` = id may de biet may nao dang trong cuoc goi.
+// Tieng di y nhu luong man <-> trinh duyet: mic man -> 0x01 xuong WS; PCM trong WS -> loa man (sendToDevice).
+// Trang thai cuoc goi: GET /calls/state?call= (da co) — trang goi hoi 2,5 s/lan de biet cuoc goi ket thuc.
 import http from 'node:http';
 import type { Duplex } from 'node:stream';
 import { WebSocket, WebSocketServer } from 'ws';
@@ -38,6 +45,8 @@ interface Call {
   id: string; from: Party; to: Party; state: 'ringing' | 'active';
   ringT: NodeJS.Timeout; startedAt: number; ringId: string | null;
   muted: Set<string>; camOff: Set<string>; unlisten: (() => void)[];
+  /** (GD3) Dien thoai dang trong cuoc goi bang trang call-web.html?call= (c.to da doi thanh phien web cua may). */
+  phone?: string;
 }
 const calls = new Map<string, Call>();
 const ended = new Map<string, { reason: string; at: number }>();   // trang thai cuoc goi vua het (trang hoi state)
@@ -47,7 +56,8 @@ export function setCallHooks(h: { name: (id: string) => string | undefined }): v
 
 const partyName = (p: Party) => (p.kind === 'web' ? webs.get(p.id)?.name || 'Trình duyệt'
   : p.kind === 'phone' ? phoneLabel(phones.get(p.id)) : nameOf(p.id) || p.id);
-const busy = (id: string) => [...calls.values()].some((c) => c.from.id === id || c.to.id === id) || isInCall(id);
+// (GD3) Dien thoai da "join" bang trang call-web: c.to la phien web, id may nam o `c.phone` -> van phai coi la BAN.
+const busy = (id: string) => [...calls.values()].some((c) => c.from.id === id || c.to.id === id || c.phone === id) || isInCall(id);
 const callOf = (id: string) => calls.get(id);
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
@@ -99,6 +109,18 @@ export function start(fromId: string, toId: string): { ok: boolean; call?: strin
   return { ok: true, call: id };
 }
 
+/**
+ * (14/10/2026) Tieng man <-> phien web trong cuoc goi: mic man -> khung 0x01 xuong WS cua trang goi.
+ * Chieu nguoc lai (PCM trong WS -> loa man) nam o `webMessage` (nhi phan 0x01) — doi xung san co.
+ * (GD3) Dung chung cho ca cuoc goi man <-> trinh duyet va man <-> DIEN THOAI (trang call-web.html?call=).
+ */
+function bridgePanelWeb(c: Call, panelId: string, webId: string): void {
+  c.unlisten.push(onMicListener(panelId, (pcm) => {
+    const w = webs.get(webId);
+    if (!c.muted.has(panelId) && w && w.ws.readyState === WebSocket.OPEN && w.ws.bufferedAmount < 256 * 1024) w.ws.send(Buffer.concat([Buffer.from([1]), pcm]));
+  }));
+}
+
 /** Ben nhan nghe: noi tieng. */
 export function accept(callId: string, by: string): { ok: boolean; error?: string } {
   const c = callOf(callId);
@@ -115,15 +137,58 @@ export function accept(callId: string, by: string): { ok: boolean; error?: strin
     // man <-> trinh duyet: mic man -> phien web; tieng web -> loa man (xem webMessage).
     // (10/11/2026) man <-> dien thoai (GD2, chua co tieng): chi can mo leg tieng cua man; dien thoai khong co WS
     // nen KHONG gan onMicListener (khong co noi nhan PCM).
+    // (GD3) neu trang call-web cua dien thoai da "join" TRUOC do thi `other` da la phien web -> noi tieng luon.
     const panel = legs[0], other = c.from.kind === 'panel' ? c.to : c.from;
-    if (other.kind === 'web') c.unlisten.push(onMicListener(panel.id, (pcm) => {
-      const w = webs.get(other.id);
-      if (!c.muted.has(panel.id) && w && w.ws.readyState === WebSocket.OPEN && w.ws.bufferedAmount < 256 * 1024) w.ws.send(Buffer.concat([Buffer.from([1]), pcm]));
-    }));
+    if (other.kind === 'web') bridgePanelWeb(c, panel.id, other.id);
   }
   for (const p of [c.from, c.to]) if (p.kind === 'web') sendWeb(p.id, { type: 'active', call: callId, peer: p.id === c.from.id ? c.to.id : c.from.id });
   console.log(`[calls] ${callId}: ${by} nghe`);
   return { ok: true };
+}
+
+export interface JoinResult { ok: boolean; call?: string; peer?: string; peerName?: string; since?: number; error?: string }
+
+/**
+ * (GD3) TRANG GOI CUA DIEN THOAI (call-web.html?call=<id>) vao cuoc goi dang co — GAN phien web lam dau cuoi tieng
+ * cua may: `c.to` (dien thoai) -> {kind:'web', id:<phien>}, `c.phone` = id may (de `busy()` va /app/hangup biet).
+ * Chua ai nghe (con `ringing`, app chi mo trang ma chua kip POST /app/answer) -> nghe luon.
+ * `phoneId` rong = khong kiem tra may (trang cu goi `call-web.html?call=` khong kem `&phone=`).
+ */
+export function join(callId: string, webId: string, phoneId = ''): JoinResult {
+  const w = webs.get(webId);
+  if (!w) return { ok: false, error: 'Phiên web không còn.' };
+  let c = callOf(callId);
+  if (!c) return { ok: false, error: 'Cuộc gọi đã kết thúc.' };
+  // Trang nay da la dau cuoi cua cuoc goi (loi dung lai sau khi mat mang): tra lai thong tin, KHONG noi tieng lan 2.
+  if (c.to.kind === 'web' && c.to.id === webId) {
+    w.call = callId;
+    return { ok: true, call: callId, peer: c.from.id, peerName: partyName(c.from), since: c.startedAt };
+  }
+  const phone = c.to.kind === 'phone' ? c.to.id : c.phone || '';
+  if (!phone) return { ok: false, error: 'Cuộc gọi không dành cho điện thoại.' };
+  if (phoneId && phoneId !== phone) return { ok: false, error: 'Cuộc gọi không dành cho máy này.' };
+  if (c.state === 'ringing') {
+    const a = accept(callId, phone);
+    if (!a.ok) return { ok: false, error: a.error };
+    c = callOf(callId);
+    if (!c) return { ok: false, error: 'Cuộc gọi đã kết thúc.' };
+  }
+  c.phone = phone;
+  c.to = { kind: 'web', id: webId };
+  w.call = callId;
+  // Tieng: man <-> phien web (ca hai chieu, xem bridgePanelWeb + webMessage). Cac dau khac (dien thoai <-> dien
+  // thoai) khong co duong tieng — giu nguyen nhu truoc.
+  if (c.from.kind === 'panel') bridgePanelWeb(c, c.from.id, webId);
+  console.log(`[calls] ${callId}: ${webId} vao cuoc goi cua dien thoai ${phone}`);
+  return { ok: true, call: callId, peer: c.from.id, peerName: partyName(c.from), since: c.startedAt };
+}
+
+/** (GD3) DIEN THOAI ket thuc cuoc goi (POST /app/hangup) — ke ca sau khi trang call-web da `join` (c.to la phien web). */
+export function hangupFromPhone(callId: string, phoneId: string): boolean {
+  const c = callOf(callId);
+  if (!c || !phoneId) return false;
+  const mine = (c.to.kind === 'phone' && c.to.id === phoneId) || c.phone === phoneId;
+  return mine && finish(callId, 'Đã kết thúc');
 }
 
 export interface IncomingCall { id: string; from: string; fromName: string }
@@ -178,8 +243,11 @@ export function finish(callId: string, reason: string, missed = false): boolean 
 export function state(callId: string): unknown {
   const c = callOf(callId);
   if (!c) { const e = ended.get(callId); return { state: 'ended', reason: e?.reason || 'Đã kết thúc' }; }
-  return { state: c.state, from: c.from.id, to: c.to.id, fromName: partyName(c.from), toName: partyName(c.to),
-    since: c.startedAt, muted: [...c.muted], camOff: [...c.camOff] };
+  // (GD3) Dien thoai da join: `to` la phien web cua trang goi (de lay hinh camera qua /call/video?dev=...), nhung
+  // TEN hien thi van la ten may ("Pixel 8 · Điện thoại") chu khong phai ten phien web.
+  const toName = c.phone ? phoneLabel(phones.get(c.phone)) : partyName(c.to);
+  return { state: c.state, from: c.from.id, to: c.to.id, fromName: partyName(c.from), toName,
+    since: c.startedAt, muted: [...c.muted], camOff: [...c.camOff], phone: c.phone || '' };
 }
 
 export function setFlag(callId: string, dev: string, kind: 'mute' | 'cam', on: boolean): boolean {
@@ -215,6 +283,12 @@ function webMessage(w: WebSession, data: Buffer, isBinary: boolean): void {
     let m: any;
     try { m = JSON.parse(data.toString()); } catch { return; }
     if (m?.type === 'start') { const r = start(w.id, String(m.to || '')); sendWeb(w.id, { type: 'started', ...r }); }
+    // (GD3) Dien thoai: trang call-web.html?call=<id> xin VAO cuoc goi dang co (sound 2 chieu voi man).
+    else if (m?.type === 'join') {
+      const r = join(String(m.call || ''), w.id, String(m.phone || ''));
+      if (r.ok && r.call) w.call = r.call;
+      sendWeb(w.id, { type: 'joined', ...r });
+    }
     else if (m?.type === 'accept' && w.call) accept(w.call, w.id);
     else if ((m?.type === 'hangup' || m?.type === 'decline') && w.call) finish(w.call, m.type === 'decline' ? 'Từ chối' : 'Đã kết thúc');
     else if (m?.type === 'mute' && w.call) setFlag(w.call, w.id, 'mute', !!m.on);
@@ -231,6 +305,12 @@ function webMessage(w: WebSession, data: Buffer, isBinary: boolean): void {
   if (data[0] === 1) {
     const peer = c.from.id === w.id ? c.to : c.from;
     if (peer.kind === 'panel' && !c.muted.has(w.id)) sendToDevice(peer.id, data.subarray(1));
+    // (GD3) hai dau deu la trang web (vd tab "Gọi" tren Dashboard <-> call-web.html?call= cua dien thoai):
+    // chuyen thang PCM 0x01, cung dinh dang voi khung tieng man -> trinh duyet.
+    else if (peer.kind === 'web' && !c.muted.has(w.id)) {
+      const pw = webs.get(peer.id);
+      if (pw && pw.ws.readyState === WebSocket.OPEN && pw.ws.bufferedAmount < 256 * 1024) pw.ws.send(Buffer.concat([Buffer.from([1]), data.subarray(1)]));
+    }
   } else if (data[0] === 2 && data.length > 6 && !c.camOff.has(w.id)) {
     const key = data[1] === 1, ts = data.readUInt32LE(2), frame = data.subarray(6);
     for (const s of w.vsinks) s({ kind: 'frame', key, ts, data: frame });

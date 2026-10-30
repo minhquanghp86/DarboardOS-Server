@@ -1,3 +1,8 @@
+## V2.9.301
+- **Vào thẳng cuộc gọi khi bấm Nghe (GĐ 3)**: trang `call-web.html` nhận `?call=<id>` → gắn phiên web làm đầu cuối
+  tiếng của điện thoại (WS PCM 16 kHz), màn "đang gọi" có tên người gọi, đồng hồ, nút **Kết thúc**; đối phương cúp →
+  tự về danh bạ. Thêm `POST /app/hangup` và `{type:'join'}` trong WS cuộc gọi.
+
 ## V2.9.300
 - **Chống trùng thiết bị nhận cuộc gọi**: app gửi `deviceKey` (ANDROID_ID, được băm) + `model`; server gộp các bản ghi
   cùng thiết bị về bản ghi cũ nhất và trả id chuẩn. File cũ tự dọn khi đọc.

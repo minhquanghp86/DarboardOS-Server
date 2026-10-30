@@ -12,6 +12,9 @@
 /* Cuoc goi di / den: hinh cua minh lam nen, mo + toi (kieu man hinh khoa dien thoai) */
 .call[data-view="in"] .big-v, .call[data-view="out"] .big-v { filter: blur(22px) brightness(0.55) saturate(1.2); transform: scale(1.12); }
 .call[data-view="in"] .shade, .call[data-view="out"] .shade, .call[data-view="ended"] .shade { background: rgba(8, 10, 14, 0.35); }
+/* (GD3) Dien thoai vao cuoc goi co san (call-web.html?call=): chua co hinh nao -> nen toi, chu trang thai xuong dong. */
+.call[data-view="join"] .shade { background: rgba(8, 10, 14, 0.35); }
+.call[data-view="join"] .csub { max-width: 32ch; line-height: 1.4; }
 .call .center { position: absolute; left: 0; right: 0; top: 14%; display: flex; flex-direction: column; align-items: center; gap: clamp(8px, 2vmin, 14px);
   text-align: center; padding: 0 16px; }
 .call .av { flex: none; width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center;

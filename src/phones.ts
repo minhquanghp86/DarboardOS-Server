@@ -13,6 +13,8 @@
 //   GET  /app/incoming?phone=<id>               -> {call: {id, from, fromName} | null}   (cuoc goi dang do chuong)
 //   POST /app/answer?phone=<id>&call=<id>       -> nghe (noi voi man, xem src/calls.ts accept)
 //   POST /app/decline?phone=<id>&call=<id>      -> tu choi
+//   (GD3) POST /app/hangup?phone=<id>&call=<id> -> ket thuc cuoc goi dang nghe (ke ca sau khi trang call-web.html
+//                                                  ?call= da "join" — luc do c.to la phien web, /app/decline khong con dung)
 //
 // (GD8 — 30/10/2026) QUAN LY THIET BI tu trang call-web.html (sua ten / xoa may khoi danh ba):
 //   POST /app/rename    body {id, name}         -> {ok:true, phone:{...}} | 404
@@ -28,7 +30,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { accept, declineFromPhone, incomingFor } from './calls.js';
+import { accept, declineFromPhone, hangupFromPhone, incomingFor } from './calls.js';
 import { parseId, parseRegister, phones, type Phone } from './phoneStore.js';
 
 const BODY_MAX = 4096;
@@ -180,6 +182,17 @@ export function handlePhoneApi(req: http.IncomingMessage, res: http.ServerRespon
       : declineFromPhone(call, phone) ? { ok: true } : { ok: false, error: 'Cuộc gọi đã kết thúc.' };
     console.log(`[phones] ${call}: ${phone} ${p === '/app/answer' ? 'nghe' : 'tu choi'} -> ${r.ok ? 'ok' : 'khong'}`);
     json(res, r.ok ? 200 : 409, r);
+    return true;
+  }
+
+  // (GD3) Ket thuc cuoc goi tu dien thoai (trang call-web.html?call= bam "Kết thúc" khi WS chua/khong con vao duoc).
+  if (p === '/app/hangup') {
+    if (req.method !== 'POST') { json(res, 405, { error: 'POST' }); return true; }
+    const phone = q('phone'), call = q('call');
+    if (!phone || !call) { json(res, 400, { ok: false, error: 'can phone va call' }); return true; }
+    const ok = hangupFromPhone(call, phone);
+    console.log(`[phones] ${call}: ${phone} ket thuc -> ${ok ? 'ok' : 'khong'}`);
+    json(res, ok ? 200 : 409, ok ? { ok: true } : { ok: false, error: 'Cuộc gọi đã kết thúc.' });
     return true;
   }
 

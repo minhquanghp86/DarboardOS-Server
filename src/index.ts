@@ -223,7 +223,7 @@ const STATIC_PAGES = ['no-url.html', 'cam.html', 'camera.html', 'weather.html', 
   // (27/10/2026) Trang Dieu khien bao thuc tu Dashboard (chon man -> trinh Bao thuc cua man do).
   'alarm-ctl.html',
   // (07/10/2026) IPTV (src/iptv.ts). (08/10/2026) Su kien camera Frigate (src/frigate.ts).
-  'iptv.html', 'events.html', 'media.html', 'call-test.html', 'door.html', 'call.html', 'call-web.html', 'call-ui.js', 'call-ui.css', 'door-log.html',
+  'iptv.html', 'events.html', 'media.html', 'call-test.html', 'door.html', 'call.html', 'call-web.html', 'call-ui.js', 'call-ui.css', 'call-join.js', 'door-log.html',
   // (21/10/2026) Trang dieu khien man hinh tu Dashboard (src/controlApi.ts).
   'control.html', 'sw.js',
   'screens.html'];   // (16/10/2026) Dashboard → Màn hình

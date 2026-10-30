@@ -9,8 +9,11 @@
 //               selfVideo(el?): gan hinh cua minh vao khung nho (man: WS /call/video; web: <video> getUserMedia),
 //               rename?(id, name), remove?(id, name): (GD8) SUA TEN / XOA thiet bi "Điện thoại" trong danh ba —
 //               trang nao khong co 2 ham nay (vd call.html cua man) thi khong hien 2 nut nho }
-//   va goi ui.set(state) moi khi trang thai doi: {view:'contacts'|'out'|'in'|'active'|'ended', call, peer, peerName,
+//   va goi ui.set(state) moi khi trang thai doi: {view:'contacts'|'out'|'in'|'active'|'ended'|'join', call, peer, peerName,
 //   since, peerMuted, peerCamOff, reason}. Sau khi sua/xoa thiet bi, trang goi ui.refresh() de ve lai danh ba.
+//   (GD3) view 'join' = DIEN THOAI dang vao cuoc goi co san (call-web.html?call=<id>): hien ten nguoi goi + `sub`
+//   (dang ket noi / loi quyen micro), nut "Kết thúc" va nut "Thử lại" khi `retry:true` (adapter.retry()).
+//   `rev` (so bat ky): doi -> ve lai man hinh dang hien (vd co hinh camera cua minh sau khi xin quyen muon hon).
 // Chi DOM API (khong innerHTML). Khong hoat anh lien tuc (bang thong toi panel): chi dong ho 1 lan / giay.
 (function () {
   'use strict';
@@ -190,6 +193,14 @@
         center.append(avatar(S.peerName, true), el('div', 'cname', S.peerName || ''), el('div', 'csub', S.reason || 'Cuộc gọi đã kết thúc'));
         top.hidden = true; chrome(true); return;
       }
+      // (GD3) DIEN THOAI vao cuoc goi co san: ten nguoi goi + trang thai (dang bat micro / bi chan quyen).
+      if (S.view === 'join') {
+        showSelf(null); bigCv.hidden = true;
+        center.append(avatar(S.peerName, true), el('div', 'cname', S.peerName || 'Cuộc gọi đến'), el('div', 'csub', S.sub || 'Đang kết nối…'));
+        bar.append(rbtn('red', 'phone-hangup', 'Kết thúc', function () { A.hangup(); }));
+        if (S.retry && A.retry) bar.append(rbtn('green', 'microphone', 'Thử lại', function (b) { b.disabled = true; A.retry(); }));
+        top.hidden = true; chrome(true); return;
+      }
       // active
       if (!remote) {
         S.gotVideo = false;
@@ -212,7 +223,8 @@
     }
     return {
       set: function (st) {
-        var changed = st.view !== S.view || st.peerCamOff !== S.peerCamOff || st.peerMuted !== S.peerMuted || st.call !== S.call;
+        var changed = st.view !== S.view || st.peerCamOff !== S.peerCamOff || st.peerMuted !== S.peerMuted || st.call !== S.call
+          || st.rev !== S.rev;   // (GD3) `rev` = ve lai man hinh dang hien (vd hinh camera cua minh den muon)
         if (st.view !== 'active') { muted = false; camOff = false; }
         S = Object.assign({}, S, st);
         if (changed) render();
