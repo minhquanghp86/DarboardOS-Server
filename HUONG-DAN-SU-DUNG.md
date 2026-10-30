@@ -112,6 +112,9 @@ Mỗi màn hình trở thành **một thiết bị** trong HA, tự cập nhật
 
 ![Cử chỉ vuốt](images/swipe.gif)
 
+▶ Nếu ảnh động không chạy (GitHub đôi khi hiện khung đầu tiên), tải video: [`images/swipe.mp4`](images/swipe.mp4)
+
+
 ### Màn hình chờ (screensaver)
 - Đồng hồ lớn + ngày âm lịch + thời tiết; tuỳ chọn hiện **ảnh nền** (Google Photos hoặc thư mục media).
 - Hiệu ứng chuyển ảnh: Mờ dần, Trượt, Thu phóng, Mờ ảo, Chậm (Ken Burns), Xoay vào/ra, Rơi từ trên, Lật 3D.
