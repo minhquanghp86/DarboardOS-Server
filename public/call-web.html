@@ -338,5 +338,57 @@
   ui.set({ view: 'contacts' });
 })();
 </script>
+
+<div class="dset" id="pushBox" hidden>
+  <div class="row" style="display:flex;align-items:center;gap:10px;justify-content:space-between;padding:6px 0">
+    <div><b>Chuông trên điện thoại</b><div id="pushSt" style="opacity:.7;font-size:.85em">Chưa bật</div></div>
+    <button id="pushBtn" type="button">Bật chuông</button>
+  </div>
+</div>
+<script>
+/* (30/10/2026) Web Push: nhận cuộc gọi khi tab đã đóng. Chỉ chuông + thông báo, KHÔNG tự nhấc máy. */
+(function () {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  var box = document.getElementById('pushBox'), btn = document.getElementById('pushBtn'), st = document.getElementById('pushSt');
+  if (!box || !btn) return;
+  box.hidden = false;
+  function b64(u8) { var s = ''; new Uint8Array(u8).forEach(function (b) { s += String.fromCharCode(b); }); return btoa(s); }
+  function key(str) {
+    var pad = (str + '='.repeat((4 - str.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/');
+    var raw = atob(pad), out = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+    return out;
+  }
+  function base() { return new URL('./', location.href); }
+  function api(p, body, method) {
+    return fetch(p, { method: method || 'GET', headers: body ? { 'content-type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined })
+      .then(function (r) { return r.json(); });
+  }
+  function show(on) { btn.textContent = on ? 'Tắt chuông' : 'Bật chuông'; st.textContent = on ? 'Đã bật — điện thoại sẽ reo khi có cuộc gọi' : 'Chưa bật'; box.dataset.on = on ? '1' : ''; }
+  api('push/key').then(function (j) {
+    if (!j || !j.ok) return;
+    var publicKey = j.key;
+    navigator.serviceWorker.register('sw.js', { scope: './' }).catch(function () { });
+    navigator.serviceWorker.ready.then(function (reg) {
+      reg.pushManager.getSubscription().then(function (sub) { show(!!sub); });
+      btn.onclick = function () {
+        btn.disabled = true;
+        var go = box.dataset.on ? reg.pushManager.getSubscription().then(function (sub) {
+          if (!sub) return false;
+          var ep = sub.endpoint;
+          return sub.unsubscribe().then(function () { return api('push/unsubscribe', { endpoint: ep }, 'POST'); }).then(function () { show(false); });
+        }) : Notification.requestPermission().then(function (perm) {
+          if (perm !== 'granted') { st.textContent = 'Trình duyệt chưa cho phép thông báo'; return; }
+          return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key(publicKey) }).then(function (sub) {
+            return api('push/subscribe', { name: 'Điện thoại', endpoint: sub.endpoint, keys: sub.toJSON().keys }, 'POST')
+              .then(function (r) { if (r && r.ok) show(true); else st.textContent = (r && r.error) || 'Đăng ký thất bại'; });
+          });
+        });
+        Promise.resolve(go).catch(function (e) { st.textContent = 'Lỗi: ' + e.message; }).then(function () { btn.disabled = false; });
+      };
+    });
+  }).catch(function () { });
+})();
+</script>
 </body>
 </html>

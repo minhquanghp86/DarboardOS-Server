@@ -1,3 +1,8 @@
+## V2.9.294
+- **Web Push (bước 1)**: sinh VAPID, API `/push/*`, service worker `sw.js`, và nút **Bật chuông trên điện thoại**
+  trong trang Cuộc gọi. Điện thoại sẽ reo khi có cuộc gọi kể cả khi tab đã đóng (chỉ chuông + thông báo,
+  KHÔNG tự nhấc máy — người dùng chọn Nghe hoặc Từ chối).
+
 ## V2.9.293
 - Đồng bộ lại CHANGELOG trong add-on (các mục 2.9.288 → 2.9.292 bị thiếu do lỗi chèn chuỗi khi phát hành).
   Không thay đổi mã nguồn.
