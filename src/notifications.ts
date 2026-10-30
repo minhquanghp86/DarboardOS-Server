@@ -73,6 +73,8 @@ export function parseNotify(body: NotifyRequest, go2rtc: string):
   }
   const durRaw = Number(body.duration);
   const duration = Number.isFinite(durRaw) && durRaw >= 0 ? Math.min(600, Math.round(durRaw)) : undefined;
+  // (30/10/2026) CHAN DOAN tam thoi: xem duration thuc su nhan duoc tu automation.
+  console.log(`[notify] dev=${str(body.device,64) || 'all'} prio=${priority} dur=${duration ?? 'none'} cam=${camera || '-'}`);
   const app = str(body.app, 40);
   const arg = app ? str(body.arg, 64) : '';
   return {
