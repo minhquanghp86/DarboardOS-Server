@@ -1,3 +1,7 @@
+## V2.9.286
+- Sửa mục "thông báo camera khi màn đang khoá": cờ khoá được ghi nhớ **trước khi** gỡ màn hình chờ (2.9.285 ghi sau nên
+  luôn = false → kết thúc thông báo lại về màn hình chính). Nay khoá lại đúng như trước khi có thông báo.
+
 ## V2.9.285
 - Ảnh nền: thêm mốc **5 giây** và **10 giây** cho thời gian chuyển ảnh.
 - Hiệu ứng chuyển ảnh **chậm hơn, dễ thấy**: 1,4–1,8 giây (trước 0,65–0,8 giây).

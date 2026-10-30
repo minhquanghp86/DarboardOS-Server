@@ -922,8 +922,9 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
       ovWasLocked = false;
     }
   }
-  function openOverlay(n: Notice): void {
-    ovWasLocked = !!(saverEl && svOpts.lock);
+  function openOverlay(n: Notice, wasLocked = false): void {
+    // (30/10/2026) notify() da go man hinh cho TRUOC khi goi ham nay, nen phai nhan co tu ngoai vao.
+    ovWasLocked = wasLocked || !!(saverEl && svOpts.lock);
     closeOverlay(false); hideToast();
     const card = el('div', 'ov-card ' + n.p);
     const txt = el('div', 'ov-txt');
@@ -962,7 +963,7 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     window.__rwvLastNotice = n;
     // (07/10/2026) Dang KHOA: giu man hinh khoa, the thong bao hien de len nhung chi de xem.
     const onLock = !!(saverEl && svOpts.lock);
-    if (n.p === 'urgent') { if (onLock) screensaver(false); openOverlay(n); if (sound) chime(true); return; }
+    if (n.p === 'urgent') { if (onLock) screensaver(false); openOverlay(n, onLock); if (sound) chime(true); return; }
     hideToast(); if (!onLock) screensaver(false);
     toast(n, onLock);
     if (sound) chime(n.p === 'critical');
