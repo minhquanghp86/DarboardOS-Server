@@ -28,7 +28,7 @@ PRIORITY = "urgent"
 
 SERVICE_SCHEMA = vol.Schema(
     {
-        vol.Required("message"): cv.string,
+        vol.Optional("message", default=""): cv.string,
         vol.Optional("title", default=""): cv.string,
         vol.Optional("duration", default=10): vol.Any(cv.string, vol.All(vol.Coerce(int), vol.Range(min=0, max=600))),
         vol.Optional("device"): vol.Any(cv.string, [cv.string]),
