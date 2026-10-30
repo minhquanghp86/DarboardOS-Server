@@ -135,6 +135,25 @@ Camera (xem/chụp/quay lưu thẻ SD), Frigate, IPTV, YouTube, YouTube TV, nh�
 |---|---|
 | ![Gọi video](images/app-call.png) | ![Camera](images/app-camera.png) |
 
+**Các ứng dụng khác**
+
+| Frigate | Sự kiện camera | Thư viện |
+|---|---|---|
+| ![Frigate](images/app-frigate.png) | ![Sự kiện camera](images/app-events.png) | ![Thư viện](images/app-gallery.png) |
+
+| Phòng | Solar | TikTok |
+|---|---|---|
+| ![Phòng](images/app-rooms.png) | ![Solar](images/app-solar.png) | ![TikTok](images/app-tiktok.png) |
+
+| YouTube Music | Radio | Tin tức |
+|---|---|---|
+| ![YouTube Music](images/app-music.png) | ![Radio](images/app-radio.png) | ![Tin tức](images/app-news.png) |
+
+| Media | IPTV |
+|---|---|
+| ![Media](images/app-media.png) | ![IPTV](images/app-iptv.png) |
+
+
 
 **Báo thức**: đặt trên màn hoặc từ trang Dashboard; lặp theo thứ, báo lại, chọn màn nào reo. Báo thức lưu ở
 server nên **màn tắt vẫn reo đúng giờ**.
