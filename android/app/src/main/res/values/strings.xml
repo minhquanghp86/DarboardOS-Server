@@ -1,16 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Dashboard OS</string>
-    <string name="url_hint">Địa chỉ Dashboard (URL)</string>
-    <string name="action_open">Mở</string>
+    <!-- (30/10/2026) GD4: người dùng chỉ nhập IP/domain của Home Assistant. -->
+    <string name="url_hint">Địa chỉ Home Assistant</string>
+    <string name="url_hint_example">192.168.10.2 hoặc hass.example.com</string>
+    <string name="action_connect">Kết nối</string>
     <string name="action_change_url">URL</string>
     <string name="action_settings">Cài đặt</string>
     <string name="action_close">Đóng</string>
-    <string name="url_footer">Địa chỉ được ghi nhớ, lần sau mở app sẽ vào thẳng dashboard.</string>
-    <string name="err_empty_url">Vui lòng nhập địa chỉ</string>
+    <string name="url_footer">Chỉ cần địa chỉ của Home Assistant. App tự tìm add-on Dashboard OS, tự đăng ký thiết bị và mở trang điều khiển.</string>
+    <string name="err_empty_url">Vui lòng nhập địa chỉ Home Assistant</string>
+    <string name="err_bad_address">Địa chỉ không hợp lệ. Nhập IP (vd 192.168.10.2) hoặc tên miền (vd hass.example.com)</string>
     <string name="err_load">Không tải được trang. Kiểm tra URL hoặc kết nối mạng.</string>
     <string name="perm_denied">Cần quyền micro/camera để dùng tính năng đàm thoại</string>
     <string name="url_button_short">URL</string>
+
+    <!-- (30/10/2026) GD4 — trạng thái ở màn nhập địa chỉ. -->
+    <string name="status_connected">Đã kết nối: %1$s · Điện thoại: %2$s</string>
+    <string name="status_checking">Đang kiểm tra máy chủ đã lưu…</string>
+    <string name="status_searching">Đang tìm máy chủ… (%1$d/%2$d)</string>
+    <string name="status_not_found">Không tìm thấy Dashboard OS. Đã thử:</string>
+    <string name="status_hint">Kiểm tra: add-on Dashboard OS đã chạy · điện thoại cùng Wi-Fi/LAN · thử http://&lt;ip&gt;:18080</string>
+    <string name="status_offline">Không thấy máy chủ ở %1$s. Bấm “Kết nối” để dò lại (add-on có thể đang tắt).</string>
+    <string name="connect_ok">Đã tìm thấy máy chủ, đã đăng ký thiết bị</string>
+    <string name="connect_ok_noreg">Đã tìm thấy máy chủ (chưa đăng ký được — sẽ thử lại ở nền)</string>
 
     <!-- (10/11/2026) GD2 — nhận cuộc gọi từ màn hình P4 khi app đóng / ở nền. -->
     <string name="svc_title">Đang nhận cuộc gọi</string>
@@ -18,7 +31,7 @@
     <string name="svc_channel">Nhận cuộc gọi (chạy nền)</string>
     <string name="svc_channel_desc">Giữ kết nối tới máy chủ Dashboard để báo cuộc gọi đến khi app đóng.</string>
     <string name="call_channel">Cuộc gọi đến</string>
-    <string name="call_channel_desc">Thông báo toàn màn hình khi có cuộc gọi từ màn hình P4.</string>
+    <string name="call_channel_desc">Thông báo toàn màn hình khi có cuộc gọi từ màn hình P4 (chuông/rung do app tự phát).</string>
     <string name="call_notif_title">Cuộc gọi đến</string>
     <string name="call_incoming">Cuộc gọi đến</string>
     <string name="call_unknown_caller">Màn hình</string>
@@ -42,8 +55,33 @@
     <string name="st_full_no">Toàn màn hình: chưa cho phép</string>
     <string name="st_phone_id">Mã máy: %1$s</string>
     <string name="st_server">Máy chủ: %1$s</string>
-    <string name="st_no_server">chưa có (nhập URL ở màn hình chính)</string>
+    <string name="st_no_server">chưa có (nhập địa chỉ Home Assistant ở màn hình chính)</string>
     <string name="st_service">Dịch vụ nền: %1$s</string>
     <string name="st_on">đang chạy</string>
     <string name="st_off">đang tắt</string>
+
+    <!-- (11/11/2026) GD3 — trạng thái debug: cuộc gọi đang đến / chuông / lần poll cuối. -->
+    <string name="st_status_section">Trạng thái</string>
+    <string name="st_call_active">Cuộc gọi đang đến: %1$s</string>
+    <string name="st_no_call">Cuộc gọi đang đến: không có</string>
+    <string name="st_ring_on">Chuông: đang phát</string>
+    <string name="st_ring_off">Chuông: dừng</string>
+    <string name="st_last_poll">Lần poll cuối: %1$s</string>
+    <string name="st_never">chưa có</string>
+    <string name="st_channel">Kênh cuộc gọi: %1$s</string>
+    <string name="st_channel_high">ưu tiên cao (OK)</string>
+    <string name="st_channel_low">BỊ HẠ MỨC — hãy đặt lại kênh “Cuộc gọi đến” thành “Khẩn cấp/Ưu tiên”</string>
+
+    <!-- (11/11/2026) GD3 — quyền bổ sung + lối tắt cài đặt MIUI. -->
+    <string name="st_overlay_button">Cho phép hiện cửa sổ nổi (mở màn gọi từ nền)</string>
+    <string name="st_dnd_button">Cho phép bỏ qua Không làm phiền (chuông khi DND)</string>
+    <string name="st_device_section">Cài đặt thông báo &amp; lối tắt MIUI</string>
+    <string name="st_device_hint">MIUI/Xiaomi hay chặn chuông và màn hình gọi khi app ở nền: bật đủ các mục dưới đây.</string>
+    <string name="st_notif_settings_button">Mở cài đặt thông báo của app</string>
+    <string name="st_call_channel_button">Mở cài đặt kênh “Cuộc gọi đến”</string>
+    <string name="st_miui_autostart_button">MIUI: Tự khởi động (Autostart)</string>
+    <string name="st_miui_perm_button">MIUI: Quyền của app / quyền khác</string>
+    <string name="st_app_details_button">Thông tin app (cài đặt hệ thống)</string>
+    <string name="st_no_screen">Máy này không có màn hình đó — mở thông tin app</string>
+    <string name="st_no_settings_screen">Không mở được màn hình cài đặt này</string>
 </resources>

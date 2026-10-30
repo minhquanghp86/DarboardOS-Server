@@ -1,3 +1,10 @@
+## V2.9.296
+- **Cài đặt một chạm cho app Android**: thêm `GET /app/ping` (có CORS, chấp nhận mọi tiền tố proxy) để app tự
+  dò ra add-on. Người dùng chỉ cần nhập **IP hoặc domain của Home Assistant** — app tự thử 4–5 địa chỉ, tự đăng ký
+  thiết bị và mở trang điều khiển.
+- App: màn đầu rút gọn còn 1 ô “Địa chỉ Home Assistant” + nút **Kết nối**; có tiến trình dò, thông báo lỗi kèm
+  danh sách đã thử; giữ nguyên toàn bộ chức năng nghe/gọi.
+
 ## V2.9.295
 - **Nhận cuộc gọi trên app Android (GĐ 2)**: API `/app/register`, `/app/list`, `/app/incoming`, `/app/answer`,
   `/app/decline`; điện thoại đã đăng ký trở thành **thiết bị gọi được thường trú** (hiện trong danh bạ của P4 với nhãn

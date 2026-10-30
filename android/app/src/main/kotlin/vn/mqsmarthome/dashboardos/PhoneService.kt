@@ -1,17 +1,24 @@
 package vn.mqsmarthome.dashboardos
 
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
+import android.os.PowerManager
 import android.util.Log
 
 /**
  * (10/11/2026) GD2 — chuông báo cuộc gọi đến khi app ĐÓNG / ở nền.
+ * (11/11/2026) GD3 — chuông + rung LẶP thật sự (CallRinger), thông báo full-screen có 2 nút, trạng thái debug.
  *
  * Chạy như foreground service (kiểu `specialUse` từ Android 14, `dataSync` cho Android 10-13) và tự bơm 2 giây/lần:
- *   - POST /app/register (khi bắt đầu, khi đổi URL, và 5 phút/lần) — id lấy từ SharedPreferences,
- *   - GET  /app/incoming?phone=<id> — có cuộc gọi thì dựng thông báo full-screen + mở IncomingCallActivity.
+ *   - POST /app/register (khi bắt đầu, khi đổi URL, và 60 giây/lần) — id lấy từ SharedPreferences,
+ *   - GET  /app/incoming?phone=<id> — có cuộc gọi thì: chuông+rung lặp, thông báo full-screen (Nghe/Từ chối),
+ *     thử mở IncomingCallActivity ngay.
  * Không dùng WebSocket / Firebase: Polling 2 s là đủ nhanh cho chuông và chịu được mất mạng, vào lại Wi-Fi, màn khoá.
  */
 class PhoneService : Service() {
@@ -20,9 +27,11 @@ class PhoneService : Service() {
         private const val TAG = "PhoneService"
 
         const val CH_SERVICE = "phone_service"
-        const val CH_CALL = "incoming_call"
+
+        /** Giữ tên cũ cho code cũ / log; kênh cuộc gọi thật nằm ở CallNotifications.CHANNEL_ID. */
+        const val CH_CALL = CallNotifications.CHANNEL_ID
         const val NOTIF_SERVICE = 1001
-        const val NOTIF_CALL = 1002
+        const val NOTIF_CALL = CallNotifications.NOTIF_ID
 
         /** Chu kỳ hỏi server (yêu cầu GD2: 2 giây). */
         const val POLL_MS = 2_000L
@@ -58,7 +67,7 @@ class PhoneService : Service() {
     private var loop: Thread? = null
 
     /** Giu CPU thuc day khi man hinh tat de vong poll 2 s khong bi Doze treo. */
-    private var wakeLock: android.os.PowerManager.WakeLock? = null
+    private var wakeLock: PowerManager.WakeLock? = null
 
     @Volatile
     private var stopping = false
@@ -66,6 +75,9 @@ class PhoneService : Service() {
     /** Cuoc goi dang do chuong (tranh dung lai activity / thong bao moi 2 giay). */
     @Volatile
     private var ringing: String? = null
+
+    /** Chuông + rung dùng chung với IncomingCallActivity (một tiến trình, một chuông). */
+    private val ringer: CallRinger by lazy { CallRinger.get(this) }
 
     override fun onCreate() {
         super.onCreate()
@@ -91,6 +103,12 @@ class PhoneService : Service() {
         loop?.interrupt()
         loop = null
         running = false
+        // Service chết thì phải tắt chuông, nếu không chuông kêu mãi không có gì dừng.
+        ringer.stop()
+        ringing = null
+        PhoneStatus.callId = null
+        PhoneStatus.ringing = false
+        PhoneStatus.publish(this)
         cancelCallNotification()
         releaseWakeLock()
         super.onDestroy()
@@ -104,8 +122,8 @@ class PhoneService : Service() {
     private fun acquireWakeLock() {
         if (wakeLock != null) return
         try {
-            val pm = getSystemService(android.os.PowerManager::class.java) ?: return
-            wakeLock = pm.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "DashboardOS:phone-poll").apply {
+            val pm = getSystemService(PowerManager::class.java) ?: return
+            wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "DashboardOS:phone-poll").apply {
                 setReferenceCounted(false)
                 acquire()
             }
@@ -140,13 +158,13 @@ class PhoneService : Service() {
         }
     }
 
-    private fun serviceNotification(): android.app.Notification {
-        val open = android.app.PendingIntent.getActivity(
+    private fun serviceNotification(): Notification {
+        val open = PendingIntent.getActivity(
             this, 0, Intent(this, MainActivity::class.java),
-            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        return android.app.Notification.Builder(this, CH_SERVICE)
-            .setSmallIcon(android.R.drawable.sym_action_call)
+        return Notification.Builder(this, CH_SERVICE)
+            .setSmallIcon(R.drawable.ic_call_notif)
             .setContentTitle(getString(R.string.svc_title))
             .setContentText(getString(R.string.svc_text))
             .setOngoing(true)
@@ -156,32 +174,26 @@ class PhoneService : Service() {
     }
 
     private fun ensureChannels() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-        val nm = getSystemService(android.app.NotificationManager::class.java) ?: return
-
-        if (nm.getNotificationChannel(CH_SERVICE) == null) {
-            nm.createNotificationChannel(
-                android.app.NotificationChannel(
-                    CH_SERVICE, getString(R.string.svc_channel), android.app.NotificationManager.IMPORTANCE_LOW
-                ).apply {
-                    description = getString(R.string.svc_channel_desc)
-                    setShowBadge(false)
-                }
-            )
+        // Kênh "đang nhận cuộc gọi" (im lặng, độ ưu tiên thấp) của foreground service.
+        val nm = getSystemService(NotificationManager::class.java)
+        if (nm != null && nm.getNotificationChannel(CH_SERVICE) == null) {
+            try {
+                nm.createNotificationChannel(
+                    NotificationChannel(
+                        CH_SERVICE,
+                        getString(R.string.svc_channel),
+                        NotificationManager.IMPORTANCE_LOW
+                    ).apply {
+                        description = getString(R.string.svc_channel_desc)
+                        setShowBadge(false)
+                    }
+                )
+            } catch (t: Throwable) {
+                Log.w(TAG, "tao kenh service loi: ${t.message}")
+            }
         }
-        if (nm.getNotificationChannel(CH_CALL) == null) {
-            nm.createNotificationChannel(
-                android.app.NotificationChannel(
-                    CH_CALL, getString(R.string.call_channel), android.app.NotificationManager.IMPORTANCE_HIGH
-                ).apply {
-                    description = getString(R.string.call_channel_desc)
-                    // Tu phat chuong + rung trong IncomingCallActivity (Ringtone/Vibrator), khong de he thong lam 2 lan.
-                    setSound(null, null)
-                    enableVibration(false)
-                    lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
-                }
-            )
-        }
+        // Kênh cuộc gọi: HIGH + im lặng + bypass DND + hiện trên màn khoá (xem CallNotifications).
+        CallNotifications.ensureChannel(this)
     }
 
     // ────────────────────────────────────────────────────────────── vòng poll
@@ -192,26 +204,40 @@ class PhoneService : Service() {
         running = true
         loop = Thread {
             var lastRegister = 0L
-            var registeredUrl: String? = null
+            var registeredBase: String? = null
             while (!stopping && Prefs.receiveEnabled(this)) {
-                val url = Prefs.url(this)
-                if (url.isNullOrBlank()) {
+                // (30/10/2026) GD4: dung THANG goc API da do duoc (khong suy ra tu URL trang nua).
+                val base = Prefs.apiBase(this)
+                if (base.isNullOrBlank()) {
                     if (!sleep()) break
                     continue
                 }
                 val id = Prefs.phoneId(this)
                 val now = System.currentTimeMillis()
-                if (registeredUrl != url || now - lastRegister >= RE_REGISTER_MS) {
-                    if (PhoneApi.register(url, id, Prefs.phoneName())) {
+                if (registeredBase != base || now - lastRegister >= RE_REGISTER_MS) {
+                    if (PhoneApi.register(base, Prefs.webUrl(this), id, Prefs.phoneName())) {
                         lastRegister = now
-                        registeredUrl = url
+                        registeredBase = base
                         Log.i(TAG, "da dang ky $id voi server")
                     }
                 }
-                when (val r = PhoneApi.incoming(url, id)) {
-                    is PhoneApi.Poll.Ring -> onIncoming(url, r.call)
-                    PhoneApi.Poll.None -> onNoCall()
-                    PhoneApi.Poll.Error -> Unit   // mat mang: giu nguyen trang thai, thu lai sau 2 s
+                when (val r = PhoneApi.incoming(base, id)) {
+                    is PhoneApi.Poll.Ring -> {
+                        PhoneStatus.lastPollAt = System.currentTimeMillis()
+                        onIncoming(r.call)
+                        PhoneStatus.publish(this)
+                    }
+                    PhoneApi.Poll.None -> {
+                        PhoneStatus.lastPollAt = System.currentTimeMillis()
+                        onNoCall()
+                        PhoneStatus.publish(this)
+                    }
+                    PhoneApi.Poll.Error -> {
+                        // mat mang: giu nguyen trang thai (chuông vẫn kêu), thu lai sau 2 s.
+                        // Vẫn cập nhật giờ poll để màn Cài đặt thấy vòng poll còn sống.
+                        PhoneStatus.lastPollAt = System.currentTimeMillis()
+                        PhoneStatus.publish(this)
+                    }
                 }
                 if (!sleep()) break
             }
@@ -228,57 +254,52 @@ class PhoneService : Service() {
         false
     }
 
-    private fun onIncoming(url: String, call: PhoneApi.Incoming) {
+    private fun onIncoming(call: PhoneApi.Incoming) {
         val current = ringing
-        if (current == call.id) return          // da bao roi, cho nguoi dung bam
+        if (current == call.id) {
+            // Đã báo rồi. Trước đây chuông có thể đã bị tắt (màn hình gọi bị đóng) -> phát lại, NHƯNG không
+            // bao giờ phát lại cuộc gọi mà người dùng đã Nghe/Từ chối (server có thể còn trả về vài giây).
+            if (PhoneStatus.handledCallId != call.id && !ringer.isRinging()) ringer.start()
+            return
+        }
+        // Cuộc gọi mới: bỏ dấu "đã xử lý" của cuộc gọi trước.
+        if (PhoneStatus.handledCallId != call.id) PhoneStatus.handledCallId = null
         ringing = call.id
         Log.i(TAG, "cuoc goi den ${call.id} tu ${call.fromName}")
+
+        // 1) Chuông + rung lặp TRƯỚC (âm thanh là thứ người dùng cần nghe ngay).
+        ringer.start()
+
+        // 2) Thông báo full-screen (Nghe / Từ chối) + trạng thái cho màn Cài đặt.
+        PhoneStatus.callId = call.id
+        PhoneStatus.ringing = ringer.isRinging()
         postCallNotification(call)
-        // Man khoa / man tat: he thong tu mo activity tu full-screen intent. Dang mo may: mo thang (co the bi
-        // Android 10+ chan neu app o nen — khi do nguoi dung bam thong bao).
+
+        // 3) Màn khoá / màn tắt: hệ thống tự mở activity từ full-screen intent. Đang mở máy: thử mở thẳng;
+        //    Android 10+ có thể chặn startActivity từ nền (khi đó người dùng bấm thông báo / bật "hiện cửa sổ nổi").
         try {
             startActivity(IncomingCallActivity.intentFor(this, call))
         } catch (t: Throwable) {
-            Log.d(TAG, "khong mo thang duoc IncomingCallActivity: ${t.javaClass.simpleName}")
+            Log.d(TAG, "khong mo thang duoc IncomingCallActivity: ${t.javaClass.simpleName}: ${t.message}")
         }
     }
 
     private fun onNoCall() {
         if (ringing == null) return
         ringing = null
+        PhoneStatus.handledCallId = null
+        ringer.stop()
+        PhoneStatus.callId = null
+        PhoneStatus.ringing = false
         cancelCallNotification()
-        IncomingCallActivity.dismissFor(null)   // het chuong (nguoi kia cup / qua 30 s / da nghe)
+        IncomingCallActivity.dismissFor(null)   // hết chuông (người kia cúp / quá 30 s / đã nghe)
     }
 
     private fun postCallNotification(call: PhoneApi.Incoming) {
-        ensureChannels()
-        val pi = android.app.PendingIntent.getActivity(
-            this, 1, IncomingCallActivity.intentFor(this, call),
-            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
-        )
-        val n = android.app.Notification.Builder(this, CH_CALL)
-            .setSmallIcon(android.R.drawable.sym_action_call)
-            .setContentTitle(getString(R.string.call_notif_title))
-            .setContentText(call.fromName.ifBlank { call.from })
-            .setCategory(android.app.Notification.CATEGORY_CALL)
-            .setOngoing(true)
-            .setAutoCancel(false)
-            .setVisibility(android.app.Notification.VISIBILITY_PUBLIC)
-            .setContentIntent(pi)
-            .setFullScreenIntent(pi, true)
-            .build()
-        try {
-            getSystemService(android.app.NotificationManager::class.java)?.notify(NOTIF_CALL, n)
-        } catch (t: Throwable) {
-            Log.w(TAG, "khong hien duoc thong bao cuoc goi: ${t.message}")
-        }
+        CallNotifications.notifyIncoming(this, call)
     }
 
     private fun cancelCallNotification() {
-        try {
-            getSystemService(android.app.NotificationManager::class.java)?.cancel(NOTIF_CALL)
-        } catch (t: Throwable) {
-            Log.d(TAG, "cancel: ${t.message}")
-        }
+        CallNotifications.cancel(this)
     }
 }

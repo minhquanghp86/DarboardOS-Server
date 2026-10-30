@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- (10/11/2026) GD2 — man Cai dat nho: bat/tat nhan cuoc goi khi app dong + xin quyen. -->
+<!-- (11/11/2026) GD3 — man Cai dat: bat/tat nhan cuoc goi khi app dong, quyen, loi tat cai dat MIUI, trang thai debug. -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -36,6 +36,27 @@
             android:textColor="#FF9AA7BD"
             android:textSize="12sp" />
 
+        <!-- ── trạng thái (debug): cuộc gọi đang đến / chuông / lần poll cuối ── -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="@string/st_status_section"
+            android:textColor="#FFFFFFFF"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/statusView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:background="#FF16202F"
+            android:padding="12dp"
+            android:textColor="#FF9AA7BD"
+            android:textIsSelectable="true"
+            android:textSize="12sp" />
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -69,13 +90,79 @@
             android:minHeight="48dp"
             android:text="@string/st_full_button" />
 
-        <TextView
-            android:id="@+id/statusView"
+        <Button
+            android:id="@+id/overlayButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="22dp"
-            android:textColor="#FF5B6B85"
+            android:layout_marginTop="8dp"
+            android:minHeight="48dp"
+            android:text="@string/st_overlay_button" />
+
+        <Button
+            android:id="@+id/dndButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:minHeight="48dp"
+            android:text="@string/st_dnd_button" />
+
+        <!-- ── cài đặt thông báo + lối tắt MIUI ── -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="@string/st_device_section"
+            android:textColor="#FFFFFFFF"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/st_device_hint"
+            android:textColor="#FF9AA7BD"
             android:textSize="12sp" />
+
+        <Button
+            android:id="@+id/notifSettingsButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:minHeight="48dp"
+            android:text="@string/st_notif_settings_button" />
+
+        <Button
+            android:id="@+id/callChannelButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:minHeight="48dp"
+            android:text="@string/st_call_channel_button" />
+
+        <Button
+            android:id="@+id/miuiAutostartButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:minHeight="48dp"
+            android:text="@string/st_miui_autostart_button" />
+
+        <Button
+            android:id="@+id/miuiPermButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:minHeight="48dp"
+            android:text="@string/st_miui_perm_button" />
+
+        <Button
+            android:id="@+id/appDetailsButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:minHeight="48dp"
+            android:text="@string/st_app_details_button" />
 
         <Button
             android:id="@+id/closeButton"

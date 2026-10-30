@@ -11,11 +11,12 @@ import java.net.URLEncoder
 /**
  * (10/11/2026) GD2 — goi API cua Dashboard OS tu dien thoai (khong dung thu vien mang ngoai: HttpURLConnection).
  *
- * Dia chi nguoi dung nhap la DIA CHI TRANG (vd https://host/b39.../call-web.html). Tu do dan xuat:
- *   origin = scheme://host[:port] + thu muc cua trang  ->  https://host/b39.../
- *   API    = origin + "app/..."                        ->  https://host/b39.../app/incoming?phone=...
- *   trang  = origin + "call-web.html?call=..."         ->  https://host/b39.../call-web.html?call=...
- * Nho vay ca truong hop chay qua ingress Home Assistant (co tien to /b39feb53_...) lan truy cap thang IP:port deu dung.
+ * (30/10/2026) GD4 — DOI CACH LAY DIA CHI: truoc day app suy ra goc API tu URL trang nguoi dung nhap; nay nguoi dung
+ * chi nhap IP/domain, [ServerResolver] do ra `apiBase` MOT lan roi luu vao [Prefs]. Moi ham o day nhan THANG `apiBase`
+ * (vd `http://192.168.10.2:18080`, hoac `https://hass.example.com/b39feb53_remote_webview_server`) va noi duong dan:
+ *   API  = apiBase + "/app/..."              -> http://192.168.10.2:18080/app/incoming?phone=...
+ *   trang= apiBase + "/call-web.html?call=..."-> http://192.168.10.2:18080/call-web.html?call=...
+ * Khong con buoc "doan" nho vay, nen ca truong hop chay truc tiep IP:port lan sau ingress HA deu dung.
  */
 object PhoneApi {
 
@@ -31,64 +32,33 @@ object PhoneApi {
         object Error : Poll()
     }
 
-    /** Chuan hoa URL nguoi dung nhap: them https:// neu thieu, chi nhan http(s). */
-    fun normalize(raw: String?): String? {
-        var v = raw?.trim().orEmpty()
-        if (v.isEmpty()) return null
-        // Da co scheme khac (ftp://, file://...) thi TU CHOI, khong duoc bien thanh "https://ftp://...".
-        if (!SCHEME_RE.containsMatchIn(v)) v = "https://$v"
-        val u = try { URL(v) } catch (t: Throwable) { return null }
-        val scheme = u.protocol?.lowercase() ?: return null
-        if (scheme != "http" && scheme != "https") return null
-        if (u.host.isNullOrBlank()) return null
-        return u.toString()
-    }
-
-    private val SCHEME_RE = Regex("^[A-Za-z][A-Za-z0-9+.-]*://")
-
-    /** "https://host/b39/xxx.html?y=1" -> "https://host/b39/" (giu ca path prefix). */
-    fun origin(raw: String?): String? {
-        val u = try { URL(normalize(raw) ?: return null) } catch (t: Throwable) { return null }
-        val host = u.host ?: return null
-        val port = if (u.port > 0) ":${u.port}" else ""
-        val path = u.path ?: ""
-        val dir = when {
-            path.isEmpty() -> "/"
-            path.endsWith("/") -> path
-            else -> path.substringBeforeLast('/', "") + "/"
-        }
-        return "${u.protocol}://$host$port$dir"
-    }
-
-    /** Goc API: origin bo dau "/" cuoi (de noi "app/register"). */
-    fun apiBase(raw: String?): String? = origin(raw)?.trimEnd('/')
-
-    fun apiUrl(raw: String?, path: String): String? {
-        val base = apiBase(raw) ?: return null
+    /** `apiBase` da luu + duong dan -> URL day du. null khi apiBase rong / khong phai http(s). */
+    fun apiUrl(apiBase: String?, path: String): String? {
+        val base = clean(apiBase) ?: return null
         return base + (if (path.startsWith("/")) path else "/$path")
     }
 
-    /** URL cua mot trang trong dashboard, vd pageUrl(url, "call-web.html", "call=abc"). */
-    fun pageUrl(raw: String?, page: String, query: String = ""): String? {
-        val base = origin(raw) ?: return null
+    /** URL cua mot trang trong dashboard: pageUrl(base, "call-web.html", "call=abc"). */
+    fun webUrl(apiBase: String?, page: String, query: String = ""): String? {
+        val base = clean(apiBase) ?: return null
         val q = if (query.isBlank()) "" else "?" + query.trimStart('?')
-        return base + page.trimStart('/') + q
+        return "$base/${page.trimStart('/')}$q"
     }
 
     /** Dang ky (hoac cap nhat) may nay voi server. true = server da nhan. */
-    fun register(raw: String?, id: String, name: String): Boolean {
-        val url = apiUrl(raw, "app/register") ?: return false
+    fun register(apiBase: String?, webUrl: String?, id: String, name: String): Boolean {
+        val url = apiUrl(apiBase, "app/register") ?: return false
         val body = JSONObject()
             .put("id", id)
             .put("name", name)
-            .put("url", normalize(raw) ?: "")
+            .put("url", webUrl ?: "")
             .toString()
         val (code, _) = request(url, "POST", body) ?: return false
         return code in 200..299
     }
 
-    fun incoming(raw: String?, id: String): Poll {
-        val url = apiUrl(raw, "app/incoming?phone=" + enc(id)) ?: return Poll.Error
+    fun incoming(apiBase: String?, id: String): Poll {
+        val url = apiUrl(apiBase, "app/incoming?phone=" + enc(id)) ?: return Poll.Error
         val (code, text) = request(url, "GET", null) ?: return Poll.Error
         if (code !in 200..299) return Poll.Error
         return try {
@@ -102,19 +72,27 @@ object PhoneApi {
         }
     }
 
-    fun answer(raw: String?, phoneId: String, callId: String): Boolean =
-        action(raw, "app/answer", phoneId, callId)
+    fun answer(apiBase: String?, phoneId: String, callId: String): Boolean =
+        action(apiBase, "app/answer", phoneId, callId)
 
-    fun decline(raw: String?, phoneId: String, callId: String): Boolean =
-        action(raw, "app/decline", phoneId, callId)
+    fun decline(apiBase: String?, phoneId: String, callId: String): Boolean =
+        action(apiBase, "app/decline", phoneId, callId)
 
-    private fun action(raw: String?, path: String, phoneId: String, callId: String): Boolean {
-        val url = apiUrl(raw, "$path?phone=${enc(phoneId)}&call=${enc(callId)}") ?: return false
+    private fun action(apiBase: String?, path: String, phoneId: String, callId: String): Boolean {
+        val url = apiUrl(apiBase, "$path?phone=${enc(phoneId)}&call=${enc(callId)}") ?: return false
         val (code, _) = request(url, "POST", "{}") ?: return false
         return code in 200..299
     }
 
     private fun enc(v: String): String = URLEncoder.encode(v, "UTF-8")
+
+    /** Chuan hoa apiBase: trim, bo `/` cuoi, bat buoc co scheme http(s). */
+    private fun clean(raw: String?): String? {
+        val v = raw?.trim()?.trimEnd('/').orEmpty()
+        if (v.isEmpty()) return null
+        if (!v.startsWith("http://") && !v.startsWith("https://")) return null
+        return v
+    }
 
     /** Tra (ma HTTP, noi dung) hoac null khi khong ket noi duoc. */
     private fun request(urlStr: String, method: String, body: String?): Pair<Int, String>? {

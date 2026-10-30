@@ -11,13 +11,32 @@
 //   POST /app/answer?phone=<id>&call=<id>       -> nghe (noi voi man, xem src/calls.ts accept)
 //   POST /app/decline?phone=<id>&call=<id>      -> tu choi
 //
+// (30/10/2026) GD4 — them GET|HEAD /app/ping de app tu TIM add-on: nguoi dung chi nhap IP/domain cua Home Assistant,
+// app thu tung ung vien va dung lai o dia chi nao tra {"service":"dashboard-os"}. Endpoint nay KHONG auth, KHONG cache
+// va mo CORS (de sau nay PWA trong Home Assistant cung do duoc).
+//
 // Khac voi /calls/* (chi 127.0.0.1), nam duong dan nay PHAI goi duoc tu LAN / ingress: dien thoai khong chay tren may
 // chu. Khong co mat khau (giong /notify): chi lo ten may + dang cuoc goi, khong lo hinh/tieng.
+import fs from 'node:fs';
 import http from 'node:http';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { accept, declineFromPhone, incomingFor } from './calls.js';
 import { parseRegister, phones } from './phoneStore.js';
 
 const BODY_MAX = 4096;
+
+/** Phien ban add-on (doc tu package.json, giong src/deviceManager.ts) — tra trong /app/ping. */
+const SERVER_VERSION = (() => {
+  try {
+    const pkg = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'package.json');
+    return JSON.parse(fs.readFileSync(pkg, 'utf8')).version as string;
+  } catch {
+    return '?';
+  }
+})();
+
+const PING_PATH = '/app/ping';
 
 function json(res: http.ServerResponse, code: number, body: unknown): void {
   res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
@@ -43,9 +62,41 @@ function readBody(req: http.IncomingMessage, done: (raw: string | null) => void)
   req.on('error', () => finish(null));
 }
 
+/**
+ * (30/10/2026) GD4 — GET|HEAD /app/ping: "may nay co phai Dashboard OS khong?".
+ * Tra 200 + {ok, service:'dashboard-os', version, caps:['phone-api']}, Cache-Control: no-store, CORS *.
+ * HEAD tra header khong body (dung chuan). Method khac -> 405 (van kem CORS de PWA doc duoc loi).
+ */
+function handlePing(req: http.IncomingMessage, res: http.ServerResponse): void {
+  const headers = {
+    'content-type': 'application/json; charset=utf-8',
+    'cache-control': 'no-store',
+    'access-control-allow-origin': '*',
+  };
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    res.writeHead(405, { ...headers, allow: 'GET, HEAD' });
+    res.end(JSON.stringify({ ok: false, error: 'GET/HEAD' }));
+    return;
+  }
+  res.writeHead(200, headers);
+  res.end(req.method === 'HEAD'
+    ? undefined
+    : JSON.stringify({ ok: true, service: 'dashboard-os', version: SERVER_VERSION, caps: ['phone-api'] }));
+}
+
 /** true = da xu ly request. */
 export function handlePhoneApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL): boolean {
-  const p = url.pathname;
+  // Bo "/" cuoi (va chap nhan tien to duong dan: /b39feb53_remote_webview_server/app/ping).
+  const raw = url.pathname;
+  const p = raw.length > 1 ? raw.replace(/\/+$/, '') : raw;
+
+  // (30/10/2026) GD4 — /app/ping: phai tra 200 ca khi add-on chay sau proxy co TIEN TO duong dan, nen so khop
+  // theo HAU TO chu khong phai bang dung. Khong auth, khong cache, CORS mo (PWA cua HA cung do duoc).
+  if (p.endsWith(PING_PATH)) {
+    handlePing(req, res);
+    return true;
+  }
+
   if (!p.startsWith('/app/')) return false;
   const q = (k: string) => url.searchParams.get(k) || '';
 

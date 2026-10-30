@@ -22,6 +22,10 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- (11/11/2026) GD3: quyen "Do Not Disturb access" de kenh cuoc goi dat setBypassDnd(true). -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+    <!-- (11/11/2026) GD3: "hien cua so noi" cung cho phep app mo activity tu nen (Android 10+ chan startActivity). -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <uses-feature
         android:name="android.hardware.camera"
@@ -82,6 +86,12 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="DuytriKetNoiDeNhanCuocGoiTuManHinhDashboard" />
         </service>
+
+        <!-- (11/11/2026) GD3: nut "Tu choi" tren thong bao cuoc goi (chay khi may dang khoa). -->
+        <receiver
+            android:name=".CallActionReceiver"
+            android:enabled="true"
+            android:exported="false" />
 
         <!-- (10/11/2026) GD2: khoi dong lai PhoneService sau khi may khoi dong lai / cap nhat app. -->
         <receiver

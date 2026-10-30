@@ -22,6 +22,7 @@
         android:textSize="24sp"
         android:textStyle="bold" />
 
+    <!-- (30/10/2026) GD4: chỉ cần IP hoặc domain của Home Assistant — app tự tìm add-on. -->
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -37,10 +38,10 @@
         android:layout_marginTop="8dp"
         android:autofillHints="url"
         android:background="#FF16202F"
-        android:hint="@string/url_hint"
+        android:hint="@string/url_hint_example"
         android:imeOptions="actionGo"
         android:inputType="textUri"
-        android:maxLines="3"
+        android:maxLines="1"
         android:minHeight="52dp"
         android:padding="12dp"
         android:selectAllOnFocus="true"
@@ -48,13 +49,25 @@
         android:textColorHint="#FF5B6B85"
         android:textSize="15sp" />
 
+    <!-- Trạng thái: đã kết nối / đang dò (1/5) / danh sách đã thử + gợi ý. -->
+    <TextView
+        android:id="@+id/urlStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:lineSpacingExtra="2dp"
+        android:textColor="#FF9AA7BD"
+        android:textIsSelectable="true"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
     <Button
-        android:id="@+id/openButton"
+        android:id="@+id/connectButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="20dp"
         android:minHeight="54dp"
-        android:text="@string/action_open"
+        android:text="@string/action_connect"
         android:textSize="16sp" />
 
     <!-- (10/11/2026) GD2: mo man Cai dat (nhan cuoc goi khi app dong, quyen thong bao, toi uu pin). -->

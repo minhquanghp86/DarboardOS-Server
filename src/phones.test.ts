@@ -5,6 +5,7 @@
 
 // (10/11/2026) GD2 — 5 duong dan app Android dung (src/phones.ts): dang ky, danh sach, cuoc goi den, nghe, tu choi.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 
 const screens = vi.hoisted(() => ({ list: [] as { id: string; w: number; h: number; cam: boolean; sd: boolean; spk: boolean; mic: boolean }[] }));
 
@@ -29,12 +30,16 @@ const PHONE = 'phone-abc123';
 const stOf = (id: string) => state(id) as { state: string; reason?: string };
 const live: string[] = [];
 
-interface Captured { code: number; body: string; type: string }
+interface Captured { code: number; body: string; type: string; headers: Record<string, string> }
 
 function res(): Captured & { writeHead: (c: number, h?: Record<string, string>) => void; end: (b: string) => void } {
   const r = {
-    code: 0, body: '', type: '',
-    writeHead(c: number, h?: Record<string, string>) { r.code = c; r.type = h?.['content-type'] || ''; },
+    code: 0, body: '', type: '', headers: {} as Record<string, string>,
+    writeHead(c: number, h?: Record<string, string>) {
+      r.code = c;
+      r.type = h?.['content-type'] || '';
+      Object.assign(r.headers, h ?? {});
+    },
     end(b: string) { r.body = b; },
   };
   return r;
@@ -182,6 +187,56 @@ describe('POST /app/answer | /app/decline', () => {
   it('thieu tham so -> 400, sai method -> 405', () => {
     expect(call('POST', '/app/answer?phone=x').out.code).toBe(400);
     expect(call('GET', '/app/answer?phone=x&call=y').out.code).toBe(405);
+  });
+});
+
+describe('GET /app/ping', () => {
+  it('200 + service dashboard-os + version tu package.json + caps', () => {
+    const { handled, out } = call('GET', '/app/ping');
+    expect(handled).toBe(true);
+    expect(out.code).toBe(200);
+    expect(JSON.parse(out.body)).toEqual({
+      ok: true,
+      service: 'dashboard-os',
+      version: JSON.parse(readFileSync('package.json', 'utf8')).version,
+      caps: ['phone-api'],
+    });
+  });
+
+  it('khong cache + mo CORS (de PWA do duoc)', () => {
+    const { out } = call('GET', '/app/ping');
+    expect(out.headers['cache-control']).toBe('no-store');
+    expect(out.headers['access-control-allow-origin']).toBe('*');
+  });
+
+  it('HEAD -> 200, khong body', () => {
+    const out = res();
+    const handled = handlePhoneApi(req('HEAD').req, out as never, new URL('http://x/app/ping'));
+    expect(handled).toBe(true);
+    expect(out.code).toBe(200);
+    expect(out.body || '').toBe('');
+    expect(out.headers['access-control-allow-origin']).toBe('*');
+  });
+
+  it('sau proxy co tien to duong dan -> van 200', () => {
+    for (const path of [
+      '/b39feb53_remote_webview_server/app/ping',
+      '/api/hassio_ingress/token-abc/app/ping',
+      '/app/ping/',
+      '/app/ping?x=1',
+    ]) {
+      const { out } = call('GET', path);
+      expect(out.code, path).toBe(200);
+      expect(JSON.parse(out.body), path).toMatchObject({ ok: true, service: 'dashboard-os' });
+    }
+  });
+
+  it('method khac GET/HEAD -> 405', () => {
+    expect(call('POST', '/app/ping').out.code).toBe(405);
+  });
+
+  it('cac /app/* khac khong duoc mo CORS', () => {
+    expect(call('GET', '/app/list').out.headers['access-control-allow-origin']).toBeUndefined();
   });
 });
 

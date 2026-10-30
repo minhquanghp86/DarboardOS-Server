@@ -3,7 +3,11 @@ package vn.mqsmarthome.dashboardos
 import android.Manifest
 import android.app.Activity
 import android.app.NotificationManager
+import android.content.BroadcastReceiver
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -14,14 +18,21 @@ import android.widget.Button
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * (10/11/2026) GD2 — màn Cài đặt nhỏ: bật/tắt "Nhận cuộc gọi khi app đóng" và xin các quyền cần thiết.
+ * (11/11/2026) GD3 — thêm lối tắt cài đặt MIUI, cài đặt thông báo/kênh cuộc gọi, và khối trạng thái debug.
  *
- * Ba thứ quyết định chuông có kêu khi app đóng / máy khoá:
+ * Những thứ quyết định chuông có kêu + màn hình gọi có bật lên khi máy khoá:
  *   1. quyền POST_NOTIFICATIONS (Android 13+) — không có thì không có thông báo full-screen,
- *   2. bỏ tối ưu pin — Android sẽ giết foreground service nếu nhà sản xuất quá tay,
- *   3. quyền "hiện toàn màn hình" (Android 14+) — app không phải loại gọi điện phải xin thủ công.
+ *   2. quyền "hiện toàn màn hình" / full-screen intent (Android 14+, trên MIUI là "Màn hình khóa & thông báo"),
+ *   3. "hiện cửa sổ nổi" (overlay) — cho phép app mở activity từ nền,
+ *   4. bỏ tối ưu pin + MIUI "Tự khởi động" + "Không hạn chế pin",
+ *   5. kênh thông báo "Cuộc gọi đến" không bị người dùng hạ mức.
+ * Khối trạng thái đọc PhoneStatus (service ghi) và cập nhật qua broadcast nội bộ mỗi lần service poll.
  */
 class SettingsActivity : Activity() {
 
@@ -31,6 +42,13 @@ class SettingsActivity : Activity() {
 
     private lateinit var receiveSwitch: Switch
     private lateinit var statusView: TextView
+    private var receiverRegistered = false
+
+    private val statusReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == PhoneStatus.ACTION_STATUS) renderStatus()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,20 +61,63 @@ class SettingsActivity : Activity() {
         receiveSwitch.setOnCheckedChangeListener { _, on ->
             Prefs.setReceiveEnabled(this, on)
             if (on) PhoneService.start(this) else PhoneService.stop(this)
-            updateStatus()
+            renderStatus()
         }
 
         findViewById<Button>(R.id.notifButton).setOnClickListener { requestNotifications() }
         findViewById<Button>(R.id.batteryButton).setOnClickListener { requestIgnoreBattery() }
         findViewById<Button>(R.id.fullScreenButton).setOnClickListener { requestFullScreenIntent() }
+        findViewById<Button>(R.id.overlayButton).setOnClickListener { requestOverlay() }
+        findViewById<Button>(R.id.dndButton).setOnClickListener { requestDndAccess() }
+
+        findViewById<Button>(R.id.notifSettingsButton).setOnClickListener { openAppNotificationSettings() }
+        findViewById<Button>(R.id.callChannelButton).setOnClickListener { openCallChannelSettings() }
+        findViewById<Button>(R.id.miuiAutostartButton).setOnClickListener { openMiuiAutostart() }
+        findViewById<Button>(R.id.miuiPermButton).setOnClickListener { openMiuiPermissions() }
+        findViewById<Button>(R.id.appDetailsButton).setOnClickListener { openAppDetails() }
+
         findViewById<Button>(R.id.closeButton).setOnClickListener { finish() }
 
-        updateStatus()
+        renderStatus()
     }
 
     override fun onResume() {
         super.onResume()
-        updateStatus()
+        registerStatusReceiver()
+        renderStatus()
+    }
+
+    override fun onPause() {
+        unregisterStatusReceiver()
+        super.onPause()
+    }
+
+    // ── trạng thái: nghe broadcast nội bộ từ PhoneService
+
+    @Suppress("UnspecifiedRegisterReceiverFlag", "DEPRECATION")
+    private fun registerStatusReceiver() {
+        if (receiverRegistered) return
+        val filter = IntentFilter(PhoneStatus.ACTION_STATUS)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(statusReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                registerReceiver(statusReceiver, filter)
+            }
+            receiverRegistered = true
+        } catch (t: Throwable) {
+            receiverRegistered = false
+        }
+    }
+
+    private fun unregisterStatusReceiver() {
+        if (!receiverRegistered) return
+        receiverRegistered = false
+        try {
+            unregisterReceiver(statusReceiver)
+        } catch (t: Throwable) {
+            // bỏ qua
+        }
     }
 
     // ── quyền thông báo
@@ -83,19 +144,28 @@ class SettingsActivity : Activity() {
         val ok = checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
         toast(getString(if (ok) R.string.st_notif_ok else R.string.st_notif_no))
         if (!ok) openAppNotificationSettings()
-        updateStatus()
+        renderStatus()
     }
 
     private fun openAppNotificationSettings() {
-        try {
-            startActivity(
-                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                    .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            )
-        } catch (t: Throwable) {
-            // bỏ qua
+        val ok = tryStart(
+            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+        )
+        if (!ok) {
+            // Máy cũ / ROM lạ: đi đường thông tin app.
+            openAppDetails()
         }
+    }
+
+    /** Cài đặt riêng của kênh "Cuộc gọi đến" (mức ưu tiên, âm thanh, hiện trên màn khoá). */
+    private fun openCallChannelSettings() {
+        val ok = tryStart(
+            Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                .putExtra(Settings.EXTRA_CHANNEL_ID, CallNotifications.CHANNEL_ID)
+        )
+        if (!ok) openAppNotificationSettings()
     }
 
     // ── tối ưu pin
@@ -106,17 +176,12 @@ class SettingsActivity : Activity() {
             toast(getString(R.string.st_battery_ok))
             return
         }
-        try {
-            startActivity(
-                Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName"))
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            )
-        } catch (t: Throwable) {
-            try {
-                startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            } catch (t2: Throwable) {
-                toast(getString(R.string.st_battery_no))
-            }
+        val ok = tryStart(
+            Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName"))
+        )
+        if (!ok) {
+            tryStart(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                .also { if (!it) toast(getString(R.string.st_battery_no)) }
         }
     }
 
@@ -124,7 +189,9 @@ class SettingsActivity : Activity() {
 
     private fun requestFullScreenIntent() {
         if (Build.VERSION.SDK_INT < 34) {
+            // Android 10-13: quyền này tự có, chỉ cần app không bị ROM chặn (MIUI: bật "Màn hình khóa & thông báo").
             toast(getString(R.string.st_full_ok))
+            openAppNotificationSettings()
             return
         }
         val nm = getSystemService(NotificationManager::class.java)
@@ -132,35 +199,174 @@ class SettingsActivity : Activity() {
             toast(getString(R.string.st_full_ok))
             return
         }
-        try {
-            startActivity(
-                Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:$packageName"))
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            )
-        } catch (t: Throwable) {
+        val ok = tryStart(
+            Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:$packageName"))
+        )
+        if (!ok) {
             toast(getString(R.string.st_full_no))
+            openAppDetails()
         }
+    }
+
+    // ── cửa sổ nổi (cho phép mở activity từ nền)
+
+    private fun requestOverlay() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Settings.canDrawOverlays(this)) {
+            toast(getString(R.string.st_full_ok))
+            return
+        }
+        val ok = tryStart(
+            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
+        )
+        if (!ok) openAppDetails()
+    }
+
+    // ── bỏ qua Không làm phiền (để đặt setBypassDnd cho kênh cuộc gọi)
+
+    private fun requestDndAccess() {
+        val nm = getSystemService(NotificationManager::class.java)
+        if (nm != null && CallNotifications.canBypassDnd(nm)) {
+            toast(getString(R.string.st_full_ok))
+            return
+        }
+        val ok = tryStart(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
+        if (!ok) openAppDetails()
+    }
+
+    // ── lối tắt cài đặt MIUI
+
+    /**
+     * MIUI: Tự khởi động (Autostart). Tên lớp thay đổi theo phiên bản MIUI/HyperOS nên thử lần lượt;
+     * mở được cái nào thì dừng, không mở được cái nào thì rơi về "Thông tin app".
+     */
+    private fun openMiuiAutostart() {
+        val candidates = listOf(
+            ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity"),
+            ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartActivity"),
+            ComponentName("com.miui.securitycenter", "com.miui.permcenter.MainAcitvity")
+        )
+        for (c in candidates) {
+            if (tryStart(Intent().setComponent(c))) return
+        }
+        toast(getString(R.string.st_no_screen))
+        openAppDetails()
+    }
+
+    /** MIUI: "Quyền của app" (quyền khác, hiện trên màn khoá, chạy nền...). */
+    private fun openMiuiPermissions() {
+        val candidates = listOf(
+            Intent()
+                .setComponent(
+                    ComponentName(
+                        "com.miui.securitycenter",
+                        "com.miui.permcenter.permissions.PermissionsEditorActivity"
+                    )
+                )
+                .putExtra("extra_pkgname", packageName),
+            Intent()
+                .setComponent(
+                    ComponentName(
+                        "com.miui.securitycenter",
+                        "com.miui.permcenter.permissions.AppPermissionsEditorActivity"
+                    )
+                )
+                .putExtra("extra_pkgname", packageName),
+            Intent()
+                .setComponent(ComponentName("com.miui.securitycenter", "com.miui.permcenter.MainAcitvity"))
+                .putExtra("extra_pkgname", packageName)
+        )
+        for (i in candidates) {
+            if (tryStart(i)) return
+        }
+        toast(getString(R.string.st_no_screen))
+        openAppDetails()
+    }
+
+    /** Thông tin app của hệ thống — nơi MIUI đặt "Màn hình khóa & thông báo", "Tiết kiệm pin", quyền... */
+    private fun openAppDetails() {
+        val ok = tryStart(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+        if (!ok) toast(getString(R.string.st_no_settings_screen))
+    }
+
+    /** Mở một Intent; trả về false nếu ROM không có màn hình đó (không bao giờ ném ra ngoài). */
+    private fun tryStart(intent: Intent): Boolean = try {
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(intent)
+        true
+    } catch (t: Throwable) {
+        false
     }
 
     // ── trạng thái
 
-    private fun updateStatus() {
-        val base = PhoneApi.apiBase(Prefs.url(this))
+    private fun renderStatus() {
         val lines = StringBuilder()
         lines.append(getString(R.string.st_phone_id, Prefs.phoneId(this))).append('\n')
-        lines.append(getString(R.string.st_server, base ?: getString(R.string.st_no_server))).append('\n')
-        lines.append(getString(R.string.st_service, if (PhoneService.isRunning()) getString(R.string.st_on) else getString(R.string.st_off))).append('\n')
+        lines.append(
+            getString(R.string.st_server, Prefs.apiBase(this) ?: getString(R.string.st_no_server))
+        ).append('\n')
+        lines.append(
+            getString(
+                R.string.st_service,
+                if (PhoneService.isRunning()) getString(R.string.st_on) else getString(R.string.st_off)
+            )
+        ).append('\n')
+
+        // Cuộc gọi đang đến / chuông / lần poll cuối (service cập nhật liên tục).
+        val callId = PhoneStatus.callId
+        lines.append(
+            if (callId.isNullOrBlank()) getString(R.string.st_no_call)
+            else getString(R.string.st_call_active, callId)
+        ).append('\n')
+        lines.append(
+            getString(if (PhoneStatus.ringing) R.string.st_ring_on else R.string.st_ring_off)
+        ).append('\n')
+        lines.append(getString(R.string.st_last_poll, formatTime(PhoneStatus.lastPollAt))).append('\n')
+
+        // Quyền / thiết lập của máy.
         lines.append(
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
                 checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
             ) getString(R.string.st_notif_ok) else getString(R.string.st_notif_no)
         ).append('\n')
+
+        val nm = getSystemService(NotificationManager::class.java)
+        val channel = try {
+            nm?.getNotificationChannel(CallNotifications.CHANNEL_ID)
+        } catch (t: Throwable) {
+            null
+        }
+        lines.append(
+            getString(
+                R.string.st_channel,
+                when {
+                    channel == null -> getString(R.string.st_never)
+                    channel.importance >= NotificationManager.IMPORTANCE_HIGH -> getString(R.string.st_channel_high)
+                    else -> getString(R.string.st_channel_low)
+                }
+            )
+        ).append('\n')
+
         val pm = getSystemService(PowerManager::class.java)
         lines.append(
             if (pm?.isIgnoringBatteryOptimizations(packageName) == true) getString(R.string.st_battery_ok)
             else getString(R.string.st_battery_no)
+        ).append('\n')
+        lines.append(
+            if (CallNotifications.canUseFullScreen(this)) getString(R.string.st_full_ok)
+            else getString(R.string.st_full_no)
         )
+
         statusView.text = lines.toString()
+    }
+
+    private fun formatTime(at: Long): String {
+        if (at <= 0L) return getString(R.string.st_never)
+        return try {
+            SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(at))
+        } catch (t: Throwable) {
+            getString(R.string.st_never)
+        }
     }
 
     private fun toast(msg: String) {
