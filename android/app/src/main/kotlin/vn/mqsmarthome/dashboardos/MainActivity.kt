@@ -132,7 +132,10 @@ class MainActivity : Activity() {
         changeUrlButton.alpha = 0.75f
         changeUrlButton.visibility = View.VISIBLE
         mainHandler.removeCallbacks(hideOverlayRunnable)
-        mainHandler.postDelayed(hideOverlayRunnable, OVERLAY_VISIBLE_MS)
+        // (30/10/2026) Giu nut URL luon bam duoc: chi mo di (alpha .35) thay vi an han.
+        mainHandler.postDelayed({
+            changeUrlButton.animate().alpha(0.35f).setDuration(400).start()
+        }, OVERLAY_VISIBLE_MS)
     }
 
     @SuppressLint("SetJavaScriptEnabled")
