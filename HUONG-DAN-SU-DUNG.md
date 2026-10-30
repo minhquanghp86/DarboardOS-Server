@@ -321,7 +321,7 @@ Dùng trực tiếp trong dashboard HA hoặc làm điều kiện automation.
 
 ## 15. Video giới thiệu (quay trực tiếp từ panel)
 
-Bản ghi **60 giây** thao tác thật trên màn P4 (1024×600), lấy trực tiếp khung hình mà panel nhận
-(~16 fps), gồm: vuốt về màn hình chính, mở **YouTube TV**, **IPTV**, chuyển ứng dụng.
+Bản ghi **180 giây** thao tác thật trên màn P4 (1024×600), lấy trực tiếp khung hình mà panel nhận (~19 fps):
+vuốt về màn hình chính, mở/điều hướng **YouTube TV**, **IPTV**, chuyển ứng dụng, thông báo.
 
-▶ [`images/review-2026-10-30.mp4`](images/review-2026-10-30.mp4) (1,7 MB)
+▶ [`images/review-180s.mp4`](images/review-180s.mp4) — 5,7 MB
