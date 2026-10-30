@@ -109,17 +109,92 @@ describe('POST /app/register', () => {
   it('sai method -> 405', () => {
     expect(call('GET', '/app/register').out.code).toBe(405);
   });
+
+  it('GOP theo deviceKey: id moi cung may -> tra id CHUAN, chi con 1 ban ghi', () => {
+    const a = call('POST', '/app/register', { id: PHONE, name: 'Xiaomi', deviceKey: 'and-1', model: '2201116SG' });
+    expect((JSON.parse(a.out.body) as { phone: { id: string } }).phone.id).toBe(PHONE);
+
+    // Cai lai app: id moi, cung ANDROID_ID.
+    const b = call('POST', '/app/register', { id: 'phone-moi', name: 'Xiaomi', deviceKey: 'and-1', model: '2201116SG' });
+    expect(b.out.code).toBe(200);
+    const body = JSON.parse(b.out.body) as { ok: boolean; phone: { id: string; name: string } };
+    expect(body.ok).toBe(true);
+    expect(body.phone.id).toBe(PHONE);        // app phai cap nhat lai Prefs theo id nay
+    expect(phones.list()).toHaveLength(1);
+    expect(phones.has('phone-moi')).toBe(false);
+  });
+
+  it('may khac deviceKey -> van 2 ban ghi', () => {
+    call('POST', '/app/register', { id: 'p1', name: 'A', deviceKey: 'and-1' });
+    call('POST', '/app/register', { id: 'p2', name: 'B', deviceKey: 'and-2' });
+    expect(phones.list()).toHaveLength(2);
+  });
+});
+
+describe('POST /app/rename', () => {
+  it('doi ten -> {ok:true, phone}', () => {
+    call('POST', '/app/register', { id: PHONE, name: 'Xiaomi' });
+    const { handled, out } = call('POST', '/app/rename', { id: PHONE, name: 'Điện thoại bếp' });
+    expect(handled).toBe(true);
+    expect(out.code).toBe(200);
+    const body = JSON.parse(out.body) as { ok: boolean; phone: { id: string; name: string } };
+    expect(body.ok).toBe(true);
+    expect(body.phone.id).toBe(PHONE);
+    expect(body.phone.name).toBe('Điện thoại bếp');
+    expect(phones.get(PHONE)?.name).toBe('Điện thoại bếp');
+    expect(out.headers['cache-control']).toBe('no-store');
+  });
+
+  it('id khong ton tai -> 404; thieu id / body hong -> 400; sai method -> 405', () => {
+    call('POST', '/app/register', { id: PHONE, name: 'Xiaomi' });
+    expect(call('POST', '/app/rename', { id: 'khong-co', name: 'X' }).out.code).toBe(404);
+    expect(call('POST', '/app/rename', {}).out.code).toBe(400);
+    expect(call('POST', '/app/rename', 'chuoi').out.code).toBe(400);
+    expect(call('GET', '/app/rename?id=1').out.code).toBe(405);
+  });
+});
+
+describe('POST /app/remove', () => {
+  it('xoa -> {ok:true, removed:1}', () => {
+    call('POST', '/app/register', { id: PHONE, name: 'Xiaomi' });
+    const { out } = call('POST', '/app/remove', { id: PHONE });
+    expect(out.code).toBe(200);
+    expect(JSON.parse(out.body)).toEqual({ ok: true, removed: 1 });
+    expect(phones.has(PHONE)).toBe(false);
+    expect(phones.list()).toEqual([]);
+  });
+
+  it('id khong ton tai -> 404; thieu id -> 400; sai method -> 405', () => {
+    expect(call('POST', '/app/remove', { id: 'khong-co' }).out.code).toBe(404);
+    expect(call('POST', '/app/remove', {}).out.code).toBe(400);
+    expect(call('GET', '/app/remove?id=1').out.code).toBe(405);
+  });
+
+  it('xoa 1 may khong anh huong may khac', () => {
+    call('POST', '/app/register', { id: 'p1', name: 'A' });
+    call('POST', '/app/register', { id: 'p2', name: 'B' });
+    expect(call('POST', '/app/remove', { id: 'p1' }).out.code).toBe(200);
+    expect(phones.list().map((p) => p.id)).toEqual(['p2']);
+  });
 });
 
 describe('GET /app/list', () => {
-  it('tra danh sach dien thoai (id, name, lastSeen)', () => {
+  it('tra danh sach dien thoai (id, name, lastSeen, deviceKey, model)', () => {
     call('POST', '/app/register', { id: PHONE, name: 'Pixel 8' });
     call('POST', '/app/register', { id: 'phone-2', name: 'An' });
     const { out } = call('GET', '/app/list');
     expect(out.code).toBe(200);
     const body = JSON.parse(out.body) as { ok: boolean; phones: { id: string; name: string; lastSeen: number }[] };
     expect(body.phones.map((p) => p.name)).toEqual(['An', 'Pixel 8']);
-    expect(Object.keys(body.phones[0]!).sort()).toEqual(['id', 'lastSeen', 'name']);
+    expect(Object.keys(body.phones[0]!).sort()).toEqual(['deviceKey', 'id', 'lastSeen', 'model', 'name']);
+  });
+
+  it('deviceKey tra ve da BAM (khong lo ANDROID_ID tho), co model', () => {
+    call('POST', '/app/register', { id: PHONE, name: 'Xiaomi', deviceKey: '9774d56d682e549c', model: '2201116SG' });
+    const body = JSON.parse(call('GET', '/app/list').out.body) as { phones: { deviceKey: string; model: string }[] };
+    expect(body.phones[0]!.deviceKey).toMatch(/^[0-9a-f]{16}$/);
+    expect(body.phones[0]!.deviceKey).not.toBe('9774d56d682e549c');
+    expect(body.phones[0]!.model).toBe('2201116SG');
   });
 
   it('chua ai dang ky -> mang rong', () => {

@@ -6,9 +6,11 @@
 // (14/10/2026) GIAO DIEN CUOC GOI VIDEO kieu dien thoai — dung chung cho call.html (man P4, trong Chromium cua add-on) va
 // call-web.html (tab "Gọi" trong Dashboard). Trang goi CallUI.mount(root, adapter):
 //   adapter = { self, base, contacts(): Promise<list>, start(to), accept(), decline(), hangup(), mute(on), cam(on),
-//               selfVideo(el?): gan hinh cua minh vao khung nho (man: WS /call/video; web: <video> getUserMedia) }
+//               selfVideo(el?): gan hinh cua minh vao khung nho (man: WS /call/video; web: <video> getUserMedia),
+//               rename?(id, name), remove?(id, name): (GD8) SUA TEN / XOA thiet bi "Điện thoại" trong danh ba —
+//               trang nao khong co 2 ham nay (vd call.html cua man) thi khong hien 2 nut nho }
 //   va goi ui.set(state) moi khi trang thai doi: {view:'contacts'|'out'|'in'|'active'|'ended', call, peer, peerName,
-//   since, peerMuted, peerCamOff, reason}.
+//   since, peerMuted, peerCamOff, reason}. Sau khi sua/xoa thiet bi, trang goi ui.refresh() de ve lai danh ba.
 // Chi DOM API (khong innerHTML). Khong hoat anh lien tuc (bang thong toi panel): chi dong ho 1 lan / giay.
 (function () {
   'use strict';
@@ -137,13 +139,33 @@
         if (!l.length) { box.append(el('div', 'empty', 'Chưa có màn hình hoặc trình duyệt nào khác để gọi.')); return; }
         l.forEach(function (c) {
           var r = el('button', 'ct'); r.type = 'button'; r.disabled = !!c.busy;
-          var m = el('span', 'cm'); m.append(el('b', '', c.name), el('small', '', c.busy ? 'Đang bận' : c.kind === 'web' ? 'Trình duyệt' : 'Màn hình'));
+          var m = el('span', 'cm'); m.append(el('b', '', c.name), el('small', '', c.busy ? 'Đang bận' : kindLabel(c.kind)));
           var call = el('span', 'cb'); call.append(svg('phone'));
           r.append(avatar(c.name), m, call);
           r.onclick = function () { A.start(c.id, c.name); };
-          box.append(r);
+          // (GD8) Thiet bi "Điện thoại" (app Android da dang ky): them nut SUA TEN / XOA ngay trong danh ba.
+          box.append(c.kind === 'phone' && A.rename && A.remove ? phoneRow(r, c) : r);
         });
       }).catch(function () { box.append(el('div', 'empty', 'Không tải được danh bạ.')); });
+    }
+
+    /** Nhan phu duoi ten: loai thiet bi. */
+    function kindLabel(kind) {
+      return kind === 'web' ? 'Trình duyệt' : kind === 'phone' ? 'Điện thoại' : 'Màn hình';
+    }
+
+    /** Mot dong danh ba cua DIEN THOAI: nut goi + 2 nut nho (but chi = sua ten, thung rac = xoa). */
+    function phoneRow(main, c) {
+      var w = el('div', 'ctw'), act = el('div', 'cact');
+      var ed = el('button', 'ed'); ed.type = 'button'; ed.title = 'Đổi tên thiết bị';
+      ed.setAttribute('aria-label', 'Đổi tên ' + c.name); ed.append(svg('pencil-outline'));
+      ed.onclick = function (e) { e.stopPropagation(); A.rename(c.id, c.name); };
+      var del = el('button', 'del'); del.type = 'button'; del.title = 'Xoá thiết bị';
+      del.setAttribute('aria-label', 'Xoá ' + c.name); del.append(svg('delete-outline'));
+      del.onclick = function (e) { e.stopPropagation(); A.remove(c.id, c.name); };
+      act.append(ed, del);
+      w.append(main, act);
+      return w;
     }
 
     function render() {
@@ -196,6 +218,8 @@
         if (changed) render();
       },
       get: function () { return S; },
+      /** (GD8) Ve lai danh ba (sau khi sua ten / xoa thiet bi — set() chi ve lai khi trang thai DOI). */
+      refresh: function () { if (S.view === 'contacts') renderContacts(); },
       toast: say,
     };
   }

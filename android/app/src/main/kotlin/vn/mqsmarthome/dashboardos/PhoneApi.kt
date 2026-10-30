@@ -45,16 +45,49 @@ object PhoneApi {
         return "$base/${page.trimStart('/')}$q"
     }
 
-    /** Dang ky (hoac cap nhat) may nay voi server. true = server da nhan. */
-    fun register(apiBase: String?, webUrl: String?, id: String, name: String): Boolean {
-        val url = apiUrl(apiBase, "app/register") ?: return false
+    /**
+     * (GD8) Dang ky (hoac cap nhat) may nay voi server.
+     *
+     * Gui kem `deviceKey` (= ANDROID_ID, xem [Prefs.deviceKey]) + `model`: server gop cac ban ghi trung cua CUNG
+     * MOT MAY (moi lan cai lai app / xoa du lieu app truoc day sinh id moi) va tra ve `id` CHUAN.
+     *
+     * @return `id` ma server dang giu (co the KHAC `id` gui len khi da gop) — null khi khong goi duoc / server tu choi.
+     */
+    fun register(
+        apiBase: String?,
+        webUrl: String?,
+        id: String,
+        name: String,
+        deviceKey: String = "",
+        model: String = ""
+    ): String? {
+        val url = apiUrl(apiBase, "app/register") ?: return null
         val body = JSONObject()
             .put("id", id)
             .put("name", name)
             .put("url", webUrl ?: "")
+            .put("deviceKey", deviceKey)
+            .put("model", model)
             .toString()
-        val (code, _) = request(url, "POST", body) ?: return false
-        return code in 200..299
+        val (code, text) = request(url, "POST", body) ?: return null
+        if (code !in 200..299) return null
+        // {ok:true, phone:{id,...}} — `phone.id` la id CHUAN sau khi server gop ban ghi trung deviceKey.
+        return try {
+            val canonical = JSONObject(text).optJSONObject("phone")?.optString("id") ?: ""
+            if (canonical.isNotEmpty()) canonical else id
+        } catch (t: Throwable) {
+            Log.w(TAG, "register: JSON hong: ${t.message}")
+            id
+        }
+    }
+
+    /**
+     * (GD8) Khoa nhan dang ON DINH cua may: dung ANDROID_ID khi may co, khong thi roi ve `fallback`
+     * (id hien tai trong Prefs) — van hon la khong gui gi. Thuan tuy (khong cham API Android) de test duoc.
+     */
+    fun deviceKeyOf(androidId: String?, fallback: String): String {
+        val a = androidId?.trim().orEmpty()
+        return if (a.isNotEmpty()) a else fallback.trim()
     }
 
     fun incoming(apiBase: String?, id: String): Poll {

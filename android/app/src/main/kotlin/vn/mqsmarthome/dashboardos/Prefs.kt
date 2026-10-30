@@ -3,6 +3,7 @@ package vn.mqsmarthome.dashboardos
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.Build
+import android.provider.Settings
 import java.util.UUID
 
 /**
@@ -139,6 +140,33 @@ object Prefs {
         p.edit().putString(KEY_PHONE_ID, id).apply()
         return id
     }
+
+    /**
+     * (GD8) Server da GOP ban ghi trung `deviceKey` va tra ve `id` CHUAN -> ghi de id dang luu, de lan poll sau
+     * (incoming/answer/decline) dung dung id ma server biet. Bo qua khi id rong hoac khong doi.
+     */
+    fun setPhoneId(ctx: Context, id: String) {
+        val v = id.trim()
+        if (v.isEmpty() || v == get(ctx).getString(KEY_PHONE_ID, null)) return
+        get(ctx).edit().putString(KEY_PHONE_ID, v).apply()
+    }
+
+    /**
+     * (GD8) Khoa nhan dang ON DINH cua may: `Settings.Secure.ANDROID_ID` — khong doi khi CAI LAI APP / XOA DU LIEU
+     * APP tren cung mot may, nho vay server gop cac ban ghi trung (moi lan cai lai truoc day sinh id moi).
+     * May khong tra ANDROID_ID (null/rong) -> dung id hien tai trong Prefs.
+     */
+    fun deviceKey(ctx: Context): String {
+        val androidId = try {
+            Settings.Secure.getString(ctx.contentResolver, Settings.Secure.ANDROID_ID)
+        } catch (t: Throwable) {
+            null
+        }
+        return PhoneApi.deviceKeyOf(androidId, phoneId(ctx))
+    }
+
+    /** (GD8) Build.MODEL gui kem /app/register (server hien trong /app/list). */
+    fun phoneModel(): String = (Build.MODEL ?: "").trim().take(40)
 
     fun receiveEnabled(ctx: Context): Boolean = get(ctx).getBoolean(KEY_RECEIVE, true)
 

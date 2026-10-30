@@ -5,11 +5,18 @@
 
 // (10/11/2026) GD2 — API cho APP ANDROID (khong dung WebSocket, khong Firebase): dien thoai la thiet bi thuong tru
 // nho 5 duong dan nay (app goi bang HttpURLConnection, poll 2 s/lan):
-//   POST /app/register  body {id, name, url?}   -> dang ky / cap nhat (id do app sinh 1 lan, luu SharedPreferences)
-//   GET  /app/list                              -> {ok, phones: [{id, name, lastSeen}]}
+//   POST /app/register  body {id, name, url?, deviceKey?, model?}
+//                                               -> dang ky / cap nhat (id do app sinh 1 lan, luu SharedPreferences);
+//                                                  cung `deviceKey` = cung mot may -> GOP ban ghi trung va tra
+//                                                  ve `id` CHUAN (app cap nhat lai Prefs), xem src/phoneStore.ts
+//   GET  /app/list                              -> {ok, phones: [{id, name, lastSeen, deviceKey, model}]}
 //   GET  /app/incoming?phone=<id>               -> {call: {id, from, fromName} | null}   (cuoc goi dang do chuong)
 //   POST /app/answer?phone=<id>&call=<id>       -> nghe (noi voi man, xem src/calls.ts accept)
 //   POST /app/decline?phone=<id>&call=<id>      -> tu choi
+//
+// (GD8 — 30/10/2026) QUAN LY THIET BI tu trang call-web.html (sua ten / xoa may khoi danh ba):
+//   POST /app/rename    body {id, name}         -> {ok:true, phone:{...}} | 404
+//   POST /app/remove    body {id}               -> {ok:true, removed:1} | 404
 //
 // (30/10/2026) GD4 — them GET|HEAD /app/ping de app tu TIM add-on: nguoi dung chi nhap IP/domain cua Home Assistant,
 // app thu tung ung vien va dung lai o dia chi nao tra {"service":"dashboard-os"}. Endpoint nay KHONG auth, KHONG cache
@@ -22,7 +29,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { accept, declineFromPhone, incomingFor } from './calls.js';
-import { parseRegister, phones } from './phoneStore.js';
+import { parseId, parseRegister, phones, type Phone } from './phoneStore.js';
 
 const BODY_MAX = 4096;
 
@@ -84,6 +91,11 @@ function handlePing(req: http.IncomingMessage, res: http.ServerResponse): void {
     : JSON.stringify({ ok: true, service: 'dashboard-os', version: SERVER_VERSION, caps: ['phone-api'] }));
 }
 
+/** Ban ghi tra ve app / trang call-web: `deviceKey` da BAM san (xem hashDeviceKey) nen khong lo ANDROID_ID tho. */
+function phoneView(p: Phone): { id: string; name: string; lastSeen: number; deviceKey: string; model: string } {
+  return { id: p.id, name: p.name, lastSeen: p.lastSeen, deviceKey: p.deviceKey || '', model: p.model || '' };
+}
+
 /** true = da xu ly request. */
 export function handlePhoneApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL): boolean {
   // Bo "/" cuoi (va chap nhan tien to duong dan: /b39feb53_remote_webview_server/app/ping).
@@ -108,15 +120,46 @@ export function handlePhoneApi(req: http.IncomingMessage, res: http.ServerRespon
       const r = parseRegister(body);
       if (!r.ok) { json(res, 400, { ok: false, error: r.error }); return; }
       const phone = phones.register(r.reg);
-      console.log(`[phones] dang ky ${phone.id} (${phone.name})`);
-      json(res, 200, { ok: true, phone: { id: phone.id, name: phone.name, lastSeen: phone.lastSeen } });
+      // `phone.id` co the KHAC `r.reg.id` khi server GOP ban ghi trung deviceKey: app phai cap nhat lai id.
+      if (phone.id !== r.reg.id) console.log(`[phones] gop ${r.reg.id} -> ${phone.id} (${phone.name}) theo deviceKey`);
+      else console.log(`[phones] dang ky ${phone.id} (${phone.name})`);
+      json(res, 200, { ok: true, phone: phoneView(phone) });
+    });
+    return true;
+  }
+
+  if (p === '/app/rename') {
+    if (req.method !== 'POST') { json(res, 405, { error: 'POST' }); return true; }
+    readBody(req, (raw) => {
+      let body: any;
+      try { body = JSON.parse(raw || '{}'); } catch { json(res, 400, { ok: false, error: 'JSON khong hop le' }); return; }
+      const r = parseId(body);
+      if (!r.ok) { json(res, 400, { ok: false, error: r.error }); return; }
+      const phone = phones.rename(r.id, typeof body?.name === 'string' ? body.name : '');
+      if (!phone) { json(res, 404, { ok: false, error: 'khong co thiet bi' }); return; }
+      console.log(`[phones] doi ten ${phone.id} -> ${phone.name}`);
+      json(res, 200, { ok: true, phone: phoneView(phone) });
+    });
+    return true;
+  }
+
+  if (p === '/app/remove') {
+    if (req.method !== 'POST') { json(res, 405, { error: 'POST' }); return true; }
+    readBody(req, (raw) => {
+      let body: any;
+      try { body = JSON.parse(raw || '{}'); } catch { json(res, 400, { ok: false, error: 'JSON khong hop le' }); return; }
+      const r = parseId(body);
+      if (!r.ok) { json(res, 400, { ok: false, error: r.error }); return; }
+      if (!phones.remove(r.id)) { json(res, 404, { ok: false, error: 'khong co thiet bi' }); return; }
+      console.log(`[phones] xoa ${r.id}`);
+      json(res, 200, { ok: true, removed: 1 });
     });
     return true;
   }
 
   if (p === '/app/list') {
     if (req.method !== 'GET') { json(res, 405, { error: 'GET' }); return true; }
-    json(res, 200, { ok: true, phones: phones.list().map((x) => ({ id: x.id, name: x.name, lastSeen: x.lastSeen })) });
+    json(res, 200, { ok: true, phones: phones.list().map(phoneView) });
     return true;
   }
 

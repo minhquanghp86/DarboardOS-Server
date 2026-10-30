@@ -215,12 +215,23 @@ class PhoneService : Service() {
                     if (!sleep()) break
                     continue
                 }
-                val id = Prefs.phoneId(this)
+                var id = Prefs.phoneId(this)
                 val now = System.currentTimeMillis()
                 if (registeredBase != base || now - lastRegister >= RE_REGISTER_MS) {
-                    if (PhoneApi.register(base, Prefs.webUrl(this), id, Prefs.phoneName())) {
+                    // (GD8) gui kem deviceKey (ANDROID_ID) + model: server GOP ban ghi trung cua cung may va tra id CHUAN.
+                    val sent = id
+                    val canonical = PhoneApi.register(
+                        base, Prefs.webUrl(this), sent, Prefs.phoneName(), Prefs.deviceKey(this), Prefs.phoneModel()
+                    )
+                    if (canonical != null) {
                         lastRegister = now
                         registeredBase = base
+                        if (canonical != sent) {
+                            // Server da gop (cai lai app -> id moi, cung deviceKey): dung id CHUAN tu day.
+                            Prefs.setPhoneId(this, canonical)
+                            id = canonical
+                            Log.i(TAG, "server gop thiet bi: $sent -> $canonical")
+                        }
                         Log.i(TAG, "da dang ky $id voi server")
                     }
                 }

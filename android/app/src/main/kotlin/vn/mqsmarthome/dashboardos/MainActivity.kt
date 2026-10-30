@@ -356,7 +356,12 @@ class MainActivity : Activity() {
             Prefs.saveTargets(this, webUrl, apiBase, webText, apiText)
             Prefs.setNeedHaLogin(this, needLogin)
             val id = Prefs.phoneId(this)
-            val registered = PhoneApi.register(apiBase, webUrl, id, Prefs.phoneName())
+            // (GD8) gui kem deviceKey + model; server co the GOP ban ghi trung va tra id CHUAN -> cap nhat lai Prefs.
+            val registeredId = PhoneApi.register(
+                apiBase, webUrl, id, Prefs.phoneName(), Prefs.deviceKey(this), Prefs.phoneModel()
+            )
+            val registered = registeredId != null
+            if (registeredId != null && registeredId != id) Prefs.setPhoneId(this, registeredId)
             if (Prefs.receiveEnabled(this)) PhoneService.start(this)
 
             post {

@@ -1,3 +1,9 @@
+## V2.9.300
+- **Chống trùng thiết bị nhận cuộc gọi**: app gửi `deviceKey` (ANDROID_ID, được băm) + `model`; server gộp các bản ghi
+  cùng thiết bị về bản ghi cũ nhất và trả id chuẩn. File cũ tự dọn khi đọc.
+- **Quản lý thiết bị**: thêm `POST /app/rename` và `POST /app/remove`; trang Cuộc gọi có nút **sửa tên** và **xoá**
+  cho từng điện thoại.
+
 ## V2.9.299
 - Trang **Cuộc gọi**: khối "Chuông trên điện thoại" không còn dùng lớp modal nên **không đè lên danh sách thiết bị**
   nữa (trước đây che mất các thiết bị gọi được).

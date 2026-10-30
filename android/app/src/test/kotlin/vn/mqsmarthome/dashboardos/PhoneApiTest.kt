@@ -46,4 +46,19 @@ class PhoneApiTest {
         assertEquals("$lan/call-web.html", PhoneApi.webUrl(lan, "call-web.html"))
         assertNull(PhoneApi.webUrl(null, "call-web.html", "call=abc"))
     }
+
+    @Test
+    fun deviceKeyOf_dung_ANDROID_ID_khi_co() {
+        // (GD8) ANDROID_ID on dinh qua cac lan cai lai app -> server gop ban ghi trung theo khoa nay.
+        assertEquals("9774d56d682e549c", PhoneApi.deviceKeyOf("9774d56d682e549c", "id-trong-prefs"))
+        assertEquals("9774d56d682e549c", PhoneApi.deviceKeyOf("  9774d56d682e549c  ", "id-trong-prefs"))
+    }
+
+    @Test
+    fun deviceKeyOf_roi_ve_id_hien_tai_khi_may_khong_tra_ANDROID_ID() {
+        assertEquals("id-trong-prefs", PhoneApi.deviceKeyOf(null, "id-trong-prefs"))
+        assertEquals("id-trong-prefs", PhoneApi.deviceKeyOf("", "id-trong-prefs"))
+        assertEquals("id-trong-prefs", PhoneApi.deviceKeyOf("   ", "id-trong-prefs"))
+        assertEquals("", PhoneApi.deviceKeyOf(null, ""))
+    }
 }

@@ -113,6 +113,16 @@
   var media = null, actx = null, capNode = null, playNode = null, enc = null, vT = 0, vts = 0, forceKey = true, muted = false, camOff = false, ringT = 0;
 
   function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+  // (GD8) POST JSON toi API cua app (`app/rename`, `app/remove`) — loi HTTP/`ok:false` -> reject kem thong bao.
+  function appPost(path, body) {
+    return fetch(BASE + path, { method: 'POST', cache: 'no-store', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function (r) {
+        return r.json().then(function (j) {
+          if (!r.ok || j.ok === false) throw new Error(j.error || ('Lỗi ' + r.status));
+          return j;
+        });
+      });
+  }
   function connect() {
     var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
     ws = new WebSocket(proto + '//' + location.host + BASE + 'calls/web?name=' + encodeURIComponent(NAME)); ws.binaryType = 'arraybuffer';
@@ -217,6 +227,24 @@
   var ui = CallUI.mount(document.getElementById('app'), {
     self: '', base: BASE, ringUrl: BASE + 'ringtone/call',
     contacts: function () { return new Promise(function (ok) { wantList = ok; send({ type: 'contacts' }); setTimeout(function () { if (wantList) { wantList(list); wantList = null; } }, 2000); }); },
+    // (GD8) QUAN LY THIET BI DIEN THOAI ngay trong danh ba (call-ui.js hien 2 nut nho cho kind 'phone'):
+    // sua ten -> POST /app/rename, xoa -> POST /app/remove (src/phones.ts). Xong thi ve lai danh ba.
+    rename: function (id, name) {
+      var cur = String(name || '').split(' · ')[0];        // bo hau to " · Điện thoại" truoc khi hoi
+      var next = window.prompt('Tên thiết bị', cur);
+      if (next === null) return;                            // nguoi dung bam Huy
+      next = next.trim();
+      if (!next) { ui.toast('Tên không được để trống.'); return; }
+      appPost('app/rename', { id: id, name: next })
+        .then(function (j) { ui.toast('Đã đổi tên: ' + j.phone.name); ui.refresh(); })
+        .catch(function (e) { ui.toast(e.message || 'Không đổi được tên.'); });
+    },
+    remove: function (id, name) {
+      if (!window.confirm('Xoá thiết bị này?')) return;
+      appPost('app/remove', { id: id })
+        .then(function () { ui.toast('Đã xoá ' + String(name || '').split(' · ')[0]); ui.refresh(); })
+        .catch(function (e) { ui.toast(e.message || 'Không xoá được thiết bị.'); });
+    },
     start: function (to, name) {
       peer = to; peerName = name;
       getMedia().then(function () { ui.set({ view: 'out', call: '', peer: to, peerName: name }); send({ type: 'start', to: to }); })
