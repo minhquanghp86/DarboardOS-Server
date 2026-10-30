@@ -45,12 +45,13 @@ class CallActionReceiver : BroadcastReceiver() {
 
         if (callId.isBlank()) return
 
-        // 2) Báo server ở nền.
+        // 2) Báo server ở nền. (17/11/2026) GD9 — kèm cookie phiên HA khi gốc API là ingress của HA.
         val pending = goAsync()
         val appCtx = context.applicationContext
         Thread {
             try {
-                val ok = PhoneApi.decline(Prefs.apiBase(appCtx), Prefs.phoneId(appCtx), callId)
+                val base = Prefs.apiBase(appCtx)
+                val ok = PhoneApi.decline(base, Prefs.phoneId(appCtx), callId, HaCookie.header(base))
                 Log.i(TAG, "POST /app/decline $callId -> $ok")
             } catch (t: Throwable) {
                 Log.w(TAG, "decline loi: ${t.javaClass.simpleName}: ${t.message}")

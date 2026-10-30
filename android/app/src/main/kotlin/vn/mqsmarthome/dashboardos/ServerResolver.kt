@@ -194,16 +194,32 @@ object ServerResolver {
     /**
      * Thử `GET <base>/app/ping` (timeout 2,5 s). Thành công = HTTP 200 + body JSON có `"service":"dashboard-os"`.
      * Trả base đã chuẩn hoá kèm `webUrl = base + "/call-web.html"`, `apiBase = base`; null = không phải máy chủ.
+     *
+     * (17/11/2026) GD9 — [cookie] = header `Cookie:` của phiên Home Assistant. Khi gốc API nằm sau ingress
+     * (`https://<domain>/api/hassio_ingress/<TOKEN>`) thì KHÔNG có cookie là 401, nên phải gửi kèm.
      */
-    fun probe(base: String?): Server? {
+    fun probe(base: String?, cookie: String? = null): Server? {
         val b = normalizeBase(base) ?: return null
-        val body = httpGet(b + PING_PATH) ?: return null
+        val (code, body) = httpGet(b + PING_PATH, cookie) ?: return null
+        if (code != HttpURLConnection.HTTP_OK || body == null) return null
         if (!SERVICE_RE.containsMatchIn(body)) return null
         return Server(base = b, apiBase = b, webUrl = "$b/$WEB_PAGE")
     }
 
-    /** GET đơn giản bằng HttpURLConnection; chỉ trả body khi HTTP 200. */
-    private fun httpGet(urlStr: String): String? {
+    /**
+     * (17/11/2026) GD9 — mã HTTP của `GET <base>/app/ping` (không cần đúng body). Dùng để phía gọi tự quyết:
+     *  - **200** → đúng add-on ([probe] kiểm thêm body),
+     *  - **401/403** → ĐÚNG đường dẫn nhưng thiếu cookie HA / cần đăng nhập,
+     *  - **404** → sai token ingress / sai đường dẫn → thử ứng viên kế tiếp.
+     * null = không kết nối được.
+     */
+    fun probeStatus(base: String?, cookie: String? = null): Int? {
+        val b = normalizeBase(base) ?: return null
+        return httpGet(b + PING_PATH, cookie)?.first
+    }
+
+    /** GET đơn giản bằng HttpURLConnection; trả (mã HTTP, body nếu 200). */
+    private fun httpGet(urlStr: String, cookie: String? = null): Pair<Int, String?>? {
         var conn: HttpURLConnection? = null
         try {
             val c = (URL(urlStr).openConnection() as HttpURLConnection).apply {
@@ -215,11 +231,18 @@ object ServerResolver {
                 setRequestProperty("accept", "application/json")
                 setRequestProperty("cache-control", "no-cache")
                 setRequestProperty("user-agent", "DashboardOS-Android")
+                if (!cookie.isNullOrBlank()) setRequestProperty("cookie", cookie)
             }
             conn = c
-            if (c.responseCode != HttpURLConnection.HTTP_OK) return null
-            val stream = c.inputStream ?: return null
-            return BufferedReader(InputStreamReader(stream, Charsets.UTF_8)).use { it.readText() }
+            val code = c.responseCode
+            if (code != HttpURLConnection.HTTP_OK) {
+                // Doc het error stream de giai phong ket noi, khong dung noi dung.
+                try { c.errorStream?.close() } catch (t: Throwable) { /* bo qua */ }
+                return code to null
+            }
+            val stream = c.inputStream ?: return code to null
+            val body = BufferedReader(InputStreamReader(stream, Charsets.UTF_8)).use { it.readText() }
+            return code to body
         } catch (t: Throwable) {
             return null
         } finally {

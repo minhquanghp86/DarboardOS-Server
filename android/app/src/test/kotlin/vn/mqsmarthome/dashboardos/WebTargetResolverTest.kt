@@ -392,4 +392,107 @@ class WebTargetResolverTest {
         assertFalse(WebTargetResolver.sameUrl(null, web))
         assertFalse(WebTargetResolver.sameUrl(web, null))
     }
+
+    // ─────────────────────────────────────────── 7) (GD9) MỘT Ô ĐỊA CHỈ
+
+    @Test
+    fun mot_o_domain_dung_ingress_cho_ca_trang_lan_api() {
+        val web = WebTargetResolver.webCandidates(domain, token).first()
+        val api = WebTargetResolver.apiBaseForInput(domain, token)
+        // Trang điều khiển: đúng URL ingress + launcher-config.html.
+        assertEquals("https://$domain/api/hassio_ingress/$token/launcher-config.html", web)
+        // API: CÙNG ingress (không có /launcher-config.html), để /app/* nằm sau ingress.
+        assertEquals("https://$domain/api/hassio_ingress/$token", api)
+        assertTrue("API phải nằm sau ingress: $api", WebTargetResolver.isIngressBase(api))
+        // Cùng origin → cookie phiên HA đọc từ CookieManager dùng được cho cả hai.
+        assertEquals(WebTargetResolver.originUrl(web), WebTargetResolver.originUrl(api))
+    }
+
+    @Test
+    fun mot_o_domain_thu_tu_ung_vien_api_ingress_slug_goc_cong_18080() {
+        assertEquals(
+            listOf(
+                "https://$domain/api/hassio_ingress/$token",
+                "https://$domain/$slug",
+                "https://$domain",
+                "http://$domain:18080"
+            ),
+            WebTargetResolver.apiBasesForInput(domain, token)
+        )
+    }
+
+    @Test
+    fun mot_o_token_nguoi_dung_sua_thi_doi_ca_trang_lan_api() {
+        val custom = "TokenKhac_9"
+        assertEquals(
+            "https://$domain/api/hassio_ingress/$custom/launcher-config.html",
+            WebTargetResolver.webCandidates(domain, custom).first()
+        )
+        assertEquals(
+            "https://$domain/api/hassio_ingress/$custom",
+            WebTargetResolver.apiBaseForInput(domain, custom)
+        )
+    }
+
+    @Test
+    fun mot_o_ip_lan_dung_http_cong_18080_cho_ca_hai_va_canh_bao_khong_https() {
+        val webLan = "http://192.168.10.2:18080/launcher-config.html"
+        // IP LAN: KHÔNG dùng ingress; vẫn có ứng viên http://<ip>:18080 cho trang điều khiển.
+        assertTrue(WebTargetResolver.webCandidates("192.168.10.2", token).contains(webLan))
+        // API: http://<ip>:18080 là ứng viên ĐẦU TIÊN.
+        assertEquals("http://192.168.10.2:18080", WebTargetResolver.apiBaseForInput("192.168.10.2", token))
+        // Giữ cổng người dùng gõ.
+        assertEquals("http://192.168.10.2:9090", WebTargetResolver.apiBaseForInput("192.168.10.2:9090", token))
+        // http = KHÔNG có secure context → MainActivity cảnh báo mất micro/camera; https thì không.
+        assertTrue(WebTargetResolver.lacksSecureContext(webLan))
+        assertFalse(WebTargetResolver.lacksSecureContext("https://$domain/api/hassio_ingress/$token/launcher-config.html"))
+        assertFalse(WebTargetResolver.lacksSecureContext(null))
+        assertFalse(WebTargetResolver.lacksSecureContext(""))
+        // Gốc API LAN không phải ingress → PhoneService không cần cookie, poll ngay.
+        assertFalse(WebTargetResolver.isIngressBase("http://192.168.10.2:18080"))
+        assertFalse(WebTargetResolver.isIngressBase(null))
+    }
+
+    @Test
+    fun mot_o_dan_url_day_du_thi_giu_tien_to_nguoi_dung_dang_co() {
+        // Người dùng dán nguyên URL trang gọi: tiền tố ingress của họ được giữ, app ghép đúng trang điều khiển.
+        val typed = "https://$domain/api/hassio_ingress/$token/call-web.html"
+        assertEquals(
+            "https://$domain/api/hassio_ingress/$token",
+            WebTargetResolver.apiBaseForInput(typed, token)
+        )
+        assertEquals(
+            "https://$domain/api/hassio_ingress/$token/launcher-config.html",
+            WebTargetResolver.webCandidates(typed, token).first()
+        )
+    }
+
+    @Test
+    fun mot_o_chuoi_khong_dung_duoc_tra_rong() {
+        assertEquals(emptyList<String>(), WebTargetResolver.apiBasesForInput(null, token))
+        assertEquals(emptyList<String>(), WebTargetResolver.apiBasesForInput("", token))
+        assertEquals(emptyList<String>(), WebTargetResolver.apiBasesForInput("hass local", token))
+        assertEquals(emptyList<String>(), WebTargetResolver.apiBasesForInput("!!!", token))
+        assertNull(WebTargetResolver.apiBaseForInput(null, token))
+        assertNull(WebTargetResolver.apiBaseForInput("!!!", token))
+    }
+
+    @Test
+    fun call_page_gan_them_phone_de_trang_biet_may_nao_dang_goi() {
+        val web = "https://$domain/api/hassio_ingress/$token/launcher-config.html"
+        assertEquals(
+            "https://$domain/api/hassio_ingress/$token/call-web.html?call=abc-1&phone=p-1",
+            WebTargetResolver.callPageUrl(web, "abc-1", "p-1")
+        )
+        // Không có callId nhưng có phoneId -> chỉ có ?phone=.
+        assertEquals(
+            "https://$domain/api/hassio_ingress/$token/call-web.html?phone=p-1",
+            WebTargetResolver.callPageUrl(web, "", "p-1")
+        )
+        // phoneId rỗng -> y như cũ (không thêm tham số).
+        assertEquals(
+            "https://$domain/api/hassio_ingress/$token/call-web.html?call=abc-1",
+            WebTargetResolver.callPageUrl(web, "abc-1", "  ")
+        )
+    }
 }

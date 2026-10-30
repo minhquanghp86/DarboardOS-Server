@@ -82,6 +82,21 @@ object Prefs {
     /** (GD4) giu nguyen ten ham cu: chuoi dien san o o nhap. */
     fun lastInput(ctx: Context): String? = webInput(ctx) ?: apiBase(ctx)
 
+    /**
+     * (17/11/2026) GD9 — GIAO DIEN CHI CON **MOT O** dia chi. Gia tri dien san lay theo thu tu:
+     * chuoi nguoi dung go lan cuoi -> webUrl da do duoc -> (du lieu 2 o cua ban cu) o API -> apiBase.
+     * Nho vay nguoi da cau hinh 2 o truoc day van thay dung dia chi cu, va app tu suy ra phan con lai
+     * (WebTargetResolver.webCandidates / apiBasesForInput).
+     */
+    fun oneInput(ctx: Context): String? = webInput(ctx) ?: apiInput(ctx) ?: apiBase(ctx)
+
+    /** (17/11/2026) GD9 — doi rieng goc API (PhoneService tu chuyen khi TOKEN ingress doi / thu duong dan khac). */
+    fun setApiBase(ctx: Context, base: String?) {
+        val v = base?.trim().orEmpty()
+        if (v.isEmpty()) return
+        get(ctx).edit().putString(KEY_API_BASE, v).apply()
+    }
+
     /** Luu ngay 2 chuoi nguoi dung vua go (truoc khi do) — khong dung toi webUrl/apiBase. */
     fun saveInputs(ctx: Context, webInput: String?, apiInput: String?) {
         get(ctx).edit()

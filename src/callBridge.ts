@@ -20,7 +20,7 @@ import { WebSocket, WebSocketServer } from 'ws';
 import { callHold } from './audioCapture.js';
 import { subscribeLiveFrames } from './camProxy.js';
 import { isDoor, subscribeDoorFrames } from './door.js';
-import { isWebSource, subscribeWebFrames, videoAllowed } from './calls.js';
+import { isCallParty, isWebSource, subscribeWebFrames, videoAllowed, videoSourceOf } from './calls.js';
 import { broadcaster, connectedScreens } from './deviceManager.js';
 import { ControlField } from './protocol.js';
 
@@ -230,26 +230,65 @@ export function handleCallUpgrade(req: http.IncomingMessage, socket: Duplex, hea
 function videoUpgrade(req: http.IncomingMessage, socket: Duplex, head: Buffer, url: URL): boolean {
   if (!isLocal(req) && !isIngress(req)) { socket.destroy(); return true; }
   const dev = url.searchParams.get('dev') || '';
+  // (17/11/2026) GD9 — SUA LOI "P4 KHONG NHAN DUOC HINH khi goi dien thoai": trang P4 lay `peer` tu /calls/state;
+  // trong khoang app da POST /app/answer nhung trang call-web.html?call= CHUA kip `join`, `state.to` van la ID MAY,
+  // nen P4 mo `/call/video?dev=<id may>` -> khong phai phien web / khong phai man co camera -> server dong 4004 va
+  // P4 chi hien "Đang kết nối hình…" mai mai (du tieng van chay).
+  // Nay: (a) id may duoc anh xa sang phien web dang giu cuoc goi cua may do (videoSourceOf), va (b) neu dien thoai
+  // CHUA join thi giu socket lai ~8 s, tu gan nguon ngay khi phien web xuat hien (khong bat trang phai doan lai).
+  if (!isDoor(dev) && !isWebSource(dev) && !connectedScreens().some((s) => s.id === dev && s.cam) && !isCallParty(dev)) {
+    wss.handleUpgrade(req, socket, head, (ws) => ws.close(4004, 'nguon khong co camera'));
+    return true;
+  }
   wss.handleUpgrade(req, socket, head, (ws) => {
-    const door = isDoor(dev), web = isWebSource(dev);
-    if (!door && !web && !connectedScreens().some((s) => s.id === dev && s.cam)) { ws.close(4004, 'man khong co camera'); return; }
     // (14/10/2026) ?call=<id>: hinh trong cuoc goi video — chi gui khi cuoc goi dang chay va nguon khong tat camera.
     const callId = url.searchParams.get('call');
-    let skip = false, sent = 0, dropped = 0;
+    let unsub = (): void => { };
+    let src = '';
+    let sent = 0, dropped = 0, skip = false;
     const t0 = Date.now();
-    const unsub = (door ? subscribeDoorFrames : web ? subscribeWebFrames : subscribeLiveFrames)(dev, (e) => {
-      if (ws.readyState !== WebSocket.OPEN) return;
-      if (callId && e.kind === 'frame' && !videoAllowed(callId, dev)) { skip = true; return; }
-      if (e.kind === 'config') { ws.send(JSON.stringify({ codec: e.codec, avcc: e.avcc.toString('base64') })); return; }
-      if (ws.bufferedAmount > 1024 * 1024) skip = true;
-      if (skip && !e.key) { dropped++; return; }
-      skip = false;
-      const h = Buffer.alloc(5);
-      h.writeUInt8(e.key ? 1 : 0, 0); h.writeUInt32LE(e.ts >>> 0, 1);
-      ws.send(Buffer.concat([h, e.data])); sent++;
+    /** Gan nguon hinh that su; false = nguon chua san sang (dien thoai chua `join`). */
+    const attach = (): boolean => {
+      const s = videoSourceOf(dev);
+      const door = isDoor(s), web = isWebSource(s);
+      if (!door && !web && !connectedScreens().some((x) => x.id === s && x.cam)) return false;
+      src = s;
+      if (s !== dev) console.log(`[call] ${dev}: xem hinh qua phien web ${s}`);
+      unsub = (door ? subscribeDoorFrames : web ? subscribeWebFrames : subscribeLiveFrames)(s, (e) => {
+        if (ws.readyState !== WebSocket.OPEN) return;
+        if (callId && e.kind === 'frame' && !videoAllowed(callId, s)) { skip = true; return; }
+        if (e.kind === 'config') { ws.send(JSON.stringify({ codec: e.codec, avcc: e.avcc.toString('base64') })); return; }
+        if (ws.bufferedAmount > 1024 * 1024) skip = true;
+        if (skip && !e.key) { dropped++; return; }
+        skip = false;
+        const h = Buffer.alloc(5);
+        h.writeUInt8(e.key ? 1 : 0, 0); h.writeUInt32LE(e.ts >>> 0, 1);
+        ws.send(Buffer.concat([h, e.data])); sent++;
+      });
+      console.log(`[call] ${dev}: xem hinh camera (nguon ${s})`);
+      return true;
+    };
+
+    let wait: NodeJS.Timeout | null = null;
+    if (!attach()) {
+      // Dien thoai da nghe nhung trang goi chua kip `join` (thuong < 2 s) -> cho toi 8 s.
+      let waited = 0;
+      wait = setInterval(() => {
+        if (ws.readyState !== WebSocket.OPEN) { clearInterval(wait!); wait = null; return; }
+        if (attach()) { clearInterval(wait!); wait = null; return; }
+        waited += 400;
+        if (waited >= 8_000) {
+          clearInterval(wait!); wait = null;
+          console.log(`[call] ${dev}: khong tim thay nguon hinh sau 8 s — dong`);
+          ws.close(4004, 'chua co nguon hinh');
+        }
+      }, 400);
+    }
+    ws.on('close', () => {
+      if (wait) { clearInterval(wait); wait = null; }
+      unsub();
+      console.log(`[call] ${dev}: ngung xem hinh sau ${Math.round((Date.now() - t0) / 1000)} s — gui ${sent} khung, bo ${dropped}`);
     });
-    console.log(`[call] ${dev}: xem hinh camera`);
-    ws.on('close', () => { unsub(); console.log(`[call] ${dev}: ngung xem hinh sau ${Math.round((Date.now() - t0) / 1000)} s — gui ${sent} khung, bo ${dropped}`); });
     ws.on('error', () => { /* close xu ly */ });
   });
   return true;

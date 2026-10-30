@@ -199,9 +199,12 @@ class IncomingCallActivity : Activity() {
 
         // (30/10/2026) GD4: gọi API bằng goc API da luu (không suy ra từ URL trang).
         val base = Prefs.apiBase(this)
+        // (17/11/2026) GD9 — gốc API có thể nằm sau ingress HA: PHẢI kèm cookie phiên HA, không thì 401
+        // ("Nghe" thất bại dù WebView đã đăng nhập).
+        val cookie = HaCookie.header(base)
         // Đánh dấu đã nghe trên server rồi mới mở trang gọi (trang cần cuộc gọi ở trạng thái active).
         thread {
-            val ok = PhoneApi.answer(base, Prefs.phoneId(this), call)
+            val ok = PhoneApi.answer(base, Prefs.phoneId(this), call, cookie)
             runOnUiThread {
                 if (!ok) Toast.makeText(this, R.string.call_answer_failed, Toast.LENGTH_SHORT).show()
                 openCallPage()
@@ -217,7 +220,8 @@ class IncomingCallActivity : Activity() {
         if (call.isNotBlank()) PhoneStatus.handledCallId = call
         stopRinging()
         val base = Prefs.apiBase(this)
-        thread { PhoneApi.decline(base, Prefs.phoneId(this), call) }
+        // (17/11/2026) GD9 — kèm cookie phiên HA khi gốc API là ingress.
+        thread { PhoneApi.decline(base, Prefs.phoneId(this), call, HaCookie.header(base)) }
         finish()
     }
 

@@ -18,6 +18,7 @@ object PhoneStatus {
     const val EXTRA_LAST_POLL = "last_poll"
     const val EXTRA_CALL_ID = "call_id"
     const val EXTRA_RINGING = "ringing"
+    const val EXTRA_NEED_LOGIN = "need_login"
 
     /** Thời điểm (epoch ms) của lần poll /app/incoming thành công gần nhất; 0 = chưa poll lần nào. */
     @Volatile
@@ -38,6 +39,13 @@ object PhoneStatus {
     @Volatile
     var ringing: Boolean = false
 
+    /**
+     * (17/11/2026) GD9 — true = gốc API nằm sau ingress của Home Assistant nhưng app **chưa có cookie phiên HA**:
+     * service tạm DỪNG poll để người dùng đăng nhập (màn Cài đặt hiện dòng này).
+     */
+    @Volatile
+    var needLogin: Boolean = false
+
     /** Ghi trạng thái + báo cho SettingsActivity. Gọi được từ luồng nền. */
     fun publish(ctx: Context) {
         val i = Intent(ACTION_STATUS)
@@ -45,6 +53,7 @@ object PhoneStatus {
             .putExtra(EXTRA_LAST_POLL, lastPollAt)
             .putExtra(EXTRA_CALL_ID, callId)
             .putExtra(EXTRA_RINGING, ringing)
+            .putExtra(EXTRA_NEED_LOGIN, needLogin)
         try {
             ctx.sendBroadcast(i)
         } catch (t: Throwable) {

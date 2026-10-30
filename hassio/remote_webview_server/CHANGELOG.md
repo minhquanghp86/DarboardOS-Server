@@ -1,3 +1,10 @@
+## V2.9.302
+- **Một ô địa chỉ duy nhất** trong app: nhập domain → dùng ingress HTTPS cho cả trang lẫn API (kèm cookie HA);
+  nhập IP LAN → dùng `http://<ip>:18080` (cảnh báo mất micro/camera).
+- **P4 nhận được hình từ điện thoại** trong cuộc gọi: khung video `0x02` từ trang gọi được chuyển tiếp xuống màn.
+- App gửi cookie HA cho `/app/answer`, `/app/decline`, `/app/hangup` (trước đây 401 khi dùng ingress).
+- Sửa lỗi KDoc trong `WebTargetResolver` làm hỏng build Android; thêm 7 test cho luồng một ô.
+
 ## V2.9.301
 - **Vào thẳng cuộc gọi khi bấm Nghe (GĐ 3)**: trang `call-web.html` nhận `?call=<id>` → gắn phiên web làm đầu cuối
   tiếng của điện thoại (WS PCM 16 kHz), màn "đang gọi" có tên người gọi, đồng hồ, nút **Kết thúc**; đối phương cúp →

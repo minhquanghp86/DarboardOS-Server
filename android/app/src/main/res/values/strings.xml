@@ -4,23 +4,20 @@
     <!-- (30/10/2026) GD4: người dùng chỉ nhập IP/domain của Home Assistant. -->
     <string name="url_hint">Địa chỉ Home Assistant</string>
     <string name="url_hint_example">192.168.10.2 hoặc hass.example.com</string>
-    <!-- (13/11/2026) GD6 — HAI Ô: trang điều khiển (https) + máy chủ API (LAN). -->
-    <string name="url_hint_web">Trang điều khiển (https)</string>
-    <string name="url_hint_web_example">hass.mqsmarthome.io.vn</string>
-    <string name="url_web_hint">Chỉ cần tên miền: app tự thử https://&lt;domain&gt;/api/hassio_ingress/&lt;TOKEN&gt;/launcher-config.html → /b39feb53_remote_webview_server/launcher-config.html → /launcher-config.html. Phải là https thì WebView mới được cấp micro/camera.</string>
-    <string name="url_hint_api">Máy chủ API (LAN)</string>
-    <string name="url_hint_api_example">192.168.10.2:18080</string>
-    <string name="url_api_hint">Nơi app gọi /app/ping, /app/register, /app/incoming… để nhận cuộc gọi. Để trống nếu ô trên là IP LAN (app tự dùng http://&lt;ip&gt;:18080); ô trên là tên miền thì KHÔNG suy ra được nên phải nhập.</string>
+    <!-- (17/11/2026) GD9 — MỘT Ô: nhập domain hoặc IP LAN, app tự lo cả trang điều khiển và API. -->
+    <string name="url_hint_web">Địa chỉ Home Assistant (một ô duy nhất)</string>
+    <string name="url_hint_web_example">hass.mqsmarthome.io.vn hoặc 192.168.10.2</string>
+    <string name="url_web_hint">Nhập TÊN MIỀN (vd hass.mqsmarthome.io.vn): app dùng https://&lt;domain&gt;/api/hassio_ingress/&lt;TOKEN&gt;/ cho cả trang điều khiển và API (kèm cookie đăng nhập Home Assistant). Nhập IP LAN (vd 192.168.10.2): app dùng http://&lt;ip&gt;:18080 — KHÔNG có micro/camera (cần HTTPS).</string>
     <string name="action_connect">Kết nối</string>
     <string name="action_change_url">URL</string>
     <string name="action_settings">Cài đặt</string>
     <string name="action_close">Đóng</string>
-    <string name="url_footer">Trang điều khiển đi qua ingress Home Assistant (https — cần đăng nhập HA một lần trong app). Máy chủ API gọi thẳng trong LAN (http://192.168.10.2:18080) vì ingress đòi cookie HA.</string>
+    <string name="url_footer">Chỉ cần MỘT địa chỉ: app tự dò trang điều khiển và API. Với tên miền, mọi thứ đi qua ingress Home Assistant (đăng nhập HA một lần trong app — cookie được giữ lại cho các lần sau). Với IP LAN, app gọi thẳng http://&lt;ip&gt;:18080 nhưng mất micro/camera.</string>
     <string name="err_empty_url">Vui lòng nhập địa chỉ Home Assistant</string>
     <string name="err_bad_address">Địa chỉ không hợp lệ. Nhập IP (vd 192.168.10.2) hoặc tên miền (vd hass.example.com)</string>
-    <string name="err_empty_web">Vui lòng nhập tên miền hoặc URL của trang điều khiển</string>
-    <string name="err_bad_web">Địa chỉ trang điều khiển không hợp lệ. Nhập tên miền (vd hass.mqsmarthome.io.vn) hoặc URL đầy đủ (https://…/launcher-config.html)</string>
-    <string name="err_api_underivable">Ô “Máy chủ API (LAN)” đang trống và KHÔNG suy ra được từ ô trên: chỉ suy ra được khi ô trên là IP LAN (vd 192.168.10.2). Hãy nhập ô 2, vd 192.168.10.2:18080.</string>
+    <string name="err_empty_web">Vui lòng nhập địa chỉ Home Assistant (tên miền hoặc IP LAN)</string>
+    <string name="err_bad_web">Địa chỉ không hợp lệ. Nhập tên miền (vd hass.mqsmarthome.io.vn), IP LAN (vd 192.168.10.2) hoặc URL đầy đủ (https://…/launcher-config.html)</string>
+    <string name="err_api_underivable">Không suy ra được địa chỉ API từ địa chỉ trên. Nhập tên miền (vd hass.mqsmarthome.io.vn) hoặc IP LAN (vd 192.168.10.2).</string>
     <string name="err_bad_api">Địa chỉ máy chủ API không hợp lệ. Nhập IP và cổng, vd 192.168.10.2:18080</string>
     <string name="err_load">Không tải được trang. Kiểm tra URL hoặc kết nối mạng.</string>
     <string name="perm_denied">Cần quyền micro/camera để dùng tính năng đàm thoại</string>
@@ -120,6 +117,10 @@
     <string name="st_token_button">Lưu TOKEN</string>
     <string name="st_token_hint">Là chuỗi nằm sau /api/hassio_ingress/ trong URL add-on (Home Assistant → Add-on → Dashboard OS → mở Web UI rồi copy URL). Đổi xong bấm “Lưu TOKEN” rồi quay lại màn hình chính bấm “Kết nối” để dò lại.</string>
     <string name="st_token_saved">Đã lưu TOKEN ingress</string>
+
+    <!-- (17/11/2026) GD9 — cảnh báo mất micro/camera khi địa chỉ không phải https. -->
+    <string name="warn_no_secure">⚠ Không có micro/camera (cần HTTPS): địa chỉ %1$s dùng http nên WebView không được cấp micro/camera. Muốn gọi video, hãy nhập tên miền của Home Assistant.</string>
+    <string name="st_need_login">Đang chờ đăng nhập Home Assistant (API qua ingress cần cookie) — bấm “Đăng nhập Home Assistant”.</string>
 
     <!-- (14/11/2026) GD7 — đăng nhập Home Assistant trước khi mở ingress (401 không còn hiện ra WebView). -->
     <string name="ha_login_banner">Đăng nhập Home Assistant để tiếp tục</string>

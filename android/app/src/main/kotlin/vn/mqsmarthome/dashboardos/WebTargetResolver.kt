@@ -199,6 +199,8 @@ object WebTargetResolver {
      *  - ô 2 có giá trị → lấy ứng viên đầu của [apiCandidates] (thêm `http://` nếu người dùng gõ thiếu),
      *  - ô 2 TRỐNG → suy ra từ ô 1 **chỉ khi ô 1 là IP LAN**: `http://<ip>:18080` (hoặc đúng cổng đã gõ),
      *  - không suy ra được (ô 1 là domain / rác) → null (màn hình chính báo lỗi rõ ràng).
+     *
+     * (GD9) KHÔNG còn dùng cho giao diện 1 ô — xem [apiBasesForInput]. Giữ lại cho dữ liệu cũ / unit test.
      */
     fun apiBaseOrNull(webInput: String?, apiInput: String?): String? {
         apiCandidates(apiInput).firstOrNull()?.let { return it }
@@ -208,14 +210,79 @@ object WebTargetResolver {
         return "http://${a.host}:$port"
     }
 
+    // ────────────────────────────────────────────────────────────── (GD9) MỘT Ô ĐỊA CHỈ
+
+    /**
+     * (17/11/2026) GD9 — NGƯỜI DÙNG CHỈ NHẬP MỘT ĐỊA CHỈ. Từ đúng chuỗi đó suy ra cả **trang điều khiển** (WebView)
+     * và **gốc API** (`/app/register`, `/app/incoming`, `/app/answer`, `/app/decline`, `/app/hangup`):
+     *
+     *  - **Domain** (`hass.mqsmarthome.io.vn`) → ingress của Home Assistant cho CẢ HAI:
+     *      1. `https://<domain>/api/hassio_ingress/<TOKEN>`   ← API (cần cookie phiên HA, xem src/haCookie)
+     *      2. `https://<domain>/<slug>`                        (reverse proxy giữ tên add-on)
+     *      3. `https://<domain>`                               (add-on phục vụ ở gốc domain)
+     *    Đây là thứ tự "token sai → 401/404 → thử đường dẫn khác" mà yêu cầu đặt ra.
+     *  - **IP LAN** (`192.168.10.2`) → `http://<ip>:18080` (+ dự phòng https/http như [apiCandidates]).
+     *    Không có HTTPS thì WebView **không được cấp micro/camera** → màn hình chính hiện cảnh báo (xem MainActivity).
+     *  - Đã dán URL đầy đủ (kể cả URL ingress) → giữ đúng tiền tố đường dẫn đó trước, rồi mới tới dự phòng.
+     *
+     * Trả danh sách ứng viên theo thứ tự ưu tiên (rỗng = chuỗi không dùng được).
+     */
+    fun apiBasesForInput(input: String?, token: String? = null): List<String> {
+        val raw = input?.trim().orEmpty()
+        if (raw.isEmpty()) return emptyList()
+        val a = ServerResolver.parse(raw) ?: return emptyList()
+        val tok = sanitizeToken(token)
+        val out = LinkedHashSet<String>()
+        val netloc = if (a.port > 0) "${a.host}:${a.port}" else a.host
+
+        // Người dùng đã dán URL đầy đủ có tiền tố: dùng đúng tiền tố đó trước (giữ nguyên ingress họ đang có).
+        if (a.prefix.isNotEmpty() && !a.prefix.equals("/$ADDON_SLUG", ignoreCase = true)) out.add("${a.scheme}://$netloc${a.prefix}")
+
+        if (a.lan) {
+            apiCandidates(raw).forEach { out.add(it) }
+            if (a.prefix.isNotEmpty()) out.add("${a.scheme}://$netloc${a.prefix}")
+        } else {
+            // (1) ingress HA — dạng CHÍNH khi người dùng chỉ nhập domain.
+            out.add("https://$netloc$INGRESS_PREFIX/$tok")
+            // (2) reverse proxy giữ tên add-on. (3) add-on ở gốc domain.
+            out.add("https://$netloc/$ADDON_SLUG")
+            out.add("https://$netloc")
+            // (4) cổng add-on mở thẳng (không TLS): vẫn dùng được cho API (chỉ mất micro/camera).
+            out.add("http://${a.host}:$ADDON_PORT")
+        }
+        return out.filter { it.startsWith("http://") || it.startsWith("https://") }.toList()
+    }
+
+    /** Gốc API ưu tiên cho một ô địa chỉ (null = chuỗi không dùng được). */
+    fun apiBaseForInput(input: String?, token: String? = null): String? = apiBasesForInput(input, token).firstOrNull()
+
+    /**
+     * (17/11/2026) GD9 — `apiBase` có nằm sau ingress của Home Assistant không (tức là MỌI lời gọi API native
+     * `/app/...` phải kèm cookie phiên HA, nếu không ingress trả 401).
+     *
+     * Lưu ý: KHÔNG viết dạng `slash-app-sao` trong KDoc — Kotlin cho phép block comment lồng nhau, nên cặp
+     * `slash-sao` vô tình sẽ mở một comment mới chưa đóng và nuốt phần còn lại của tệp.
+     */
+    fun isIngressBase(base: String?): Boolean = isIngressUrl(base)
+
+    /** Cảnh báo: địa chỉ không phải https → WebView KHÔNG được cấp micro/camera. */
+    fun lacksSecureContext(webUrl: String?): Boolean {
+        val u = webUrl?.trim()?.lowercase().orEmpty()
+        return u.startsWith("http://")
+    }
+
     // ────────────────────────────────────────────────────────────── trang gọi + token
 
     /**
      * webUrl → trang gọi trong CÙNG thư mục (giữ nguyên tiền tố ingress, nên cookie HA vẫn áp dụng):
      * `https://hass/api/hassio_ingress/<TOKEN>/launcher-config.html` -> `.../call-web.html?call=<id>`.
      * null = webUrl không dùng được.
+     *
+     * (17/11/2026) GD9 — [phoneId] (tuỳ chọn) được gắn thêm `&phone=<id>`: trang biết NGAY máy nào đang gọi nên
+     * `{type:'join'}` gửi kèm id máy, server gắn phiên web làm đầu cuối tiếng/hình của đúng máy đó (không phải đoán
+     * từ /calls/state).
      */
-    fun callPageUrl(webUrl: String?, callId: String): String? {
+    fun callPageUrl(webUrl: String?, callId: String, phoneId: String? = null): String? {
         val base = webUrl?.trim().orEmpty()
         if (!base.startsWith("http://") && !base.startsWith("https://")) return null
         val cut = base.indexOfAny(charArrayOf('?', '#'))
@@ -223,7 +290,10 @@ object WebTargetResolver {
         val slash = noQuery.lastIndexOf('/')
         val last = noQuery.substring(slash + 1)
         val dir = if (last.contains('.')) noQuery.substring(0, slash + 1) else noQuery.trimEnd('/') + "/"
-        val query = if (callId.isBlank()) "" else "?call=" + URLEncoder.encode(callId, "UTF-8")
+        val query = StringBuilder()
+        if (callId.isNotBlank()) query.append("?call=").append(URLEncoder.encode(callId, "UTF-8"))
+        val ph = phoneId?.trim().orEmpty()
+        if (ph.isNotEmpty()) query.append(if (query.isEmpty()) "?phone=" else "&phone=").append(URLEncoder.encode(ph, "UTF-8"))
         return "$dir$CALL_PAGE$query"
     }
 
@@ -319,8 +389,11 @@ object WebTargetResolver {
     /**
      * GET một URL trang điều khiển (KHÔNG theo redirect: cần thấy đúng mã của add-on).
      * Trả [WebCheck] kể cả 401/404 (để [WebCheck.accepted] quyết định); null = không kết nối được.
+     *
+     * (17/11/2026) GD9 — [cookie] (header `Cookie:` của phiên HA, xem [HaCookie]) để lần dò SAU KHI đăng nhập thấy
+     * 200 thay vì 401 (nhờ vậy không phải mở lại trang đăng nhập).
      */
-    fun probeWeb(url: String?): WebCheck? {
+    fun probeWeb(url: String?, cookie: String? = null): WebCheck? {
         val u = url?.trim().orEmpty()
         if (!u.startsWith("http://") && !u.startsWith("https://")) return null
         var conn: HttpURLConnection? = null
@@ -334,6 +407,7 @@ object WebTargetResolver {
                 setRequestProperty("accept", "text/html,application/xhtml+xml")
                 setRequestProperty("cache-control", "no-cache")
                 setRequestProperty("user-agent", "DashboardOS-Android")
+                if (!cookie.isNullOrBlank()) setRequestProperty("cookie", cookie)
             }
             conn = c
             val code = c.responseCode

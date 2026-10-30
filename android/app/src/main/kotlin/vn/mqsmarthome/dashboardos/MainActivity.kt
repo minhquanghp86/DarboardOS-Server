@@ -84,7 +84,6 @@ class MainActivity : Activity() {
 
     private var webView: WebView? = null
     private var webInput: EditText? = null
-    private var apiInput: EditText? = null
     private var statusView: TextView? = null
     private var showingWeb = false
     private var pendingPermissionRequest: PermissionRequest? = null
@@ -214,15 +213,11 @@ class MainActivity : Activity() {
 
         setContentView(R.layout.activity_url)
 
+        // (17/11/2026) GD9 — MOT O: domain hoặc IP LAN. Dữ liệu 2 ô của bản cũ vẫn được điền sẵn (Prefs.oneInput).
         val web = findViewById<EditText>(R.id.webInput)
         webInput = web
-        web.setText(Prefs.webInput(this) ?: "")
+        web.setText(Prefs.oneInput(this) ?: "")
         web.setSelection(web.text.length)
-
-        val api = findViewById<EditText>(R.id.apiInput)
-        apiInput = api
-        api.setText(Prefs.apiInput(this) ?: WebTargetResolver.DEFAULT_API_INPUT)
-        api.setSelection(api.text.length)
 
         statusView = findViewById(R.id.urlStatus)
         setStatus(status ?: defaultStatus())
@@ -234,7 +229,6 @@ class MainActivity : Activity() {
         }
 
         web.setOnEditorActionListener { _, actionId, _ -> connectOnAction(actionId) }
-        api.setOnEditorActionListener { _, actionId, _ -> connectOnAction(actionId) }
     }
 
     private fun connectOnAction(actionId: Int): Boolean {
@@ -251,7 +245,10 @@ class MainActivity : Activity() {
         val api = Prefs.apiBase(this) ?: WebTargetResolver.DEFAULT_API_INPUT
         val base = getString(R.string.status_connected, web, api, Prefs.phoneName())
         // (14/11/2026) GD7 — nói rõ vì sao lần trước dừng ở trang đăng nhập.
-        return if (Prefs.needHaLogin(this)) "$base\n${getString(R.string.status_need_login)}" else base
+        val login = if (Prefs.needHaLogin(this)) "\n" + getString(R.string.status_need_login) else ""
+        // (17/11/2026) GD9 — địa chỉ KHÔNG phải https: nói thẳng là mất micro/camera.
+        val insecure = if (WebTargetResolver.lacksSecureContext(web)) "\n" + getString(R.string.warn_no_secure, web) else ""
+        return base + insecure + login
     }
 
     private fun setStatus(text: String?) {
@@ -272,43 +269,43 @@ class MainActivity : Activity() {
      */
     private fun connect() {
         if (searching) return
-        val webText = webInput?.text?.toString()?.trim().orEmpty()
-        val apiText = apiInput?.text?.toString()?.trim().orEmpty()
-        Prefs.saveInputs(this, webText, apiText)
+        // (17/11/2026) GD9 — MOT O: "hass.mqsmarthome.io.vn" hoặc "192.168.10.2" (hoặc URL đầy đủ nếu đã dán).
+        val text = webInput?.text?.toString()?.trim().orEmpty()
+        // Ô thứ hai không còn trên giao diện; ghi rỗng để dữ liệu cũ không quay lại (Prefs vẫn giữ khoá cũ).
+        Prefs.saveInputs(this, text, "")
 
-        val webList = WebTargetResolver.webCandidates(webText, Prefs.ingressToken(this))
+        val token = Prefs.ingressToken(this)
+        val webList = WebTargetResolver.webCandidates(text, token)
         if (webList.isEmpty()) {
-            val msg = if (webText.isEmpty()) getString(R.string.err_empty_web) else getString(R.string.err_bad_web)
+            val msg = if (text.isEmpty()) getString(R.string.err_empty_web) else getString(R.string.err_bad_web)
+            setStatus(msg)
+            toast(msg)
+            return
+        }
+        // Gốc API suy ra từ ĐÚNG ô đó: domain -> ingress HA (cần cookie), IP LAN -> http://<ip>:18080.
+        val apiList = WebTargetResolver.apiBasesForInput(text, token)
+        if (apiList.isEmpty()) {
+            val msg = getString(R.string.err_api_underivable)
             setStatus(msg)
             toast(msg)
             return
         }
 
-        // apiBase: ưu tiên ô 2; ô 2 trống -> suy ra từ ô 1 nếu là IP LAN.
-        val preferredApi = WebTargetResolver.apiBaseOrNull(webText, apiText)
-        if (preferredApi == null) {
-            val msg = if (apiText.isEmpty()) getString(R.string.err_api_underivable) else getString(R.string.err_bad_api)
-            setStatus(msg)
-            toast(msg)
-            return
-        }
-        val apiList = if (apiText.isEmpty()) listOf(preferredApi) else WebTargetResolver.apiCandidates(apiText)
-
-        val token = ++searchToken
+        val t = ++searchToken
         searching = true
         setSearchingUi(true)
         setStatus(getString(R.string.status_searching_web, 1, webList.size))
 
         Thread {
-            // ── 1) trang điều khiển
+            // ── 1) trang điều khiển (gửi kèm cookie HA nếu đã đăng nhập -> sau khi đăng nhập sẽ thấy 200)
             var foundWeb: String? = null
             var foundCheck: WebTargetResolver.WebCheck? = null
             val triedWeb = ArrayList<String>(webList.size)
             for ((index, url) in webList.withIndex()) {
-                if (token != searchToken) return@Thread
-                post { if (token == searchToken) setStatus(getString(R.string.status_searching_web, index + 1, webList.size)) }
+                if (t != searchToken) return@Thread
+                post { if (t == searchToken) setStatus(getString(R.string.status_searching_web, index + 1, webList.size)) }
                 triedWeb.add(url)
-                val check = WebTargetResolver.probeWeb(url)
+                val check = WebTargetResolver.probeWeb(url, HaCookie.header(url))
                 if (check != null && check.accepted) {
                     foundWeb = check.url
                     foundCheck = check
@@ -318,7 +315,7 @@ class MainActivity : Activity() {
             val webUrl = foundWeb
             if (webUrl == null) {
                 post {
-                    if (token != searchToken) return@post
+                    if (t != searchToken) return@post
                     searching = false
                     setSearchingUi(false)
                     showNotFound(getString(R.string.status_web_not_found), triedWeb, getString(R.string.status_web_hint))
@@ -326,25 +323,34 @@ class MainActivity : Activity() {
                 return@Thread
             }
             // (14/11/2026) GD7 — 401/403 = đúng add-on nhưng CHƯA có cookie HA.
-            val needLogin = WebTargetResolver.needsHaLogin(foundCheck?.status ?: 0)
+            var needLogin = WebTargetResolver.needsHaLogin(foundCheck?.status ?: 0)
 
-            // ── 2) máy chủ API (LAN)
+            // ── 2) gốc API (cùng một ô): 200 = đúng add-on; 401/403 = đúng đường dẫn nhưng thiếu cookie HA;
+            //        404 = sai TOKEN ingress -> thử ứng viên kế tiếp (slug add-on -> gốc domain -> cổng 18080).
             var foundApi: String? = null
+            var authApi: String? = null
             val triedApi = ArrayList<String>(apiList.size)
             for ((index, base) in apiList.withIndex()) {
-                if (token != searchToken) return@Thread
-                post { if (token == searchToken) setStatus(getString(R.string.status_searching_api, index + 1, apiList.size)) }
+                if (t != searchToken) return@Thread
+                post { if (t == searchToken) setStatus(getString(R.string.status_searching_api, index + 1, apiList.size)) }
                 triedApi.add(base)
-                val hit = ServerResolver.probe(base)
-                if (hit != null) {
-                    foundApi = hit.apiBase
+                val cookie = HaCookie.header(base)
+                if (ServerResolver.probe(base, cookie) != null) {
+                    foundApi = base
+                    break
+                }
+                val code = ServerResolver.probeStatus(base, cookie) ?: continue
+                if (authApi == null && WebTargetResolver.needsHaLogin(code)) {
+                    authApi = base                 // đúng ingress, chỉ thiếu đăng nhập -> dùng sau khi đăng nhập
+                    needLogin = true
                     break
                 }
             }
-            val apiBase = foundApi
+            // Không có ứng viên 200 nhưng có ứng viên "cần đăng nhập HA" -> vẫn lưu để đăng nhập rồi dùng.
+            val apiBase = foundApi ?: authApi
             if (apiBase == null) {
                 post {
-                    if (token != searchToken) return@post
+                    if (t != searchToken) return@post
                     searching = false
                     setSearchingUi(false)
                     showNotFound(getString(R.string.status_api_not_found), triedApi, getString(R.string.status_api_hint))
@@ -352,23 +358,25 @@ class MainActivity : Activity() {
                 return@Thread
             }
 
-            // ── 3) lưu 2 giá trị RIÊNG (+ cờ cần đăng nhập HA), đăng ký, khởi động service, mở trang.
-            Prefs.saveTargets(this, webUrl, apiBase, webText, apiText)
+            // ── 3) lưu, đăng ký thiết bị (kèm cookie), khởi động service, mở trang.
+            Prefs.saveTargets(this, webUrl, apiBase, text, "")
             Prefs.setNeedHaLogin(this, needLogin)
             val id = Prefs.phoneId(this)
             // (GD8) gui kem deviceKey + model; server co the GOP ban ghi trung va tra id CHUAN -> cap nhat lai Prefs.
             val registeredId = PhoneApi.register(
-                apiBase, webUrl, id, Prefs.phoneName(), Prefs.deviceKey(this), Prefs.phoneModel()
+                apiBase, webUrl, id, Prefs.phoneName(), Prefs.deviceKey(this), Prefs.phoneModel(), HaCookie.header(apiBase)
             )
             val registered = registeredId != null
             if (registeredId != null && registeredId != id) Prefs.setPhoneId(this, registeredId)
             if (Prefs.receiveEnabled(this)) PhoneService.start(this)
 
             post {
-                if (token != searchToken) return@post
+                if (t != searchToken) return@post
                 searching = false
                 setSearchingUi(false)
                 toast(getString(if (registered) R.string.connect_ok else R.string.connect_ok_noreg))
+                // Không phải https -> KHÔNG có micro/camera: nói rõ ngay (vẫn mở trang).
+                if (WebTargetResolver.lacksSecureContext(webUrl)) toast(getString(R.string.warn_no_secure, webUrl))
                 // openWeb() tự quyết: need_ha_login = true → mở origin của HA để đăng nhập trước.
                 openWeb(webUrl)
             }
@@ -378,7 +386,6 @@ class MainActivity : Activity() {
     private fun setSearchingUi(busy: Boolean) {
         findViewById<Button>(R.id.connectButton)?.isEnabled = !busy
         webInput?.isEnabled = !busy
-        apiInput?.isEnabled = !busy
     }
 
     /** Tiêu đề + danh sách đã thử + gợi ý. */
@@ -542,12 +549,36 @@ class MainActivity : Activity() {
         authRedirects = 0
         Prefs.setNeedHaLogin(this, false)
         showLoginBar(false)
+        // (17/11/2026) GD9 — đã có cookie phiên HA: API qua ingress mới dùng được. Đăng ký lại thiết bị + chạy
+        // PhoneService NGAY (trước đây service poll 401 liên tục cho tới khi có người mở Cài đặt).
+        if (Prefs.receiveEnabled(this)) PhoneService.start(this)
+        registerInBackground()
         val next = afterLoginUrl ?: targetUrl
         if (next != null) {
             webView?.loadUrl(next)
         } else {
             showUrlScreen()
         }
+    }
+
+    /**
+     * (17/11/2026) GD9 — đăng ký lại thiết bị ở luồng nền (không chặn UI): dùng sau khi đăng nhập Home Assistant
+     * xong, vì lúc bấm "Kết nối" có thể chưa có cookie nên lần đăng ký đó thất bại (401).
+     */
+    private fun registerInBackground() {
+        val api = Prefs.apiBase(this) ?: return
+        val web = Prefs.webUrl(this)
+        Thread {
+            try {
+                val id = Prefs.phoneId(this)
+                val canonical = PhoneApi.register(
+                    api, web, id, Prefs.phoneName(), Prefs.deviceKey(this), Prefs.phoneModel(), HaCookie.header(api)
+                )
+                if (canonical != null && canonical != id) Prefs.setPhoneId(this, canonical)
+            } catch (t: Throwable) {
+                // mất mạng: service sẽ tự đăng ký lại ở nhịp 60 s
+            }
+        }.also { it.isDaemon = true; it.name = "register-after-login" }.start()
     }
 
     /**

@@ -126,7 +126,10 @@
   var ws = null, me = '', call = '', peer = '', peerName = '', list = [], wantList = null;
   var media = null, actx = null, capNode = null, playNode = null, enc = null, vT = 0, vts = 0, forceKey = true, muted = false, camOff = false, ringT = 0;
   var camStream = null;              // (GD3) camera rieng (tuy chon) — mic van chay khi camera bi tu choi
+  var camFail = false, camErr = '';  // (GD9) da xin camera+micro cung luc: camera hong -> chi mat hinh, van co tieng
   var joined = false, joinPeer = '', joinName = '', joinSince = 0, joinPoll = 0, micFail = false, rev = 0, joinReq = false;
+  // (17/11/2026) GD9 — trang duoc app Android mo bang `?call=` (sau khi bam "Nghe") hay khong, va con muon giu WS khong.
+  var openedFromApp = !!JOIN_CALL, wantWs = true;
 
   function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
   // (GD8) POST JSON toi API cua app (`app/rename`, `app/remove`) — loi HTTP/`ok:false` -> reject kem thong bao.
@@ -160,7 +163,7 @@
       else if (m.type === 'joined') { onJoined(m); }
       else if (m.type === 'ended') { ring(false); stopMedia(); call = ''; endUi(m.reason); }
     };
-    ws.onclose = function () { setTimeout(connect, 2000); };
+    ws.onclose = function () { if (wantWs) setTimeout(connect, 2000); };
   }
 
   // ── Camera + micro ──
@@ -190,6 +193,27 @@
     if (media) return Promise.resolve(media);
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return Promise.reject(noMedia());
     return navigator.mediaDevices.getUserMedia({ audio: audioReq() }).then(function (s) { media = s; return s; });
+  }
+  /**
+   * (17/11/2026) GD9 — MẶC ĐỊNH AUDIO + CAMERA khi vào cuộc gọi bằng `?call=`.
+   *
+   * Trước đây luồng này chỉ xin MIC, camera là "tùy chọn" gọi riêng sau -> điện thoại gửi tiếng nhưng KHÔNG gửi
+   * khung hình nào (0x02), nên màn P4 chỉ thấy "Đang kết nối hình…". Nay xin CẢ HAI trong một lần:
+   *   - được cả hai  -> tiếng + hình,
+   *   - camera bị từ chối / máy không có camera -> vẫn giữ TIẾNG và báo rõ (camFail = true),
+   *   - micro bị từ chối -> lỗi như cũ (hiện "Thử lại").
+   */
+  function getJoinMedia() {
+    if (media) return Promise.resolve(media);
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return Promise.reject(noMedia());
+    return navigator.mediaDevices.getUserMedia({ audio: audioReq(), video: videoReq() })
+      .then(function (s) { media = s; camStream = s; camFail = false; camErr = ''; return s; })
+      .catch(function (e) {
+        camErr = (e && (e.name || e.message)) || 'Error';
+        return navigator.mediaDevices.getUserMedia({ audio: audioReq() })
+          .then(function (s) { media = s; camFail = true; return s; })
+          .catch(function () { throw e; });      // micro cũng bị từ chối -> đúng lỗi ban đầu
+      });
   }
   function getCam() {
     if (camStream || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return Promise.resolve(camStream);
@@ -228,8 +252,9 @@
   var camEl = document.createElement('video'); camEl.muted = true; camEl.playsInline = true;
   function startVideo() {
     var src = camStream || media;                 // (GD3) camera riêng nếu có, không thì luồng mic (không có hình thì bỏ qua)
+    // (17/11/2026) GD9 — luôn cập nhật nguồn hình (camera được cấp MUỘN vẫn phải vào bộ mã hoá đã tạo).
+    if (src && camEl.srcObject !== src) { camEl.srcObject = src; camEl.play().catch(function () { }); }
     if (enc || !src || !('VideoEncoder' in window)) return;
-    camEl.srcObject = src; camEl.play().catch(function () { });
     var cfgSent = false;
     enc = new VideoEncoder({
       output: function (chunk, meta) {
@@ -257,6 +282,8 @@
     clearInterval(vT); vT = 0;
     if (enc) { try { enc.close(); } catch (e) { /* */ } enc = null; }
     if (actx) { actx.close(); actx = null; capNode = playNode = null; }
+    // (17/11/2026) GD9 — nha HINH truoc khi dung track (WebView/Chromium giu camera toi khi srcObject duoc go).
+    try { camEl.pause(); camEl.srcObject = null; } catch (e) { /* */ }
     if (media) { media.getTracks().forEach(function (t) { t.stop(); }); media = null; }
     // (GD3) camera riêng (nếu xin được) — cùng stream với `media` thì đã dừng ở trên, dừng lần 2 vô hại.
     if (camStream) { camStream.getTracks().forEach(function (t) { t.stop(); }); camStream = null; }
@@ -338,12 +365,24 @@
     JOIN_CALL = ''; JOIN_PHONE = ''; joined = false; micFail = false; joinReq = false;
     call = ''; peer = ''; peerName = ''; joinPeer = ''; joinName = '';
     stopMedia();                                          // nhả micro / camera
+    // (17/11/2026) GD9 — ngừng tự nối lại WS: trước đây trang nối lại mỗi 2 s mãi mãi, mỗi lần lại tạo một
+    // "phiên web" mới trên server (rác trong danh bạ + giữ cuộc gọi không đóng được).
+    wantWs = false;
+    try { if (ws) ws.close(); } catch (e) { /* */ }
     try { history.replaceState(null, '', location.pathname); } catch (e) { /* */ }
+    // (17/11/2026) GD9 — trang được app mở bằng ?call=: KHÔNG để người dùng "treo" ở màn gọi đã hết; quay về
+    // trang điều khiển (cùng thư mục ingress) như trước khi có cuộc gọi.
+    if (openedFromApp) { try { location.replace(BASE + 'launcher-config.html'); return; } catch (e) { /* */ } }
     ui.set({ view: 'contacts', call: '', peer: '', peerName: '' });
   }
   // Màn "đã kết thúc" rồi tự về danh bạ (giữ nguyên hành vi cũ khi KHÔNG có ?call=).
+  // (17/11/2026) GD9 — chạy MỘT lần: WS báo 'ended' và pollState cùng phát hiện thì không được dựng lại màn/ hẹn giờ 2 lần.
+  var endedOnce = false;
   function endUi(reason) {
     clearTimeout(joinPoll); joinPoll = 0; joined = false;
+    if (endedOnce) return;
+    endedOnce = true;
+    stopMedia();                                            // nhả micro/camera NGAY khi cuộc gọi hết
     ui.set({ view: 'ended', reason: reason, peerName: joinName || peerName });
     setTimeout(function () { if (call) return; if (JOIN_CALL) leaveCall(); else ui.set({ view: 'contacts', call: '' }); }, 2500);
   }
@@ -365,14 +404,16 @@
       }, 2500);
     })();
   }
-  // Xin micro (bắt buộc) rồi báo server cho vào cuộc gọi.
+  // Xin micro + camera (bắt buộc MIC, camera mặc định bật) rồi báo server cho vào cuộc gọi.
   function joinNow() {
     if (!JOIN_CALL || joined || joinReq) return;             // đang xin quyền / đã vào rồi thì thôi
     if (!ws || ws.readyState !== 1) return;                  // chờ 'hello' -> connect() gọi lại
     joinReq = true;
-    getMic().then(function () {
+    getJoinMedia().then(function () {
       micFail = false; joinReq = false;
-      joinView('Đang kết nối…', false);
+      // (17/11/2026) GD9 — báo rõ khi chỉ có tiếng (camera bị từ chối): cuộc gọi vẫn chạy.
+      joinView(camFail ? 'Đang kết nối… (chỉ có tiếng — không mở được camera)' : 'Đang kết nối…', false);
+      if (camFail) ui.toast('Không mở được camera (' + camErr + ') — vẫn gọi bằng tiếng.');
       send({ type: 'join', call: JOIN_CALL, phone: JOIN_PHONE });
     }).catch(function (e) {
       micFail = true; joinReq = false;
@@ -393,11 +434,15 @@
     joinSince = m.since || Date.now();
     peer = joinPeer; peerName = joinName;                   // để tin 'flags' (tắt mic / tắt camera bên kia) so đúng id
     startAudio();                                           // tiếng 2 chiều: mic -> WS 0x01, PCM trong WS -> loa
-    getCam();                                               // camera của mình: tùy chọn (không có vẫn nói/nghe được)
+    // (17/11/2026) GD9 — camera của máy: BẬT MẶC ĐỊNH (đã xin cùng micro ở getJoinMedia). Nếu lần đầu bị từ chối
+    // thì thử lại 1 lần sau 3 s (người dùng vừa bấm "Cho phép" muộn) — vẫn không có thì chỉ mất hình.
+    getCam();
+    if (!camStream) setTimeout(function () { if (joined && !camStream) getCam(); }, 3000);
     ui.set({ view: 'active', call: call, peer: joinPeer, peerName: joinName, since: joinSince || Date.now(),
       peerMuted: false, peerCamOff: false, rev: ++rev });
     pollState();
-    console.log('[call-web] vào cuộc gọi ' + call + ' (' + joinPeer + ')');
+    console.log('[call-web] vào cuộc gọi ' + call + ' (' + joinPeer + '), camera=' + (camStream ? 'có' : 'KHÔNG') +
+      (camFail ? ' (' + camErr + ')' : ''));
   }
   // Trang mở bằng ?call=: KHÔNG hiện danh bạ — lấy tên người gọi rồi xin micro.
   function bootJoin() {
@@ -522,6 +567,10 @@
   connect();
   // (GD3) Có ?call= (app mở sau khi bấm Nghe) -> vào thẳng cuộc gọi; không có -> danh bạ như cũ.
   if (JOIN_CALL) bootJoin(); else ui.set({ view: 'contacts' });
+  // (17/11/2026) GD9 — rời trang (bấm nút URL, app đóng WebView, khoá máy...) thì NHẢ micro/camera ngay; nếu không
+  // track vẫn bị giữ tới khi WebView bị huỷ hẳn (điện thoại còn "đang gọi" trong khi màn P4 đã hết cuộc gọi).
+  window.addEventListener('pagehide', stopMedia);
+  window.addEventListener('beforeunload', stopMedia);
 })();
 </script>
 

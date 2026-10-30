@@ -53,6 +53,8 @@ import { handleFrigateApi } from './frigate.js';
 import { handleLockWidgetsApi, noteDeviceIp } from './lockWidgets.js';
 import { isLocalBrowser } from './requestOrigin.js';
 import { handleCalendarApi } from './calendarSource.js';
+// (17/11/2026) GD9: bo tien to ingress cua HA o MOT cho (`/api/hassio_ingress/<TOKEN>/app/register` -> `/app/register`).
+import { routeOf } from './routePath.js';
 import type WebSocket from 'ws';
 
 const WS_PORT   = env.get("WS_PORT").default("8081").asIntPositive();
@@ -252,36 +254,41 @@ for (const [route, rel] of Object.entries(VENDOR)) {
 
 http.createServer((req, res) => {
   const reqUrl = new URL(req.url || "/", `http://localhost:${HEALTH_PORT}`);
-  const pathname = reqUrl.pathname;
+  // (17/11/2026) GD9 — duong dan DA BO tien to ingress/proxy. Moi handler nhan `routeUrl` (pathname da chuan hoa,
+  // query giu nguyen) thay vi URL goc, nho vay `/api/hassio_ingress/<TOKEN>/app/register`, `/chat/list`,
+  // `/files.html`… deu khop nhu khi goi thang o goc add-on. Tren panel (127.0.0.1, goc '/') khong doi gi.
+  const pathname = routeOf(reqUrl.pathname);
+  const routeUrl = new URL(req.url || "/", `http://localhost:${HEALTH_PORT}`);
+  routeUrl.pathname = pathname;
   // (01/10/2026) Ung dung Camera: chuyen tiep toi cam_app cua panel co camera (src/camProxy.ts).
   // (09/10/2026) go2rtc qua server (trang camera) — src/go2rtcProxy.ts.
   if (handleGo2rtcHttp(req, res, pathname, reqUrl.search)) return;
   if (handleCamLive(req, res, pathname)) return;
   if (handleCamProxy(req, res, pathname, reqUrl.search)) return;
   // (02/10/2026) Quan ly file (the SD cua P4) tu trang Dashboard — chi ingress.
-  if (handleFileManager(req, res, reqUrl)) return;
+  if (handleFileManager(req, res, routeUrl)) return;
   // (07/10/2026) IPTV: danh sach kenh, proxy luong, yeu thich, cau hinh tu trang Dashboard (src/iptv.ts).
-  if (handlePushApi(req, res, reqUrl)) return;
-  if (handleIptvApi(req, res, reqUrl)) return;
-  if (handleScreenCtlApi(req, res, reqUrl)) return;   // (16/10/2026) Dashboard → Màn hình
-  if (handleControlApi(req, res, reqUrl)) return;     // (21/10/2026) Dashboard → điều khiển màn hình
-  if (handleTelegramApi(req, res, reqUrl)) return;   // (16/10/2026) thong bao Telegram
+  if (handlePushApi(req, res, routeUrl)) return;
+  if (handleIptvApi(req, res, routeUrl)) return;
+  if (handleScreenCtlApi(req, res, routeUrl)) return;   // (16/10/2026) Dashboard → Màn hình
+  if (handleControlApi(req, res, routeUrl)) return;     // (21/10/2026) Dashboard → điều khiển màn hình
+  if (handleTelegramApi(req, res, routeUrl)) return;   // (16/10/2026) thong bao Telegram
   // (14/10/2026) Ung dung Media: nguon media cua HA, phat tren man / loa HA (src/mediaLib.ts) — chi 127.0.0.1.
-  if (handleMediaApi(req, res, reqUrl)) return;
+  if (handleMediaApi(req, res, routeUrl)) return;
   // (14/10/2026) INTERCOM GD0: tieng giua man va trang thu / do vong lap (src/callBridge.ts).
-  if (handleCallApi(req, res, reqUrl)) return;
+  if (handleCallApi(req, res, routeUrl)) return;
   // (16/10/2026) Hình MJPEG của chuông cổng qua HTTP cho Frigate/HA — phải TRƯỚC handleDoorApi (nó nhận mọi /door/*).
-  if (handleDoorMjpeg(req, res, reqUrl)) return;
+  if (handleDoorMjpeg(req, res, routeUrl)) return;
   // (14/10/2026) Chuong cong: Nghe / Tu choi / Ket thuc / Mo cong, anh khach (src/door.ts).
-  if (handleDoorApi(req, res, reqUrl)) return;
+  if (handleDoorApi(req, res, routeUrl)) return;
   // (14/10/2026) Nhac chuong tu thu muc media HA (src/ringtone.ts).
   if (handleRingtone(req, res, pathname)) return;
   // (14/10/2026) Cuoc goi video man <-> man / trinh duyet (src/calls.ts).
-  if (handleCallsApi(req, res, reqUrl)) return;
+  if (handleCallsApi(req, res, routeUrl)) return;
   // (10/11/2026) GD2: app Android dang ky / poll cuoc goi den / nghe / tu choi (src/phones.ts).
-  if (handlePhoneApi(req, res, reqUrl)) return;
+  if (handlePhoneApi(req, res, routeUrl)) return;
   // (08/10/2026) Su kien camera Frigate: danh sach, anh, clip (src/frigate.ts) — chi 127.0.0.1.
-  if (handleFrigateApi(req, res, reqUrl)) return;
+  if (handleFrigateApi(req, res, routeUrl)) return;
   const vendor = vendorCache.get(pathname);
   if (vendor) {
     res.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'public, max-age=3600' });
@@ -416,15 +423,15 @@ http.createServer((req, res) => {
     send(404, { error: 'khong co' });
     return;
   }
-  if (handleAppApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
-  if (handleHomeApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
-  if (handleLauncherApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
+  if (handleAppApi(req, res, routeUrl)) return;
+  if (handleHomeApi(req, res, routeUrl)) return;
+  if (handleLauncherApi(req, res, routeUrl)) return;
   // (08/10/2026) Trang Dashboard -> tab "Màn khóa": cam bien nang luong cho widget (src/lockWidgets.ts).
-  if (handleLockWidgetsApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
+  if (handleLockWidgetsApi(req, res, routeUrl)) return;
   // (09/10/2026) Lich iCal (Google...) cho widget / trang Hom nay — src/calendarSource.ts.
-  if (handleCalendarApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
-  if (handleChatApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`))) return;
-  if (handleAlarmApi(req, res, new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`), () => connectedScreens().map((s) => ({
+  if (handleCalendarApi(req, res, routeUrl)) return;
+  if (handleChatApi(req, res, routeUrl)) return;
+  if (handleAlarmApi(req, res, routeUrl, () => connectedScreens().map((s) => ({
     id: s.id, name: screenNameOf(s.id) || `Màn hình ${s.w}×${s.h}`, spk: s.spk })))) return;
 
   // (25/09/2026) Vi tri nha trong Home Assistant cho weather.html (cung nguon goc 127.0.0.1:HEALTH_PORT).
@@ -454,7 +461,18 @@ http.createServer((req, res) => {
   }
 
   res.writeHead(200); res.end('ok');
-}).on('upgrade', (req, socket, head) => { if (!handleCallUpgrade(req, socket, head) && !handleCallsUpgrade(req, socket, head) && !handleGo2rtcUpgrade(req, socket, head) && !handleControlUpgrade(req, socket, head)) socket.destroy(); }).listen(HEALTH_PORT);
+}).on('upgrade', (req, socket, head) => {
+  // (17/11/2026) GD9 — WebSocket mo tu trang chay qua ingress cung mang tien to
+  // (`/api/hassio_ingress/<TOKEN>/calls/web`, `/call/video`, `/go2rtc/...`). Bo tien to ngay tai day de moi handler
+  // nang cap thay dung duong dan (truoc day /calls/web + /call/video da dung `endsWith` nen van chay, con
+  // /go2rtc/* thi bi huy socket).
+  try {
+    const u = new URL(req.url || '/', 'http://x');
+    const rp = routeOf(u.pathname);
+    if (rp !== u.pathname) req.url = rp + u.search;
+  } catch { /* URL hong: giu nguyen, handler tu quyet dinh */ }
+  if (!handleCallUpgrade(req, socket, head) && !handleCallsUpgrade(req, socket, head) && !handleGo2rtcUpgrade(req, socket, head) && !handleControlUpgrade(req, socket, head)) socket.destroy();
+}).listen(HEALTH_PORT);
 initPush();
 
 setInterval(() => cleanupIdleAsync(), 60_000);

@@ -114,7 +114,7 @@
     var toast = el('div', 'toast'); toast.hidden = true;
     root.append(bigCv, bigVid, shade, camOffBox, pip, top, center, bar, list, toast);
 
-    var S = { view: '' }, remote = null, selfFeed = null, tickT = 0, hideT = 0, muted = false, camOff = false, toastT = 0;
+    var S = { view: '' }, remote = null, remoteKey = '', selfFeed = null, tickT = 0, hideT = 0, muted = false, camOff = false, toastT = 0, waitT = 0;
     function say(t) { toast.textContent = t; toast.hidden = false; clearTimeout(toastT); toastT = setTimeout(function () { toast.hidden = true; }, 2600); }
     function rbtn(cls, ic, label, fn) {
       var w = el('div', 'rb ' + cls), b = el('button'); b.type = 'button'; b.setAttribute('aria-label', label); b.append(svg(ic));
@@ -173,13 +173,14 @@
 
     function render() {
       clearInterval(tickT);
+      clearTimeout(waitT);
       if (S.view === 'in' && A.ringUrl) ringTone(A.ringUrl); else if (S.view === 'out') ringback(); else stopTones();
       root.dataset.view = S.view;
       list.hidden = S.view !== 'contacts';
       top.hidden = center.hidden = bar.hidden = S.view === 'contacts';
       camOffBox.hidden = true; pip.hidden = true; bigCv.hidden = false;
       center.replaceChildren(); bar.replaceChildren();
-      if (S.view !== 'active' && remote) { remote.close(); remote = null; }
+      if (S.view !== 'active' && remote) { remote.close(); remote = null; remoteKey = ''; }
       if (S.view === 'contacts') { showSelf(null); bigCv.hidden = true; renderContacts(); chrome(true); return; }
       if (S.view === 'out' || S.view === 'in') {
         showSelf('big');
@@ -202,10 +203,25 @@
         top.hidden = true; chrome(true); return;
       }
       // active
+      // (17/11/2026) GD9 — SUA LOI P4 KHONG HIEN HINH khi goi dien thoai: `S.peer` doi tu ID MAY sang phien web
+      // (`web-…`) ngay sau khi trang cua dien thoai `join`. Truoc day khung hinh chi tao MOT lan (theo id may) nen
+      // socket bi server dong (4004) roi noi lai mai mai voi dia chi CU -> chi thay "Đang kết nối hình…".
+      // Nay: doi nguon (peer/call) -> dong ket noi cu, mo lai voi dia chi MOI.
+      var vsrc = A.base + 'call/video?dev=' + encodeURIComponent(S.peer) + '&call=' + encodeURIComponent(S.call);
+      if (remote && remoteKey !== vsrc) { remote.close(); remote = null; }
       if (!remote) {
         S.gotVideo = false;
-        remote = videoInto(bigCv, A.base + 'call/video?dev=' + encodeURIComponent(S.peer) + '&call=' + encodeURIComponent(S.call),
-          function () { S.gotVideo = true; if (!S.peerCamOff) camOffBox.hidden = true; });
+        remoteKey = vsrc;
+        remote = videoInto(bigCv, vsrc,
+          function () { S.gotVideo = true; if (!S.peerCamOff) camOffBox.hidden = true; clearTimeout(waitT); });
+        // Khong nhan duoc khung nao sau 8 s: noi ro ly do thay vi de "Đang kết nối hình…" vo han.
+        clearTimeout(waitT);
+        waitT = setTimeout(function () {
+          if (S.view !== 'active' || S.gotVideo || S.peerCamOff) return;
+          camOffBox.replaceChildren(avatar(S.peerName, true),
+            el('div', 'csub', 'Chưa nhận được hình từ bên kia'), el('div', 'csub', 'Máy bên kia cần bật camera (chỉ có tiếng thì vẫn nghe được).'));
+          camOffBox.hidden = false;
+        }, 8000);
       }
       showSelf('pip'); pip.hidden = false;
       topName.textContent = S.peerName || '';
@@ -224,6 +240,7 @@
     return {
       set: function (st) {
         var changed = st.view !== S.view || st.peerCamOff !== S.peerCamOff || st.peerMuted !== S.peerMuted || st.call !== S.call
+          || st.peer !== S.peer        // (17/11/2026) GD9: nguon hinh doi (id may -> phien web) -> noi lai /call/video
           || st.rev !== S.rev;   // (GD3) `rev` = ve lai man hinh dang hien (vd hinh camera cua minh den muon)
         if (st.view !== 'active') { muted = false; camOff = false; }
         S = Object.assign({}, S, st);

@@ -30,6 +30,13 @@ object PhoneApi {
         object None : Poll()
         data class Ring(val call: Incoming) : Poll()
         object Error : Poll()
+
+        /**
+         * (17/11/2026) GD9 — server tra 401/403/404: goc API dung nhung THIEU COOKIE phien HA (ingress), hoac TOKEN
+         * ingress sai (404). Phai khac [Error]: goi lai y nguyen se lap vo ich, can DANG NHAP lai hoac thu duong
+         * dan khac (xem PhoneService.reprobeApi / WebTargetResolver.apiBasesForInput).
+         */
+        data class Denied(val code: Int) : Poll()
     }
 
     /** `apiBase` da luu + duong dan -> URL day du. null khi apiBase rong / khong phai http(s). */
@@ -59,7 +66,8 @@ object PhoneApi {
         id: String,
         name: String,
         deviceKey: String = "",
-        model: String = ""
+        model: String = "",
+        cookie: String? = null
     ): String? {
         val url = apiUrl(apiBase, "app/register") ?: return null
         val body = JSONObject()
@@ -69,7 +77,7 @@ object PhoneApi {
             .put("deviceKey", deviceKey)
             .put("model", model)
             .toString()
-        val (code, text) = request(url, "POST", body) ?: return null
+        val (code, text) = request(url, "POST", body, cookie) ?: return null
         if (code !in 200..299) return null
         // {ok:true, phone:{id,...}} — `phone.id` la id CHUAN sau khi server gop ban ghi trung deviceKey.
         return try {
@@ -90,9 +98,10 @@ object PhoneApi {
         return if (a.isNotEmpty()) a else fallback.trim()
     }
 
-    fun incoming(apiBase: String?, id: String): Poll {
+    fun incoming(apiBase: String?, id: String, cookie: String? = null): Poll {
         val url = apiUrl(apiBase, "app/incoming?phone=" + enc(id)) ?: return Poll.Error
-        val (code, text) = request(url, "GET", null) ?: return Poll.Error
+        val (code, text) = request(url, "GET", null, cookie) ?: return Poll.Error
+        if (code == 401 || code == 403 || code == 404) return Poll.Denied(code)
         if (code !in 200..299) return Poll.Error
         return try {
             val call = JSONObject(text).optJSONObject("call") ?: return Poll.None
@@ -105,15 +114,19 @@ object PhoneApi {
         }
     }
 
-    fun answer(apiBase: String?, phoneId: String, callId: String): Boolean =
-        action(apiBase, "app/answer", phoneId, callId)
+    fun answer(apiBase: String?, phoneId: String, callId: String, cookie: String? = null): Boolean =
+        action(apiBase, "app/answer", phoneId, callId, cookie)
 
-    fun decline(apiBase: String?, phoneId: String, callId: String): Boolean =
-        action(apiBase, "app/decline", phoneId, callId)
+    fun decline(apiBase: String?, phoneId: String, callId: String, cookie: String? = null): Boolean =
+        action(apiBase, "app/decline", phoneId, callId, cookie)
 
-    private fun action(apiBase: String?, path: String, phoneId: String, callId: String): Boolean {
+    /** (GD3) Ket thuc cuoc goi tu app (va tu trang call-web.html) — ke ca sau khi trang da `join`. */
+    fun hangup(apiBase: String?, phoneId: String, callId: String, cookie: String? = null): Boolean =
+        action(apiBase, "app/hangup", phoneId, callId, cookie)
+
+    private fun action(apiBase: String?, path: String, phoneId: String, callId: String, cookie: String? = null): Boolean {
         val url = apiUrl(apiBase, "$path?phone=${enc(phoneId)}&call=${enc(callId)}") ?: return false
-        val (code, _) = request(url, "POST", "{}") ?: return false
+        val (code, _) = request(url, "POST", "{}", cookie) ?: return false
         return code in 200..299
     }
 
@@ -127,8 +140,13 @@ object PhoneApi {
         return v
     }
 
-    /** Tra (ma HTTP, noi dung) hoac null khi khong ket noi duoc. */
-    private fun request(urlStr: String, method: String, body: String?): Pair<Int, String>? {
+    /**
+     * Tra (ma HTTP, noi dung) hoac null khi khong ket noi duoc.
+     *
+     * (17/11/2026) GD9 — [cookie] = header `Cookie:` cua phien Home Assistant (xem [HaCookie]). Bat buoc khi
+     * [apiBase] nam sau ingress (`https://<domain>/api/hassio_ingress/<TOKEN>`): thieu cookie -> 401.
+     */
+    private fun request(urlStr: String, method: String, body: String?, cookie: String? = null): Pair<Int, String>? {
         var conn: HttpURLConnection? = null
         try {
             val u = URL(urlStr)
@@ -139,6 +157,7 @@ object PhoneApi {
                 instanceFollowRedirects = true
                 setRequestProperty("accept", "application/json")
                 setRequestProperty("user-agent", "DashboardOS-Android")
+                if (!cookie.isNullOrBlank()) setRequestProperty("cookie", cookie)
                 if (body != null) {
                     doOutput = true
                     setRequestProperty("content-type", "application/json; charset=utf-8")

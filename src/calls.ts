@@ -37,10 +37,14 @@ import type { FrameSink } from './mkvLive.js';
 import { ringtoneExists } from './ringtone.js';
 import { isLocalBrowser } from './requestOrigin.js';
 import { phoneLabel, phones } from './phoneStore.js';
+// (17/11/2026) GD9 — bo tien to ingress cua HA (`/api/hassio_ingress/<TOKEN>/calls/*`).
+import { routeOf } from './routePath.js';
 
 const RING_S = 30;
 export interface Party { kind: 'panel' | 'web' | 'phone'; id: string }
-interface WebSession { id: string; name: string; ws: WebSocket; call: string | null; vcfg: { codec: string; avcc: Buffer } | null; vsinks: Set<FrameSink> }
+interface WebSession { id: string; name: string; ws: WebSocket; call: string | null; vcfg: { codec: string; avcc: Buffer } | null; vsinks: Set<FrameSink>;
+  /** (17/11/2026) GD9: da nhan khung hinh H.264 dau tien tu trang nay (chi de ghi log MOT lan). */
+  vfirst?: boolean }
 interface Call {
   id: string; from: Party; to: Party; state: 'ringing' | 'active';
   ringT: NodeJS.Timeout; startedAt: number; ringId: string | null;
@@ -260,12 +264,51 @@ export function setFlag(callId: string, dev: string, kind: 'mute' | 'cam', on: b
   return true;
 }
 
-/** Hinh duoc xem trong cuoc goi `callId`: chi khi cuoc goi dang chay, nguon thuoc cuoc goi va khong tat camera. */
+/**
+ * Hinh duoc xem trong cuoc goi `callId`: chi khi cuoc goi dang chay, nguon thuoc cuoc goi va khong tat camera.
+ *
+ * (17/11/2026) GD9 — `src` co the la ID MAY (`c.phone`): man P4 xin hinh bang `dev=<to>` lay tu /calls/state luc
+ * dien thoai CHUA `join` (xem videoSourceOf), nen phai coi id may la "thuoc cuoc goi".
+ */
 export function videoAllowed(callId: string, src: string): boolean {
   const c = callOf(callId);
-  return !!c && (c.from.id === src || c.to.id === src) && !c.camOff.has(src);
+  if (!c) return false;
+  const own = c.from.id === src || c.to.id === src || c.phone === src;
+  return own && !c.camOff.has(src);
 }
 export function isWebSource(id: string): boolean { return webs.has(id); }
+
+/**
+ * (17/11/2026) GD9 — NGUON HINH THAT SU cua mot id trong /call/video.
+ *
+ * Vi sao can: hinh camera cua DIEN THOAI chi ton tai trong PHIEN WEB cua trang `call-web.html?call=` (khung 0x02 do
+ * WebCodecs cua trang ban len, xem webMessage). Nhung man P4 lay `peer` tu /calls/state: trong ~0,5–2 s dau (app da
+ * POST /app/answer nhung trang chua kip `join`) `state.to` la ID MAY, va sau khi join moi la `web-…`. Trang P4 mo
+ * `/call/video?dev=<ID MAY>` -> truoc day `isWebSource()` false, `connectedScreens()` khong co may -> server dong
+ * socket 4004 "man khong co camera" => **P4 khong bao gio hien hinh camera cua dien thoai** (chi thay "Đang kết nối
+ * hình…"), du tieng van chay. Nay: id may duoc anh xa sang phien web dang giu cuoc goi cua may do.
+ */
+export function videoSourceOf(dev: string): string {
+  const id = (dev || '').trim();
+  if (!id || webs.has(id)) return id;
+  for (const c of calls.values()) {
+    if (c.phone === id && c.to.kind === 'web' && webs.has(c.to.id)) return c.to.id;
+  }
+  return id;
+}
+
+/**
+ * (17/11/2026) GD9 — `id` co the la mot dau cuoi cua cuoc goi dang chay khong (man / trinh duyet / dien thoai).
+ * Dung de phan biet "nguon hinh nay chua san sang" (dien thoai chua join — cho them vai giay) voi
+ * "id rac" (dong socket ngay, nhu truoc).
+ */
+export function isCallParty(id: string): boolean {
+  const v = (id || '').trim();
+  if (!v) return false;
+  if (webs.has(v)) return true;
+  for (const c of calls.values()) if (c.from.id === v || c.to.id === v || c.phone === v) return true;
+  return false;
+}
 
 /** Nguoi xem hinh camera trinh duyet. Chua co khung khoa -> nho trinh duyet gui khung khoa. */
 export function subscribeWebFrames(id: string, sink: FrameSink): () => void {
@@ -313,6 +356,12 @@ function webMessage(w: WebSession, data: Buffer, isBinary: boolean): void {
     }
   } else if (data[0] === 2 && data.length > 6 && !c.camOff.has(w.id)) {
     const key = data[1] === 1, ts = data.readUInt32LE(2), frame = data.subarray(6);
+    // (17/11/2026) GD9 — HINH tu trang web -> nguoi xem (/call/video). Ghi log khung DAU TIEN mot lan: day la bang
+    // chung "dien thoai da gui hinh" trong nhat ky add-on khi man P4 khong hien duoc hinh.
+    if (!w.vfirst) {
+      w.vfirst = true;
+      console.log(`[calls] ${w.id}: khung hinh H.264 dau tien (${frame.length} byte, key=${key ? 1 : 0}) -> ${w.vsinks.size} nguoi xem`);
+    }
     for (const s of w.vsinks) s({ kind: 'frame', key, ts, data: frame });
   }
 }
@@ -348,7 +397,9 @@ function json(res: http.ServerResponse, code: number, body: unknown): void {
   res.end(JSON.stringify(body));
 }
 export function handleCallsApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL): boolean {
-  const p = url.pathname;
+  // (17/11/2026) GD9 — bo tien to ingress (`/api/hassio_ingress/<TOKEN>/calls/state`): trang Goi mo qua ingress
+  // (tab "Gọi" cua Dashboard / call-web.html) goi API bang duong dan tuyet doi kem tien to.
+  const p = routeOf(url.pathname);
   if (!p.startsWith('/calls/')) return false;
   if (!isPage(req)) { json(res, 403, { error: 'Chỉ dùng từ màn hình.' }); return true; }
   const q = (k: string) => url.searchParams.get(k) || '';

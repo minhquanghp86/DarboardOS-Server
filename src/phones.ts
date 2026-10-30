@@ -32,6 +32,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { accept, declineFromPhone, hangupFromPhone, incomingFor } from './calls.js';
 import { parseId, parseRegister, phones, type Phone } from './phoneStore.js';
+// (17/11/2026) GD9 — bo tien to ingress (`/api/hassio_ingress/<TOKEN>/app/...`).
+import { routeOf } from './routePath.js';
 
 const BODY_MAX = 4096;
 
@@ -101,7 +103,10 @@ function phoneView(p: Phone): { id: string; name: string; lastSeen: number; devi
 /** true = da xu ly request. */
 export function handlePhoneApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL): boolean {
   // Bo "/" cuoi (va chap nhan tien to duong dan: /b39feb53_remote_webview_server/app/ping).
-  const raw = url.pathname;
+  // (17/11/2026) GD9 — bo TIEN TO INGRESS cua HA o ca 6 route (truoc day chi /app/ping so khop theo HAU TO nen
+  // /api/hassio_ingress/<TOKEN>/app/ping chay, con /app/register | incoming | answer | decline | hangup qua ingress
+  // thi truot -> app khong dang ky / khong nhan duoc cuoc goi khi chi con MOT o dia chi la domain).
+  const raw = routeOf(url.pathname);
   const p = raw.length > 1 ? raw.replace(/\/+$/, '') : raw;
 
   // (30/10/2026) GD4 — /app/ping: phai tra 200 ca khi add-on chay sau proxy co TIEN TO duong dan, nen so khop

@@ -208,6 +208,8 @@ class PhoneService : Service() {
         loop = Thread {
             var lastRegister = 0L
             var registeredBase: String? = null
+            var needLoginLogged = false
+            var deniedBase: String? = null
             while (!stopping && Prefs.receiveEnabled(this)) {
                 // (30/10/2026) GD4: dung THANG goc API da do duoc (khong suy ra tu URL trang nua).
                 val base = Prefs.apiBase(this)
@@ -215,13 +217,29 @@ class PhoneService : Service() {
                     if (!sleep()) break
                     continue
                 }
+                // (17/11/2026) GD9 — goc API co the nam sau ingress cua Home Assistant (khi nguoi dung chi nhap domain):
+                // MOI loi goi /app/* phai kem COOKIE phien HA, khong thi ingress tra 401. Chua dang nhap -> DUNG poll
+                // (khong ban 401 moi 2 s) va cho: dang nhap xong, MainActivity goi PhoneService.start + da co cookie.
+                val ingress = WebTargetResolver.isIngressBase(base)
+                val cookie = if (ingress) HaCookie.header(base) else null
+                if (ingress && cookie.isNullOrBlank()) {
+                    if (!needLoginLogged) {
+                        needLoginLogged = true
+                        Log.i(TAG, "goc API qua ingress nhung CHUA co cookie Home Assistant -> cho dang nhap")
+                    }
+                    PhoneStatus.needLogin = true
+                    PhoneStatus.publish(this)
+                    if (!sleep()) break
+                    continue
+                }
+                if (needLoginLogged) { needLoginLogged = false; PhoneStatus.needLogin = false }
                 var id = Prefs.phoneId(this)
                 val now = System.currentTimeMillis()
                 if (registeredBase != base || now - lastRegister >= RE_REGISTER_MS) {
                     // (GD8) gui kem deviceKey (ANDROID_ID) + model: server GOP ban ghi trung cua cung may va tra id CHUAN.
                     val sent = id
                     val canonical = PhoneApi.register(
-                        base, Prefs.webUrl(this), sent, Prefs.phoneName(), Prefs.deviceKey(this), Prefs.phoneModel()
+                        base, Prefs.webUrl(this), sent, Prefs.phoneName(), Prefs.deviceKey(this), Prefs.phoneModel(), cookie
                     )
                     if (canonical != null) {
                         lastRegister = now
@@ -235,7 +253,7 @@ class PhoneService : Service() {
                         Log.i(TAG, "da dang ky $id voi server")
                     }
                 }
-                when (val r = PhoneApi.incoming(base, id)) {
+                when (val r = PhoneApi.incoming(base, id, cookie)) {
                     is PhoneApi.Poll.Ring -> {
                         PhoneStatus.lastPollAt = System.currentTimeMillis()
                         onIncoming(r.call)
@@ -246,8 +264,19 @@ class PhoneService : Service() {
                         onNoCall()
                         PhoneStatus.publish(this)
                     }
+                    is PhoneApi.Poll.Denied -> {
+                        // (17/11/2026) GD9 — 401/403 = thieu cookie / can dang nhap HA; 404 = sai TOKEN ingress.
+                        // Thu MOT lan cac ung viên khác (ingress -> slug add-on -> goc domain) roi ghi lai goc API.
+                        PhoneStatus.lastPollAt = System.currentTimeMillis()
+                        if (deniedBase != base) {
+                            deniedBase = base
+                            Log.w(TAG, "API $base tra ${r.code} (thieu cookie HA hoac sai TOKEN ingress)")
+                            reprobeApi(base)
+                        }
+                        PhoneStatus.publish(this)
+                    }
                     PhoneApi.Poll.Error -> {
-                        // mat mang: giu nguyen trang thai (chuông vẫn kêu), thu lai sau 2 s.
+                        // mat mang: giu nguyen trang thai (chuong vẫn kêu), thu lai sau 2 s.
                         // Vẫn cập nhật giờ poll để màn Cài đặt thấy vòng poll còn sống.
                         PhoneStatus.lastPollAt = System.currentTimeMillis()
                         PhoneStatus.publish(this)
@@ -258,6 +287,29 @@ class PhoneService : Service() {
             running = false
             Log.i(TAG, "vong poll ket thuc")
         }.also { it.isDaemon = true; it.name = "phone-poll"; it.start() }
+    }
+
+    /**
+     * (17/11/2026) GD9 — goc API hien tai tra 401/404 (TOKEN ingress doi, doi domain, doi mang...): thu lai cac ung
+     * vien suy ra tu dung dia chi nguoi dung da nhap (Prefs.oneInput) va ghi lai goc API dang chay duoc.
+     * Khong bao gio nem loi; khong lam gi neu khong tim duoc ung vien tot hon.
+     */
+    private fun reprobeApi(current: String) {
+        try {
+            val list = WebTargetResolver.apiBasesForInput(Prefs.oneInput(this), Prefs.ingressToken(this))
+            for (base in list) {
+                if (base == current) continue
+                val cookie = if (WebTargetResolver.isIngressBase(base)) HaCookie.header(base) else null
+                if (WebTargetResolver.isIngressBase(base) && cookie.isNullOrBlank()) continue
+                if (ServerResolver.probe(base, cookie) == null) continue
+                Prefs.setApiBase(this, base)
+                Prefs.setNeedHaLogin(this, false)
+                Log.i(TAG, "chuyen goc API: $current -> $base")
+                return
+            }
+        } catch (t: Throwable) {
+            Log.d(TAG, "reprobe loi: ${t.javaClass.simpleName}: ${t.message}")
+        }
     }
 
     /** Ngu 2 s (ngat duoc khi service bi dung). false = phai thoat vong lap. */
