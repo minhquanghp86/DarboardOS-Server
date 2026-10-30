@@ -100,17 +100,13 @@ Mỗi màn hình trở thành **một thiết bị** trong HA, tự cập nhật
 | Thao tác | Kết quả |
 |---|---|
 | Vuốt từ **đáy** lên | Về màn hình chính |
-| Vuốt từ **mép trái/phải** | Quay lại (như nút Back) — xem GIF bên dưới |
+| Vuốt từ **mép trái/phải** | Quay lại (như nút Back) — xem video ở mục 15 |
 | Chạm giữ ứng dụng ở màn hình chính | Vào chế độ sắp xếp: đổi thứ tự, gom thư mục, ẩn/hiện |
 | Vuốt từ **trên** xuống | Mở bảng thông báo |
 | Không chạm ~1 phút | Vào **màn hình chờ** (đồng hồ, lịch âm, thời tiết, ảnh gia đình) |
 | Vuốt lên khi ở màn hình khoá | Mở khoá |
 
 ![Giao diện OS](images/oshome.png)
-
-*Cử chỉ vuốt ngang (mô phỏng từ ảnh thật của panel):*
-
-![Cử chỉ vuốt](images/swipe.gif)
 
 ▶ Nếu ảnh động không chạy (GitHub đôi khi chỉ hiện khung đầu), mở các video:
 
