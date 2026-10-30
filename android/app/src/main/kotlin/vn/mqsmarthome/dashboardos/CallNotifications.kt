@@ -140,6 +140,11 @@ object CallNotifications {
             .setAutoCancel(false)
             .setShowWhen(true)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
+            // (30/10/2026) Chi mot nguon am thanh: chuong do CallRinger phat. Thong bao phai CAM
+            // hoan toan de khong keu chong (truoc day nghe 2 tieng chuong cung luc).
+            .setOnlyAlertOnce(true)
+            .setDefaults(0)
+            .setSound(null)
             .setContentIntent(openPi)
             // Khoá máy / màn hình tắt: hệ thống tự mở IncomingCallActivity từ đây (khi được cấp quyền).
             .setFullScreenIntent(openPi, true)
