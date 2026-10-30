@@ -1,3 +1,20 @@
+## V2.9.292
+- Dọn log chẩn đoán `[notify] … dur=…` (thêm tạm ở 2.9.288).
+
+## V2.9.291
+- Thông báo camera: chữ đổi sang **xanh nõn chuối** (tiêu đề `#bef264`, nội dung `#d9f99d`) cho dễ đọc trên ảnh.
+
+## V2.9.290
+- Thông báo camera: chữ (tiêu đề + nội dung) chuyển lên **phía trên** ảnh để không chồng lên watermark giờ của camera.
+
+## V2.9.289
+- **Thông báo có camera vẫn hiện chữ**: trước đây chế độ toàn màn ẩn cả tiêu đề/nội dung, chỉ còn hình. Nay chữ phủ ở
+  đáy ảnh (nền gradient), chỉ ẩn icon và hàng nút.
+
+## V2.9.288
+- Thêm log chẩn đoán `duration` nhận được ở `/notify` (tạm thời, đã bỏ ở 2.9.292) để tìm nguyên nhân "đặt 20 giây
+  nhưng chỉ hiện 10 giây".
+
 ## V2.9.287
 - **Không cho màn hình chờ bật lên khi đang hiện thông báo** (camera/ảnh): trước đây saver bật sau ~10 giây, che mất
   thông báo và làm cảm giác "thời gian hiển thị bị ngắn dù đặt 18–30 giây". Nay thông báo giữ đủ `duration` rồi mới
