@@ -119,6 +119,41 @@ vuốt lên ở màn khoá để mở — trong một video: [`images/swipe-gest
 
 ![Màn hình chờ có ảnh gia đình](images/saver.png)
 
+### Gọi video giữa các màn hình
+
+Ứng dụng **Gọi** có trên mọi màn. Cách dùng:
+
+1. Trên màn gọi: mở **Gọi** → danh sách **liên hệ** là các màn khác đang kết nối (kèm trạng thái rảnh/đang bận).
+2. Chạm vào màn cần gọi → màn kia **đổ chuông**, hiện màn hình cuộc gọi kèm hình camera của bên gọi.
+3. Bên nhận chạm **Nhận** để trả lời, hoặc **Từ chối**. Trong lúc gọi có nút **Tắt mic**, **Đổi camera**, **Kết thúc**.
+4. Cuộc gọi đến **hiện đè lên màn hình khoá** (kể cả khi màn đang khoá/đang ở app khác) để không bị bỏ lỡ.
+
+> Chỉ màn **có camera + micro** (P4) mới gửi được hình/tiếng; các màn S3 vẫn gọi được nhưng chỉ nghe/không thấy hình bên gọi.
+> Cuộc gọi đi trong LAN, không qua Internet.
+
+### Gọi từ điện thoại tới màn hình (và ngược lại)
+
+Trên trang Dashboard của add-on có ứng dụng **Gọi** (`call-web.html`) dùng cùng giao diện với màn hình:
+
+1. Mở **Sidebar → Dashboard → Gọi**.
+2. Chọn màn cần gọi trong danh sách (ví dụ **P4 – 7.0 Guition**).
+3. Màn sẽ đổ chuông; khi màn nhận, bạn thấy **hình camera của màn** ngay trên điện thoại và nói chuyện hai chiều bằng micro/loa của điện thoại.
+4. Màn gọi ngược lại điện thoại cũng được: trong danh sách liên hệ của màn sẽ có mục **Điện thoại** (trình duyệt đang mở trang Gọi).
+
+> Điện thoại cần mở trang bằng **IP LAN** (`http://<ip-ha>:18080/call-web.html`) để micro/loa hoạt động ổn định.
+
+### Chuông cổng có hình (video doorbell)
+
+Khi khách bấm nút chuông ở cổng:
+
+1. **Mọi màn hình được chọn** đổ chuông và hiện **hình camera cổng** toàn màn hình (kèm nút **Trả lời**, **Từ chối**, **Mở cổng**).
+2. Trả lời → **nói chuyện 2 chiều** với khách ngay trên màn (P4 có micro/loa; S3 chỉ nghe).
+3. **Mở cổng** → gửi lệnh mở cổng (thời gian mở đặt được, mặc định 3 giây).
+4. Không ai trả lời trong thời gian đổ chuông (mặc định 45 giây) → hệ thống ghi **"cuộc gọi nhỡ"**, gửi thông báo kèm **ảnh người bấm chuông** tới các màn khác.
+5. Trang **Dashboard → Chuông cổng** lưu **nhật ký 30 ngày**: giờ bấm, ảnh, ai trả lời, ai bỏ lỡ.
+
+Cấu hình trong **Dashboard → Màn hình → (chọn màn) → Chuông cổng**: chọn màn nào đổ chuông, thời gian đổ chuông, thời gian mở cổng.
+
 ### Các ứng dụng có sẵn
 Camera (xem/chụp/quay lưu thẻ SD), Frigate, IPTV, YouTube, YouTube TV, nhạc, radio, tin tức, lịch, thời tiết,
 ảnh, ghi chú, tệp, gọi video giữa các màn, chuông cửa, báo thức, tin nhắn nội bộ.
