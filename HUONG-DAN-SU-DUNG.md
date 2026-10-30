@@ -100,13 +100,17 @@ Mỗi màn hình trở thành **một thiết bị** trong HA, tự cập nhật
 | Thao tác | Kết quả |
 |---|---|
 | Vuốt từ **đáy** lên | Về màn hình chính |
-| Vuốt từ **mép trái/phải** | Quay lại (như nút Back) |
+| Vuốt từ **mép trái/phải** | Quay lại (như nút Back) — xem GIF bên dưới |
 | Chạm giữ ứng dụng ở màn hình chính | Vào chế độ sắp xếp: đổi thứ tự, gom thư mục, ẩn/hiện |
 | Vuốt từ **trên** xuống | Mở bảng thông báo |
 | Không chạm ~1 phút | Vào **màn hình chờ** (đồng hồ, lịch âm, thời tiết, ảnh gia đình) |
 | Vuốt lên khi ở màn hình khoá | Mở khoá |
 
 ![Giao diện OS](images/oshome.png)
+
+*Cử chỉ vuốt ngang (quay từ panel thật):*
+
+![Cử chỉ vuốt](images/swipe.gif)
 
 ### Màn hình chờ (screensaver)
 - Đồng hồ lớn + ngày âm lịch + thời tiết; tuỳ chọn hiện **ảnh nền** (Google Photos hoặc thư mục media).
@@ -120,6 +124,17 @@ Camera (xem/chụp/quay lưu thẻ SD), Frigate, IPTV, YouTube, YouTube TV, nh�
 ảnh, ghi chú, tệp, gọi video giữa các màn, chuông cửa, báo thức, tin nhắn nội bộ.
 
 ![Lịch](images/calendar.png) ![IPTV](images/iptv.png) ![Radio](images/radio.png)
+
+**Một số ứng dụng trên P4**
+
+| YouTube TV | Tin nhắn |
+|---|---|
+| ![YouTube TV](images/app-yttv.png) | ![Tin nhắn](images/app-chat.png) |
+
+| Gọi video | Camera |
+|---|---|
+| ![Gọi video](images/app-call.png) | ![Camera](images/app-camera.png) |
+
 
 **Báo thức**: đặt trên màn hoặc từ trang Dashboard; lặp theo thứ, báo lại, chọn màn nào reo. Báo thức lưu ở
 server nên **màn tắt vẫn reo đúng giờ**.
