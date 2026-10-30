@@ -108,14 +108,8 @@ Mỗi màn hình trở thành **một thiết bị** trong HA, tự cập nhật
 
 ![Giao diện OS](images/oshome.png)
 
-▶ Nếu ảnh động không chạy (GitHub đôi khi chỉ hiện khung đầu), mở các video:
-
-| Cử chỉ | Video |
-|---|---|
-| Vuốt ngang sang trang kế (lưới ứng dụng) | [`swipe.mp4`](images/swipe.mp4) |
-| Vuốt từ **đáy lên** (về màn hình chính) | [`swipe-page2.mp4`](images/swipe-page2.mp4) |
-| Vuốt từ **trên xuống** (bảng thông báo) | [`swipe-shade.mp4`](images/swipe-shade.mp4) |
-| Vuốt lên từ màn khoá (mở khoá) | [`swipe-lock.mp4`](images/swipe-lock.mp4) |
+▶ Bốn cử chỉ cơ bản — vuốt ngang chuyển trang · vuốt từ đáy lên về home · vuốt từ trên xuống mở thông báo ·
+vuốt lên ở màn khoá để mở — trong một video: [`images/swipe-gestures.mp4`](images/swipe-gestures.mp4) (1,1 MB)
 
 
 ### Màn hình chờ (screensaver)
