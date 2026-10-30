@@ -697,6 +697,9 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
     frzSvg = []; frzAnim = [];
   }
   function screensaver(on: boolean | SaverOpts): void {
+    // (30/10/2026) Dang hien thong bao co camera/anh: KHONG de man hinh cho bat len (no se che mat thong bao
+    // va lam hieu nhu thong bao ket thuc som). Thong bao tu dong dong theo `duration`, roi moi tinh tiep.
+    if (on && ovEl) return;
     if (!on) { svFitRo?.disconnect(); svFitRo = null; saverEl?.remove(); saverEl = null; svHint = null; svPending = null; saverSignal(false); return; }
     svOpts = typeof on === 'object' ? on : {};
     if (saverEl) { applySaverOpts(); updateSaver(); return; }  // dang hien: chi doi kieu (vd nguoi dung vua doi Cai dat)

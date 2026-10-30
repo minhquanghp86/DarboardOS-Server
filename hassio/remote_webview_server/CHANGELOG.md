@@ -1,3 +1,8 @@
+## V2.9.287
+- **Không cho màn hình chờ bật lên khi đang hiện thông báo** (camera/ảnh): trước đây saver bật sau ~10 giây, che mất
+  thông báo và làm cảm giác "thời gian hiển thị bị ngắn dù đặt 18–30 giây". Nay thông báo giữ đủ `duration` rồi mới
+  tính tiếp trạng thái khoá/mở.
+
 ## V2.9.286
 - Sửa mục "thông báo camera khi màn đang khoá": cờ khoá được ghi nhớ **trước khi** gỡ màn hình chờ (2.9.285 ghi sau nên
   luôn = false → kết thúc thông báo lại về màn hình chính). Nay khoá lại đúng như trước khi có thông báo.
