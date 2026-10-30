@@ -1,3 +1,8 @@
+## V2.9.282
+- **Sửa lỗi sọc dọc trên ảnh nền màn hình chờ**: lớp `.sv-ph` bị Chrome headless raster sai khi có
+  `transform`/`transition` (hiệu ứng trượt/thu phóng) + ảnh scale lớn. Nay lớp ảnh vẽ **tĩnh** (bỏ transform/
+  transition, `will-change: auto`). Ảnh vẫn phủ kín màn (`center/cover`), chỉ mất hiệu ứng chuyển.
+
 ## V2.9.281
 - **Thông báo có camera/ảnh phủ toàn màn hình**: thẻ thông báo mang media nay dùng kích thước đầy màn (100% × 100%)
   thay vì `min(760px, 100%)` + `max-height: 42vh`; ảnh giữ đúng tỉ lệ (`object-fit: contain`), nền đen lấp phần dư,

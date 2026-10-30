@@ -251,6 +251,10 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .saver.night .sv-wx .wx-ic { opacity: 0.4; filter: sepia(1); }
 /* (27/09/2026) Man hinh cho dang khung anh: anh phu kin, dong ho nho o goc duoi trai (van dich moi phut). */
 .sv-ph { position: absolute; inset: 0; background: #000 center/cover no-repeat; opacity: 0; }
+/* (30/10/2026) FIX soc doc tren anh nen: Chrome headless bi loi raster khi layer anh nen co transform/transition
+   (slide/zoom) va bi scale lon -> khung hinh bi soc. Ve TINH: khong transform, khong transition. */
+.sv-ph, .sv-ph.fx-slide, .sv-ph.fx-zoom { transition: none !important; transform: none !important;
+  will-change: auto !important; backface-visibility: hidden; }
 .sv-ph.show { opacity: 1; }
 /* (27/09/2026) Hieu ung chuyen anh — chay mot lan (~0,7 s) moi lan doi, khong co chuyen dong lien tuc. */
 .sv-ph.fx-fade { transition: opacity 800ms ease; }
