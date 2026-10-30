@@ -1,3 +1,9 @@
+## V2.9.299
+- Trang **Cuộc gọi**: khối "Chuông trên điện thoại" không còn dùng lớp modal nên **không đè lên danh sách thiết bị**
+  nữa (trước đây che mất các thiết bị gọi được).
+- App Android: tách **2 địa chỉ** — "Trang điều khiển (https)" cho WebView (để có quyền micro/camera) và
+  "Máy chủ API (LAN)" cho đăng ký/nhận cuộc gọi; tự dò ingress `/api/hassio_ingress/<token>/`.
+
 ## V2.9.298
 - **Mở trực tiếp các trang trong app Android**: cho phép request cùng origin từ trình duyệt trong LAN
   (`isLocalBrowser`) với `/ha/*`, `/photos/*`, quản lý file, nhật ký chuông cổng, chat — trước đây các trang này

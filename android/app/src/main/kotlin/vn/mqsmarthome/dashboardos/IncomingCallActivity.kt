@@ -237,10 +237,16 @@ class IncomingCallActivity : Activity() {
         PhoneStatus.publish(applicationContext)
     }
 
-    /** Mở đúng trang gọi trong WebView của app (call-web.html?call=<id>). */
+    /**
+     * Mở đúng trang gọi trong WebView của app (call-web.html?call=<id>).
+     *
+     * (13/11/2026) GD6 — trang gọi nằm CÙNG thư mục với trang điều khiển ([Prefs.KEY_WEB_URL]), nên lấy theo webUrl
+     * để giữ nguyên tiền tố ingress của Home Assistant (cookie HA vẫn áp dụng); nếu chưa có webUrl thì lùi về apiBase.
+     */
     private fun openCallPage() {
-        val url = PhoneApi.webUrl(Prefs.apiBase(this), "call-web.html", "call=$callId")
-        if (url == null) return
+        val url = WebTargetResolver.callPageUrl(Prefs.webUrl(this), callId)
+            ?: PhoneApi.webUrl(Prefs.apiBase(this), WebTargetResolver.CALL_PAGE, "call=$callId")
+            ?: return
         val i = Intent(this, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             .putExtra(MainActivity.EXTRA_OPEN_URL, url)

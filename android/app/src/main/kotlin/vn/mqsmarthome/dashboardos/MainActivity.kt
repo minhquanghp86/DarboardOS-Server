@@ -19,6 +19,7 @@ import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -30,15 +31,21 @@ import android.widget.Toast
 /**
  * Phase 1 + phase 2 of Dashboard OS.
  *
- * A deliberately tiny single-activity app:
- *  - (30/10/2026 GD4) màn nhập CHỈ hỏi "Địa chỉ Home Assistant" (IP hoặc domain); bấm "Kết nối" thì
- *    [ServerResolver] tự dò add-on Dashboard OS, tự đăng ký thiết bị (/app/register), khởi động PhoneService
- *    rồi mở WebView tới `<apiBase>/call-web.html`,
- *  - a full screen WebView that remembers the server in SharedPreferences,
- *  - WebRTC microphone/camera support through WebChromeClient.onPermissionRequest,
- *  - (10/11/2026 GD2) PhoneService: nhận cuộc gọi từ màn hình P4 khi app đóng/nền (polling 2 s).
+ * (13/11/2026) GD6 — màn nhập HAI Ô (bối cảnh đã kiểm chứng):
+ *  1. **"Trang điều khiển (https)"** — domain hoặc URL đầy đủ. Nếu người dùng chỉ gõ domain, app thử lần lượt
+ *     `https://<domain>/api/hassio_ingress/<TOKEN>/launcher-config.html` → `https://<domain>/<slug>/launcher-config.html`
+ *     → `https://<domain>/launcher-config.html` ([WebTargetResolver.webCandidates]). Đúng add-on khi mã **200 hoặc 401**
+ *     và body KHÔNG phải SPA của Home Assistant (`<title>Home Assistant</title>`). 401 = add-on đúng nhưng WebView chưa
+ *     có cookie HA → vẫn mở bình thường để người dùng đăng nhập HA.
+ *  2. **"Máy chủ API (LAN)"** — mặc định giá trị đã lưu hoặc `192.168.10.2:18080`; kiểm tra `GET <base>/app/ping`
+ *     phải trả `{"service":"dashboard-os"}` ([ServerResolver.probe]). Bỏ trống ô này = suy ra `http://<ip>:18080` từ ô 1
+ *     khi ô 1 là IP LAN ([WebTargetResolver.apiBaseOrNull]).
  *
- * Only framework (android.*) APIs are used, so the build stays dependency free.
+ * Lưu 2 giá trị RIÊNG: [Prefs.KEY_WEB_URL] cho WebView, [Prefs.KEY_API_BASE] cho PhoneService / register / incoming /
+ * answer / decline. Không suy ra cái này từ cái kia khi đã có cả hai.
+ *
+ * Vẫn giữ nguyên: WebView full screen + WebRTC (micro/camera), tự đăng ký thiết bị, PhoneService nhận cuộc gọi khi
+ * app đóng, chuông theo kênh thông báo, nút "URL" ở góc phải dưới để quay lại màn nhập.
  */
 class MainActivity : Activity() {
 
@@ -57,7 +64,8 @@ class MainActivity : Activity() {
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private var webView: WebView? = null
-    private var urlInput: EditText? = null
+    private var webInput: EditText? = null
+    private var apiInput: EditText? = null
     private var statusView: TextView? = null
     private var showingWeb = false
     private var pendingPermissionRequest: PermissionRequest? = null
@@ -85,7 +93,7 @@ class MainActivity : Activity() {
         if (Prefs.receiveEnabled(this)) PhoneService.start(this)
 
         if (openFromIntent(intent)) return
-        // (30/10/2026) GD4: đã có gốc API từ lần trước -> ping lại 1 lần rồi vào thẳng WebView.
+        // (13/11/2026) GD6: đã có webUrl đã lưu -> vào thẳng WebView (trang có thể 401 = hãy đăng nhập HA).
         autoConnectSaved()
     }
 
@@ -95,7 +103,7 @@ class MainActivity : Activity() {
         if (!openFromIntent(intent)) return
     }
 
-    /** Mo URL tu extra (trang cuoc goi). true = da xu ly. */
+    /** Mo URL tu extra (trang cuoc goi / nut "Dang nhap Home Assistant"). true = da xu ly. */
     private fun openFromIntent(intent: Intent?): Boolean {
         val raw = intent?.getStringExtra(EXTRA_OPEN_URL) ?: return false
         val url = raw.trim()
@@ -105,48 +113,43 @@ class MainActivity : Activity() {
         return true
     }
 
-    // ------------------------------------------------------------------ tự kết nối lại máy chủ đã lưu
+    // ------------------------------------------------------------------ mở lại cấu hình đã lưu
 
     /**
-     * (30/10/2026) GD4 — lần sau mở app: có [Prefs.KEY_API_BASE] thì ping lại 1 lần.
-     * Thành công: vào thẳng WebView. Thất bại: ở lại màn nhập (giữ nguyên giá trị cũ) + báo lỗi.
+     * (13/11/2026) GD6 — lần sau mở app: có [Prefs.KEY_WEB_URL] thì mở WebView luôn.
+     *
+     * Cố ý KHÔNG chặn khi trang trả 401: 401 = add-on đúng nhưng WebView chưa đăng nhập Home Assistant, phải hiện
+     * trang để người dùng đăng nhập (đăng nhập một lần, cookie được giữ cho các lần sau). API (LAN) do PhoneService
+     * tự poll ở nền; hỏng thì Cài đặt hiện giá trị đang dùng để sửa.
      */
     private fun autoConnectSaved() {
-        val base = Prefs.apiBase(this)
         val web = Prefs.webUrl(this)
-        if (base == null || web == null) {
-            showUrlScreen(prefill = Prefs.lastInput(this))
+        if (web == null) {
+            showUrlScreen()
             return
         }
-        showUrlScreen(prefill = Prefs.lastInput(this), status = getString(R.string.status_checking))
-        val token = ++searchToken
-        Thread {
-            val hit = ServerResolver.probe(base)
-            post {
-                if (token != searchToken || showingWeb || isFinishing) return@post
-                if (hit != null) {
-                    Prefs.saveServer(this, hit.apiBase, hit.webUrl, Prefs.lastInput(this))
-                    if (Prefs.receiveEnabled(this)) PhoneService.start(this)
-                    openWeb(hit.webUrl)
-                } else {
-                    setStatus(getString(R.string.status_offline, base))
-                }
-            }
-        }.also { it.isDaemon = true; it.name = "server-ping" }.start()
+        if (Prefs.receiveEnabled(this)) PhoneService.start(this)
+        openWeb(web)
     }
 
-    // ------------------------------------------------------------------ URL screen
+    // ------------------------------------------------------------------ màn nhập 2 ô
 
-    private fun showUrlScreen(prefill: String?, status: String? = null) {
+    private fun showUrlScreen(status: String? = null) {
         showingWeb = false
         disposeWebView()
 
         setContentView(R.layout.activity_url)
 
-        val input = findViewById<EditText>(R.id.urlInput)
-        urlInput = input
-        input.setText(prefill ?: Prefs.lastInput(this) ?: "")
-        input.setSelection(input.text.length)
+        val web = findViewById<EditText>(R.id.webInput)
+        webInput = web
+        web.setText(Prefs.webInput(this) ?: "")
+        web.setSelection(web.text.length)
+
+        val api = findViewById<EditText>(R.id.apiInput)
+        apiInput = api
+        api.setText(Prefs.apiInput(this) ?: WebTargetResolver.DEFAULT_API_INPUT)
+        api.setSelection(api.text.length)
+
         statusView = findViewById(R.id.urlStatus)
         setStatus(status ?: defaultStatus())
 
@@ -156,20 +159,23 @@ class MainActivity : Activity() {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
 
-        input.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == EditorInfo.IME_ACTION_GO || actionId == EditorInfo.IME_ACTION_DONE) {
-                connect()
-                true
-            } else {
-                false
-            }
-        }
+        web.setOnEditorActionListener { _, actionId, _ -> connectOnAction(actionId) }
+        api.setOnEditorActionListener { _, actionId, _ -> connectOnAction(actionId) }
     }
 
-    /** "Đã kết nối: <apiBase> · Điện thoại: <name>" (hoặc rỗng khi chưa kết nối lần nào). */
+    private fun connectOnAction(actionId: Int): Boolean {
+        if (actionId == EditorInfo.IME_ACTION_GO || actionId == EditorInfo.IME_ACTION_DONE) {
+            connect()
+            return true
+        }
+        return false
+    }
+
+    /** "Đã kết nối: <webUrl> · API <apiBase> · Điện thoại: <name>" (hoặc rỗng khi chưa kết nối lần nào). */
     private fun defaultStatus(): String {
-        val base = Prefs.apiBase(this) ?: return ""
-        return getString(R.string.status_connected, base, Prefs.phoneName())
+        val web = Prefs.webUrl(this) ?: return ""
+        val api = Prefs.apiBase(this) ?: WebTargetResolver.DEFAULT_API_INPUT
+        return getString(R.string.status_connected, web, api, Prefs.phoneName())
     }
 
     private fun setStatus(text: String?) {
@@ -178,58 +184,95 @@ class MainActivity : Activity() {
     }
 
     /**
-     * (30/10/2026) GD4 — "Kết nối": dò lần lượt các ứng viên từ [ServerResolver.candidates].
-     * Tìm thấy -> lưu apiBase/webUrl, đăng ký thiết bị, khởi động PhoneService, mở WebView.
-     * Không thấy -> hiện danh sách đã thử + gợi ý.
+     * (13/11/2026) GD6 — "Kết nối":
+     *  1. ô 1 → [WebTargetResolver.webCandidates] (domain → ingress HA / slug / gốc domain), GET từng cái, nhận
+     *     nếu 200|401 và không phải SPA Home Assistant,
+     *  2. ô 2 → [WebTargetResolver.apiCandidates]; trống thì [WebTargetResolver.apiBaseOrNull] suy ra từ ô 1
+     *     (chỉ khi ô 1 là IP LAN — không thì báo lỗi rõ ràng),
+     *  3. lưu webUrl + apiBase (2 giá trị riêng), đăng ký thiết bị, khởi động PhoneService, mở WebView.
      */
     private fun connect() {
         if (searching) return
-        val typed = urlInput?.text?.toString()?.trim().orEmpty()
-        prefs.edit().putString(Prefs.KEY_URL, typed).apply()
+        val webText = webInput?.text?.toString()?.trim().orEmpty()
+        val apiText = apiInput?.text?.toString()?.trim().orEmpty()
+        Prefs.saveInputs(this, webText, apiText)
 
-        val list = ServerResolver.candidates(typed)
-        if (list.isEmpty()) {
-            val msg = if (typed.isEmpty()) getString(R.string.err_empty_url) else getString(R.string.err_bad_address)
+        val webList = WebTargetResolver.webCandidates(webText, Prefs.ingressToken(this))
+        if (webList.isEmpty()) {
+            val msg = if (webText.isEmpty()) getString(R.string.err_empty_web) else getString(R.string.err_bad_web)
             setStatus(msg)
             toast(msg)
             return
         }
 
+        // apiBase: ưu tiên ô 2; ô 2 trống -> suy ra từ ô 1 nếu là IP LAN.
+        val preferredApi = WebTargetResolver.apiBaseOrNull(webText, apiText)
+        if (preferredApi == null) {
+            val msg = if (apiText.isEmpty()) getString(R.string.err_api_underivable) else getString(R.string.err_bad_api)
+            setStatus(msg)
+            toast(msg)
+            return
+        }
+        val apiList = if (apiText.isEmpty()) listOf(preferredApi) else WebTargetResolver.apiCandidates(apiText)
+
         val token = ++searchToken
         searching = true
         setSearchingUi(true)
-        setStatus(getString(R.string.status_searching, 1, list.size))
+        setStatus(getString(R.string.status_searching_web, 1, webList.size))
 
         Thread {
-            var found: ServerResolver.Server? = null
-            val tried = ArrayList<String>(list.size)
-            for ((index, base) in list.withIndex()) {
-                val n = index + 1
+            // ── 1) trang điều khiển
+            var foundWeb: String? = null
+            val triedWeb = ArrayList<String>(webList.size)
+            for ((index, url) in webList.withIndex()) {
                 if (token != searchToken) return@Thread
-                post { if (token == searchToken) setStatus(getString(R.string.status_searching, n, list.size)) }
-                tried.add(base)
-                val hit = ServerResolver.probe(base)
-                if (hit != null) {
-                    found = hit
+                post { if (token == searchToken) setStatus(getString(R.string.status_searching_web, index + 1, webList.size)) }
+                triedWeb.add(url)
+                val check = WebTargetResolver.probeWeb(url)
+                if (check != null && check.accepted) {
+                    foundWeb = check.url
                     break
                 }
             }
-
-            val server = found
-            if (server == null) {
+            val webUrl = foundWeb
+            if (webUrl == null) {
                 post {
                     if (token != searchToken) return@post
                     searching = false
                     setSearchingUi(false)
-                    showNotFound(tried)
+                    showNotFound(getString(R.string.status_web_not_found), triedWeb, getString(R.string.status_web_hint))
                 }
                 return@Thread
             }
 
-            // Lưu trước (PhoneService đọc từ Prefs), rồi đăng ký, rồi khởi động service, rồi mở trang.
-            Prefs.saveServer(this, server.apiBase, server.webUrl, typed)
+            // ── 2) máy chủ API (LAN)
+            var foundApi: String? = null
+            val triedApi = ArrayList<String>(apiList.size)
+            for ((index, base) in apiList.withIndex()) {
+                if (token != searchToken) return@Thread
+                post { if (token == searchToken) setStatus(getString(R.string.status_searching_api, index + 1, apiList.size)) }
+                triedApi.add(base)
+                val hit = ServerResolver.probe(base)
+                if (hit != null) {
+                    foundApi = hit.apiBase
+                    break
+                }
+            }
+            val apiBase = foundApi
+            if (apiBase == null) {
+                post {
+                    if (token != searchToken) return@post
+                    searching = false
+                    setSearchingUi(false)
+                    showNotFound(getString(R.string.status_api_not_found), triedApi, getString(R.string.status_api_hint))
+                }
+                return@Thread
+            }
+
+            // ── 3) lưu 2 giá trị RIÊNG, đăng ký, khởi động service, mở trang.
+            Prefs.saveTargets(this, webUrl, apiBase, webText, apiText)
             val id = Prefs.phoneId(this)
-            val registered = PhoneApi.register(server.apiBase, server.webUrl, id, Prefs.phoneName())
+            val registered = PhoneApi.register(apiBase, webUrl, id, Prefs.phoneName())
             if (Prefs.receiveEnabled(this)) PhoneService.start(this)
 
             post {
@@ -237,21 +280,22 @@ class MainActivity : Activity() {
                 searching = false
                 setSearchingUi(false)
                 toast(getString(if (registered) R.string.connect_ok else R.string.connect_ok_noreg))
-                openWeb(server.webUrl)
+                openWeb(webUrl)
             }
-        }.also { it.isDaemon = true; it.name = "server-probe" }.start()
+        }.also { it.isDaemon = true; it.name = "target-probe" }.start()
     }
 
     private fun setSearchingUi(busy: Boolean) {
         findViewById<Button>(R.id.connectButton)?.isEnabled = !busy
-        urlInput?.isEnabled = !busy
+        webInput?.isEnabled = !busy
+        apiInput?.isEnabled = !busy
     }
 
-    /** Danh sách đã thử + gợi ý kiểm tra. */
-    private fun showNotFound(tried: List<String>) {
-        val sb = StringBuilder(getString(R.string.status_not_found))
+    /** Tiêu đề + danh sách đã thử + gợi ý. */
+    private fun showNotFound(title: String, tried: List<String>, hint: String) {
+        val sb = StringBuilder(title)
         for (url in tried) sb.append('\n').append("• ").append(url)
-        sb.append("\n\n").append(getString(R.string.status_hint))
+        sb.append("\n\n").append(hint)
         setStatus(sb.toString())
     }
 
@@ -271,7 +315,7 @@ class MainActivity : Activity() {
 
         val changeUrlButton = findViewById<Button>(R.id.changeUrlButton)
         // (30/10/2026) GD4: nút URL mở lại màn nhập ĐỊA CHỈ (điền sẵn giá trị cũ) để đổi máy chủ nhanh.
-        changeUrlButton.setOnClickListener { showUrlScreen(prefill = Prefs.lastInput(this)) }
+        changeUrlButton.setOnClickListener { showUrlScreen() }
         // (12/11/2026) Nut nam o goc phai DUOI (40dp) de khong de len nut cua trang (goc phai tren la cho
         // nut "Chọn" cua trang Chuông cổng / banh rang cua trang Cuoc goi). Hien ro 4 s dau roi mo ve alpha 0.45
         // — van luon bam duoc.
@@ -283,11 +327,18 @@ class MainActivity : Activity() {
         }, OVERLAY_VISIBLE_MS)
     }
 
+    /**
+     * (13/11/2026) GD6 — WebView cho trang HTTPS của add-on (ingress HA):
+     *  - `domStorageEnabled` + cookie bật sẵn (localStorage của launcher-config.html, phiên đăng nhập HA),
+     *  - `mediaPlaybackRequiresUserGesture=false` + WebChromeClient cấp micro/camera (secure context https),
+     *  - trang trả **401** được hiển thị BÌNH THƯỜNG (để người dùng đăng nhập HA), không chặn.
+     */
     @SuppressLint("SetJavaScriptEnabled")
     private fun configureWebView(web: WebView) {
         val settings: WebSettings = web.settings
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
+        settings.databaseEnabled = true
         settings.mediaPlaybackRequiresUserGesture = false
         settings.useWideViewPort = true
         settings.loadWithOverviewMode = true
@@ -300,8 +351,10 @@ class MainActivity : Activity() {
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
         settings.safeBrowsingEnabled = true
 
-        CookieManager.getInstance().setAcceptCookie(true)
-        CookieManager.getInstance().setAcceptThirdPartyCookies(web, true)
+        // Cookie (phiên đăng nhập Home Assistant) là điều kiện để ingress trả trang thay vì 401.
+        val cookies = CookieManager.getInstance()
+        cookies.setAcceptCookie(true)
+        cookies.setAcceptThirdPartyCookies(web, true)
 
         web.setBackgroundColor(Color.BLACK)
         web.overScrollMode = View.OVER_SCROLL_NEVER
@@ -338,6 +391,22 @@ class MainActivity : Activity() {
                     true
                 }
             }
+        }
+
+        /**
+         * (13/11/2026) GD6 — 401/403 của trang là CHUYỆN BÌNH THƯỜNG: add-on đi qua ingress nên Home Assistant
+         * yêu cầu đăng nhập. Không chặn, không báo lỗi — cứ để WebView hiện trang để người dùng đăng nhập HA
+         * (sau đó tải lại là vào được launcher-config.html).
+         */
+        override fun onReceivedHttpError(
+            view: WebView?,
+            request: WebResourceRequest?,
+            errorResponse: WebResourceResponse?
+        ) {
+            val code = errorResponse?.statusCode ?: return
+            if (code == 401 || code == 403) return
+            if (request?.isForMainFrame != true) return
+            if (code >= 500) toast(getString(R.string.err_load))
         }
 
         override fun onReceivedError(

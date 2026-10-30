@@ -4,22 +4,39 @@
     <!-- (30/10/2026) GD4: người dùng chỉ nhập IP/domain của Home Assistant. -->
     <string name="url_hint">Địa chỉ Home Assistant</string>
     <string name="url_hint_example">192.168.10.2 hoặc hass.example.com</string>
+    <!-- (13/11/2026) GD6 — HAI Ô: trang điều khiển (https) + máy chủ API (LAN). -->
+    <string name="url_hint_web">Trang điều khiển (https)</string>
+    <string name="url_hint_web_example">hass.mqsmarthome.io.vn</string>
+    <string name="url_web_hint">Chỉ cần tên miền: app tự thử https://&lt;domain&gt;/api/hassio_ingress/&lt;TOKEN&gt;/launcher-config.html → /b39feb53_remote_webview_server/launcher-config.html → /launcher-config.html. Phải là https thì WebView mới được cấp micro/camera.</string>
+    <string name="url_hint_api">Máy chủ API (LAN)</string>
+    <string name="url_hint_api_example">192.168.10.2:18080</string>
+    <string name="url_api_hint">Nơi app gọi /app/ping, /app/register, /app/incoming… để nhận cuộc gọi. Để trống nếu ô trên là IP LAN (app tự dùng http://&lt;ip&gt;:18080); ô trên là tên miền thì KHÔNG suy ra được nên phải nhập.</string>
     <string name="action_connect">Kết nối</string>
     <string name="action_change_url">URL</string>
     <string name="action_settings">Cài đặt</string>
     <string name="action_close">Đóng</string>
-    <string name="url_footer">Chỉ cần địa chỉ của Home Assistant. App tự tìm add-on Dashboard OS, tự đăng ký thiết bị và mở trang điều khiển.</string>
+    <string name="url_footer">Trang điều khiển đi qua ingress Home Assistant (https — cần đăng nhập HA một lần trong app). Máy chủ API gọi thẳng trong LAN (http://192.168.10.2:18080) vì ingress đòi cookie HA.</string>
     <string name="err_empty_url">Vui lòng nhập địa chỉ Home Assistant</string>
     <string name="err_bad_address">Địa chỉ không hợp lệ. Nhập IP (vd 192.168.10.2) hoặc tên miền (vd hass.example.com)</string>
+    <string name="err_empty_web">Vui lòng nhập tên miền hoặc URL của trang điều khiển</string>
+    <string name="err_bad_web">Địa chỉ trang điều khiển không hợp lệ. Nhập tên miền (vd hass.mqsmarthome.io.vn) hoặc URL đầy đủ (https://…/launcher-config.html)</string>
+    <string name="err_api_underivable">Ô “Máy chủ API (LAN)” đang trống và KHÔNG suy ra được từ ô trên: chỉ suy ra được khi ô trên là IP LAN (vd 192.168.10.2). Hãy nhập ô 2, vd 192.168.10.2:18080.</string>
+    <string name="err_bad_api">Địa chỉ máy chủ API không hợp lệ. Nhập IP và cổng, vd 192.168.10.2:18080</string>
     <string name="err_load">Không tải được trang. Kiểm tra URL hoặc kết nối mạng.</string>
     <string name="perm_denied">Cần quyền micro/camera để dùng tính năng đàm thoại</string>
     <string name="url_button_short">URL</string>
 
     <!-- (30/10/2026) GD4 — trạng thái ở màn nhập địa chỉ. -->
-    <string name="status_connected">Đã kết nối: %1$s · Điện thoại: %2$s</string>
+    <string name="status_connected">Đã kết nối: %1$s · API: %2$s · Điện thoại: %3$s</string>
     <string name="status_checking">Đang kiểm tra máy chủ đã lưu…</string>
     <string name="status_searching">Đang tìm máy chủ… (%1$d/%2$d)</string>
+    <string name="status_searching_web">Đang tìm trang điều khiển… (%1$d/%2$d)</string>
+    <string name="status_searching_api">Đang kiểm tra máy chủ API… (%1$d/%2$d)</string>
     <string name="status_not_found">Không tìm thấy Dashboard OS. Đã thử:</string>
+    <string name="status_web_not_found">Không thấy trang điều khiển của Dashboard OS. Đã thử:</string>
+    <string name="status_web_hint">Gợi ý: kiểm tra TOKEN ingress ở Cài đặt (HA → Add-on → mở Web UI để lấy URL mới) · add-on đã chạy · domain trỏ đúng HA. Trang của Home Assistant bị loại vì không phải add-on.</string>
+    <string name="status_api_not_found">Không thấy máy chủ API (GET /app/ping không trả “dashboard-os”). Đã thử:</string>
+    <string name="status_api_hint">Gợi ý: điện thoại cùng Wi-Fi/LAN với máy chủ · add-on Dashboard OS đang chạy · đúng cổng 18080 (vd 192.168.10.2:18080).</string>
     <string name="status_hint">Kiểm tra: add-on Dashboard OS đã chạy · điện thoại cùng Wi-Fi/LAN · thử http://&lt;ip&gt;:18080</string>
     <string name="status_offline">Không thấy máy chủ ở %1$s. Bấm “Kết nối” để dò lại (add-on có thể đang tắt).</string>
     <string name="connect_ok">Đã tìm thấy máy chủ, đã đăng ký thiết bị</string>
@@ -87,4 +104,20 @@
     <string name="st_app_details_button">Thông tin app (cài đặt hệ thống)</string>
     <string name="st_no_screen">Máy này không có màn hình đó — mở thông tin app</string>
     <string name="st_no_settings_screen">Không mở được màn hình cài đặt này</string>
+
+    <!-- (13/11/2026) GD6 — máy chủ đang dùng (webUrl + apiBase), đăng nhập HA, TOKEN ingress. -->
+    <string name="st_targets_section">Máy chủ đang dùng</string>
+    <string name="st_web_url">Trang điều khiển (WebView): %1$s</string>
+    <string name="st_api_base">Máy chủ API (LAN): %1$s</string>
+    <string name="st_ingress_token">TOKEN ingress: %1$s</string>
+    <string name="st_none">chưa có</string>
+    <string name="st_ha_login_button">Đăng nhập Home Assistant</string>
+    <string name="st_ha_home_button">Mở trang chủ Home Assistant (để đăng nhập)</string>
+    <string name="st_ha_login_hint">Trang điều khiển nằm sau ingress của Home Assistant nên lần đầu sẽ trả 401 — app vẫn mở bình thường. Đăng nhập HA một lần trong app (nút trên), cookie được giữ cho các lần sau; nếu vẫn 401, mở trang chủ HA để đăng nhập rồi quay lại.</string>
+    <string name="st_ha_login_no_web">Chưa có trang điều khiển — hãy nhập và bấm “Kết nối” ở màn hình chính</string>
+    <string name="st_token_section">TOKEN ingress Home Assistant</string>
+    <string name="st_token_hint_example">KJjH_rSB8SdDeyjszvdZnnH1pRlxySfVG5VmgDMVf38</string>
+    <string name="st_token_button">Lưu TOKEN</string>
+    <string name="st_token_hint">Là chuỗi nằm sau /api/hassio_ingress/ trong URL add-on (Home Assistant → Add-on → Dashboard OS → mở Web UI rồi copy URL). Đổi xong bấm “Lưu TOKEN” rồi quay lại màn hình chính bấm “Kết nối” để dò lại.</string>
+    <string name="st_token_saved">Đã lưu TOKEN ingress</string>
 </resources>

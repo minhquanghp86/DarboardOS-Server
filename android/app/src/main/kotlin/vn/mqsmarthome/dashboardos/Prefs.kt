@@ -7,11 +7,15 @@ import java.util.UUID
 
 /**
  * (10/11/2026) GD2 — SharedPreferences dung chung cho ca app (MainActivity, PhoneService, Cai dat).
- * (30/10/2026) GD4 — nguoi dung chi nhap IP/domain Home Assistant; [ServerResolver] do ra 2 dia chi va luu lai:
- *   - [KEY_API_BASE] = goc API (`http://192.168.10.2:18080`) — PhoneService / IncomingCall / CallAction dung THANG
- *     gia tri nay, khong suy ra tu URL trang nua,
- *   - [KEY_WEB_URL]  = trang dieu khien (`<apiBase>/call-web.html`) — WebView mo thang.
- * [KEY_URL] giu lai chuoi nguoi dung da go lan cuoi, chi de dien san vao o nhap.
+ *
+ * (13/11/2026) GD6 — HAI GIA TRI DOC LAP (khong suy ra cai nay tu cai kia khi da co ca hai):
+ *   - [KEY_WEB_URL]  = TRANG DIEU KHIEN (https) — WebView mo THANG gia tri nay, vd
+ *     `https://hass.mqsmarthome.io.vn/api/hassio_ingress/<TOKEN>/launcher-config.html`.
+ *     Phai la https vi WebView chi cap micro/camera trong secure context.
+ *   - [KEY_API_BASE] = GOC API (LAN) — PhoneService / PhoneApi.register / incoming / answer / decline dung THANG
+ *     gia tri nay, vd `http://192.168.10.2:18080` (ingress cannot cookie HA nen HttpURLConnection khong dung duoc).
+ *   - [KEY_WEB_INPUT] / [KEY_API_INPUT] = chuoi nguoi dung go lan cuoi, chi de dien san o nhap.
+ *   - [KEY_INGRESS_TOKEN] = TOKEN ingress cua add-on (sua duoc o Cai dat).
  *
  * `phone_id` duoc sinh MOT lan roi giu mai: server (POST /app/register) coi do la "thiet bi goi duoc thuong tru",
  * nen doi id = thanh mot may khac trong danh ba cua man hinh P4.
@@ -20,14 +24,23 @@ object Prefs {
 
     const val NAME = "dashboard_os"
 
-    /** Chuoi nguoi dung da nhap (IP/domain/URL) — dien san o man hinh nhap. */
+    /** Chuoi nguoi dung da nhap (IP/domain/URL) — giu lai cho du lieu cua ban cu (GD4). */
     const val KEY_URL = "url"
 
-    /** Goc API da do duoc — MOI loi goi toi duong dan app/... dung gia tri nay. */
+    /** Trang dieu khien (https) da do duoc — WebView mo gia tri nay. */
+    const val KEY_WEB_URL = "web_url"
+
+    /** Goc API da do duoc (`http://192.168.10.2:18080`) — MOI loi goi toi duong dan app/... dung gia tri nay. */
     const val KEY_API_BASE = "api_base"
 
-    /** Trang dieu khien da do duoc (`<apiBase>/call-web.html`). */
-    const val KEY_WEB_URL = "web_url"
+    /** Chuoi nguoi dung go o o 1 lan cuoi (dien san). */
+    const val KEY_WEB_INPUT = "web_input"
+
+    /** Chuoi nguoi dung go o o 2 lan cuoi (dien san). */
+    const val KEY_API_INPUT = "api_input"
+
+    /** TOKEN ingress Home Assistant (phan sau `/api/hassio_ingress/`). */
+    const val KEY_INGRESS_TOKEN = "ingress_token"
 
     const val KEY_PHONE_ID = "phone_id"
 
@@ -36,34 +49,67 @@ object Prefs {
 
     fun get(ctx: Context): SharedPreferences = ctx.getSharedPreferences(NAME, Context.MODE_PRIVATE)
 
+    /** Trang dieu khien da luu (https, co the la URL ingress cua HA). */
+    fun webUrl(ctx: Context): String? =
+        get(ctx).getString(KEY_WEB_URL, null)?.trim()?.takeIf { it.isNotEmpty() }
+
     /** Goc API da luu (`http://192.168.10.2:18080`), null = chua ket noi lan nao. */
     fun apiBase(ctx: Context): String? =
         get(ctx).getString(KEY_API_BASE, null)?.trim()?.takeIf { it.isNotEmpty() }
 
-    /** Trang dieu khien da luu (`<apiBase>/call-web.html`). */
-    fun webUrl(ctx: Context): String? =
-        get(ctx).getString(KEY_WEB_URL, null)?.trim()?.takeIf { it.isNotEmpty() }
-
-    /** Gia tri dien san o o nhap: apiBase da biet, khong thi chuoi cuoi nguoi dung go. */
-    fun lastInput(ctx: Context): String? {
-        val p = get(ctx)
-        val base = p.getString(KEY_API_BASE, null)?.trim()
-        if (!base.isNullOrEmpty()) return base
-        val typed = p.getString(KEY_URL, null)?.trim()
-        return typed?.takeIf { it.isNotEmpty() }
+    /** Gia tri dien san o o 1: chuoi go lan cuoi, khong thi URL trang da luu. */
+    fun webInput(ctx: Context): String? {
+        val typed = get(ctx).getString(KEY_WEB_INPUT, null)?.trim()
+        if (!typed.isNullOrEmpty()) return typed
+        return webUrl(ctx)
     }
 
-    /** Luu ket qua do duoc: goc API + trang dieu khien + chuoi nguoi dung go. */
-    fun saveServer(ctx: Context, apiBase: String, webUrl: String, typed: String?) {
+    /** Gia tri dien san o o 2: chuoi go lan cuoi, khong thi goc API da luu. */
+    fun apiInput(ctx: Context): String? {
+        val typed = get(ctx).getString(KEY_API_INPUT, null)?.trim()
+        if (!typed.isNullOrEmpty()) return typed
+        return apiBase(ctx)
+    }
+
+    /** (GD4) giu nguyen ten ham cu: chuoi dien san o o nhap. */
+    fun lastInput(ctx: Context): String? = webInput(ctx) ?: apiBase(ctx)
+
+    /** Luu ngay 2 chuoi nguoi dung vua go (truoc khi do) — khong dung toi webUrl/apiBase. */
+    fun saveInputs(ctx: Context, webInput: String?, apiInput: String?) {
         get(ctx).edit()
-            .putString(KEY_API_BASE, apiBase)
-            .putString(KEY_WEB_URL, webUrl)
-            .putString(KEY_URL, typed?.trim()?.takeIf { it.isNotEmpty() } ?: apiBase)
+            .putString(KEY_WEB_INPUT, webInput?.trim().orEmpty())
+            .putString(KEY_API_INPUT, apiInput?.trim().orEmpty())
             .apply()
+    }
+
+    /** Luu ket qua: webUrl (WebView) + apiBase (API) + 2 chuoi nguoi dung go. */
+    fun saveTargets(ctx: Context, webUrl: String, apiBase: String, webInput: String?, apiInput: String?) {
+        get(ctx).edit()
+            .putString(KEY_WEB_URL, webUrl.trim())
+            .putString(KEY_API_BASE, apiBase.trim())
+            .putString(KEY_WEB_INPUT, webInput?.trim().orEmpty())
+            .putString(KEY_API_INPUT, apiInput?.trim().orEmpty())
+            .putString(KEY_URL, webInput?.trim()?.takeIf { it.isNotEmpty() } ?: webUrl.trim())
+            .apply()
+    }
+
+    /** (GD4) giu nguyen ham cu — gio chi luu 2 gia tri + chuoi go. */
+    fun saveServer(ctx: Context, apiBase: String, webUrl: String, typed: String?) {
+        saveTargets(ctx, webUrl, apiBase, typed, null)
     }
 
     fun clearServer(ctx: Context) {
         get(ctx).edit().remove(KEY_API_BASE).remove(KEY_WEB_URL).apply()
+    }
+
+    /** TOKEN ingress dang dung (mac dinh = [WebTargetResolver.DEFAULT_INGRESS_TOKEN]). */
+    fun ingressToken(ctx: Context): String =
+        WebTargetResolver.sanitizeToken(get(ctx).getString(KEY_INGRESS_TOKEN, null))
+
+    /** Luu TOKEN ingress nguoi dung sua (rong = quay ve mac dinh). */
+    fun setIngressToken(ctx: Context, token: String?) {
+        val t = token?.trim().orEmpty()
+        get(ctx).edit().putString(KEY_INGRESS_TOKEN, t).apply()
     }
 
     /** id cua may nay (sinh 1 lan, luu lai). */

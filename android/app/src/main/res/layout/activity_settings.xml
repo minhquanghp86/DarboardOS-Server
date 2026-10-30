@@ -61,6 +61,93 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
+            android:text="@string/st_targets_section"
+            android:textColor="#FFFFFFFF"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <!-- (13/11/2026) GD6: 2 giá trị đang dùng — webUrl (WebView) và apiBase (API LAN). -->
+        <TextView
+            android:id="@+id/targetsView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:background="#FF16202F"
+            android:padding="12dp"
+            android:textColor="#FF9AA7BD"
+            android:textIsSelectable="true"
+            android:textSize="12sp" />
+
+        <!-- (13/11/2026) GD6: đăng nhập Home Assistant một lần (cookie giữ cho các lần sau). -->
+        <Button
+            android:id="@+id/haLoginButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:minHeight="48dp"
+            android:text="@string/st_ha_login_button" />
+
+        <Button
+            android:id="@+id/haHomeButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:minHeight="48dp"
+            android:text="@string/st_ha_home_button" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/st_ha_login_hint"
+            android:textColor="#FF9AA7BD"
+            android:textSize="12sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="@string/st_token_section"
+            android:textColor="#FFFFFFFF"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/tokenInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:background="#FF16202F"
+            android:hint="@string/st_token_hint_example"
+            android:imeOptions="actionDone"
+            android:inputType="text"
+            android:maxLines="1"
+            android:minHeight="48dp"
+            android:padding="12dp"
+            android:textColor="#FFFFFFFF"
+            android:textColorHint="#FF5B6B85"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/saveTokenButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:minHeight="48dp"
+            android:text="@string/st_token_button" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/st_token_hint"
+            android:textColor="#FF9AA7BD"
+            android:textSize="12sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
             android:text="@string/st_permissions"
             android:textColor="#FFFFFFFF"
             android:textSize="15sp"

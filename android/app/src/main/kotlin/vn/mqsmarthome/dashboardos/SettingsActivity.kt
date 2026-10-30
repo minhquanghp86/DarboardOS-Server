@@ -15,6 +15,7 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
 import android.widget.Button
+import android.widget.EditText
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
@@ -25,6 +26,8 @@ import java.util.Locale
 /**
  * (10/11/2026) GD2 — màn Cài đặt nhỏ: bật/tắt "Nhận cuộc gọi khi app đóng" và xin các quyền cần thiết.
  * (11/11/2026) GD3 — thêm lối tắt cài đặt MIUI, cài đặt thông báo/kênh cuộc gọi, và khối trạng thái debug.
+ * (13/11/2026) GD6 — thêm khối "Máy chủ đang dùng" (hiện ĐÚNG 2 giá trị webUrl / apiBase + TOKEN ingress),
+ * nút "Đăng nhập Home Assistant" (mở webUrl trong WebView của app) và ô sửa TOKEN ingress.
  *
  * Những thứ quyết định chuông có kêu + màn hình gọi có bật lên khi máy khoá:
  *   1. quyền POST_NOTIFICATIONS (Android 13+) — không có thì không có thông báo full-screen,
@@ -42,6 +45,8 @@ class SettingsActivity : Activity() {
 
     private lateinit var receiveSwitch: Switch
     private lateinit var statusView: TextView
+    private lateinit var targetsView: TextView
+    private lateinit var tokenInput: EditText
     private var receiverRegistered = false
 
     private val statusReceiver = object : BroadcastReceiver() {
@@ -56,12 +61,25 @@ class SettingsActivity : Activity() {
 
         receiveSwitch = findViewById(R.id.receiveSwitch)
         statusView = findViewById(R.id.statusView)
+        targetsView = findViewById(R.id.targetsView)
+        tokenInput = findViewById(R.id.tokenInput)
 
         receiveSwitch.isChecked = Prefs.receiveEnabled(this)
         receiveSwitch.setOnCheckedChangeListener { _, on ->
             Prefs.setReceiveEnabled(this, on)
             if (on) PhoneService.start(this) else PhoneService.stop(this)
             renderStatus()
+        }
+
+        // (13/11/2026) GD6 — TOKEN ingress (chuỗi sau /api/hassio_ingress/) sửa được tại đây.
+        tokenInput.setText(Prefs.ingressToken(this))
+        findViewById<Button>(R.id.saveTokenButton).setOnClickListener { saveToken() }
+
+        // (13/11/2026) GD6 — đăng nhập Home Assistant: mở webUrl (https) trong WebView của app.
+        findViewById<Button>(R.id.haLoginButton).setOnClickListener { openInWeb(Prefs.webUrl(this)) }
+        // 401 từ ingress cần đăng nhập HA ở chính domain: mở trang chủ HA rồi quay lại trang điều khiển.
+        findViewById<Button>(R.id.haHomeButton).setOnClickListener {
+            openInWeb(WebTargetResolver.originUrl(Prefs.webUrl(this)))
         }
 
         findViewById<Button>(R.id.notifButton).setOnClickListener { requestNotifications() }
@@ -297,9 +315,51 @@ class SettingsActivity : Activity() {
         false
     }
 
+    // ── máy chủ đang dùng + TOKEN ingress
+
+    /**
+     * (13/11/2026) GD6 — hiện ĐÚNG 2 giá trị đang dùng (không suy ra giá trị này từ giá trị kia):
+     * webUrl cho WebView và apiBase cho API LAN.
+     */
+    private fun renderTargets() {
+        val none = getString(R.string.st_none)
+        val web = Prefs.webUrl(this) ?: none
+        val api = Prefs.apiBase(this) ?: none
+        targetsView.text = buildString {
+            append(getString(R.string.st_web_url, web)).append('\n')
+            append(getString(R.string.st_api_base, api)).append('\n')
+            append(getString(R.string.st_ingress_token, Prefs.ingressToken(this@SettingsActivity)))
+        }
+    }
+
+    /** Lưu TOKEN ingress người dùng vừa sửa (áp dụng cho lần dò kế tiếp). */
+    private fun saveToken() {
+        val token = tokenInput.text?.toString()?.trim().orEmpty()
+        Prefs.setIngressToken(this, token)
+        tokenInput.setText(Prefs.ingressToken(this))
+        toast(getString(R.string.st_token_saved))
+        renderTargets()
+    }
+
+    /**
+     * Mở một URL trong WebView của MainActivity (dùng chung cookie WebView với lần đăng nhập HA).
+     * url = null (chưa cấu hình) -> báo rõ cho người dùng.
+     */
+    private fun openInWeb(url: String?) {
+        if (url.isNullOrBlank()) {
+            toast(getString(R.string.st_ha_login_no_web))
+            return
+        }
+        val i = Intent(this, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            .putExtra(MainActivity.EXTRA_OPEN_URL, url)
+        if (!tryStart(i)) toast(getString(R.string.st_no_settings_screen))
+    }
+
     // ── trạng thái
 
     private fun renderStatus() {
+        renderTargets()
         val lines = StringBuilder()
         lines.append(getString(R.string.st_phone_id, Prefs.phoneId(this))).append('\n')
         lines.append(
