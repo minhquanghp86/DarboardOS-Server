@@ -922,6 +922,8 @@ interface Notice { id: number; t: string; m: string; p: 'normal' | 'high' | 'cri
       const a = document.createElement('audio'); a.className = 'ov-aud'; a.src = n.aud; a.controls = true; a.autoplay = true;
       card.appendChild(a);
     } else if (n.img) { const im = el('img', 'ov-img'); im.src = n.img; card.appendChild(im); }
+    // (30/10/2026) Thong bao co hinh (camera/anh/video): cho the phu TOAN MAN theo kich thuoc + goc xoay hien tai.
+    if (n.img || n.vid) card.classList.add('media-full');
     const row = el('div', 'ov-act');
     if (n.act) {
       const b = el('button', 'ov-btn', 'Mở');

@@ -566,6 +566,11 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .ov-m { font-size: clamp(16px, 3.2vmin, 30px); opacity: 0.9; line-height: 1.35; margin-top: 6px; }
 .ov-aud { width: 100%; }
 .ov-img { width: 100%; max-height: 42vh; object-fit: contain; border-radius: 12px; }
+/* (30/10/2026) Thong bao co camera/anh: phu kin man hinh, anh giu dung ti le (khong meo), nen den lap vien. */
+.ov-card.media-full { width: 100%; height: 100%; max-height: none; border-radius: 0; padding: 0; box-sizing: border-box;
+  display: flex; flex-direction: column; justify-content: center; background: #000; overflow: hidden; }
+.ov-card.media-full .ov-ic, .ov-card.media-full .ov-txt, .ov-card.media-full .ov-act { display: none; }
+.ov-card.media-full .ov-img { width: 100%; height: 100%; max-height: none; object-fit: contain; border-radius: 0; }
 .ov-act { display: flex; gap: 12px; justify-content: flex-end; }
 .ov-btn { font: inherit; font-size: clamp(15px, 2.8vmin, 24px); padding: 10px 22px; border-radius: 999px; border: 0;
           background: #3b82f6; color: #fff; }
