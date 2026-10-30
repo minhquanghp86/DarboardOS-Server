@@ -108,7 +108,7 @@ Mỗi màn hình trở thành **một thiết bị** trong HA, tự cập nhật
 
 ![Giao diện OS](images/oshome.png)
 
-*Cử chỉ vuốt ngang (quay từ panel thật):*
+*Cử chỉ vuốt ngang (mô phỏng từ ảnh thật của panel):*
 
 ![Cử chỉ vuốt](images/swipe.gif)
 
