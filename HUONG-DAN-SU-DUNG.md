@@ -112,7 +112,14 @@ Mỗi màn hình trở thành **một thiết bị** trong HA, tự cập nhật
 
 ![Cử chỉ vuốt](images/swipe.gif)
 
-▶ Nếu ảnh động không chạy (GitHub đôi khi hiện khung đầu tiên), tải video: [`images/swipe.mp4`](images/swipe.mp4)
+▶ Nếu ảnh động không chạy (GitHub đôi khi chỉ hiện khung đầu), mở các video:
+
+| Cử chỉ | Video |
+|---|---|
+| Vuốt ngang sang trang kế (lưới ứng dụng) | [`swipe.mp4`](images/swipe.mp4) |
+| Vuốt từ **đáy lên** (về màn hình chính) | [`swipe-page2.mp4`](images/swipe-page2.mp4) |
+| Vuốt từ **trên xuống** (bảng thông báo) | [`swipe-shade.mp4`](images/swipe-shade.mp4) |
+| Vuốt lên từ màn khoá (mở khoá) | [`swipe-lock.mp4`](images/swipe-lock.mp4) |
 
 
 ### Màn hình chờ (screensaver)
