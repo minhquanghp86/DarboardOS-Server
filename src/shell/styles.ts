@@ -599,8 +599,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   display: flex; flex-direction: column; justify-content: center; background: #000; overflow: hidden; }
 /* (30/10/2026) Giu CHU tren anh: chi an icon + hang nut; tieu de/noi dung phu o day anh (nen gradient). */
 .ov-card.media-full .ov-ic, .ov-card.media-full .ov-act { display: none; }
-.ov-card.media-full .ov-txt { position: absolute; left: 0; right: 0; bottom: 0; padding: clamp(10px, 2.4vmin, 20px);
-  background: linear-gradient(to top, rgba(0,0,0,0.86), rgba(0,0,0,0)); text-align: left; }
+.ov-card.media-full .ov-txt { position: absolute; left: 0; right: 0; top: 0; padding: clamp(10px, 2.4vmin, 20px);
+  background: linear-gradient(to bottom, rgba(0,0,0,0.88), rgba(0,0,0,0)); text-align: left; }
 .ov-card.media-full .ov-t { font-size: clamp(14px, 2.6vmin, 22px); color: #fff; }
 .ov-card.media-full .ov-m { font-size: clamp(12px, 2.2vmin, 18px); color: rgba(255,255,255,0.88); }
 .ov-card.media-full .ov-img { width: 100%; height: 100%; max-height: none; object-fit: contain; border-radius: 0; }
