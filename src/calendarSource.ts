@@ -15,6 +15,7 @@ import type http from 'node:http';
 import path from 'node:path';
 import ICAL from 'ical.js';
 import { haFetch } from './haSettings.js';
+import { isLanBrowser } from './requestOrigin.js';
 
 /** Su kien theo dinh dang REST /calendars cua HA (de dung chung pickEvents / trang Hom nay). */
 export interface CalEv { summary: string; start: { date?: string; dateTime?: string }; end?: { date?: string; dateTime?: string } }
@@ -162,7 +163,8 @@ async function view(): Promise<Record<string, unknown>> {
 /** GET / POST calendar/config (khong "/" dau — ingress them tien to). POST {add:{name,url}} | {remove:<chi so>}. Chi ingress. */
 export function handleCalendarApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL): boolean {
   if (url.pathname !== '/calendar/config') return false;
-  if (!fromIngress(req)) { json(res, 403, { error: 'Chỉ mở được từ trang Dashboard trong Home Assistant.' }); return true; }
+  // (12/11/2026) + trang mo TRUC TIEP trong LAN cung origin (app Android: launcher-config.html tab Lịch).
+  if (!fromIngress(req) && !isLanBrowser(req)) { json(res, 403, { error: 'Chỉ mở được từ trang Dashboard trong Home Assistant.' }); return true; }
   if (req.method === 'GET') { view().then((v) => json(res, 200, v)).catch((e: Error) => json(res, 500, { error: e.message })); return true; }
   if (req.method !== 'POST') { json(res, 405, { error: 'method' }); return true; }
   let body = '';

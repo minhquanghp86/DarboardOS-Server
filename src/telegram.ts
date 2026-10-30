@@ -18,6 +18,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import { isLocalBrowser } from './requestOrigin.js';
 
 export type TgEvent = 'ring' | 'missed' | 'declined' | 'call';
 export interface TgConfig { enabled: boolean; token: string; chatIds: string[]; events: Record<TgEvent, boolean> }
@@ -143,8 +144,9 @@ export function tgText(ev: TgEvent, o: { door?: string; from?: string; to?: stri
 
 // ── HTTP ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 function allowed(req: http.IncomingMessage): boolean {
-  const a = (req.socket.remoteAddress || '').replace(/^::ffff:/, '');
-  return /^(127\.0\.0\.1|::1)$/.test(a) || a === '172.30.32.2' || process.env.LAUNCHER_CONFIG_OPEN === '1';
+  // (12/11/2026) + trang mo TRUC TIEP trong LAN cung origin (app Android mo call-web.html roi bam banh rang
+  // "Cài đặt chuông cổng" -> POST telegram/config). Xem src/requestOrigin.ts.
+  return isLocalBrowser(req);
 }
 function json(res: http.ServerResponse, code: number, body: unknown): void {
   res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });

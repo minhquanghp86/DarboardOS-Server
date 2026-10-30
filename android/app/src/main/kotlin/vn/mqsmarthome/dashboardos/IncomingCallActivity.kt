@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.WindowManager
 import android.widget.Button
@@ -14,16 +16,19 @@ import android.widget.Toast
 
 /**
  * (11/11/2026) GD3 — màn hình cuộc gọi đến TOÀN MÀN HÌNH (kể cả khi máy khoá).
+ * (12/11/2026) GD5 — KHÔNG phát âm thanh, KHÔNG rung: chuông + rung do KÊNH THÔNG BÁO `incoming_call_v3`
+ * phát (xem [CallNotifications]). Màn hình này chỉ hiện giao diện và giữ NHỊP ĐĂNG LẠI thông báo (~4 s) —
+ * tức vẫn kêu cho tới khi người dùng Nghe / Từ chối hoặc server báo cuộc gọi đã hết.
  *
  * Service gửi thông báo full-screen intent trỏ vào đây, nên activity tự bật lên trên màn khoá
- * (setShowWhenLocked + setTurnScreenOn + xin bỏ khoá tạm thời). Chuông + rung LẶP cho tới khi:
+ * (setShowWhenLocked + setTurnScreenOn + xin bỏ khoá tạm thời). Khi:
  *   - "Nghe"     -> POST /app/answer  rồi mở WebView tới <origin>call-web.html?call=<id>
  *   - "Từ chối"  -> POST /app/decline rồi đóng
- * Cuộc gọi hết (người gọi cúp, quá 30 s) -> PhoneService gọi dismissFor() để tắt chuông và đóng.
+ * Cuộc gọi hết (người gọi cúp, quá 30 s) -> PhoneService gọi dismissFor() để huỷ thông báo và đóng.
  *
- * Chuông dùng CHUNG CallRinger với PhoneService: nếu service đang phát chuông rồi thì màn hình chỉ hiện
- * giao diện (không phát chồng), còn nếu chưa (service vừa bị hệ thống kill / người dùng bấm thông báo
- * trước khi service kịp phát) thì tự phát để KHÔNG BAO GIỜ có cuộc gọi "câm".
+ * Vì sao màn hình cũng đăng lại thông báo: nếu PhoneService bị hệ thống kill trong lúc màn hình gọi còn mở thì
+ * chuông không được "câm" — activity tự giữ nhịp (dùng chung [CallNotifications.notifyAgainIfDue] nên không bị
+ * đăng lại dày hơn [CallNotifications.REPOST_MS], tránh kêu/rung đôi).
  */
 class IncomingCallActivity : Activity() {
 
@@ -35,6 +40,9 @@ class IncomingCallActivity : Activity() {
 
         /** true = mở máy và trả lời luôn (nút "Nghe" trên thông báo). */
         const val EXTRA_AUTO_ANSWER = "auto_answer"
+
+        /** Nhịp kiểm tra lại nhịp đăng lại (nhịp KÊU thật vẫn là [CallNotifications.REPOST_MS]). */
+        private const val TICK_MS = 1_000L
 
         @Volatile
         private var current: IncomingCallActivity? = null
@@ -51,7 +59,7 @@ class IncomingCallActivity : Activity() {
                 .putExtra(EXTRA_FROM_NAME, call.fromName)
                 .putExtra(EXTRA_AUTO_ANSWER, autoAnswer)
 
-        /** Tắt chuông + đóng (callId = null: đóng bất kể đang hiện cuộc gọi nào). */
+        /** Huỷ thông báo + đóng (callId = null: đóng bất kể đang hiện cuộc gọi nào). */
         fun dismissFor(callId: String?) {
             val a = current ?: return
             a.runOnUiThread {
@@ -66,8 +74,23 @@ class IncomingCallActivity : Activity() {
     private var handled = false
     private var autoAnswer = false
 
-    /** Đối tượng chuông dùng chung với PhoneService (không tự tạo bản riêng). */
-    private val ringer: CallRinger by lazy { CallRinger.get(this) }
+    private val uiHandler = Handler(Looper.getMainLooper())
+
+    /**
+     * Nhịp đăng lại thông báo (chuông kêu lặp). Kiểm tra mỗi giây; [CallNotifications.notifyAgainIfDue] tự giãn
+     * cách ít nhất [CallNotifications.REPOST_MS] nên không bao giờ kêu dày hơn nhịp đó.
+     */
+    private val repostRunnable = object : Runnable {
+        override fun run() {
+            if (isFinishing || isDestroyed) return
+            val id = callId
+            if (id.isNotBlank() && PhoneStatus.handledCallId != id) {
+                CallNotifications.notifyAgainIfDue(this@IncomingCallActivity, incoming())
+                PhoneStatus.ringing = RingState.isRinging()
+                uiHandler.postDelayed(this, TICK_MS)
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -96,12 +119,10 @@ class IncomingCallActivity : Activity() {
         findViewById<Button>(R.id.answerButton).setOnClickListener { answer() }
         findViewById<Button>(R.id.declineButton).setOnClickListener { decline() }
 
-        // Dự phòng chuông: chỉ phát nếu service CHƯA phát (CallRinger dùng chung nên biết ngay).
-        if (!ringer.isRinging()) {
-            Log.i(TAG, "service chua phat chuong -> man hinh tu phat (du phong)")
-            ringer.start()
-        }
-        PhoneStatus.ringing = ringer.isRinging()
+        // Không phát âm thanh/rung ở đây: chỉ đánh dấu trạng thái + giữ nhịp đăng lại thông báo (chuông của kênh).
+        RingState.start()
+        PhoneStatus.ringing = true
+        startRepost()
 
         if (autoAnswer && callId.isNotBlank()) {
             // Nút "Nghe" trên thông báo: trả lời luôn, không cần chạm lần 2.
@@ -114,20 +135,24 @@ class IncomingCallActivity : Activity() {
         setIntent(intent)
         handled = false
         readExtras(intent)
-        if (!ringer.isRinging()) ringer.start()
+        RingState.start()
+        PhoneStatus.ringing = true
+        startRepost()
         if (autoAnswer && callId.isNotBlank()) answer()
     }
 
     override fun onResume() {
         super.onResume()
         current = this
-        PhoneStatus.ringing = ringer.isRinging()
+        PhoneStatus.ringing = RingState.isRinging()
     }
 
     override fun onDestroy() {
         if (current === this) current = null
-        // Đóng màn hình = hết chuông (không để chuông kêu mãi khi không còn giao diện).
-        ringer.stop()
+        // Đóng màn hình = hết chuông (không để thông báo kêu mãi khi không còn giao diện).
+        stopRepost()
+        RingState.stop()
+        CallNotifications.cancel(this)
         PhoneStatus.ringing = false
         PhoneStatus.publish(applicationContext)
         super.onDestroy()
@@ -149,6 +174,19 @@ class IncomingCallActivity : Activity() {
         findViewById<TextView>(R.id.callerFrom).text =
             if (fromId.isBlank()) getString(R.string.call_incoming) else getString(R.string.call_from, fromId)
         if (callId.isNotBlank()) PhoneStatus.callId = callId
+    }
+
+    /** Cuộc gọi đang hiện (đủ thông tin để dựng lại thông báo khi đăng lại). */
+    private fun incoming(): PhoneApi.Incoming = PhoneApi.Incoming(callId, fromId, fromName)
+
+    /** Bắt đầu (hoặc nối lại) nhịp đăng lại thông báo — chuông kêu tới khi Nghe / Từ chối. */
+    private fun startRepost() {
+        uiHandler.removeCallbacks(repostRunnable)
+        if (callId.isNotBlank()) uiHandler.postDelayed(repostRunnable, CallNotifications.REPOST_MS)
+    }
+
+    private fun stopRepost() {
+        uiHandler.removeCallbacks(repostRunnable)
     }
 
     private fun answer() {
@@ -183,16 +221,17 @@ class IncomingCallActivity : Activity() {
         finish()
     }
 
-    /** Tắt chuông và đóng mà không gọi API (cuộc gọi đã hết ở phía server). */
+    /** Huỷ thông báo và đóng mà không gọi API (cuộc gọi đã hết ở phía server). */
     private fun dismissQuietly() {
         handled = true
         stopRinging()
         finish()
     }
 
-    /** Tắt chuông/rung + bỏ thông báo (giữ nguyên trạng thái của service: cuộc gọi vẫn đang chờ). */
+    /** Dừng nhịp đăng lại + huỷ thông báo (giữ nguyên trạng thái của service: cuộc gọi vẫn đang chờ). */
     private fun stopRinging() {
-        ringer.stop()
+        stopRepost()
+        RingState.stop()
         CallNotifications.cancel(this)
         PhoneStatus.ringing = false
         PhoneStatus.publish(applicationContext)

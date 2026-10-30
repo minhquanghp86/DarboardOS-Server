@@ -18,6 +18,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { camAuth, camHostOf, cameraDevices, fileGate, serveThumb, smallGate } from './camProxy.js';
+import { isLocalBrowser } from './requestOrigin.js';
 
 const INGRESS_IP = '172.30.32.2';
 const DATA_DIR = fs.existsSync('/data') ? '/data' : path.join(process.cwd(), 'data');
@@ -362,8 +363,10 @@ async function sdOk(id: string): Promise<boolean> {
 /** true = da xu ly (duong /fm/...). */
 export function handleFileManager(req: http.IncomingMessage, res: http.ServerResponse, url: URL): boolean {
   if (!url.pathname.startsWith('/fm/')) return false;
-  const ip = (req.socket.remoteAddress || '').replace(/^::ffff:/, '');
-  if (ip !== INGRESS_IP && process.env.LAUNCHER_CONFIG_OPEN !== '1') { json(res, 403, { error: 'Chỉ dùng được từ trang Dashboard trong Home Assistant.' }); return true; }
+  // (12/11/2026) `isLocalBrowser`: them trang mo TRUC TIEP trong LAN (cung origin, vd app Android
+  // http://192.168.10.2:18080/files.html) — truoc day chi nhan ingress 172.30.32.2 nen trang Quản lý file bao
+  // "Chỉ dùng được từ trang Dashboard trong Home Assistant". Van chan mang ngoai + request cross-origin.
+  if (!isLocalBrowser(req)) { json(res, 403, { error: 'Chỉ dùng được từ trang Dashboard trong Home Assistant.' }); return true; }
   const route = url.pathname.slice(4), q = url.searchParams;
   const DEV = q.get('dev');    // (09/10/2026) man co the nho dang chon (GET); POST: body.dev
   const fail = (e: unknown, code = 502) => { if (!res.headersSent) json(res, code, { error: (e as Error).message || String(e) }); else res.destroy(); };

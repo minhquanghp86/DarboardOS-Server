@@ -31,7 +31,8 @@
     <string name="svc_channel">Nhận cuộc gọi (chạy nền)</string>
     <string name="svc_channel_desc">Giữ kết nối tới máy chủ Dashboard để báo cuộc gọi đến khi app đóng.</string>
     <string name="call_channel">Cuộc gọi đến</string>
-    <string name="call_channel_desc">Thông báo toàn màn hình khi có cuộc gọi từ màn hình P4 (chuông/rung do app tự phát).</string>
+    <!-- (12/11/2026) GD5: chuông + rung do KÊNH thông báo phát (app không tự phát nhạc chuông nữa). -->
+    <string name="call_channel_desc">Thông báo toàn màn hình khi có cuộc gọi đến. Âm thanh và rung do kênh này phát — chạm để chọn nhạc chuông, bật rung và cho phép bỏ qua Không làm phiền.</string>
     <string name="call_notif_title">Cuộc gọi đến</string>
     <string name="call_incoming">Cuộc gọi đến</string>
     <string name="call_unknown_caller">Màn hình</string>
@@ -64,7 +65,7 @@
     <string name="st_status_section">Trạng thái</string>
     <string name="st_call_active">Cuộc gọi đang đến: %1$s</string>
     <string name="st_no_call">Cuộc gọi đang đến: không có</string>
-    <string name="st_ring_on">Chuông: đang phát</string>
+    <string name="st_ring_on">Chuông: đang đổ (kênh “Cuộc gọi đến”)</string>
     <string name="st_ring_off">Chuông: dừng</string>
     <string name="st_last_poll">Lần poll cuối: %1$s</string>
     <string name="st_never">chưa có</string>
@@ -74,11 +75,13 @@
 
     <!-- (11/11/2026) GD3 — quyền bổ sung + lối tắt cài đặt MIUI. -->
     <string name="st_overlay_button">Cho phép hiện cửa sổ nổi (mở màn gọi từ nền)</string>
-    <string name="st_dnd_button">Cho phép bỏ qua Không làm phiền (chuông khi DND)</string>
+    <string name="st_dnd_button">Cho phép bỏ qua Không làm phiền (chuông kêu khi máy ở Im lặng/DND)</string>
     <string name="st_device_section">Cài đặt thông báo &amp; lối tắt MIUI</string>
     <string name="st_device_hint">MIUI/Xiaomi hay chặn chuông và màn hình gọi khi app ở nền: bật đủ các mục dưới đây.</string>
     <string name="st_notif_settings_button">Mở cài đặt thông báo của app</string>
-    <string name="st_call_channel_button">Mở cài đặt kênh “Cuộc gọi đến”</string>
+    <string name="st_call_channel_button">Mở cài đặt kênh “Cuộc gọi đến” (chọn nhạc chuông)</string>
+    <!-- (12/11/2026) GD5: app KHÔNG tự phát chuông nữa — nhạc chuông/rung là của kênh thông báo. -->
+    <string name="st_call_channel_hint">Chọn nhạc chuông tại đây: Cài đặt → Thông báo → Dashboard OS → “Cuộc gọi đến” → Âm thanh. Trong đó bật “Phát âm thanh”, “Rung”, “Hiện trên màn hình khoá” và cho phép bỏ qua Không làm phiền để chuông vẫn kêu khi máy ở chế độ Im lặng / DND.</string>
     <string name="st_miui_autostart_button">MIUI: Tự khởi động (Autostart)</string>
     <string name="st_miui_perm_button">MIUI: Quyền của app / quyền khác</string>
     <string name="st_app_details_button">Thông tin app (cài đặt hệ thống)</string>

@@ -23,6 +23,7 @@ import type { HaState } from './settingsModel.js';
 import { FitMode, albumImageUrl, cachedAlbum, renderPhoto } from './photoFrame.js';
 import { albumItems } from './photoSource.js';
 import { panelPrefs } from './panelPrefs.js';
+import { isLocalBrowser } from './requestOrigin.js';
 
 function json(res: http.ServerResponse, code: number, body: unknown): void {
   res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
@@ -136,7 +137,9 @@ export function handleHomeApi(req: http.IncomingMessage, res: http.ServerRespons
   const p = url.pathname;
   if (!p.startsWith('/ha/rooms') && !p.startsWith('/ha/media') && !p.startsWith('/ha/art') && !p.startsWith('/ha/act') &&
       !p.startsWith('/ha/todo') && !p.startsWith('/photos/')) return false;
-  if (!isLocal(req)) { json(res, 403, { error: 'Chỉ dùng được từ màn hình (trình duyệt của addon).' }); return true; }
+  // (12/11/2026) `isLocalBrowser`: them trang mo TRUC TIEP trong LAN cung origin (app Android: rooms.html /
+  // remote.html / todo.html / photos.html trong WebView). Mang ngoai + request cross-origin van bi chan.
+  if (!isLocal(req) && !isLocalBrowser(req)) { json(res, 403, { error: 'Chỉ dùng được từ màn hình (trình duyệt của addon).' }); return true; }
   const need = () => { if (!haReady()) { json(res, 200, { ok: false, error: 'Addon không có quyền đọc Home Assistant.' }); return false; } return true; };
 
   if (p === '/photos/list' && req.method === 'GET') {

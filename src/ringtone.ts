@@ -6,10 +6,11 @@
 // (14/10/2026) NHAC CHUONG lay tu thu muc media cua Home Assistant (add-on doc /media): chuong cong va cuoc goi video den.
 // Mac dinh audio/chuong-cua.mp3 va audio/zalo.mp3 (nguoi dung tu chep vao); doi ten qua bien moi truong RINGTONE_DOOR /
 // RINGTONE_CALL (duong dan trong /media). Khong co tep -> man dung am "ding-dong" firmware / trang tu tao am.
-//   GET /ringtone/door | /ringtone/call   (127.0.0.1 + ingress)
+//   GET /ringtone/door | /ringtone/call   (127.0.0.1 + ingress + trang mo truc tiep trong LAN cung origin)
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
+import { isLocalBrowser } from './requestOrigin.js';
 
 const MEDIA = process.env.MEDIA_DIR || '/media';
 const FILES: Record<string, string> = {
@@ -32,8 +33,9 @@ export function ringtoneExists(kind: 'door' | 'call'): boolean {
 export function handleRingtone(req: http.IncomingMessage, res: http.ServerResponse, pathname: string): boolean {
   const m = /\/ringtone\/(door|call)$/.exec(pathname);
   if (!m || req.method !== 'GET') return false;
-  const ip = (req.socket.remoteAddress || '').replace(/^::ffff:/, '');
-  if (!/^(127\.0\.0\.1|::1|172\.30\.32\.2)$/.test(ip)) { res.writeHead(403); res.end(); return true; }
+  // (12/11/2026) + trang mo TRUC TIEP trong LAN cung origin: call-web.html / door.html tai nhac chuong bang
+  // <audio src="ringtone/call">; truoc day 403 nen trang mo thang trong app khong co nhac chuong cuoc goi den.
+  if (!isLocalBrowser(req)) { res.writeHead(403); res.end(); return true; }
   const p = fileOf(m[1]);
   fs.stat(p || '', (e, st) => {
     if (e || !p || !st.isFile()) { res.writeHead(404, { 'content-type': 'text/plain' }); res.end('khong co nhac chuong'); return; }

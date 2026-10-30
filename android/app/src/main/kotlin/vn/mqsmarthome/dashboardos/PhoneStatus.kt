@@ -34,7 +34,7 @@ object PhoneStatus {
     @Volatile
     var handledCallId: String? = null
 
-    /** Chuông/rung đang phát (CallRinger.isRinging()). */
+    /** Đang đổ chuông (thông báo cuộc gọi đang được đăng / đăng lại — RingState.isRinging()). */
     @Volatile
     var ringing: Boolean = false
 

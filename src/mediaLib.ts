@@ -12,6 +12,7 @@
 //   POST /mlib/ctl  {player, act, v?}                   play / pause / stop / volume tren loa da chon
 // Chi tu Chromium cua add-on (127.0.0.1). Khong sua cau hinh tich hop nao — chi doc nguon media va goi lenh phat.
 import http from 'node:http';
+import { isLocalBrowser } from './requestOrigin.js';
 import { Readable } from 'node:stream';
 
 import { callService, getRegistry, getStates, wsCalls } from './haSettings.js';
@@ -122,7 +123,8 @@ async function streamFile(req: http.IncomingMessage, res: http.ServerResponse, i
 export function handleMediaApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL): boolean {
   const p = url.pathname;
   if (!p.startsWith('/mlib/')) return false;
-  if (!isLocal(req)) { json(res, 403, { error: 'Chỉ dùng được từ màn hình.' }); return true; }
+  // (12/11/2026) + trang mo TRUC TIEP trong LAN cung origin (app Android mo media.html trong WebView).
+  if (!isLocal(req) && !isLocalBrowser(req)) { json(res, 403, { error: 'Chỉ dùng được từ màn hình.' }); return true; }
   const fail = (e: unknown) => { if (!res.headersSent) json(res, 502, { error: (e as Error).message }); else res.destroy(); };
   const id = url.searchParams.get('id') || '';
   if (p === '/mlib/browse' && req.method === 'GET') {

@@ -17,6 +17,7 @@ import path from 'node:path';
 import type { WebSocket } from 'ws';
 
 import { endCall, linkCalls, onMicFrame, setMuted, startCall } from './callBridge.js';
+import { isLocalBrowser } from './requestOrigin.js';
 import { isInternalPeer } from './camProxy.js';
 import { answerDoorbell, broadcaster, closeDoorbell, connectedScreens, postNotify, ringDoorPanels } from './deviceManager.js';
 import { haFetch } from './haSettings.js';
@@ -428,6 +429,12 @@ export function handleDoorMjpeg(req: http.IncomingMessage, res: http.ServerRespo
 
 // ── HTTP ─────────────────────────────────────────────────────────────────────────────────────────────────────
 const isLocal = (req: http.IncomingMessage) => /^(::ffff:)?127\.0\.0\.1$|^::1$/.test(req.socket.remoteAddress || '');
+/**
+ * (12/11/2026) Nguoi goi "hop le" cua API chuong cong: man hinh (127.0.0.1), trang Dashboard qua ingress, hoac
+ * trang mo TRUC TIEP trong LAN cung origin (app Android: http://<ip>:18080/door-log.html). Truoc day trang mo
+ * truc tiep bi 403 nen bao "Không tải được nhật ký" va khong xem duoc anh. Xem src/requestOrigin.ts.
+ */
+const isPage = (req: http.IncomingMessage) => isLocal(req) || isLocalBrowser(req);
 function json(res: http.ServerResponse, code: number, body: unknown): void {
   res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
   res.end(JSON.stringify(body));
@@ -437,24 +444,23 @@ function json(res: http.ServerResponse, code: number, body: unknown): void {
 export function handleDoorApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL): boolean {
   const p = url.pathname;
   if (!p.startsWith('/door/')) return false;
-  // Cai dat chuong: tu trang Dashboard (ingress, HA da buoc dang nhap).
-  if (p === '/door/config' && (isLocal(req) || (req.socket.remoteAddress || '').replace(/^::ffff:/, '') === '172.30.32.2')) {
+  // Cai dat chuong: tu trang Dashboard (ingress, HA da buoc dang nhap) hoac trang mo truc tiep trong LAN cung origin.
+  if (p === '/door/config' && isPage(req)) {
     if (req.method === 'GET') { json(res, 200, { cfg, doors: doorList(), panels: doorPanelChoices() }); return true; }
     let body = '';
     req.on('data', (c) => { body += c; if (body.length > 4096) req.destroy(); });
     req.on('end', () => { try { json(res, 200, { ok: true, cfg: setDoorConfig(JSON.parse(body || '{}')) }); } catch { json(res, 400, { ok: false, error: 'JSON sai' }); } });
     return true;
   }
-  const ingress = (req.socket.remoteAddress || '').replace(/^::ffff:/, '') === '172.30.32.2';
   const q = (k: string) => url.searchParams.get(k) || '';
   // Nhat ky (man + Dashboard): danh sach moi nhat truoc; ?dev= -> kem anh can mo (cham thong bao) roi xoa yeu cau.
-  if (p === '/door/log' && req.method === 'GET' && (isLocal(req) || ingress)) {
+  if (p === '/door/log' && req.method === 'GET' && isPage(req)) {
     const dev = q('dev'), open = dev ? openReq.get(dev) : undefined;
     if (dev) openReq.delete(dev);
     json(res, 200, { items: [...log].reverse(), keepDays: 30, open: open || null });
     return true;
   }
-  if (p === '/door/delete' && req.method === 'POST' && (isLocal(req) || ingress)) {
+  if (p === '/door/delete' && req.method === 'POST' && isPage(req)) {
     let body = '';
     req.on('data', (c) => { body += c; if (body.length > 64 * 1024) req.destroy(); });
     req.on('end', () => { try { json(res, 200, { ok: true, deleted: deleteLog(JSON.parse(body || '{}').files) }); } catch { json(res, 400, { ok: false, error: 'JSON sai' }); } });
@@ -467,7 +473,7 @@ export function handleDoorApi(req: http.IncomingMessage, res: http.ServerRespons
     d.lastPress = 0; press(d, q('panels') ? q('panels').split(',') : undefined);
     json(res, 200, { ok: true, ring: d.ring?.id, panels: d.ring?.panels }); return true;
   }
-  if (!isLocal(req) && !(ingress && /^\/door\/snap\//.test(p))) { json(res, 403, { error: 'Chỉ dùng từ màn hình.' }); return true; }
+  if (!isPage(req)) { json(res, 403, { error: 'Chỉ dùng từ màn hình.' }); return true; }
   const m = /^\/door\/snap\/([\w.-]+\.jpg)$/.exec(p);
   if (m && req.method === 'GET') {
     fs.readFile(path.join(SNAP_DIR, m[1]), (e, b) => {

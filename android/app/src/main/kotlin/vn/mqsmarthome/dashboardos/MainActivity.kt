@@ -48,6 +48,9 @@ class MainActivity : Activity() {
 
         private const val REQ_WEB_MEDIA = 1001
         private const val OVERLAY_VISIBLE_MS = 4000L
+
+        /** Do dam luc nghi cua nut URL o goc phai duoi (van bam duoc, khong che noi dung). */
+        private const val URL_BUTTON_ALPHA = 0.45f
     }
 
     private lateinit var prefs: SharedPreferences
@@ -269,12 +272,14 @@ class MainActivity : Activity() {
         val changeUrlButton = findViewById<Button>(R.id.changeUrlButton)
         // (30/10/2026) GD4: nút URL mở lại màn nhập ĐỊA CHỈ (điền sẵn giá trị cũ) để đổi máy chủ nhanh.
         changeUrlButton.setOnClickListener { showUrlScreen(prefill = Prefs.lastInput(this)) }
+        // (12/11/2026) Nut nam o goc phai DUOI (40dp) de khong de len nut cua trang (goc phai tren la cho
+        // nut "Chọn" cua trang Chuông cổng / banh rang cua trang Cuoc goi). Hien ro 4 s dau roi mo ve alpha 0.45
+        // — van luon bam duoc.
         changeUrlButton.alpha = 0.75f
         changeUrlButton.visibility = View.VISIBLE
         mainHandler.removeCallbacks(hideOverlayRunnable)
-        // (30/10/2026) Giu nut URL luon bam duoc: chi mo di (alpha .35) thay vi an han.
         mainHandler.postDelayed({
-            changeUrlButton.animate().alpha(0.35f).setDuration(400).start()
+            changeUrlButton.animate().alpha(URL_BUTTON_ALPHA).setDuration(400).start()
         }, OVERLAY_VISIBLE_MS)
     }
 

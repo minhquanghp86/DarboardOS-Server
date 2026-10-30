@@ -11,6 +11,7 @@
 import http from 'node:http';
 import dns from 'node:dns';
 import { haFetch } from './haSettings.js';
+import { isLocalBrowser } from './requestOrigin.js';
 
 const DNS_HASSIO = process.env.HASSIO_DNS || '172.30.32.3';
 const BASE_TTL_MS = 10 * 60_000;
@@ -194,7 +195,8 @@ function json(res: http.ServerResponse, code: number, body: unknown): void {
 export function handleFrigateApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL): boolean {
   const p = url.pathname;
   if (!p.startsWith('/frigate/')) return false;
-  if (!/^(::ffff:)?127\.0\.0\.1$|^::1$/.test(req.socket.remoteAddress || '')) { json(res, 403, { error: 'Chỉ dùng được từ màn hình.' }); return true; }
+  // (12/11/2026) + trang mo TRUC TIEP trong LAN cung origin (app Android: events.html / cams.html trong WebView).
+  if (!/^(::ffff:)?127\.0\.0\.1$|^::1$/.test(req.socket.remoteAddress || '') && !isLocalBrowser(req)) { json(res, 403, { error: 'Chỉ dùng được từ màn hình.' }); return true; }
   if (p === '/frigate/events') {
     const q = url.searchParams, ps = new URLSearchParams({ include_thumbnails: '0' });
     ps.set('limit', String(Math.min(100, Math.max(1, Number(q.get('limit')) || 60))));

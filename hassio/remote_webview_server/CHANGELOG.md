@@ -1,3 +1,10 @@
+## V2.9.298
+- **Mở trực tiếp các trang trong app Android**: cho phép request cùng origin từ trình duyệt trong LAN
+  (`isLocalBrowser`) với `/ha/*`, `/photos/*`, quản lý file, nhật ký chuông cổng, chat — trước đây các trang này
+  báo "Chỉ dùng được từ trang Dashboard trong Home Assistant".
+- App: chuông dùng **âm thanh kênh thông báo** (kênh `incoming_call_v3`, importance cao, bypass DND, rung dài),
+  app không tự phát nhạc chuông riêng nữa; nút URL dịch sang trái để không đè nút cài đặt của trang.
+
 ## V2.9.297
 - **Khắc phục build lỗi 2.9.296**: image 2.9.296 bị hỏng tệp `node_modules/ical.js/dist/ical.js` (SyntaxError khi khởi
   động). Không đổi mã nguồn — build lại sạch để thay image lỗi.

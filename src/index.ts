@@ -51,6 +51,7 @@ import { handleCallsApi, handleCallsUpgrade, setCallHooks } from './calls.js';
 import { handlePhoneApi } from './phones.js';
 import { handleFrigateApi } from './frigate.js';
 import { handleLockWidgetsApi, noteDeviceIp } from './lockWidgets.js';
+import { isLocalBrowser } from './requestOrigin.js';
 import { handleCalendarApi } from './calendarSource.js';
 import type WebSocket from 'ws';
 
@@ -359,10 +360,12 @@ http.createServer((req, res) => {
     fs.createReadStream(file).pipe(res);
     return;
   }
-  // (27/09/2026) Chuong cua: HA goi POST /doorbell (LAN, nhu /notify); trang chuong goi /doorbell/unlock|close (chi
-  // tu chinh panel). Mo cong chi chay thuc the HA da khai trong POST /doorbell.
+  // (27/09/2026) Chuong cua: HA goi POST /doorbell (LAN, nhu /notify); trang chuong goi /doorbell/unlock|close (tu
+  // chinh panel, hoac trang mo truc tiep trong LAN cung origin — app Android). Mo cong chi chay thuc the HA da khai
+  // trong POST /doorbell.
   if (pathname === '/doorbell' || pathname.startsWith('/doorbell/')) {
-    const local = /^(::ffff:)?127\.0\.0\.1$|^::1$/.test(req.socket.remoteAddress || '');
+    // (12/11/2026) + trang mo truc tiep trong LAN cung origin (app Android mo doorbell.html trong WebView).
+    const local = isLocalBrowser(req);
     const send = (code: number, b: unknown) => { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }); res.end(JSON.stringify(b)); };
     if (pathname === '/doorbell' && req.method === 'POST') {
       let body = '';
@@ -384,7 +387,8 @@ http.createServer((req, res) => {
   // (27/09/2026) Trang "Hom nay" + Bang tin gia dinh. Them ghi chu: tu bat ky dau trong LAN (HA rest_command, dien
   // thoai) nhu /notify; doc / xoa / ghim: chi tu chinh panel (127.0.0.1).
   if (pathname === '/ha/today' || pathname === '/board' || pathname.startsWith('/board/')) {
-    const local = /^(::ffff:)?127\.0\.0\.1$|^::1$/.test(req.socket.remoteAddress || '');
+    // (12/11/2026) + trang mo truc tiep trong LAN cung origin (app Android mo today.html / board.html trong WebView).
+    const local = isLocalBrowser(req);
     const send = (code: number, b: unknown) => { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }); res.end(JSON.stringify(b)); };
     if (pathname === '/board' && req.method === 'POST') {
       let body = '';

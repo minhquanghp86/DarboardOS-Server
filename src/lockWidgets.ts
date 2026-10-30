@@ -17,6 +17,7 @@ import type http from 'node:http';
 import { haFetch, wsCalls } from './haSettings.js';
 import { cameraHosts, recentEvents } from './frigate.js';
 import { allCalendarEvents } from './calendarSource.js';
+import { isLanBrowser } from './requestOrigin.js';
 
 /** Cam bien nang luong (entity_id). bat: + = DANG XA (quy uoc HA); batInvert: cam bien nguoc dau (+ = dang sac).
  *  grid: + = MUA dien (quy uoc HA); gridInvert: nguoc dau. pvToday: san luong mat troi HOM NAY (kWh, tu ve 0 luc nua dem). */
@@ -240,6 +241,8 @@ function fromIngress(req: http.IncomingMessage): boolean {
   if (process.env.LAUNCHER_CONFIG_OPEN === '1') return true;
   return (req.socket.remoteAddress || '').replace(/^::ffff:/, '') === INGRESS_IP;
 }
+/** (12/11/2026) Trang mo TRUC TIEP trong LAN (cung origin, vd app Android mo launcher-config.html#man-khoa). */
+function fromLanPage(req: http.IncomingMessage): boolean { return isLanBrowser(req); }
 function json(res: http.ServerResponse, code: number, body: unknown): void {
   res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
   res.end(JSON.stringify(body));
@@ -261,16 +264,18 @@ async function snapshot(): Promise<Record<string, unknown>> {
   } catch { /* HA chua san sang */ }
   return { ok: true, from: eff.from, cfg: eff.cfg, ha, candidates: cands, energy: S.en.v };
 }
-/** GET/POST lockwidgets/config (duong dan trang KHONG co "/" dau — ingress them tien to). GET: ingress / 127.0.0.1; POST chi ingress. */
+/** GET/POST lockwidgets/config (duong dan trang KHONG co "/" dau — ingress them tien to). GET: ingress / 127.0.0.1 / LAN cung origin; POST: ingress / LAN cung origin. */
 export function handleLockWidgetsApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL): boolean {
   if (url.pathname !== '/lockwidgets/config') return false;
   // Danh sach cam bien + so lieu nha nguoi dung: chi trang Dashboard (ingress) hoac chinh may chu doc duoc, khong mo ca LAN.
-  if (!fromIngress(req) && !/^(::ffff:)?127\.0\.0\.1$|^::1$/.test(req.socket.remoteAddress || '')) {
+  // (12/11/2026) + trang mo truc tiep trong LAN cung origin (app Android: http://<ip>:18080/launcher-config.html#man-khoa) —
+  // truoc day 403 nen tab "Màn khóa" bao "Không tải được: Chỉ mở được từ trang Dashboard trong Home Assistant".
+  if (!fromIngress(req) && !/^(::ffff:)?127\.0\.0\.1$|^::1$/.test(req.socket.remoteAddress || '') && !fromLanPage(req)) {
     json(res, 403, { error: 'Chỉ mở được từ trang Dashboard trong Home Assistant.' }); return true;
   }
   if (req.method === 'GET') { snapshot().then((s) => json(res, 200, s)).catch((e: Error) => json(res, 500, { error: e.message })); return true; }
   if (req.method !== 'POST') { json(res, 405, { error: 'method' }); return true; }
-  if (!fromIngress(req)) { json(res, 403, { error: 'Chỉ lưu được từ trang Dashboard trong Home Assistant.' }); return true; }
+  if (!fromIngress(req) && !fromLanPage(req)) { json(res, 403, { error: 'Chỉ lưu được từ trang Dashboard trong Home Assistant.' }); return true; }
   let body = '';
   req.on('data', (c) => { body += c; if (body.length > 20_000) req.destroy(); });
   req.on('end', () => {

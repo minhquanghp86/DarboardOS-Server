@@ -13,12 +13,14 @@ import android.util.Log
 
 /**
  * (10/11/2026) GD2 — chuông báo cuộc gọi đến khi app ĐÓNG / ở nền.
- * (11/11/2026) GD3 — chuông + rung LẶP thật sự (CallRinger), thông báo full-screen có 2 nút, trạng thái debug.
+ * (12/11/2026) GD5 — chuông/rung do KÊNH THÔNG BÁO `incoming_call_v3` phát (app không tự phát âm thanh nữa,
+ * xem CallNotifications): kênh HIGH + nhạc chuông mặc định của máy + rung + bypassDnd. Vòng poll 2 s vừa phát
+ * hiện cuộc gọi mới vừa ĐĂNG LẠI thông báo mỗi ~4 s (CallNotifications.REPOST_MS) để chuông kêu lặp.
  *
  * Chạy như foreground service (kiểu `specialUse` từ Android 14, `dataSync` cho Android 10-13) và tự bơm 2 giây/lần:
  *   - POST /app/register (khi bắt đầu, khi đổi URL, và 60 giây/lần) — id lấy từ SharedPreferences,
- *   - GET  /app/incoming?phone=<id> — có cuộc gọi thì: chuông+rung lặp, thông báo full-screen (Nghe/Từ chối),
- *     thử mở IncomingCallActivity ngay.
+ *   - GET  /app/incoming?phone=<id> — có cuộc gọi thì: đăng thông báo cuộc gọi (kênh tự kêu chuông + rung),
+ *     đăng lại mỗi ~4 s, thử mở IncomingCallActivity ngay.
  * Không dùng WebSocket / Firebase: Polling 2 s là đủ nhanh cho chuông và chịu được mất mạng, vào lại Wi-Fi, màn khoá.
  */
 class PhoneService : Service() {
@@ -76,8 +78,8 @@ class PhoneService : Service() {
     @Volatile
     private var ringing: String? = null
 
-    /** Chuông + rung dùng chung với IncomingCallActivity (một tiến trình, một chuông). */
-    private val ringer: CallRinger by lazy { CallRinger.get(this) }
+    // (12/11/2026) GD5: KHÔNG còn đối tượng phát chuông — âm thanh + rung do kênh thông báo lo.
+    // RingState chỉ là cờ trạng thái dùng chung với IncomingCallActivity (một tiến trình, một trạng thái).
 
     override fun onCreate() {
         super.onCreate()
@@ -103,8 +105,8 @@ class PhoneService : Service() {
         loop?.interrupt()
         loop = null
         running = false
-        // Service chết thì phải tắt chuông, nếu không chuông kêu mãi không có gì dừng.
-        ringer.stop()
+        // Service chết thì phải bỏ thông báo cuộc gọi, nếu không chuông kêu mãi không có gì dừng.
+        RingState.stop()
         ringing = null
         PhoneStatus.callId = null
         PhoneStatus.ringing = false
@@ -192,7 +194,8 @@ class PhoneService : Service() {
                 Log.w(TAG, "tao kenh service loi: ${t.message}")
             }
         }
-        // Kênh cuộc gọi: HIGH + im lặng + bypass DND + hiện trên màn khoá (xem CallNotifications).
+        // Kênh cuộc gọi: HIGH + nhạc chuông mặc định của máy + rung + bypass DND + hiện trên màn khoá
+        // (xem CallNotifications: kênh `incoming_call_v3`).
         CallNotifications.ensureChannel(this)
     }
 
@@ -255,24 +258,29 @@ class PhoneService : Service() {
     }
 
     private fun onIncoming(call: PhoneApi.Incoming) {
-        val current = ringing
-        if (current == call.id) {
-            // Đã báo rồi. Trước đây chuông có thể đã bị tắt (màn hình gọi bị đóng) -> phát lại, NHƯNG không
-            // bao giờ phát lại cuộc gọi mà người dùng đã Nghe/Từ chối (server có thể còn trả về vài giây).
-            if (PhoneStatus.handledCallId != call.id && !ringer.isRinging()) ringer.start()
+        // (12/11/2026) GD5: người dùng đã Nghe/Từ chối cuộc gọi này (server còn trả về vài giây) -> im lặng tuyệt đối:
+        // không đăng lại thông báo (đăng lại = chuông kêu lại).
+        if (PhoneStatus.handledCallId == call.id) return
+
+        val same = ringing == call.id
+        if (!same) {
+            // Cuộc gọi mới: bỏ dấu "đã xử lý" của cuộc gọi trước.
+            PhoneStatus.handledCallId = null
+            ringing = call.id
+            Log.i(TAG, "cuoc goi den ${call.id} tu ${call.fromName}")
+        }
+        RingState.start()
+        PhoneStatus.callId = call.id
+        PhoneStatus.ringing = true
+
+        if (same) {
+            // 1) Đang đổ chuông: ĐĂNG LẠI thông báo mỗi ~4 s -> kênh phát âm thanh + rung lại (chuông kêu lặp).
+            //    Chưa tới nhịp thì thôi (poll 2 s nên lần nào cũng gọi vào đây).
+            if (CallNotifications.notifyAgainIfDue(this, call)) Log.d(TAG, "dang lai thong bao cuoc goi ${call.id}")
             return
         }
-        // Cuộc gọi mới: bỏ dấu "đã xử lý" của cuộc gọi trước.
-        if (PhoneStatus.handledCallId != call.id) PhoneStatus.handledCallId = null
-        ringing = call.id
-        Log.i(TAG, "cuoc goi den ${call.id} tu ${call.fromName}")
 
-        // 1) Chuông + rung lặp TRƯỚC (âm thanh là thứ người dùng cần nghe ngay).
-        ringer.start()
-
-        // 2) Thông báo full-screen (Nghe / Từ chối) + trạng thái cho màn Cài đặt.
-        PhoneStatus.callId = call.id
-        PhoneStatus.ringing = ringer.isRinging()
+        // 2) Cuộc gọi MỚI: đăng thông báo full-screen (kênh tự kêu chuông + rung) + 2 nút Nghe/Từ chối.
         postCallNotification(call)
 
         // 3) Màn khoá / màn tắt: hệ thống tự mở activity từ full-screen intent. Đang mở máy: thử mở thẳng;
@@ -288,7 +296,7 @@ class PhoneService : Service() {
         if (ringing == null) return
         ringing = null
         PhoneStatus.handledCallId = null
-        ringer.stop()
+        RingState.stop()
         PhoneStatus.callId = null
         PhoneStatus.ringing = false
         cancelCallNotification()

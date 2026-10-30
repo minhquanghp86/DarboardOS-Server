@@ -12,13 +12,16 @@
 // Ai goi duoc (src/index.ts -> handleChatApi):
 //   ingress HA (172.30.32.2)     -> phia 'ha' (HA da buoc dang nhap)
 //   127.0.0.1 + ?dev=<id>         -> man hinh <id> (trang chat.html chay trong Chrome cua chinh addon)
-//   may khac trong LAN            -> 403
+//   (12/11/2026) LAN, CUNG ORIGIN -> phia 'ha': app Android mo thang http://<ip>:18080/chat.html trong WebView
+//                                   (truoc day 403 -> "Không kết nối được server"). Xem src/requestOrigin.ts.
+//   may khac trong LAN, khac origin -> 403
 // Cap nhat tuc thi: GET chat/state?rev=N giu ket noi toi 25 s cho toi khi co thay doi (long-poll — di qua ingress HA
 // on dinh hon WebSocket).
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import http from 'node:http';
+import { isLanBrowser } from './requestOrigin.js';
 
 export type Side = 'ha' | 'screen';
 export interface Author { side: Side; id: string; name: string }
@@ -280,7 +283,10 @@ function mediaUsedBytes(): number {
 
 function who(req: http.IncomingMessage, url: URL): Author | null {
   const ip = (req.socket.remoteAddress || '').replace(/^::ffff:/, '');
-  if (ip === INGRESS_IP || process.env.LAUNCHER_CONFIG_OPEN === '1' && !url.searchParams.get('dev')) {
+  // (12/11/2026) `isLanBrowser`: may trong LAN mo THANG trang cua add-on (app Android: http://<ip>:18080/chat.html)
+  // -> coi la nguoi dung HA (khong phai man hinh: man hinh luon la 127.0.0.1 + ?dev=). Truoc day roi xuong null -> 403
+  // nen trang Tin nhan bao "Không kết nối được server".
+  if (ip === INGRESS_IP || process.env.LAUNCHER_CONFIG_OPEN === '1' && !url.searchParams.get('dev') || isLanBrowser(req)) {
     const h = (k: string) => { const v = req.headers[k]; return typeof v === 'string' ? clean(v, 60) : ''; };
     return { side: 'ha', id: h('x-remote-user-id') || 'ha', name: h('x-remote-user-display-name') || h('x-remote-user-name') || 'Home Assistant' };
   }
@@ -486,7 +492,8 @@ export function handleChatApi(req: http.IncomingMessage, res: http.ServerRespons
   // Anh dai dien: trang thanh ben (ingress) va moi trang/the thong bao tren panel (127.0.0.1, khong can ?dev=).
   if (url.pathname === '/chat/avatar' && req.method === 'GET') {
     const ip = (req.socket.remoteAddress || '').replace(/^::ffff:/, '');
-    if (ip !== INGRESS_IP && ip !== '127.0.0.1' && ip !== '::1') { json(res, 403, { error: 'cam' }); return true; }
+    // (12/11/2026) + trang mo truc tiep trong LAN (cung origin) — xem isLanBrowser o tren.
+    if (ip !== INGRESS_IP && ip !== '127.0.0.1' && ip !== '::1' && !isLanBrowser(req)) { json(res, 403, { error: 'cam' }); return true; }
     avatarOf(url.searchParams.get('u') || '').then((img) => {
       if (!img) { res.writeHead(404, { 'cache-control': 'max-age=300' }); res.end(); return; }
       res.writeHead(200, { 'content-type': 'image/jpeg', 'content-length': img.length, 'cache-control': 'private, max-age=600' });

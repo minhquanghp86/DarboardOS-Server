@@ -28,6 +28,7 @@ import { answerDoorbell, closeDoorbell, connectedScreens, openRingPage, postNoti
 import { LOCAL_ORIGIN } from './launcherApps.js';
 import type { FrameSink } from './mkvLive.js';
 import { ringtoneExists } from './ringtone.js';
+import { isLocalBrowser } from './requestOrigin.js';
 import { phoneLabel, phones } from './phoneStore.js';
 
 const RING_S = 30;
@@ -238,12 +239,18 @@ function webMessage(w: WebSession, data: Buffer, isBinary: boolean): void {
 
 const wss = new WebSocketServer({ noServer: true, perMessageDeflate: false, maxPayload: 1024 * 1024 });
 const isLocal = (req: http.IncomingMessage) => /^(::ffff:)?127\.0\.0\.1$|^::1$/.test(req.socket.remoteAddress || '');
-const isIngress = (req: http.IncomingMessage) => (req.socket.remoteAddress || '').replace(/^::ffff:/, '') === '172.30.32.2';
+/**
+ * (12/11/2026) Nguoi goi hop le: man hinh (127.0.0.1), trang Dashboard qua ingress, hoac trang mo TRUC TIEP trong LAN
+ * cung origin. Truoc day WS /calls/web bi `socket.destroy()` khi mo thang http://<ip>:18080/call-web.html trong app
+ * Android -> trang "Cuộc gọi" khong nhan duoc `hello` nen danh ba trong ("Chưa có màn hình hoặc trình duyệt nào khác
+ * để gọi"). Xem src/requestOrigin.ts.
+ */
+const isPage = (req: http.IncomingMessage) => isLocal(req) || isLocalBrowser(req);
 
 export function handleCallsUpgrade(req: http.IncomingMessage, socket: Duplex, head: Buffer): boolean {
   const url = new URL(req.url || '/', 'http://x');
   if (!url.pathname.endsWith('/calls/web')) return false;
-  if (!isLocal(req) && !isIngress(req)) { socket.destroy(); return true; }
+  if (!isPage(req)) { socket.destroy(); return true; }
   wss.handleUpgrade(req, socket, head, (ws) => {
     const w: WebSession = { id: 'web-' + newId(), name: (url.searchParams.get('name') || 'Trình duyệt').slice(0, 40), ws, call: null, vcfg: null, vsinks: new Set() };
     webs.set(w.id, w);
@@ -263,7 +270,7 @@ function json(res: http.ServerResponse, code: number, body: unknown): void {
 export function handleCallsApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL): boolean {
   const p = url.pathname;
   if (!p.startsWith('/calls/')) return false;
-  if (!isLocal(req)) { json(res, 403, { error: 'Chỉ dùng từ màn hình.' }); return true; }
+  if (!isPage(req)) { json(res, 403, { error: 'Chỉ dùng từ màn hình.' }); return true; }
   const q = (k: string) => url.searchParams.get(k) || '';
   if (p === '/calls/contacts' && req.method === 'GET') { json(res, 200, contacts(q('self'))); return true; }
   if (p === '/calls/state' && req.method === 'GET') { json(res, 200, state(q('call'))); return true; }

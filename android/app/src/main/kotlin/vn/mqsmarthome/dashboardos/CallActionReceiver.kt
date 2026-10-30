@@ -7,10 +7,11 @@ import android.util.Log
 
 /**
  * (11/11/2026) GD3 — nút "Từ chối" trên thông báo cuộc gọi (bấm được cả khi máy khoá).
+ * (12/11/2026) GD5 — chuông/rung của KÊNH thông báo (không còn CallRinger): "tắt chuông" = huỷ thông báo.
  *
  * Dùng BroadcastReceiver thay vì mở activity: từ chối không cần giao diện, chỉ cần
- *   1. tắt chuông + rung ngay (CallRinger dùng chung với service),
- *   2. bỏ thông báo + đóng IncomingCallActivity,
+ *   1. đánh dấu đã xử lý + tắt cờ đổ chuông (RingState),
+ *   2. huỷ thông báo (hết âm thanh/rung của kênh) + đóng IncomingCallActivity,
  *   3. báo server POST /app/decline (chạy nền, lỗi mạng thì bỏ qua — lần poll sau server tự hết cuộc gọi).
  * Việc gọi mạng dùng goAsync() để tiến trình không bị kill giữa đường.
  */
@@ -35,7 +36,7 @@ class CallActionReceiver : BroadcastReceiver() {
 
         // 1) Tắt chuông/rung + đóng màn hình gọi + bỏ thông báo (làm ngay, không chờ mạng).
         if (callId.isNotBlank()) PhoneStatus.handledCallId = callId
-        CallRinger.get(context).stop()
+        RingState.stop()
         CallNotifications.cancel(context)
         IncomingCallActivity.dismissFor(callId.ifBlank { null })
         PhoneStatus.callId = null

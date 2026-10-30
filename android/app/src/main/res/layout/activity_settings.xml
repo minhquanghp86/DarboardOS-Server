@@ -140,6 +140,15 @@
             android:minHeight="48dp"
             android:text="@string/st_call_channel_button" />
 
+        <!-- (12/11/2026) GD5: chuông/rung do kênh "Cuộc gọi đến" phát -> chọn nhạc chuông tại đây. -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/st_call_channel_hint"
+            android:textColor="#FF9AA7BD"
+            android:textSize="12sp" />
+
         <Button
             android:id="@+id/miuiAutostartButton"
             android:layout_width="match_parent"

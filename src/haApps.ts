@@ -10,6 +10,7 @@
 import type http from 'node:http';
 
 import { go2rtcFetch } from './go2rtcProxy.js';
+import { isLocalBrowser } from './requestOrigin.js';
 
 async function listCams(): Promise<Array<{ name: string; snap: string; live: string }>> {
   const r = await go2rtcFetch('/api/streams');   // (09/10/2026) tu tim go2rtc (Frigate) thay vi 127.0.0.1:1984
@@ -32,7 +33,7 @@ export function handleAppApi(req: http.IncomingMessage, res: http.ServerResponse
   const p = url.pathname;
   if (p === '/cams/list' && req.method === 'GET') {
     // (09/10/2026) Ten camera trong nha: chi trang trong Chromium cua add-on (truoc day ca LAN doc duoc).
-    if (!/^(::ffff:)?127\.0\.0\.1$|^::1$/.test(req.socket.remoteAddress || '')) { json(res, 403, { error: 'Chỉ dùng được từ màn hình.' }); return true; }
+    if (!/^(::ffff:)?127\.0\.0\.1$|^::1$/.test(req.socket.remoteAddress || '') && !isLocalBrowser(req)) { json(res, 403, { error: 'Chỉ dùng được từ màn hình.' }); return true; }
     listCams().then(l => json(res, 200, l)).catch(e => json(res, 502, { error: (e as Error).message }));
     return true;
   }

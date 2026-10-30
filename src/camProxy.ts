@@ -9,6 +9,7 @@
 import http from 'node:http';
 import { go2rtcStreams, hostsOfRuntime } from './frigate.js';
 import { FrameSink, LiveHub, RawSink } from './mkvLive.js';
+import { isLocalBrowser } from './requestOrigin.js';
 
 /** (08/10/2026) auth = base64("user:pass") cho HTTP Basic Auth cua cam_app / av_stream (firmware gui ?ca=<hex(user:pass)>). */
 export type CamHost = { ip: string; port: number; auth?: string; /** (09/10/2026) chi the nho, khong camera (S3) */ sdOnly?: boolean };
@@ -152,7 +153,9 @@ export function handleCamProxy(req: http.IncomingMessage, res: http.ServerRespon
   const pick = pickCamHost(search0), search = pick.search;
   // (09/10/2026) Ten luong go2rtc cua CHINH panel co camera (nguon tro toi IP panel hoac /cam/live/<id>) — camera.html.
   if (pathname === '/api/cam/stream') {
-    const ok = /^(::ffff:)?127\.0\.0\.1$|^::1$/.test(req.socket.remoteAddress || '');
+    // (12/11/2026) `isLocalBrowser` = 127.0.0.1 / ingress / trang mo truc tiep trong LAN cung origin
+    // (app Android mo thang http://<ip>:18080/camera.html trong WebView).
+    const ok = isLocalBrowser(req);
     const j = (code: number, b: unknown) => { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }); res.end(JSON.stringify(b)); };
     const id = pick.id, h = pick.h;
     if (!ok) { j(403, { error: 'Chỉ dùng được từ màn hình.' }); return true; }
@@ -168,7 +171,10 @@ export function handleCamProxy(req: http.IncomingMessage, res: http.ServerRespon
     res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
     res.end(JSON.stringify(body));
   };
-  const local = /^(::ffff:)?127\.0\.0\.1$|^::1$/.test(req.socket.remoteAddress || '');
+  // (12/11/2026) Truoc day chi nhan 127.0.0.1: trang mo truc tiep trong LAN (app Android: files.html / gallery /
+  // camera.html goi /api/cam/sd/...) bi 403 "Chỉ dùng được từ màn hình". Nay nhan them LAN CUNG ORIGIN;
+  // mang ngoai va request cross-origin van bi chan.
+  const local = isLocalBrowser(req);
   const sub = pathname.slice('/api/cam'.length);
   if (!local) { send(403, { error: 'Chỉ dùng được từ màn hình.' }); return true; }
   if (!ALLOWED.test(sub) || (req.method !== 'GET' && req.method !== 'POST')) { send(404, { error: 'khong co' }); return true; }
