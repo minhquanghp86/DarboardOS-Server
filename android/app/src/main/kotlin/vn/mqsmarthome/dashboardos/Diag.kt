@@ -50,6 +50,15 @@ object Diag {
     private val timeFormat = SimpleDateFormat(TIME_PATTERN, Locale.US)
 
     /**
+     * (29/11/2026) GD17 — **người nghe từng dòng log** (đã cắt khoảng trắng, KHÔNG kèm `HH:mm:ss`), dùng cho việc
+     * **tự lưu tệp chẩn đoán khi lỗi**: [MainActivity] gắn [DiagAutoSave] vào đây một lần, nhờ vậy mọi dòng
+     * `[promote] … fail=` / `401` — kể cả dòng do [PhoneService] ghi ở luồng nền — đều kích hoạt lưu tệp.
+     * `null` (mặc định) = không ai nghe; không bao giờ ném ra ngoài.
+     */
+    @Volatile
+    var onLine: ((String) -> Unit)? = null
+
+    /**
      * Ghi MỘT dòng: `HH:mm:ss <line>` vào ring buffer + Logcat. Dòng rỗng sau khi cắt khoảng trắng bị bỏ qua.
      * Không bao giờ ném ra ngoài.
      */
@@ -62,6 +71,7 @@ object Diag {
             while (buffer.size > CAPACITY) buffer.removeAt(0)
         }
         runCatching { sink?.invoke(text) }
+        runCatching { onLine?.invoke(text) }
     }
 
     /** Bản sao các dòng đang giữ (cũ → mới). */

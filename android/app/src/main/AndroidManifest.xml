@@ -71,6 +71,19 @@
             android:exported="false"
             android:label="@string/diag_title" />
 
+        <!-- (29/11/2026) GD17: chia sẻ TỆP chẩn đoán (diag-*.txt) qua content:// — nút "Chia sẻ tệp" ở màn Chẩn đoán.
+             Cùng giao kèo với FileProvider của androidx (authority + meta-data FILE_PROVIDER_PATHS + file_paths.xml),
+             nhưng cài bằng ContentProvider thuần để app giữ 0 phụ thuộc runtime (xem DiagFileProvider). -->
+        <provider
+            android:name=".DiagFileProvider"
+            android:authorities="${applicationId}.diagfiles"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <!-- (10/11/2026) GD2: man hinh cuoc goi den toan man hinh, hien tren man khoa. -->
         <activity
             android:name=".IncomingCallActivity"

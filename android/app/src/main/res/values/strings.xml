@@ -209,4 +209,21 @@
     <string name="diag_none">(chưa có)</string>
     <string name="diag_current_no_url">(WebView đang mở, chưa có URL)</string>
     <string name="diag_current_no_webview">(WebView chưa mở trong phiên này)</string>
+
+    <!-- (29/11/2026) GD17 — LƯU RA TỆP + chia sẻ tệp + danh sách 5 tệp gần nhất (app tự lưu khi gặp lỗi). -->
+    <string name="diag_save_file">Lưu ra tệp</string>
+    <string name="diag_share_file">Chia sẻ tệp</string>
+    <string name="diag_files_title">Tệp chẩn đoán đã lưu (tối đa 5 tệp gần nhất)</string>
+    <string name="diag_files_hint">Bấm một tệp để chia sẻ (Zalo, Telegram, Gmail…). Tệp nằm trong thư mục riêng của app, không cần quyền bộ nhớ.</string>
+    <string name="diag_files_empty">(chưa có tệp nào — bấm “Lưu ra tệp”, hoặc app tự lưu khi gặp lỗi promote/401)</string>
+    <string name="diag_files_dir">Nơi lưu tệp: %1$s</string>
+    <string name="diag_files_clear">Xoá tất cả</string>
+    <string name="diag_files_cleared">Đã xoá %1$d tệp chẩn đoán</string>
+    <string name="diag_files_none">Chưa có tệp nào để xoá</string>
+    <string name="diag_file_saved">Đã lưu: %1$s</string>
+    <string name="diag_file_saved_toast">Đã lưu tệp chẩn đoán</string>
+    <string name="diag_file_failed">Không ghi được tệp chẩn đoán (bộ nhớ đầy hoặc bị chặn)</string>
+    <string name="diag_file_missing">Tệp không còn trên máy — hãy lưu lại</string>
+    <string name="diag_file_chooser">Chia sẻ tệp chẩn đoán</string>
+    <string name="diag_file_reason">lý do tự lưu: %1$s</string>
 </resources>

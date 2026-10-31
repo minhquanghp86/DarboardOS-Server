@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- (28/11/2026) GD16 — màn CHẨN ĐOÁN: 5 giá trị đang dùng + log vòng 300 dòng ([nav]/[promote]/[login]/[api])
-     để người dùng bấm "Sao chép" gửi hỗ trợ mà KHÔNG cần adb. -->
+     để người dùng bấm "Sao chép" gửi hỗ trợ mà KHÔNG cần adb.
+     (29/11/2026) GD17 — thêm: "Lưu ra tệp" + "Chia sẻ tệp" (content:// qua DiagFileProvider) + danh sách 5 tệp
+     chẩn đoán gần nhất (app TỰ lưu khi gặp lỗi promote/401) + "Xoá tất cả".
+     Toàn bộ phần cuộn (5 giá trị · tệp · log) nằm trong MỘT ScrollView để các nút dưới luôn cố định. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -24,52 +27,153 @@
         android:textColor="#FF9AA7BD"
         android:textSize="11sp" />
 
-    <!-- 5 giá trị: domain · webUrl đang dùng · URL hiện tại của WebView · cookie ingress_session · token ingress -->
-    <TextView
-        android:id="@+id/diagValues"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:background="#FF16202F"
-        android:fontFamily="monospace"
-        android:padding="10dp"
-        android:textColor="#FFC7D2E2"
-        android:textIsSelectable="true"
-        android:textSize="11sp" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="@string/diag_log_section"
-        android:textColor="#FFFFFFFF"
-        android:textSize="14sp"
-        android:textStyle="bold" />
-
     <ScrollView
         android:id="@+id/diagScroll"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="6dp"
         android:layout_weight="1"
-        android:background="#FF16202F"
         android:fillViewport="true">
 
-        <TextView
-            android:id="@+id/diagLog"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:fontFamily="monospace"
-            android:padding="10dp"
-            android:textColor="#FFC7D2E2"
-            android:textIsSelectable="true"
-            android:textSize="11sp" />
+            android:orientation="vertical">
+
+            <!-- 5 giá trị: domain · webUrl đang dùng · URL hiện tại của WebView · cookie ingress_session · token ingress -->
+            <TextView
+                android:id="@+id/diagValues"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#FF16202F"
+                android:fontFamily="monospace"
+                android:padding="10dp"
+                android:textColor="#FFC7D2E2"
+                android:textIsSelectable="true"
+                android:textSize="11sp" />
+
+            <!-- (29/11/2026) GD17 — 5 tệp chẩn đoán gần nhất (bấm để chia sẻ). -->
+            <TextView
+                android:id="@+id/diagFilesTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/diag_files_title"
+                android:textColor="#FFFFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/diagFilesDir"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:fontFamily="monospace"
+                android:textColor="#FF9AA7BD"
+                android:textIsSelectable="true"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/diagFilesHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="@string/diag_files_hint"
+                android:textColor="#FF9AA7BD"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/diagFilesEmpty"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:background="#FF16202F"
+                android:padding="10dp"
+                android:text="@string/diag_files_empty"
+                android:textColor="#FF9AA7BD"
+                android:textSize="11sp" />
+
+            <!-- Các dòng tệp được thêm lúc chạy (mỗi dòng 1 TextView bấm được → chia sẻ). -->
+            <LinearLayout
+                android:id="@+id/diagFilesList"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:orientation="vertical" />
+
+            <Button
+                android:id="@+id/diagFilesClearButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:minHeight="44dp"
+                android:text="@string/diag_files_clear" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/diag_log_section"
+                android:textColor="#FFFFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/diagLog"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:background="#FF16202F"
+                android:fontFamily="monospace"
+                android:padding="10dp"
+                android:textColor="#FFC7D2E2"
+                android:textIsSelectable="true"
+                android:textSize="11sp" />
+        </LinearLayout>
     </ScrollView>
+
+    <!-- Đường dẫn tệp vừa ghi (hiện sau khi bấm "Lưu ra tệp"). -->
+    <TextView
+        android:id="@+id/diagSavedPath"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:fontFamily="monospace"
+        android:textColor="#FF7FD1A6"
+        android:textIsSelectable="true"
+        android:textSize="10sp"
+        android:visibility="gone" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="6dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/diagSaveFileButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="4dp"
+            android:layout_weight="1"
+            android:minHeight="48dp"
+            android:text="@string/diag_save_file" />
+
+        <Button
+            android:id="@+id/diagShareFileButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_weight="1"
+            android:enabled="false"
+            android:minHeight="48dp"
+            android:text="@string/diag_share_file" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
         android:orientation="horizontal">
 
         <Button
@@ -105,7 +209,7 @@
         android:id="@+id/diagCloseButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
+        android:layout_marginTop="4dp"
         android:minHeight="48dp"
         android:text="@string/action_close" />
 

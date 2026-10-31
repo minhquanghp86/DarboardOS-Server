@@ -77,9 +77,20 @@ import android.widget.Toast
  *  - Panel cũng không nạp được (404/mất mạng/HA chỉ trả SPA): thử **ngay** top-level ingress, rồi
  *    `https://<domain>/launcher-config.html` ([loadRootFallback]) — mỗi bước một lần.
  *  - Nút "Mở Dashboard" nạp **top-level ingress** (không phải gốc domain, không dừng ở panel) —
- *    [onOpenDashboardClicked].
+ *    [onOpenDashboardClicked] → thân nút nay là [openDashboardNow].
  *  - Mọi bước ghi vào [Diag] → người dùng bấm Cài đặt → **Chẩn đoán** → Sao chép gửi là đủ, không cần adb.
  *  - Bấm "Kết nối" = phiên app mới ([resetPromoteState]).
+ *
+ * (30/11/2026) GD18 / **(1.4) — TỰ ĐỘNG MỞ DASHBOARD, TÁI DÙNG ĐÚNG CODE CỦA NÚT**:
+ *  - Sự thật đã kiểm chứng trên máy thật (1.2): đăng nhập HA xong app **vẫn không tự chuyển**; người dùng **phải bấm
+ *    nút "Mở Dashboard"** mới vào được add-on ⇒ thân nút chạy **ĐÚNG**, còn chuỗi điều kiện trung gian
+ *    (`promoteIfSessionReady` / `loginTick` / hẹn giờ 2,5 s) **không** kích hoạt dù log có `cookie=yes session=yes`.
+ *  - Cách sửa: thân nút tách thành **[openDashboardNow]**, và nhịp dò 1 s ([loginTick]) / [onPanelLoaded] gọi **đúng
+ *    hàm đó** ngay khi có phiên ([autoOpenIfSessionReady]) — **một lần** mỗi lần mở app (cờ riêng [autoOpenLatch]).
+ *  - Log chuẩn: `[auto] tick cookie=yes session=yes called=no` (mỗi nhịp, chỉ khi `session=yes`),
+ *    `[auto] openDashboard reason=session_ready` → `[promote] … ok=top`.
+ *  - Fallback giữ nguyên: top-level trả 401 / SPA HA → **quay lại panel** + log lý do; auto thử tối đa
+ *    [AutoOpen.MAX_ATTEMPTS] = 3 lần, cách ≥ [AutoOpen.RETRY_GAP_MS] = 1,5 s rồi thôi (`[auto] give_up`).
  *
  * Chế độ **IP LAN** (bản GD13) vẫn được giữ nhưng KHÔNG khuyến nghị: nó dựa vào chứng chỉ tự ký cổng 18443, không
  * có phiên HA nào để API native dùng. Giao diện đã ghi rõ điều này.
@@ -162,9 +173,11 @@ class MainActivity : Activity() {
         /**
          * (1.2) Lý do promote — chỉ để ghi log/ chẩn đoán (`[promote] retry=… reason=…`); promote KHÔNG còn chờ
          * hẹn giờ 2,5 s mà chạy ngay khi đã có phiên ([promoteIfSessionReady]).
+         *
+         * (1.4) Lý do `session_ready` của **đường tự động** nằm ở [AutoOpen.REASON_SESSION_READY] — auto **không**
+         * còn đi qua [promoteIfSessionReady] mà gọi thẳng [openDashboardNow] (đúng hàm của nút "Mở Dashboard").
          */
         private const val PROMOTE_REASON_PANEL_READY = "panel_ready"
-        private const val PROMOTE_REASON_SESSION_READY = "session_ready"
         private const val PROMOTE_REASON_PANEL_TIMER = "panel_timer"
 
         /**
@@ -257,6 +270,21 @@ class MainActivity : Activity() {
      */
     private val promoteGate = IngressPromote.Gate()
 
+    // ── (30/11/2026) GD18 / (1.4) — TỰ ĐỘNG MỞ DASHBOARD (xem [AutoOpen])
+
+    /**
+     * **CỜ RIÊNG của đường tự động** ([AutoOpen.Latch]) — "đã tự gọi [openDashboardNow] trong lần mở app này chưa".
+     *
+     * Sự thật đã kiểm chứng trên máy thật (1.2): nút "Mở Dashboard" chạy ĐÚNG, còn các điều kiện trung gian của
+     * đường tự động (`promoteGate` / `promoteIfSessionReady` / hẹn giờ 2,5 s) thì **không** kích hoạt dù log có
+     * `cookie=yes session=yes`. Vì vậy auto dùng cờ RIÊNG này: có phiên ⇒ gọi thẳng [openDashboardNow], tối đa
+     * [AutoOpen.MAX_ATTEMPTS] lần cách ≥ [AutoOpen.RETRY_GAP_MS] (thất bại 401/SPA HA thì thử lại, không lặp vô hạn).
+     */
+    private val autoOpenLatch = AutoOpen.Latch()
+
+    /** Đã ghi `[auto] give_up` (hết lượt tự gọi) chưa — tránh spam log mỗi nhịp dò 1 s. */
+    private var autoGiveUpLogged = false
+
     /** Số thứ tự lần promote đang chạy (1-based) — chỉ để ghi log `retry=<n>`. */
     private var promoteAttempt = 0
 
@@ -344,6 +372,11 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = Prefs.get(this)
+
+        // (29/11/2026) GD17 — TỰ LƯU CHẨN ĐOÁN KHI LỖI: mọi dòng log đi qua [Diag] (cả dòng [promote] … fail= và
+        // 401 do chính màn này hoặc PhoneService ghi) đều được [DiagAutoSave] xét; gặp lỗi ⇒ ghi
+        // diag-auto-<timestamp>.txt (tối đa 5 tệp, tệp cũ bị xoá) để người dùng chỉ việc vào Chẩn đoán → chia sẻ.
+        Diag.onLine = { line -> DiagAutoSave.maybeSave(applicationContext, line) }
 
         // (10/11/2026) GD2: nhan cuoc goi khi app dong — foreground service + poll 2 s (tat trong Cai dat).
         if (Prefs.receiveEnabled(this)) PhoneService.start(this)
@@ -684,6 +717,10 @@ class MainActivity : Activity() {
         loginWatch = null
         loginFlowActive = false
         loginFailed = false
+        // (1.4) Màn WebView dựng lại = "một lần mở app" mới ⇒ cờ của đường tự động quên hết, để nó được tự mở
+        // dashboard đúng MỘT lần nữa (xem [autoOpenLatch] / [AutoOpen.Latch]).
+        autoOpenLatch.reset()
+        autoGiveUpLogged = false
         panelNavCount = 0
         lastPanelNavAt = 0L
         originShown = false
@@ -941,6 +978,9 @@ class MainActivity : Activity() {
         // Panel vừa mở ⇒ `ingress_session` đã có ⇒ API native (register/incoming/…) chạy được.
         registerInBackground()
         if (Prefs.receiveEnabled(this)) PhoneService.start(this)
+        // (1.4) **PANEL VỪA MỞ ⇒ TỰ MỞ DASHBOARD NGAY** nếu đã có phiên (`ingress_session`) — không chờ nhịp dò và
+        // không bấm nút. Gọi **đúng hàm của nút "Mở Dashboard"** ([openDashboardNow]) qua [autoOpenIfSessionReady].
+        if (autoOpenIfSessionReady(!currentCookieHeader().isNullOrBlank(), hasPanelSession())) return
         // (27/11/2026) GD15 — BƯỚC THÊM: chuyển sang TOP-LEVEL để `getUserMedia` không bị Permissions Policy của
         // iframe HA chặn (xem [IngressPromote]). (1.2) Phiên đã có ⇒ `armPromoteAfterPanel` promote NGAY
         // ([promoteIfSessionReady]); hẹn giờ 2,5 s chỉ là lưới an toàn, và lần thử đó cũng phải có phiên.
@@ -955,6 +995,9 @@ class MainActivity : Activity() {
         mainHandler.removeCallbacks(promoteAfterPanelRunnable)
         mainHandler.removeCallbacks(promoteStartGuardRunnable)
         promoteGate.reset()
+        // (1.4) "Lần mở app mới" ⇒ cờ của đường tự động cũng quên hết (được tự mở dashboard lại).
+        autoOpenLatch.reset()
+        autoGiveUpLogged = false
         promoteAttempt = 0
         promoteLimitLogged = false
         promotePending = false
@@ -1195,6 +1238,8 @@ class MainActivity : Activity() {
         }
         promotePending = false
         promoteGate.success()
+        // (1.4) Top-level đã dùng được ⇒ đường tự động **thôi** (đúng "một lần mỗi lần mở app").
+        autoOpenLatch.success()
         DiagState.lastPromoteResult = IngressPromote.OK_TOP
         log(
             IngressPromote.logLine(
@@ -1414,8 +1459,11 @@ class MainActivity : Activity() {
      * (26/11/2026) GD14 — MỘT nhịp dò (mỗi 1 s) của luồng "đăng nhập → panel":
      *
      *  1. ghi `[nav] url=… ok=panel|ha-spa|login` (kèm `[login] …` chi tiết) ra Logcat + thanh thông báo;
-     *  2. **(1.2)** `cookie=yes session=yes` → **promote NGAY** (không chờ hẹn giờ 2,5 s) — đây chính là nhịp phát
-     *     hiện phiên ingress xuất hiện muộn (log thật: panel 12:57:29 `session=no`, phiên có lúc 12:58:01);
+     *  2. **(1.4)** `cookie=yes session=yes` (hoặc chỉ cần **`session=yes`**) → **ĐƯỜNG TỰ ĐỘNG**: gọi
+     *     [autoOpenIfSessionReady] → **đúng hàm của nút "Mở Dashboard"** ([openDashboardNow]), một lần mỗi lần mở app
+     *     (`[auto] openDashboard reason=session_ready`). Đây là nhịp phát hiện phiên ingress xuất hiện muộn (log thật:
+     *     panel 12:57:29 `session=no`, phiên có lúc 12:58:01) — và cũng là đường đã **thiếu** ở 1.2 (người dùng phải
+     *     bấm nút mới vào được add-on);
      *  3. URL là **panel** → để `onPageFinished` chốt (`ok=panel`);
      *  4. URL ở `/auth/…` → chờ người dùng đăng nhập (`ok=login`); chỉ điều hướng khi đã có cookie;
      *  5. URL **cùng origin mà không phải `/auth/`** (Lovelace, `/`, `/lovelace/0`…) → `ok=ha-spa` rồi **điều hướng
@@ -1428,11 +1476,11 @@ class MainActivity : Activity() {
         val url = webView?.url
         val cookiePresent = !currentCookieHeader().isNullOrBlank()
         val sessionPresent = hasPanelSession()
-        // (1.2) ƯU TIÊN SỐ 1: phiên ingress đã sẵn sàng ⇒ promote NGAY, không chờ hẹn giờ 2,5 s và không điều hướng
-        // gì khác. [promoteIfSessionReady] tự kiểm tra "đã thành công chưa" + cổng 3 lần/1,5 s.
-        if (cookiePresent && sessionPresent && !promoteGate.succeeded) {
-            if (promoteIfSessionReady(PROMOTE_REASON_SESSION_READY)) return
-        }
+        // (1.4) ƯU TIÊN SỐ 1 — **ĐƯỜNG TỰ ĐỘNG**: có phiên ⇒ gọi **đúng hàm mà nút "Mở Dashboard" gọi**
+        // ([openDashboardNow]). KHÔNG gate, KHÔNG `promoteIfSessionReady`, KHÔNG chờ hẹn giờ 2,5 s — đó chính là
+        // các điều kiện trung gian đã **không** kích hoạt trên máy thật (1.2) dù log có `cookie=yes session=yes`.
+        // Cờ riêng [autoOpenLatch] giữ đúng "một lần mỗi lần mở app" và tối đa 3 lần cách 1,5 s khi phải thử lại.
+        if (autoOpenIfSessionReady(cookiePresent, sessionPresent)) return
         // (28/11/2026) GD16 — panel đang nạp và đã có hẹn giờ promote ⇒ KHÔNG điều hướng lại (chỉ cần chờ 2,5 s).
         if (panelPromoteArmed && loadingReason == LOAD_PANEL) return
         val auth = DashboardTarget.isAuthPage(url)
@@ -1472,6 +1520,52 @@ class MainActivity : Activity() {
                 if (cookiePresent) goPanel("off_origin")
             }
         }
+    }
+
+    /**
+     * (30/11/2026) GD18 / **(1.4) — ĐƯỜNG TỰ ĐỘNG DUY NHẤT**: đã có phiên ⇒ gọi **đúng hàm của nút "Mở Dashboard"**
+     * ([openDashboardNow]) — không đi qua `promoteGate`/`promoteIfSessionReady`/hẹn giờ 2,5 s.
+     *
+     * Vì sao phải viết lại đúng như vậy (sự thật đã kiểm chứng trên máy thật, bản 1.2): đăng nhập HA xong app **vẫn
+     * không tự chuyển**, người dùng **phải bấm nút "Mở Dashboard"** thì mới vào được add-on ⇒ thân của nút là code
+     * **chạy ĐÚNG**, còn chuỗi điều kiện trung gian của đường tự động cũ thì **không** kích hoạt dù log có
+     * `cookie=yes session=yes`. Bản 1.4 vì thế **tái dùng** đúng thân nút, chỉ thêm cờ [autoOpenLatch].
+     *
+     * Gọi từ nhịp dò 1 s ([loginTick], ưu tiên số 1) và từ [onPanelLoaded] (panel vừa mở ⇒ mở ngay, không chờ nhịp).
+     *
+     * Điều kiện còn lại — **chỉ những thứ không thể bỏ**:
+     *  - đang ở màn WebView, chưa finishing ([openDashboardNow] cần WebView);
+     *  - **không** phải chế độ IP LAN (không có ingress/phiên HA → không có gì để mở);
+     *  - không đang chờ kết luận một lần promote khác (tránh hai lần nạp chồng nhau);
+     *  - [autoOpenLatch]: chưa `ok=top`, còn lượt ([AutoOpen.MAX_ATTEMPTS] = 3), đủ giãn cách
+     *    ([AutoOpen.RETRY_GAP_MS] = 1,5 s) ⇒ **không lặp vô hạn** khi top-level trả 401/SPA HA.
+     *
+     * Mỗi nhịp (chỉ khi `session=yes`, để không spam) ghi **một** dòng chẩn đoán
+     * `[auto] tick cookie=… session=… called=yes/no` vào [Diag] + Logcat.
+     *
+     * @return true nếu nhịp này **đã** gọi [openDashboardNow] (caller phải dừng điều hướng khác).
+     */
+    private fun autoOpenIfSessionReady(cookiePresent: Boolean, sessionPresent: Boolean): Boolean {
+        if (isFinishing || isDestroyed) return false
+        if (!sessionPresent) return false
+        val callable = showingWeb && webView != null && !isLanMode() && !promotePending &&
+            !autoOpenLatch.done && autoOpenLatch.decide()
+        // (4) dòng chẩn đoán mỗi nhịp 1 s — CHỈ khi đã có phiên (lúc đang đăng nhập thì im lặng).
+        log(AutoOpen.tickLine(cookiePresent, sessionPresent, callable))
+        if (!callable) {
+            // Hết lượt tự gọi mà vẫn chưa `ok=top` → nói rõ MỘT lần rồi để người dùng bấm nút (không lặp vô hạn).
+            if (!autoGiveUpLogged && !autoOpenLatch.done && autoOpenLatch.attemptsLeft == 0) {
+                autoGiveUpLogged = true
+                log(AutoOpen.giveUpLine(autoOpenLatch.attempts, sessionPresent))
+            }
+            return false
+        }
+        val attempt = autoOpenLatch.take()
+        if (attempt <= 0) return false
+        log(AutoOpen.attemptLine(attempt))
+        log(AutoOpen.openLine(AutoOpen.REASON_SESSION_READY))
+        openDashboardNow(AutoOpen.REASON_SESSION_READY)
+        return true
     }
 
     /**
@@ -1588,14 +1682,39 @@ class MainActivity : Activity() {
     /**
      * Nút **"Mở Dashboard"** (LUÔN hiện ở màn đăng nhập): người dùng chủ động, không chờ nhịp dò.
      *
-     * (1.2) Nút này phải mở **TOP-LEVEL ingress**
-     * (`https://<domain>/api/hassio_ingress/<TOKEN>/launcher-config.html`) — **không** mở gốc domain
-     * (`https://<domain>/launcher-config.html` → 404, đúng log thật `fallback=root … 404`), cũng không dừng ở panel:
-     *  - đã có phiên (`ingress_session`) ⇒ promote/nạp top-level NGAY (mở lại quyền thử: người dùng chủ động);
-     *  - chưa có phiên ⇒ mở panel của HA trước (chỉ panel mới tạo được phiên), rồi nhịp dò 1 s promote **ngay khi**
-     *    phiên xuất hiện ([loginTick] → [promoteIfSessionReady]).
+     * (1.4) Thân của nút đã **tách** thành [openDashboardNow] — để **đường tự động** ([autoOpenIfSessionReady], khi
+     * nhịp dò thấy đã có phiên) gọi **đúng cùng một hàm**, không có logic thứ hai. Nút chỉ còn: một "lần mở app mới"
+     * cho cờ tự động ([autoOpenLatch]) rồi gọi [openDashboardNow] ở chế độ `manual = true`.
      */
     private fun onOpenDashboardClicked() {
+        // Bấm nút = người dùng muốn vào lại ⇒ cho đường tự động quyền chạy lại (nếu sau này phiên mất rồi có lại).
+        autoOpenLatch.reset()
+        autoGiveUpLogged = false
+        openDashboardNow(AutoOpen.REASON_MANUAL, manual = true)
+    }
+
+    /**
+     * (1.4) **MỞ DASHBOARD NGAY** — *toàn bộ* thân của nút "Mở Dashboard" (code **đang chạy ĐÚNG** trên máy thật,
+     * bản 1.2 đã kiểm chứng: bấm nút là vào được add-on). Đây là hàm **DUY NHẤT** mở dashboard:
+     *
+     *  - nút "Mở Dashboard" → `openDashboardNow(AutoOpen.REASON_MANUAL, manual = true)` ([onOpenDashboardClicked]);
+     *  - **đường tự động** → `openDashboardNow(AutoOpen.REASON_SESSION_READY)` ([autoOpenIfSessionReady], gọi từ
+     *    [loginTick] và [onPanelLoaded] ngay khi `session=yes`).
+     *
+     * Luật mở (giữ nguyên 1.2): **TOP-LEVEL ingress**
+     * (`https://<domain>/api/hassio_ingress/<TOKEN>/launcher-config.html`) — **không** mở gốc domain
+     * (`https://<domain>/launcher-config.html` → 404, đúng log thật `fallback=root … 404`), cũng không dừng ở panel:
+     *  - đã có phiên (`ingress_session`) ⇒ promote/nạp top-level NGAY;
+     *  - chưa có phiên ⇒ mở panel của HA trước (chỉ panel mới tạo được phiên), rồi nhịp dò 1 s mở lại **ngay khi**
+     *    phiên xuất hiện ([autoOpenIfSessionReady]).
+     *
+     * [manual] = `true` khi **người dùng chủ động**: mở lại quyền thử của [promoteGate] (3 lượt) cho lần bấm này.
+     * Đường tự động **không** reset gì — số lượt của nó do [autoOpenLatch] quản, nên một lần 401/SPA HA chỉ tốn đúng
+     * một lượt và **không lặp vô hạn** (tối đa [AutoOpen.MAX_ATTEMPTS] lần, cách ≥ [AutoOpen.RETRY_GAP_MS]).
+     *
+     * @param reason lý do (ghi vào log: `manual_open_dashboard` / `session_ready`).
+     */
+    private fun openDashboardNow(reason: String, manual: Boolean = false) {
         if (loginWatch == null || loginFailed) resetLoginWatch()
         loginFlowActive = true
         loginFailed = false
@@ -1609,27 +1728,34 @@ class MainActivity : Activity() {
                 ?: haOrigin
         }
         if (panelTarget == null) panelTarget = DashboardTarget.panelUrl(haOrigin)
-        // (1.2) Người dùng chủ động ⇒ mở lại quyền thử (3 lượt) cho lần bấm này.
-        promoteGate.resetAttempts()
-        promoteLimitLogged = false
+        if (manual) {
+            // (1.2) Người dùng chủ động ⇒ mở lại quyền thử (3 lượt) cho lần bấm này.
+            promoteGate.resetAttempts()
+            promoteLimitLogged = false
+        }
         if (!isLanMode()) {
             // 1) Đã có phiên (hoặc đã từng `ok=top`) ⇒ nạp TOP-LEVEL ingress NGAY — KHÔNG bao giờ gốc domain.
             if (hasPanelSession() || promoteGate.succeeded) {
-                log("[login] manual=open_dashboard → top-level ingress")
+                log("[login] " + (if (manual) "manual=open_dashboard" else "auto=open_dashboard") +
+                    " reason=" + reason + " → top-level ingress")
                 // Bấm lại = một lượt promote mới (kể cả khi lần trước đã thành công — người dùng muốn vào lại).
                 if (promoteGate.succeeded) promoteGate.reset()
-                if (promoteNow("manual_dashboard", sessionTriggered = true)) return
+                if (promoteNow("open_dashboard_$reason", sessionTriggered = true)) return
+                // (1.4) Đường tự động: promote chưa bắt đầu được (cổng đang giãn cách / chưa dựng được URL) thì
+                // **dừng ở đây** — nhịp dò 1 s sẽ gọi lại. KHÔNG rơi xuống nhánh panel (sẽ nạp lại panel vô ích).
+                if (!manual) return
             }
-            // 2) Chưa có phiên ⇒ panel của HA là nơi DUY NHẤT tạo được `ingress_session`; nhịp dò 1 s promote
-            //    NGAY khi phiên xuất hiện ([loginTick] → [promoteIfSessionReady]).
+            // 2) Chưa có phiên ⇒ panel của HA là nơi DUY NHẤT tạo được `ingress_session`; nhịp dò 1 s mở lại
+            //    NGAY khi phiên xuất hiện ([autoOpenIfSessionReady]).
             val panel = panelTarget
             if (panel != null) {
-                log("[login] manual=open_dashboard → panel tạo phiên rồi promote top-level")
-                goPanel("manual", force = true)
+                log("[login] " + (if (manual) "manual=open_dashboard" else "auto=open_dashboard") +
+                    " reason=" + reason + " → panel tạo phiên rồi mở top-level")
+                goPanel(if (manual) "manual" else "auto_$reason", force = true)
                 return
             }
             // 3) Không có panel (dữ liệu cũ) ⇒ vẫn thử top-level ingress bằng TOKEN đã lưu (không dùng gốc domain).
-            if (promoteNow("manual_dashboard", fallbackFromPanel = true)) return
+            if (promoteNow("open_dashboard_$reason", fallbackFromPanel = true)) return
         }
         val url = loginWatch?.current
             ?: DashboardTarget.candidates(

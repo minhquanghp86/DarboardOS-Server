@@ -16,6 +16,7 @@ class DiagTest {
 
     private val savedSink = Diag.sink
     private val savedTime = Diag.timeSource
+    private val savedOnLine = Diag.onLine
     private var now: Long = 1_700_000_000_000L
 
     @Before
@@ -25,6 +26,7 @@ class DiagTest {
         Diag.timeSource = { now }
         // Logcat không tồn tại trên JVM — chỉ giữ trong bộ nhớ.
         Diag.sink = null
+        Diag.onLine = null
     }
 
     @After
@@ -32,6 +34,7 @@ class DiagTest {
         Diag.clear()
         Diag.sink = savedSink
         Diag.timeSource = savedTime
+        Diag.onLine = savedOnLine
     }
 
     @Test
@@ -100,6 +103,18 @@ class DiagTest {
         Diag.sink = { throw IllegalStateException("logcat chết") }
         Diag.log("[api] base=… code=401")
         assertEquals(1, Diag.count())
+    }
+
+    @Test
+    fun observer_nhan_dong_tho_va_loi_observer_khong_lam_hong_log() {
+        val got = ArrayList<String>()
+        Diag.onLine = { got.add(it) }
+        Diag.log("[promote] url=… ok=fail fail=401 fallback=panel")
+        // Observer nhận dòng THÔ (không kèm HH:mm:ss) — đúng thứ DiagAutoSave cần để nhận ra lỗi.
+        assertEquals(listOf("[promote] url=… ok=fail fail=401 fallback=panel"), got)
+        Diag.onLine = { throw IllegalStateException("observer chết") }
+        Diag.log("[api] code=401")
+        assertEquals(2, Diag.count())
     }
 
     @Test

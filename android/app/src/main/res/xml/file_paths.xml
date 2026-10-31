@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- (29/11/2026) GD17 — TỆP CHẨN ĐOÁN được phép chia sẻ qua content:// (DiagFileProvider).
+     Cùng bố cục với FileProvider của androidx: mỗi thẻ = một loại thư mục gốc.
+       · external-files-path : /sdcard/Android/data/<package>/files   (context.getExternalFilesDir(null)) — NƠI LƯU CHÍNH
+       · files-path          : /data/data/<package>/files             (context.filesDir) — dự phòng khi bộ nhớ ngoài
+                               không gắn / không ghi được.
+     path="." = toàn bộ thư mục đó; provider chỉ phục vụ tệp diag-*.txt (xem DiagFileProvider). -->
+<paths>
+    <external-files-path
+        name="diag_external_files"
+        path="." />
+    <files-path
+        name="diag_internal_files"
+        path="." />
+</paths>

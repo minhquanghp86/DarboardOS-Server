@@ -4,18 +4,23 @@ import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
+import android.util.TypedValue
+import android.view.Gravity
 import android.view.View
-import android.webkit.CookieManager
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import java.io.File
 
 /**
  * (28/11/2026) GD16 — **MÀN CHẨN ĐOÁN** (Cài đặt → "Chẩn đoán").
  *
- * Mục đích: người dùng **không cần adb** — chỉ bấm *Chẩn đoán* → *Sao chép* → gửi nội dung cho người hỗ trợ.
+ * Mục đích: người dùng **không cần adb** — chỉ bấm *Chẩn đoán* → *Sao chép* (hoặc *Lưu ra tệp* → *Chia sẻ tệp*) →
+ * gửi nội dung/tệp cho người hỗ trợ.
  *
  * Hiển thị:
  *  1. `domain` — origin của Home Assistant / add-on đang cấu hình,
@@ -26,13 +31,29 @@ import android.widget.Toast
  *  6. toàn bộ ring buffer [Diag] (300 dòng gần nhất, mỗi dòng có `HH:mm:ss`, gồm `[nav]` / `[promote]` / `[login]` /
  *     `[api]`), tự cuộn xuống dòng mới nhất.
  *
- * Nút: **Sao chép** (clipboard + toast) · **Chia sẻ** (`ACTION_SEND` `text/plain`) · **Xoá log** ([Diag.clear]).
+ * Nút: **Sao chép** (clipboard + toast) · **Chia sẻ** (`ACTION_SEND` `text/plain` văn bản) · **Xoá log** ([Diag.clear]).
+ *
+ * (29/11/2026) GD17 — thêm **tệp**:
+ *  - **“Lưu ra tệp”** → ghi header + 5 giá trị + 300 dòng log ra `getExternalFilesDir(null)/diag-YYYYMMDD-HHmmss.txt`
+ *    (dự phòng `filesDir` — [DiagStore]), hiện **đường dẫn** + bật **“Chia sẻ tệp”** (`ACTION_SEND` + `content://`
+ *    qua [DiagFileProvider], type `text/plain`);
+ *  - **danh sách tối đa 5 tệp gần nhất** (tên · thời gian · dung lượng) — bấm một dòng để chia sẻ tệp đó;
+ *  - **“Xoá tất cả”** — xoá mọi tệp chẩn đoán trong thư mục của app;
+ *  - tệp `diag-auto-…txt` do app **tự** lưu khi gặp `[promote] … fail=` hoặc 401 ([DiagAutoSave]) cũng nằm trong danh sách.
  */
 class DiagActivity : Activity() {
 
     private lateinit var valuesView: TextView
     private lateinit var logView: TextView
     private lateinit var scroll: ScrollView
+    private lateinit var filesList: LinearLayout
+    private lateinit var filesEmpty: TextView
+    private lateinit var filesDirView: TextView
+    private lateinit var savedPathView: TextView
+    private lateinit var shareFileButton: Button
+
+    /** Tệp vừa ghi trong phiên này (nút "Chia sẻ tệp" chia sẻ tệp này). */
+    private var lastSavedFile: File? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,6 +62,12 @@ class DiagActivity : Activity() {
         valuesView = findViewById(R.id.diagValues)
         logView = findViewById(R.id.diagLog)
         scroll = findViewById(R.id.diagScroll)
+        filesList = findViewById(R.id.diagFilesList)
+        filesEmpty = findViewById(R.id.diagFilesEmpty)
+        filesDirView = findViewById(R.id.diagFilesDir)
+        savedPathView = findViewById(R.id.diagSavedPath)
+        shareFileButton = findViewById(R.id.diagShareFileButton)
+        shareFileButton.isEnabled = false
 
         logView.setTextIsSelectable(true)
         valuesView.setTextIsSelectable(true)
@@ -53,6 +80,12 @@ class DiagActivity : Activity() {
             toast(getString(R.string.diag_cleared))
             render()
         }
+        findViewById<Button>(R.id.diagSaveFileButton).setOnClickListener { saveToFile() }
+        shareFileButton.setOnClickListener {
+            val file = lastSavedFile
+            if (file == null) toast(getString(R.string.diag_file_missing)) else shareFile(file)
+        }
+        findViewById<Button>(R.id.diagFilesClearButton).setOnClickListener { deleteAllFiles() }
         findViewById<Button>(R.id.diagCloseButton).setOnClickListener { finish() }
 
         render()
@@ -63,80 +96,121 @@ class DiagActivity : Activity() {
         render()
     }
 
-    /** Vẽ lại 5 giá trị + toàn bộ log (tự cuộn xuống cuối). */
+    /** Vẽ lại 5 giá trị + danh sách tệp + toàn bộ log (tự cuộn xuống cuối). */
     private fun render() {
-        valuesView.text = values()
+        valuesView.text = DiagReport.values(this)
         val log = Diag.text()
         logView.text = log.ifEmpty { getString(R.string.diag_empty_log) }
+        renderFiles()
         scroll.post { runCatching { scroll.fullScroll(View.FOCUS_DOWN) } }
     }
 
-    /** 5 giá trị chẩn đoán (mỗi dòng một giá trị). */
-    private fun values(): String {
-        val none = getString(R.string.diag_none)
-        val domain = DiagState.domain
-            ?: DashboardTarget.originOf(Prefs.webUrl(this))
-            ?: DashboardTarget.originOf(Prefs.loginUrl(this))
-            ?: DashboardTarget.originOf(Prefs.oneInput(this))
-        val webInUse = DiagState.webUrlInUse
-            ?: Prefs.webUrl(this)?.takeIf { DashboardTarget.isValidSaved(it) }
-            ?: DashboardTarget.candidates(
-                saved = Prefs.webUrl(this),
-                loginUrl = Prefs.loginUrl(this),
-                typed = Prefs.oneInput(this),
-                token = Prefs.ingressToken(this)
-            ).firstOrNull()
-        val current = DiagState.currentUrl
-            ?: if (DiagState.webViewOpened) getString(R.string.diag_current_no_url)
-            else getString(R.string.diag_current_no_webview)
-        return buildString {
-            append(getString(R.string.diag_v_domain, domain ?: none)).append('\n')
-            append(getString(R.string.diag_v_web_in_use, webInUse ?: none)).append('\n')
-            append(getString(R.string.diag_v_current, current)).append('\n')
-            append(
-                getString(
-                    R.string.diag_v_cookie,
-                    getString(if (hasIngressCookie(domain)) R.string.diag_yes else R.string.diag_no)
-                )
-            ).append('\n')
-            append(getString(R.string.diag_v_token, Prefs.ingressToken(this@DiagActivity)))
-            if (DiagState.lastPromoteUrl != null || DiagState.lastPromoteResult != null) {
-                append('\n').append(
-                    getString(
-                        R.string.diag_v_promote,
-                        DiagState.lastPromoteResult ?: "-",
-                        DiagState.lastPromoteUrl ?: none
-                    )
-                )
+    // ── tệp chẩn đoán (GD17) ─────────────────────────────────────────────────────────────────────────────────────
+
+    /** Danh sách tối đa 5 tệp gần nhất; mỗi dòng bấm được để chia sẻ. */
+    private fun renderFiles() {
+        filesDirView.text = getString(R.string.diag_files_dir, DiagStore.displayDir(this))
+        val entries = DiagStore.entries(this)
+        filesList.removeAllViews()
+        filesEmpty.visibility = if (entries.isEmpty()) View.VISIBLE else View.GONE
+        for (entry in entries) {
+            filesList.addView(fileRow(entry))
+        }
+    }
+
+    /** Một dòng tệp: `tên · thời gian · dung lượng` — chạm để chia sẻ. */
+    private fun fileRow(entry: DiagFile.Entry): TextView {
+        val row = TextView(this)
+        row.text = DiagFile.listLine(entry) + if (entry.isAuto) "  (tự lưu)" else ""
+        row.setTextColor(Color.parseColor("#FFC7D2E2"))
+        row.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+        row.typeface = android.graphics.Typeface.MONOSPACE
+        row.setBackgroundColor(Color.parseColor("#FF16202F"))
+        row.setPadding(dp(10), dp(8), dp(10), dp(8))
+        row.gravity = Gravity.CENTER_VERTICAL
+        row.isClickable = true
+        row.setOnClickListener {
+            DiagStore.resolve(this, entry.name)?.let { shareFile(it) }
+                ?: run {
+                    toast(getString(R.string.diag_file_missing))
+                    renderFiles()
+                }
+        }
+        val params = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        )
+        params.bottomMargin = dp(4)
+        row.layoutParams = params
+        return row
+    }
+
+    /** “Lưu ra tệp”: ghi chẩn đoán hiện tại ra `diag-YYYYMMDD-HHmmss.txt` rồi hiện đường dẫn. */
+    private fun saveToFile() {
+        val text = DiagReport.build(this)
+        DiagStore.writeAsync(this, auto = false, textProvider = { text }) { file ->
+            if (file == null) {
+                toast(getString(R.string.diag_file_failed))
+            } else {
+                lastSavedFile = file
+                savedPathView.text = getString(R.string.diag_file_saved, file.absolutePath)
+                savedPathView.visibility = View.VISIBLE
+                shareFileButton.isEnabled = true
+                toast(getString(R.string.diag_file_saved_toast))
+                Diag.log("[diag] đã lưu tệp chẩn đoán: " + file.name)
+                renderFiles()
             }
         }
     }
 
-    /**
-     * `CookieManager` có `ingress_session` (hoặc `hassio_ingress`) cho [domain] không — dò cả cookie đặt ở
-     * `Path=/api/hassio_ingress/` (đúng path mà HA frontend dùng).
-     */
-    private fun hasIngressCookie(domain: String?): Boolean {
-        val d = domain?.trim()?.trimEnd('/').orEmpty()
-        if (d.isEmpty()) return false
-        for (target in listOf(d + HaIngress.COOKIE_PATH, d)) {
-            val raw = try {
-                CookieManager.getInstance().getCookie(target)
-            } catch (t: Throwable) {
-                null
-            }
-            if (WebTargetResolver.hasSessionCookie(raw)) return true
+    /** Chia sẻ MỘT tệp qua `content://` ([DiagFileProvider], type `text/plain`). */
+    private fun shareFile(file: File) {
+        if (!file.isFile) {
+            toast(getString(R.string.diag_file_missing))
+            renderFiles()
+            return
         }
-        return false
+        lastSavedFile = file
+        savedPathView.text = getString(R.string.diag_file_saved, file.absolutePath)
+        savedPathView.visibility = View.VISIBLE
+        shareFileButton.isEnabled = true
+        val uri = DiagStore.uriFor(this, file)
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, getString(R.string.diag_share_subject))
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_TEXT, getString(R.string.diag_share_subject) + " — " + file.name)
+            clipData = ClipData.newRawUri(file.name, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        try {
+            startActivity(Intent.createChooser(send, getString(R.string.diag_file_chooser)))
+        } catch (t: Throwable) {
+            toast(getString(R.string.diag_share_failed))
+        }
     }
+
+    /** “Xoá tất cả”: xoá mọi tệp chẩn đoán (log trong bộ nhớ giữ nguyên). */
+    private fun deleteAllFiles() {
+        val removed = DiagStore.deleteAll(this)
+        lastSavedFile = null
+        savedPathView.visibility = View.GONE
+        shareFileButton.isEnabled = false
+        toast(
+            if (removed > 0) getString(R.string.diag_files_cleared, removed)
+            else getString(R.string.diag_files_none)
+        )
+        Diag.log("[diag] đã xoá $removed tệp chẩn đoán")
+        renderFiles()
+    }
+
+    private fun dp(value: Int): Int =
+        TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value.toFloat(), resources.displayMetrics).toInt()
+
+    // ── văn bản (GD16) ───────────────────────────────────────────────────────────────────────────────────────────
 
     /** Nội dung đầy đủ để gửi: 5 giá trị + toàn bộ log. */
-    private fun fullText(): String = buildString {
-        append(getString(R.string.diag_share_header)).append('\n')
-        append(values()).append("\n\n")
-        append(getString(R.string.diag_log_section)).append('\n')
-        append(Diag.text())
-    }
+    private fun fullText(): String = DiagReport.build(this)
 
     private fun copyAll() {
         val text = fullText()

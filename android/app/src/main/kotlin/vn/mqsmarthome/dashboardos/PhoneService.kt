@@ -100,6 +100,9 @@ class PhoneService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        // (29/11/2026) GD17 — dịch vụ nền cũng có thể là thành phần DUY NHẤT sống (máy khởi động lại xong): gắn bộ
+        // tự lưu chẩn đoán ở đây để lỗi 401 khi register/poll vẫn có tệp `diag-auto-…txt` cho người dùng gửi đi.
+        Diag.onLine = { line -> DiagAutoSave.maybeSave(applicationContext, line) }
         ensureChannels()
     }
 

@@ -303,6 +303,102 @@ adb logcat -c && adb logcat -s DashboardOS-login
 # 12:31:09 [promote] fallback=root url=…/launcher-config.html reason=promote_404
 ```
 
+## 4g. GD17 (29/11/2026) — LƯU CHẨN ĐOÁN RA TỆP + TỰ LƯU KHI LỖI (v1.3)
+
+Vấn đề: log vòng `Diag` chỉ sống trong tiến trình — người dùng tắt app (hoặc app bị hệ thống giết) là mất, và họ
+không thể canh đúng lúc lỗi xảy ra để bấm nút. GD17 ghi chẩn đoán ra **tệp** trong thư mục riêng của app rồi chia sẻ
+qua `content://`.
+
+### 4g.1 Nơi lưu tệp
+
+```
+/sdcard/Android/data/vn.mqsmarthome.dashboardos/files/diag-20261129-101500.txt       # người dùng bấm "Lưu ra tệp"
+/sdcard/Android/data/vn.mqsmarthome.dashboardos/files/diag-auto-20261129-101532.txt # app TỰ lưu khi gặp lỗi
+```
+
+`context.getExternalFilesDir(null)` là nơi lưu chính (mở/sao chép được bằng ứng dụng quản lý tệp, gỡ app thì thư mục
+bị xoá theo); nếu bộ nhớ ngoài không dùng được thì fallback `context.filesDir` (`/data/data/<package>/files`). Tên tệp
+`diag[-auto]-YYYYMMDD-HHmmss.txt`, nội dung = header + 5 giá trị chẩn đoán + 300 dòng log gần nhất. **Luôn giữ tối đa
+5 tệp mới nhất** — tệp cũ hơn bị xoá sau mỗi lần ghi (`DiagFile.deleteCandidates`).
+
+### 4g.2 Màn Chẩn đoán (mới)
+
+| Thành phần | Chi tiết |
+| --- | --- |
+| **Lưu ra tệp** | ghi chẩn đoán hiện tại ra `diag-<timestamp>.txt`, hiện **đường dẫn** ngay dưới nút và bật **Chia sẻ tệp** |
+| **Chia sẻ tệp** | `ACTION_SEND` + `EXTRA_STREAM` = `content://vn.mqsmarthome.dashboardos.diagfiles/<tệp>`, type `text/plain` (Zalo/Telegram/Gmail…) |
+| Danh sách tệp | **tối đa 5 tệp gần nhất**: `tên · thời gian · dung lượng` (+ “(tự lưu)” cho tệp `diag-auto-…`); **bấm một dòng = chia sẻ tệp đó** |
+| **Xoá tất cả** | xoá mọi tệp chẩn đoán trong thư mục của app (log trong bộ nhớ giữ nguyên) |
+
+Chia sẻ dùng `DiagFileProvider` (`android.content.ContentProvider`, authority `${applicationId}.diagfiles`) — **cùng
+giao kèo với `FileProvider`** của androidx (provider + `android.support.FILE_PROVIDER_PATHS` → `res/xml/file_paths.xml`
+khai `<external-files-path>` + `<files-path>`), nhưng không thêm phụ thuộc runtime để build vẫn offline. Provider chỉ
+phục vụ **đọc** tệp `diag-…txt`, chặn `..`/`/`.
+
+### 4g.3 Tự lưu khi lỗi
+
+`MainActivity.onCreate` gắn `DiagAutoSave` vào `Diag.onLine` (người nghe mọi dòng log, kể cả dòng của `PhoneService`):
+
+- kích hoạt khi dòng log bắt đầu bằng `[promote]` và có `fail=`, hoặc khi dòng log nhắc tới **401** (`ok=401`,
+  `code=401`, `HTTP 401`…);
+- ghi `diag-auto-<timestamp>.txt` (nội dung kèm dòng `lý do tự lưu: …`), **giãn cách tối thiểu 30 s** giữa hai lần
+  tự lưu để một chuỗi lỗi không đẻ ra 5 tệp trùng nhau;
+- tối đa **5 tệp** như trên; ghi ở luồng nền (`diag-file`), không chặn UI, và **không bao giờ** làm hỏng luồng điều
+  hướng (mọi lỗi I/O bị nuốt).
+
+### 4g.4 Kiểm thử
+
+```bash
+cd android && ./gradlew testDebugUnitTest --offline --no-daemon   # DiagFileTest: 16 test (đặt tên tệp, giữ 5 tệp mới nhất, kích hoạt tự lưu, giãn cách, hiển thị)
+```
+
+## 4h. GD18 (30/11/2026) — TỰ ĐỘNG MỞ DASHBOARD (v1.4)
+
+**Sự thật đã kiểm chứng trên máy thật (bản 1.2):** đăng nhập HA xong app **vẫn không tự chuyển**; người dùng **phải
+bấm nút “Mở Dashboard”** thì mới vào được add-on ⇒ thân nút là code **chạy ĐÚNG**, còn chuỗi điều kiện trung gian của
+đường tự động (`promoteIfSessionReady`, `loginTick`, hẹn giờ 2,5 s) **không kích hoạt** dù log có
+`cookie=yes session=yes`.
+
+### 4h.1 Sửa gì (tái dùng đúng code của nút)
+
+| Thay đổi | Chỗ nào |
+| --- | --- |
+| thân nút “Mở Dashboard” **tách** thành `openDashboardNow(reason)` | `MainActivity.openDashboardNow` (nút: `onOpenDashboardClicked` = `openDashboardNow("manual_open_dashboard", manual = true)`) |
+| **đường tự động**: có phiên ⇒ gọi **đúng hàm đó**, không gate/hẹn giờ | `MainActivity.autoOpenIfSessionReady` ← `loginTick` (ưu tiên số 1) + `onPanelLoaded` |
+| **cờ riêng** “một lần mỗi lần mở app” + tối đa 3 lần cách 1,5 s | `MainActivity.autoOpenLatch` (`AutoOpen.Latch`, reset ở `buildWebScreen`/`resetPromoteState`) |
+| dòng chẩn đoán mỗi nhịp 1 s (chỉ khi `session=yes`) | `[auto] tick cookie=… session=… called=yes/no` |
+| fallback giữ nguyên | top-level 401 / SPA HA → `onPromoteFailed` quay lại panel + `[promote] … ok=401 fail=… fallback=panel`; auto thử lại tối đa 3 lần rồi `[auto] give_up try=3/3 session=yes` |
+
+`AutoOpen` (`AutoOpen.kt`) là phần **THUẦN** (cờ + định dạng log) nên unit test được trên JVM; hằng số của nó khớp
+`IngressPromote` (`MAX_PROMOTE_ATTEMPTS` = 3, `PROMOTE_RETRY_GAP_MS` = 1500) để một lần 401 chỉ tốn đúng một lượt
+promote.
+
+### 4h.2 Log kỳ vọng (Cài đặt → Chẩn đoán, hoặc `adb logcat -s DashboardOS-login`)
+
+```
+# ... đăng nhập HA xong, panel vừa mở ...
+[auto] tick cookie=yes session=yes called=yes
+[auto] attempt=1/3
+[auto] openDashboard reason=session_ready
+[login] auto=open_dashboard reason=session_ready → top-level ingress
+[promote] retry=1 url=…/api/hassio_ingress/KJjH…/launcher-config.html token=frame session=yes try=1/3
+[promote] probe url=…/api/hassio_ingress/KJjH…/launcher-config.html kind=addon title=Dashboard OS
+[promote] url=…/api/hassio_ingress/KJjH…/launcher-config.html ok=top title=Dashboard OS kind=addon
+# — nếu phiên chưa dùng được —
+[promote] url=…/api/hassio_ingress/KJjH…/launcher-config.html ok=401 fail=401 fallback=panel
+[auto] tick cookie=yes session=yes called=no
+[auto] attempt=2/3
+[auto] openDashboard reason=session_ready
+# — hết 3 lượt mà vẫn không vào được —
+[auto] give_up try=3/3 session=yes
+```
+
+### 4h.3 Kiểm thử
+
+```bash
+cd android && ./gradlew testDebugUnitTest --offline --no-daemon   # AutoOpenTest: 8 test (cờ một-lần, 3 lần/1,5 s, reset, định dạng log)
+```
+
 ## 5. Smoke test trên máy thật
 
 `android/scripts/smoke-test.sh` chạy cả chuỗi "cài app → mở app → PhoneService sống → server thấy máy →
