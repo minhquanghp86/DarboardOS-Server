@@ -98,6 +98,25 @@ object PhoneApi {
         return if (a.isNotEmpty()) a else fallback.trim()
     }
 
+    /**
+     * (1.6) **ĐĂNG XUẤT — huỷ đăng ký thiết bị khỏi máy chủ**: `POST <apiBase>/app/remove` body `{"id": phoneId}`
+     * (server: `src/phones.ts` → `{ok:true, removed:1}` | 404).
+     *
+     * Chạy **TRƯỚC** khi xoá cookie ([Logout] bước 1): gốc API có thể nằm sau ingress của Home Assistant nên lời gọi
+     * này cần cookie `ingress_session` — xoá cookie trước là mất luôn quyền gọi.
+     *
+     * @return mã HTTP server trả về, hoặc `null` khi **không gọi được** (mất mạng / sai địa chỉ). Người gọi
+     *   ([MainActivity.performLogout]) **luôn đi tiếp** dù kết quả là gì — máy phải sạch.
+     */
+    fun remove(apiBase: String?, phoneId: String, cookie: String? = null): Int? {
+        val id = phoneId.trim()
+        if (id.isEmpty()) return null
+        val url = apiUrl(apiBase, "app/remove") ?: return null
+        val body = JSONObject().put("id", id).toString()
+        val (code, _) = request(url, "POST", body, cookie) ?: return null
+        return code
+    }
+
     fun incoming(apiBase: String?, id: String, cookie: String? = null): Poll {
         val url = apiUrl(apiBase, "app/incoming?phone=" + enc(id)) ?: return Poll.Error
         val (code, text) = request(url, "GET", null, cookie) ?: return Poll.Error

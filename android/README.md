@@ -460,6 +460,72 @@ Mọi lần đổi visibility đi qua **một cửa duy nhất** `MainActivity.s
 cd android && ./gradlew testDebugUnitTest --offline --no-daemon   # LoginBarTest: 10 test (mặc định ẩn, cần thật mới hiện, có phiên ⇒ không bao giờ hiện, ân hạn, định dạng log, không kích hoạt auto-save)
 ```
 
+## 4j. (1.6) — TRANG NHẬP GỌN, PHIÊN BẢN, NÚT “ĐĂNG XUẤT” (v1.6, versionCode 7)
+
+`versionCode = 7`, `versionName = "1.6"`.
+
+### 4j.1 Bố cục `activity_url.xml` (từ trên xuống)
+
+| # | Thành phần | Ghi chú |
+| --- | --- | --- |
+| 1 | Logo `@mipmap/ic_launcher` 88dp, giữa | mipmap tự chọn mật độ cao nhất (xxxhdpi 192px) |
+| 2 | Tiêu đề **Dashboard OS** 26sp đậm, trắng | `@string/app_name` |
+| 3 | Phụ đề 1 dòng 13sp `#8c9ab2` | “Kết nối Home Assistant của bạn” |
+| 4 | `@id/appVersion` 12sp `#7d8ca3` | `v1.6 (7)` — `AppVersion.line` từ `PackageInfo` |
+| 5 | Nhãn ô nhập 13sp đậm | “Địa chỉ Home Assistant” |
+| 6 | `@id/webInput` cao 52dp, bo 14dp, viền 1dp `#25334a` | hint `hass.example.com`, `imeOptions=actionGo` |
+| 7 | `@id/connectButton` cao 52dp, bo 14dp, tím `#6d5efc` | nút chính “Kết nối” |
+| 8 | `@id/urlStatus` **1 dòng** (`maxLines=1`, `ellipsize=end`) | “Đã kết nối: &lt;host&gt;” / “Chưa kết nối” |
+| 9 | Hàng chip `settingsButton` · `diagButton` · `logoutButton` | “Cài đặt”, “Chẩn đoán”, “Đăng xuất” (đỏ nhạt `#ff8f8f`); `logoutButton` **GONE** khi chưa có phiên/cấu hình |
+
+Đã **bỏ** khỏi giao diện và khỏi `strings.xml`: gợi ý panel/ingress dài, ghi chú IP LAN, footer, “Đã thử: …” + các dòng
+“Gợi ý: …” (danh sách URL đã thử vẫn nằm trong **Chẩn đoán**). ScrollView + `fillViewport` cho máy nhỏ / xoay ngang.
+
+### 4j.2 “Đăng xuất” — 6 bước (thứ tự cố định)
+
+`Logout.kt` là phần **THUẦN** (quyết định bước nào chạy, xoá khoá Prefs nào, định dạng log); `MainActivity` gọi API
+Android. Nút chỉ hiện khi `Logout.showChip(hasSavedConfig(), hasSavedHaSession())` (đã có `webUrl`/`apiBase`/`loginUrl`
+hoặc đã có cookie HA) — `MainActivity.showUrlScreen` dòng 490, `confirmLogout` dòng 589.
+
+| Bước | Việc làm | Chỗ nào |
+| --- | --- | --- |
+| 1 | `POST <apiBase>/app/remove` body `{id: phoneId}` — **chạy TRƯỚC khi xoá cookie** (ingress cần `ingress_session`); lỗi mạng/401/404 **bỏ qua nhưng đi tiếp** | `MainActivity.performLogout` (dòng 607) → `PhoneApi.remove` (`PhoneApi.kt:111`) |
+| 2a | Dừng `PhoneService` | `MainActivity.finishLogout` (dòng 642) |
+| 2b | Huỷ notification cuộc gọi + đóng màn gọi (`CallNotifications.cancel`, `IncomingCallActivity.dismissFor(null)`) | `MainActivity.finishLogout` |
+| 3 | `CookieManager.removeAllCookies` + `flush()` — xoá **toàn bộ** cookie của domain | `MainActivity.finishLogout` |
+| 4 | `WebStorage.getInstance().deleteAllData()` (localStorage `hassTokens`), `WebView.clearCache(true)`, `clearFormData()`, `clearHistory()` | `MainActivity.finishLogout` |
+| 5 | Xoá **mọi** khoá Prefs trừ `saw_guide` (`KEY_SAW_GUIDE`) | `Prefs.clearForLogout` (`Prefs.kt:273`), quyết định khoá ở `Logout.keysToRemove` (`Logout.kt:127`) |
+| 6 | Về trạng thái ban đầu: `resetAfterLogout` + `showUrlScreen()` + toast **“Đã đăng xuất”** | `MainActivity.finishLogout` / `resetAfterLogout` (dòng 693) |
+
+Thứ tự + điều kiện: `Logout.ORDER` (`Logout.kt:81`), `Logout.plan` (dòng 116, bỏ bước 1 khi chưa có `apiBase`),
+`Logout.callsServer` (dòng 121). Log **mỗi bước một dòng** `[logout] step=… ok=…` (`Logout.line`, dòng 164), ví dụ:
+
+```
+[logout] step=remove_device ok=yes reason=ok
+[logout] step=stop_service ok=yes
+[logout] step=cancel_call_notification ok=yes
+[logout] step=clear_cookies ok=yes
+[logout] step=clear_webview_data ok=yes
+[logout] step=clear_prefs ok=yes keys=9
+[logout] step=reset_ui ok=yes steps=7
+```
+
+Mã HTTP được ghi bằng **chữ** (`ok` / `denied` / `not_found` / `net` / `error`) và `DiagFile.shouldAutoSave` loại trừ
+tường minh tiền tố `[logout]` (`DiagFile.kt:131`) ⇒ đăng xuất **không** đẻ ra tệp `diag-auto-…txt`.
+
+### 4j.3 Kiểm thử
+
+```bash
+cd android && ./gradlew testDebugUnitTest --offline --no-daemon
+# LogoutTest: 10 test (thứ tự 7 bước, bỏ bước gọi server khi chưa có apiBase, khoá Prefs phải xoá/giữ, nút hiện/ẩn,
+#             mã HTTP → lý do, định dạng `[logout] step=… ok=…`, không kích hoạt auto-save)
+# AppVersionTest: 2 test (`v1.6 (7)`, `v? (7)` khi không đọc được versionName)   → tổng 227 test, tất cả xanh
+```
+
+APK phát hành (release, ký khoá `dashboardos`): `android/DashboardOS-release.apk` — **2.481.101 B**,
+md5 `6eed6f906a6e30a67bfd25ab767a6cf0`, sha256 `aece0fbe0beac235701b44ada4b59f456fa4e85e882fff3c912f554cfbeb8923`,
+`versionCode=7`, `versionName=1.6`.
+
 ## 5. Smoke test trên máy thật
 
 `android/scripts/smoke-test.sh` chạy cả chuỗi "cài app → mở app → PhoneService sống → server thấy máy →

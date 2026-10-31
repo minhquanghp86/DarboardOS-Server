@@ -1,12 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  (17/11/2026) GD9 — MÀN NHẬP **MỘT Ô** ĐỊA CHỈ.
-    "Địa chỉ Home Assistant"  -> người dùng nhập domain (vd hass.mqsmarthome.io.vn) HOẶC IP LAN (vd 192.168.10.2).
-    App tự suy ra cả TRANG ĐIỀU KHIỂN (WebView) và GỐC API (/app/register, /app/incoming…):
-      - domain -> https://<domain>/api/hassio_ingress/<TOKEN>/… cho CẢ HAI (API kèm cookie phiên HA),
-      - IP LAN -> http://<ip>:18080 cho cả hai (cảnh báo: không có micro/camera vì cần HTTPS).
-  Ô thứ hai ("Máy chủ API (LAN)") đã bỏ khỏi giao diện; dữ liệu cũ trong Prefs vẫn được đọc để điền sẵn.
-  Bọc ScrollView để máy nhỏ / xoay ngang vẫn thấy hết các nút.
+  (1.6) TRANG NHẬP ĐỊA CHỈ — GỌN, KHÔNG KHỐI CHỮ DÀI.
+
+  Bố cục từ trên xuống (đúng yêu cầu 1 + 4):
+    1. Logo app (ic_launcher, mật độ cao nhất có trong APK) — giữa, phía trên;
+    2. Tiêu đề lớn "Dashboard OS";
+    3. Phụ đề 1 dòng;
+    4. Phiên bản: `v<versionName> (<versionCode>)` — cỡ nhỏ, màu phụ (`@id/appVersion`, MainActivity điền);
+    5. Nhãn ô nhập "Địa chỉ Home Assistant";
+    6. MỘT ô nhập (hint `hass.example.com`), bo tròn 14dp, viền mảnh;
+    7. Nút CHÍNH "Kết nối" — cao 52dp, bo 14dp, nhấn tím #6d5efc;
+    8. Dòng trạng thái NGẮN (1 dòng): "Đã kết nối: <host>" / "Chưa kết nối";
+    9. Hàng chip phụ: Cài đặt · Chẩn đoán · Đăng xuất (đỏ nhạt; CHỈ hiện khi đã có phiên/cấu hình).
+
+  Đã BỎ hẳn: gợi ý dài về panel/ingress, ghi chú IP LAN, footer. Bọc ScrollView + fillViewport để xoay ngang và
+  máy màn nhỏ vẫn thấy hết các nút.
 -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -17,121 +25,177 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center"
+        android:gravity="center_horizontal"
         android:orientation="vertical"
-        android:padding="24dp">
+        android:paddingStart="24dp"
+        android:paddingTop="28dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="28dp">
 
+        <!-- 1) Logo giữa phía trên (mipmap tự chọn mật độ cao nhất: xxxhdpi 192px). -->
         <ImageView
-            android:layout_width="72dp"
-            android:layout_height="72dp"
+            android:layout_width="88dp"
+            android:layout_height="88dp"
             android:contentDescription="@string/app_name"
             android:src="@mipmap/ic_launcher" />
 
+        <!-- 2) Tiêu đề lớn. -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="14dp"
             android:text="@string/app_name"
             android:textColor="#FFFFFFFF"
-            android:textSize="24sp"
+            android:textSize="26sp"
             android:textStyle="bold" />
 
-        <!-- ── Ô DUY NHẤT: địa chỉ Home Assistant (domain hoặc IP LAN) ── -->
+        <!-- 3) Phụ đề 1 dòng. -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:maxLines="1"
+            android:text="@string/url_subtitle"
+            android:textColor="#FF8C9AB2"
+            android:textSize="13sp" />
+
+        <!-- 4) Phiên bản `v1.6 (7)` — cỡ nhỏ, màu phụ (MainActivity điền từ PackageInfo). -->
+        <TextView
+            android:id="@+id/appVersion"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:textColor="#FF7D8CA3"
+            android:textSize="12sp" />
+
+        <!-- 5) Nhãn ô nhập (ngắn). -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="22dp"
-            android:text="@string/url_hint_web"
+            android:layout_marginTop="24dp"
+            android:text="@string/url_hint"
             android:textColor="#FFC7D2E2"
-            android:textSize="14sp"
+            android:textSize="13sp"
             android:textStyle="bold" />
 
+        <!-- 6) Ô DUY NHẤT: địa chỉ Home Assistant (domain hoặc IP LAN). -->
         <EditText
             android:id="@+id/webInput"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
+            android:layout_height="52dp"
+            android:layout_marginTop="8dp"
             android:autofillHints="url"
-            android:background="#FF16202F"
+            android:background="@drawable/url_input_bg"
+            android:gravity="center_vertical|start"
             android:hint="@string/url_hint_web_example"
             android:imeOptions="actionGo"
+            android:importantForAutofill="yes"
             android:inputType="textUri"
             android:maxLines="1"
-            android:minHeight="52dp"
-            android:padding="12dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
             android:selectAllOnFocus="true"
+            android:singleLine="true"
             android:textColor="#FFFFFFFF"
             android:textColorHint="#FF5B6B85"
             android:textSize="15sp" />
 
-        <!-- (26/11/2026) GD14 — KHUYẾN NGHỊ: CHỈ nhập domain của Home Assistant. App mở thẳng panel
-             `https://<domain>/b39feb53_remote_webview_server`; chính HA frontend dựng panel, tạo phiên ingress và
-             nhúng add-on vào iframe. Không cần Tailscale, không cần IP LAN, không cần TOKEN. -->
-        <TextView
+        <!-- 7) Nút CHÍNH. -->
+        <Button
+            android:id="@+id/connectButton"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:text="@string/url_web_recommend"
-            android:textColor="#FF7BE3B0"
-            android:textSize="12sp"
-            android:textStyle="bold" />
+            android:layout_height="52dp"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/url_primary_button_bg"
+            android:fontFamily="sans-serif-medium"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:minHeight="0dp"
+            android:stateListAnimator="@null"
+            android:text="@string/action_connect"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFFFF"
+            android:textSize="16sp" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="@string/url_web_hint"
-            android:textColor="#FF7D8CA3"
-            android:textSize="11sp" />
-
-        <!-- (21/11/2026) GD13 — chế độ IP LAN vẫn giữ nhưng KHÔNG khuyến nghị: chữ mờ, cỡ nhỏ, không nổi bật. -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:alpha="0.65"
-            android:text="@string/url_web_lan_note"
-            android:textColor="#FF5B6B85"
-            android:textSize="10sp" />
-
-        <!-- Trạng thái: đã kết nối / đang dò (1/3) / danh sách đã thử + gợi ý / cảnh báo không có micro. -->
+        <!-- 8) Trạng thái NGẮN (đúng 1 dòng). -->
         <TextView
             android:id="@+id/urlStatus"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:lineSpacingExtra="2dp"
+            android:layout_marginTop="10dp"
+            android:ellipsize="end"
+            android:gravity="center_horizontal"
+            android:maxLines="1"
+            android:singleLine="true"
+            android:text="@string/status_not_connected"
             android:textColor="#FF9AA7BD"
-            android:textIsSelectable="true"
-            android:textSize="12sp"
-            android:visibility="gone" />
+            android:textSize="12sp" />
 
-        <Button
-            android:id="@+id/connectButton"
+        <!-- 9) Hàng chip phụ: Cài đặt · Chẩn đoán · Đăng xuất (đỏ nhạt, chỉ hiện khi đã có phiên/cấu hình). -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
-            android:minHeight="54dp"
-            android:text="@string/action_connect"
-            android:textSize="16sp" />
+            android:baselineAligned="false"
+            android:orientation="horizontal">
 
-        <!-- (10/11/2026) GD2: mo man Cai dat (nhan cuoc goi khi app dong, quyen thong bao, toi uu pin). -->
-        <Button
-            android:id="@+id/settingsButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:minHeight="48dp"
-            android:text="@string/action_settings"
-            android:textSize="15sp" />
+            <Button
+                android:id="@+id/settingsButton"
+                android:layout_width="0dp"
+                android:layout_height="42dp"
+                android:layout_marginEnd="5dp"
+                android:layout_weight="1"
+                android:background="@drawable/url_chip_bg"
+                android:fontFamily="sans-serif-medium"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:minHeight="0dp"
+                android:minWidth="0dp"
+                android:stateListAnimator="@null"
+                android:text="@string/action_settings"
+                android:textAllCaps="false"
+                android:textColor="#FFC7D2E2"
+                android:textSize="13sp" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:text="@string/url_footer"
-            android:textColor="#FF5B6B85"
-            android:textSize="12sp" />
+            <Button
+                android:id="@+id/diagButton"
+                android:layout_width="0dp"
+                android:layout_height="42dp"
+                android:layout_marginStart="5dp"
+                android:layout_marginEnd="5dp"
+                android:layout_weight="1"
+                android:background="@drawable/url_chip_bg"
+                android:fontFamily="sans-serif-medium"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:minHeight="0dp"
+                android:minWidth="0dp"
+                android:stateListAnimator="@null"
+                android:text="@string/action_diag"
+                android:textAllCaps="false"
+                android:textColor="#FFC7D2E2"
+                android:textSize="13sp" />
+
+            <Button
+                android:id="@+id/logoutButton"
+                android:layout_width="0dp"
+                android:layout_height="42dp"
+                android:layout_marginStart="5dp"
+                android:layout_weight="1"
+                android:background="@drawable/url_chip_danger_bg"
+                android:fontFamily="sans-serif-medium"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:minHeight="0dp"
+                android:minWidth="0dp"
+                android:stateListAnimator="@null"
+                android:text="@string/action_logout"
+                android:textAllCaps="false"
+                android:textColor="#FFFF8F8F"
+                android:textSize="13sp"
+                android:visibility="gone" />
+
+        </LinearLayout>
 
     </LinearLayout>
 </ScrollView>

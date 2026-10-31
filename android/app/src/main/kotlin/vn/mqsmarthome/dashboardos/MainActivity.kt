@@ -3,6 +3,7 @@ package vn.mqsmarthome.dashboardos
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
@@ -23,6 +24,7 @@ import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
+import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
@@ -479,17 +481,28 @@ class MainActivity : Activity() {
 
     // ------------------------------------------------------------------ màn nhập 1 ô
 
+    /**
+     * (1.6) **TRANG NHẬP ĐỊA CHỈ GỌN** (`activity_url.xml`): logo · tiêu đề · phụ đề 1 dòng · phiên bản · 1 ô nhập ·
+     * 1 nút chính · 1 dòng trạng thái · hàng chip **Cài đặt / Chẩn đoán / Đăng xuất**.
+     *
+     * Nút "Đăng xuất" **chỉ hiện khi đã có phiên/cấu hình** ([Logout.showChip]) — máy mới thì không có gì để xoá.
+     */
     private fun showUrlScreen(status: String? = null) {
         showingWeb = false
         disposeWebView()
 
         setContentView(R.layout.activity_url)
 
+        // (1.6) YÊU CẦU 3 — phiên bản `v<versionName> (<versionCode>)`: đọc từ PackageInfo (không cần BuildConfig).
+        val (versionName, versionCode) = appVersion()
+        findViewById<TextView>(R.id.appVersion).text = AppVersion.line(versionName, versionCode)
+
         val web = findViewById<EditText>(R.id.webInput)
         webInput = web
         web.setText(Prefs.oneInput(this) ?: "")
         web.setSelection(web.text.length)
 
+        // (1.6) YÊU CẦU 4 — trạng thái NGẮN, đúng 1 dòng: "Đã kết nối: <host>" hoặc "Chưa kết nối".
         statusView = findViewById<TextView>(R.id.urlStatus)
         setStatus(status ?: defaultStatus())
 
@@ -497,6 +510,12 @@ class MainActivity : Activity() {
         findViewById<Button>(R.id.settingsButton).setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
+        // (1.6) YÊU CẦU 5 — "Chẩn đoán" ra thẳng trang đầu (trước đây phải vào Cài đặt).
+        findViewById<Button>(R.id.diagButton).setOnClickListener { openDiag() }
+        // (1.6) YÊU CẦU 2 — "Đăng xuất" (chỉ hiện khi đã có phiên/cấu hình) → hộp thoại xác nhận.
+        val logout = findViewById<Button>(R.id.logoutButton)
+        logout.visibility = if (Logout.showChip(hasSavedConfig(), hasSavedHaSession())) View.VISIBLE else View.GONE
+        logout.setOnClickListener { confirmLogout() }
 
         web.setOnEditorActionListener { _, actionId, _ -> connectOnAction(actionId) }
     }
@@ -509,19 +528,191 @@ class MainActivity : Activity() {
         return false
     }
 
-    /** "Đã kết nối: <webUrl> · API <apiBase> · Điện thoại: <name>" (hoặc rỗng khi chưa kết nối lần nào). */
+    /**
+     * (1.6) Dòng trạng thái NGẮN dưới nút chính — đúng 1 dòng: `Đã kết nối: hass.example.com` hoặc `Chưa kết nối`
+     * (`activity_url.xml` đặt `maxLines=1` + `ellipsize=end`, nên không bao giờ thành khối chữ).
+     */
     private fun defaultStatus(): String {
-        val web = Prefs.webUrl(this) ?: return ""
-        val api = Prefs.apiBase(this) ?: "-"
-        val base = getString(R.string.status_connected, web, api, Prefs.phoneName())
-        val login = if (Prefs.needHaLogin(this)) "\n" + getString(R.string.status_need_login) else ""
-        val insecure = if (WebTargetResolver.lacksSecureContext(web)) "\n" + getString(R.string.warn_no_secure, web) else ""
-        return base + insecure + login
+        val host = connectedHost()
+        return if (host == null) {
+            getString(R.string.status_not_connected)
+        } else {
+            getString(R.string.status_connected_short, host)
+        }
+    }
+
+    /** `hass.example.com` / `192.168.10.2:18080` — host của địa chỉ đã lưu (null = chưa cấu hình gì). */
+    private fun connectedHost(): String? {
+        val saved = Prefs.webUrl(this) ?: Prefs.apiBase(this) ?: Prefs.loginUrl(this) ?: return null
+        val origin = DashboardTarget.originOf(saved) ?: return null
+        return origin.removePrefix("https://").removePrefix("http://").trimEnd('/').ifEmpty { null }
+    }
+
+    /** Đã lưu cấu hình nào chưa (`webUrl` / `apiBase` / `loginUrl`) — điều kiện hiện nút "Đăng xuất". */
+    private fun hasSavedConfig(): Boolean =
+        Prefs.webUrl(this) != null || Prefs.apiBase(this) != null || Prefs.loginUrl(this) != null
+
+    /** Đã có cookie (bất kỳ) của Home Assistant cho địa chỉ đã lưu — dấu hiệu "đã có phiên". */
+    private fun hasSavedHaSession(): Boolean {
+        val url = Prefs.webUrl(this) ?: Prefs.loginUrl(this) ?: Prefs.oneInput(this) ?: return false
+        return HaLogin.hasAnyCookie(HaCookie.header(url))
+    }
+
+    /** `versionName` + `versionCode` từ `PackageInfo` (không cần bật `buildFeatures.buildConfig`). */
+    private fun appVersion(): Pair<String?, Long> = try {
+        val info = packageManager.getPackageInfo(packageName, 0)
+        info.versionName to info.longVersionCode
+    } catch (t: Throwable) {
+        null to 0L
+    }
+
+    /** Mở màn **Chẩn đoán** (`DiagActivity`) — nút trên trang đầu (1.6) và trong Cài đặt. */
+    private fun openDiag() {
+        try {
+            startActivity(Intent(this, DiagActivity::class.java))
+        } catch (t: Throwable) {
+            toast(getString(R.string.st_no_screen))
+        }
     }
 
     private fun setStatus(text: String?) {
         statusView?.text = text.orEmpty()
         statusView?.visibility = if (text.isNullOrEmpty()) View.GONE else View.VISIBLE
+    }
+
+    // ------------------------------------------------------------------ (1.6) ĐĂNG XUẤT
+
+    /**
+     * (1.6) YÊU CẦU 2 — nút **“Đăng xuất”**: hỏi lại bằng [AlertDialog] (chữ đúng yêu cầu) rồi mới [performLogout].
+     * Không làm gì khi bấm "Huỷ".
+     */
+    private fun confirmLogout() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.action_logout)
+            .setMessage(R.string.logout_confirm)
+            .setNegativeButton(R.string.logout_cancel, null)
+            .setPositiveButton(R.string.action_logout) { _, _ -> performLogout() }
+            .show()
+    }
+
+    /**
+     * (1.6) **ĐĂNG XUẤT — bước 1/6 (mạng) rồi [finishLogout]**.
+     *
+     * Bước 1 = `POST <apiBase>/app/remove` `{id: phoneId}` ([PhoneApi.remove]) chạy ở **luồng nền** và phải chạy
+     * **TRƯỚC** khi xoá cookie: gốc API có thể nằm sau ingress của Home Assistant nên lời gọi này cần cookie
+     * `ingress_session`. Lỗi mạng / 401 / 404 **bỏ qua nhưng vẫn đi tiếp** — máy phải sạch dù server không trả lời.
+     *
+     * `apiBase` và `phoneId` được đọc **trước** khi xoá Prefs; danh sách bước do [Logout.plan] quyết (thuần, có test).
+     */
+    private fun performLogout() {
+        val state = Logout.State(Prefs.apiBase(this), runCatching { Prefs.phoneId(this) }.getOrNull())
+        val plan = Logout.plan(state)
+
+        // Phản hồi ngay trên UI: chặn bấm 2 lần, đổi dòng trạng thái.
+        findViewById<Button>(R.id.connectButton)?.isEnabled = false
+        findViewById<Button>(R.id.logoutButton)?.isEnabled = false
+        setStatus(getString(R.string.logout_running))
+
+        Thread {
+            val callServer = Logout.callsServer(state)
+            val code = if (callServer) {
+                // Cookie của phiên hiện tại là thứ duy nhất cho phép gọi /app/remove qua ingress.
+                PhoneApi.remove(state.apiBase, state.phoneId.orEmpty(), HaCookie.header(state.apiBase))
+            } else {
+                null
+            }
+            val extra = if (callServer) Logout.reasonExtra(code) else "skip=" + Logout.REASON_SKIPPED
+            log(Logout.line(Logout.Step.REMOVE_DEVICE, callServer && Logout.removed(code), extra))
+            post { finishLogout(plan) }
+        }.also { it.isDaemon = true; it.name = "logout-remove" }.start()
+    }
+
+    /**
+     * (1.6) **ĐĂNG XUẤT — bước 2..6**, đúng thứ tự [Logout.ORDER] (mỗi bước ghi một dòng `[logout] step=… ok=…`):
+     *
+     *  2a. dừng [PhoneService] ([PhoneService.stop]) — không còn hỏi `/app/incoming`;
+     *  2b. huỷ notification cuộc gọi đang có ([CallNotifications.cancel]) + đóng màn gọi ([IncomingCallActivity.dismissFor]);
+     *  3.  xoá **toàn bộ** cookie của domain ([CookieManager.removeAllCookies] + `flush`) — để lần sau đăng nhập
+     *      một **tài khoản Home Assistant khác**;
+     *  4.  xoá dữ liệu WebView ([WebStorage.deleteAllData] = localStorage `hassTokens` của HA, `clearCache(true)`,
+     *      `clearFormData`, `clearHistory`);
+     *  5.  xoá Prefs ([Prefs.clearForLogout]) — chỉ giữ cờ “đã xem hướng dẫn” ([Logout.KEEP_KEYS]);
+     *  6.  đưa UI về trạng thái ban đầu ([resetAfterLogout] + [showUrlScreen]) và hiện toast **“Đã đăng xuất”**.
+     */
+    private fun finishLogout(plan: List<Logout.Step>) {
+        if (isFinishing || isDestroyed) return
+
+        // 2a) Dừng dịch vụ nền (bỏ luôn foreground notification của service).
+        log(Logout.line(Logout.Step.STOP_SERVICE, runCatching { PhoneService.stop(this) }.isSuccess))
+
+        // 2b) Huỷ thông báo cuộc gọi + đóng màn hình gọi đang mở (nếu có).
+        val cancelOk = runCatching {
+            CallNotifications.cancel(this)
+            RingState.stop()
+            PhoneStatus.callId = null
+            PhoneStatus.ringing = false
+            PhoneStatus.needLogin = false
+            PhoneStatus.handledCallId = null
+            PhoneStatus.publish(this)
+            IncomingCallActivity.dismissFor(null)
+        }.isSuccess
+        log(Logout.line(Logout.Step.CANCEL_CALL_NOTIFICATION, cancelOk))
+
+        // 3) Xoá TOÀN BỘ cookie của domain (đăng nhập tài khoản khác phải sạch phiên cũ).
+        val cookieOk = runCatching {
+            val cm = CookieManager.getInstance()
+            cm.setAcceptCookie(true)
+            cm.removeAllCookies(null)
+            cm.flush()
+        }.isSuccess
+        log(Logout.line(Logout.Step.CLEAR_COOKIES, cookieOk))
+
+        // 4) Xoá dữ liệu WebView — localStorage của HA (`hassTokens`) nằm trong WebStorage.
+        val webDataOk = runCatching {
+            WebStorage.getInstance().deleteAllData()
+            val w = WebView(this)
+            w.clearCache(true)
+            w.clearFormData()
+            w.clearHistory()
+            w.destroy()
+        }.isSuccess
+        log(Logout.line(Logout.Step.CLEAR_WEBVIEW_DATA, webDataOk))
+
+        // 5) Xoá Prefs của app (giữ cờ "đã xem hướng dẫn").
+        val removedKeys = runCatching { Prefs.clearForLogout(this) }.getOrElse { -1 }
+        log(Logout.line(Logout.Step.CLEAR_PREFS, removedKeys >= 0, "keys=" + removedKeys))
+
+        // 6) UI về trạng thái ban đầu: không còn webUrl/apiBase/phiên ⇒ nút "Đăng xuất" ẩn, ô nhập trống.
+        resetAfterLogout()
+        showUrlScreen(getString(R.string.status_not_connected))
+        log(Logout.line(Logout.Step.RESET_UI, true, "steps=" + plan.size))
+        toast(getString(R.string.logout_done))
+    }
+
+    /** Quên toàn bộ trạng thái trong bộ nhớ của phiên cũ (đăng xuất không được để lại URL/phiên nào). */
+    private fun resetAfterLogout() {
+        resetPromoteState()
+        savedWebUrl = null
+        targetUrl = null
+        panelTarget = null
+        haOrigin = null
+        afterLoginUrl = null
+        loadingUrl = null
+        loadingReason = "-"
+        loadResult = "-"
+        allowedTlsHosts = emptySet()
+        loginWatch = null
+        loginFlowActive = false
+        loginFailed = false
+        originShown = false
+        launchHadSession = false
+        panelNavCount = 0
+        lastPanelNavAt = 0L
+        searching = false
+        searchToken++
+        DiagState.reset()
+        DiagState.domain = null
+        DiagState.webViewOpened = false
     }
 
     /**
@@ -601,7 +792,9 @@ class MainActivity : Activity() {
                     if (t != searchToken) return@post
                     searching = false
                     setSearchingUi(false)
-                    showNotFound(getString(R.string.status_api_not_found), triedApi, getString(R.string.status_api_hint))
+                    showNotFound(
+                        getString(R.string.status_not_found_short, triedApi.firstOrNull() ?: "-")
+                    )
                 }
                 return@Thread
             }
@@ -624,7 +817,9 @@ class MainActivity : Activity() {
                         if (t != searchToken) return@post
                         searching = false
                         setSearchingUi(false)
-                        showNotFound(getString(R.string.status_web_not_found), webList, getString(R.string.status_web_hint))
+                        showNotFound(
+                            getString(R.string.status_web_not_found_short, webList.firstOrNull() ?: "-")
+                        )
                     }
                     return@Thread
                 }
@@ -670,12 +865,14 @@ class MainActivity : Activity() {
         webInput?.isEnabled = !busy
     }
 
-    /** Tiêu đề + danh sách đã thử + gợi ý. */
-    private fun showNotFound(title: String, tried: List<String>, hint: String) {
-        val sb = StringBuilder(title)
-        for (url in tried) sb.append('\n').append("• ").append(url)
-        sb.append("\n\n").append(hint)
-        setStatus(sb.toString())
+    /**
+     * (1.6) Trạng thái LỖI **ngắn, đúng 1 dòng** (`activity_url.xml`: `maxLines=1` + `ellipsize=end`): chỉ tiêu đề +
+     * địa chỉ đầu tiên đã thử. Danh sách đầy đủ các URL đã thử vẫn nằm trong **Chẩn đoán** (`Diag`), không bày trên
+     * trang nhập nữa — yêu cầu "bỏ mọi khối chữ dài".
+     */
+    private fun showNotFound(message: String) {
+        setStatus(message)
+        toast(message)
     }
 
     // ------------------------------------------------------------------ Web screen

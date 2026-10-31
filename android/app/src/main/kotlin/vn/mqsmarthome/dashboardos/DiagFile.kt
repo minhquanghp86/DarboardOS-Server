@@ -119,11 +119,16 @@ object DiagFile {
      *  - `[promote] … fail=<lý do>` (promote top-level thất bại), hoặc
      *  - bất kỳ dòng nào nhắc tới **401** (`ok=401`, `code=401`, `fail=401`…) — ingress thiếu phiên.
      *
+     * (1.6) Dòng `[logout] …` **KHÔNG BAO GIỜ** kích hoạt tự lưu (đăng xuất là thao tác có chủ đích, và lỗi mạng
+     * của bước `/app/remove` không phải sự cố cần gửi chẩn đoán) — chặn tường minh ở đây để một dòng log đăng xuất
+     * không bao giờ đẻ ra tệp `diag-auto-…txt`.
+     *
      * Tách riêng để unit test được ([DiagFileTest]).
      */
     fun shouldAutoSave(line: String?): Boolean {
         val text = line?.trim().orEmpty()
         if (text.isEmpty()) return false
+        if (text.startsWith(Logout.LOG_PREFIX)) return false
         if (text.startsWith(IngressPromote.LOG_PREFIX) && text.contains("fail=")) return true
         return HTTP_401.containsMatchIn(text)
     }

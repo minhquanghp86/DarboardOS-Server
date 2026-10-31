@@ -68,6 +68,12 @@ object Prefs {
     /** "Nhan cuoc goi khi app dong" (foreground service + poll). Mac dinh BAT. */
     const val KEY_RECEIVE = "receive_calls"
 
+    /**
+     * (1.6) Cờ **“đã xem hướng dẫn”** — khoá DUY NHẤT được **GIỮ LẠI** khi đăng xuất ([clearForLogout]): người dùng
+     * đã biết cách dùng app rồi thì đăng xuất không phải xem lại hướng dẫn.
+     */
+    const val KEY_SAW_GUIDE = "saw_guide"
+
     fun get(ctx: Context): SharedPreferences = ctx.getSharedPreferences(NAME, Context.MODE_PRIVATE)
 
     /** Trang dieu khien da luu (https, co the la URL ingress cua HA). */
@@ -244,6 +250,34 @@ object Prefs {
 
     fun setReceiveEnabled(ctx: Context, on: Boolean) {
         get(ctx).edit().putBoolean(KEY_RECEIVE, on).apply()
+    }
+
+    // ─────────────────────────────────────────── (1.6) ĐĂNG XUẤT
+
+    /** Đã xem hướng dẫn chưa (cờ này được GIỮ LẠI khi đăng xuất). */
+    fun sawGuide(ctx: Context): Boolean = get(ctx).getBoolean(KEY_SAW_GUIDE, false)
+
+    fun setSawGuide(ctx: Context, on: Boolean) {
+        get(ctx).edit().putBoolean(KEY_SAW_GUIDE, on).apply()
+    }
+
+    /**
+     * (1.6) **ĐĂNG XUẤT: xoá TOÀN BỘ dữ liệu của app**, chỉ giữ [KEY_SAW_GUIDE] ([Logout.KEEP_KEYS]).
+     *
+     * Xoá bằng cách liệt kê các khoá ĐANG CÓ ([android.content.SharedPreferences.getAll]) rồi `remove` từng khoá:
+     * nhờ vậy cả những khoá của bản cũ (`url`, `web_input`, `api_input`, …) cũng bị dọn, không chỉ danh sách cứng.
+     * Dùng `commit()` (không phải `apply()`) để dữ liệu xuống đĩa NGAY — sau bước này người dùng có thể tắt app.
+     *
+     * @return số khoá đã xoá (0 = không có gì để xoá) — dùng cho log `[logout] step=clear_prefs ok=yes keys=<n>`.
+     */
+    fun clearForLogout(ctx: Context): Int {
+        val p = get(ctx)
+        val drop = Logout.keysToRemove(p.all.keys)
+        if (drop.isEmpty()) return 0
+        val editor = p.edit()
+        for (key in drop) editor.remove(key)
+        editor.commit()
+        return drop.size
     }
 
     /** Ten may gui len server ("samsung SM-G991B" -> danh ba P4 hien "samsung SM-G991B · Điện thoại"). */

@@ -3,22 +3,21 @@
     <string name="app_name">Dashboard OS</string>
     <!-- (30/10/2026) GD4: người dùng chỉ nhập IP/domain của Home Assistant. -->
     <string name="url_hint">Địa chỉ Home Assistant</string>
-    <string name="url_hint_example">192.168.10.2 hoặc hass.example.com</string>
-    <!-- (17/11/2026) GD9 — MỘT Ô: nhập domain hoặc IP LAN, app tự lo cả trang điều khiển và API. -->
-    <string name="url_hint_web">Domain Home Assistant (một ô duy nhất)</string>
     <string name="url_hint_web_example">hass.example.com</string>
-    <!-- (26/11/2026) GD14 — CHẾ ĐỘ KHUYẾN NGHỊ: chỉ nhập domain của Home Assistant. App mở thẳng panel của add-on
-         trên HA (`https://<domain>/b39feb53_remote_webview_server`); chính HA frontend dựng panel, tạo phiên ingress
-         và nhúng add-on vào iframe. Người dùng chỉ phải đăng nhập HA một lần trong app. -->
-    <string name="url_web_recommend">Nhập domain Home Assistant, ví dụ hass.example.com</string>
-    <string name="url_web_hint">App mở https://&lt;domain&gt;/b39feb53_remote_webview_server — panel của Dashboard OS trong Home Assistant. Home Assistant tự dựng panel, tạo phiên ingress và nhúng add-on vào iframe (không cần mở thanh bên, không cần TOKEN, không cần IP LAN). Lần đầu chỉ cần đăng nhập Home Assistant trong app; các lần sau vào thẳng.</string>
-    <!-- (21/11/2026) GD13 — chế độ IP LAN VẪN GIỮ nhưng KHÔNG khuyến nghị (chứng chỉ tự ký, không có phiên HA để API dùng). -->
-    <string name="url_web_lan_note">Chế độ IP LAN (vd 192.168.10.2 — https://&lt;ip&gt;:18443, chứng chỉ tự ký) vẫn dùng được nhưng KHÔNG khuyến nghị: không có phiên Home Assistant nên phần nhận cuộc gọi/chuông có thể không chạy.</string>
+    <!-- (1.6) TRANG NHẬP ĐỊA CHỈ GỌN: tiêu đề + 1 dòng phụ + phiên bản + 1 ô + 1 nút chính + hàng chip + 1 dòng
+         trạng thái ngắn. Mọi khối mô tả dài (gợi ý panel, ghi chú IP LAN, footer…) đã bỏ khỏi giao diện. -->
+    <string name="url_subtitle">Kết nối Home Assistant của bạn</string>
     <string name="action_connect">Kết nối</string>
     <string name="action_change_url">URL</string>
     <string name="action_settings">Cài đặt</string>
     <string name="action_close">Đóng</string>
-    <string name="url_footer">Chỉ cần MỘT địa chỉ: domain của Home Assistant. App mở panel Dashboard OS trong Home Assistant (https://&lt;domain&gt;/b39feb53_remote_webview_server) — micro/camera hoạt động vì là HTTPS. Chế độ IP LAN không còn khuyến nghị.</string>
+    <!-- (1.6) YÊU CẦU 5 — "Chẩn đoán" và "Đăng xuất" ra trang đầu (vẫn còn trong Cài đặt). -->
+    <string name="action_diag">Chẩn đoán</string>
+    <string name="action_logout">Đăng xuất</string>
+    <string name="logout_confirm">Đăng xuất khỏi Home Assistant? Ứng dụng sẽ xoá phiên đăng nhập, huỷ đăng ký thiết bị khỏi máy chủ và đưa về trạng thái ban đầu.</string>
+    <string name="logout_cancel">Huỷ</string>
+    <string name="logout_running">Đang đăng xuất…</string>
+    <string name="logout_done">Đã đăng xuất</string>
     <string name="err_empty_url">Vui lòng nhập địa chỉ Home Assistant</string>
     <string name="err_bad_address">Địa chỉ không hợp lệ. Nhập IP (vd 192.168.10.2) hoặc tên miền (vd hass.example.com)</string>
     <string name="err_empty_web">Vui lòng nhập địa chỉ Home Assistant (tên miền hoặc IP LAN)</string>
@@ -29,21 +28,16 @@
     <string name="perm_denied">Cần quyền micro/camera để dùng tính năng đàm thoại</string>
     <string name="url_button_short">URL</string>
 
-    <!-- (30/10/2026) GD4 — trạng thái ở màn nhập địa chỉ. -->
-    <string name="status_connected">Đã kết nối: %1$s · API: %2$s · Điện thoại: %3$s</string>
-    <string name="status_checking">Đang kiểm tra máy chủ đã lưu…</string>
-    <string name="status_searching">Đang tìm máy chủ… (%1$d/%2$d)</string>
-    <string name="status_searching_web">Đang tìm trang điều khiển… (%1$d/%2$d)</string>
+    <!-- (30/10/2026) GD4 — trạng thái ở màn nhập địa chỉ.
+         (1.6) Chỉ còn các dòng NGẮN: đã bỏ "Đã kết nối: <webUrl> · API · Điện thoại", các dòng "Gợi ý…" và
+         "Đã thử:" (danh sách URL thử được xem ở Cài đặt → Chẩn đoán). -->
+    <!-- (1.6) Dòng trạng thái NGẮN (đúng 1 dòng) dưới nút chính. -->
+    <string name="status_connected_short">Đã kết nối: %1$s</string>
+    <string name="status_not_connected">Chưa kết nối</string>
+    <string name="status_not_found_short">Không tìm thấy máy chủ: %1$s</string>
+    <string name="status_web_not_found_short">Không thấy trang điều khiển: %1$s</string>
     <string name="status_searching_api">Đang kiểm tra máy chủ API… (%1$d/%2$d)</string>
-    <string name="status_not_found">Không tìm thấy Dashboard OS. Đã thử:</string>
-    <string name="status_web_not_found">Không thấy trang điều khiển của Dashboard OS. Đã thử:</string>
-    <string name="status_web_hint">Gợi ý: kiểm tra TOKEN ingress ở Cài đặt (HA → Add-on → mở Web UI để lấy URL mới) · add-on đã chạy · domain trỏ đúng HA. Trang của Home Assistant bị loại vì không phải add-on.</string>
-    <string name="status_api_not_found">Không thấy máy chủ API (GET /app/ping không trả “dashboard-os”). Đã thử:</string>
-    <string name="status_api_hint">Gợi ý: điện thoại cùng Wi-Fi/LAN với máy chủ · add-on Dashboard OS đang chạy · đúng cổng 18080 (vd 192.168.10.2:18080).</string>
-    <string name="status_hint">Kiểm tra: add-on Dashboard OS đã chạy · điện thoại cùng Wi-Fi/LAN · thử http://&lt;ip&gt;:18080</string>
-    <string name="status_offline">Không thấy máy chủ ở %1$s. Bấm “Kết nối” để dò lại (add-on có thể đang tắt).</string>
     <string name="connect_ok">Đã tìm thấy máy chủ, đã đăng ký thiết bị</string>
-    <string name="connect_ok_noreg">Đã tìm thấy máy chủ (chưa đăng ký được — sẽ thử lại ở nền)</string>
 
     <!-- (10/11/2026) GD2 — nhận cuộc gọi từ màn hình P4 khi app đóng / ở nền. -->
     <string name="svc_title">Đang nhận cuộc gọi</string>
