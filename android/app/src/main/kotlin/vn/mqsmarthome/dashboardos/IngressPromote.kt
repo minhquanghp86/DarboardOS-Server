@@ -20,16 +20,20 @@ package vn.mqsmarthome.dashboardos
  * Ở top-level **không còn khung cha nào** ⇒ Permissions Policy của trang là của chính add-on ⇒ micro/camera được
  * cấp. Phiên ingress đã tồn tại (do panel vừa tạo) nên trang trả 200 thay vì 401.
  *
- * Quy tắc của bước này (đúng yêu cầu):
- *  1. chỉ promote **một lần** cho mỗi lần mở app — cờ trong bộ nhớ ([Decision.ALREADY]);
- *  2. chỉ promote khi **đã có phiên** ([Decision.NO_SESSION] khi chưa có — lúc đó promote sẽ 401 vô ích);
+ * Quy tắc của bước này (1.2 — sửa lỗi "promote bắn MỘT lần quá sớm rồi bị khoá vĩnh viễn"):
+ *  1. promote được **thử lại** khi **đã có phiên** (`ingress_session`) và **chưa thành công**, tối đa
+ *     [MAX_PROMOTE_ATTEMPTS] lần ([Gate]), cách nhau ≥ [PROMOTE_RETRY_GAP_MS]; chưa có phiên thì KHÔNG promote
+ *     (`[Decision.NO_SESSION]`) — đúng lỗi trong log thật: promote bắn lúc 2,5 s khi `session=no` ⇒ 401 vô ích rồi
+ *     bị khoá bằng `skip=already` nên lúc phiên xuất hiện (12:58:01) app **không thử lại**;
+ *  2. promote chạy **ngay khi phát hiện `cookie=yes session=yes`** (nhịp dò 1 s / `onPageFinished`), không chờ hẹn
+ *     giờ [PANEL_PROMOTE_DELAY_MS] nữa (hẹn giờ chỉ còn là lưới an toàn);
  *  3. top-level trả 401/403, SPA của HA, hoặc quá [TOP_TIMEOUT_MS] → **quay lại panel (iframe)** để người dùng vẫn
- *     dùng được UI ([failLine]: `[promote] url=… ok=401 fail=401 fallback=panel`);
- *  4. người dùng tự quay lại panel → tôn trọng (cờ đã bật nên không promote lại);
- *  5. log chuẩn: `[promote] url=… ok=top|panel|401`.
+ *     dùng được UI ([failLine]: `[promote] url=… ok=401 fail=401 fallback=panel`) **và vẫn giữ quyền thử lại**;
+ *  4. `skip=already` **chỉ** khi đã thành công thật ([Decision.ALREADY] ⇔ đã có `ok=top` trong phiên app này);
+ *  5. log chuẩn: `[promote] retry=<n> url=…`, `[promote] url=… ok=top|panel|401`.
  *
  * Tệp này THUẦN (chỉ [WebTargetResolver]/[DashboardTarget], không API Android, không mở kết nối) nên unit test
- * được trên JVM — xem `IngressPromoteTest`.
+ * được trên JVM — xem `IngressPromoteTest` / `PromoteFlowTest`.
  */
 object IngressPromote {
 
@@ -46,11 +50,25 @@ object IngressPromote {
     const val TOP_TIMEOUT_MS = 4000L
 
     /**
-     * (28/11/2026) GD16 — **ĐẶT HẸN GIỜ PROMOTE**: 2,5 s kể từ khi panel của add-on BẮT ĐẦU nạp thì promote ngay,
-     * **không** chờ phát hiện iframe (bản GD15 dò `iframe[src*="hassio_ingress"]` — dò không thấy nên promote không
-     * bao giờ chạy, đúng lỗi người dùng báo "đăng nhập xong không tự vào add-on").
+     * (28/11/2026) GD16 — **ĐẶT HẸN GIỜ PROMOTE**: 2,5 s kể từ khi panel của add-on BẮT ĐẦU nạp.
+     *
+     * (1.2) Hẹn giờ này **không còn là đường chính**: promote chạy NGAY khi phát hiện `cookie=yes session=yes`
+     * ([MainActivity.loginTick] / `onPageFinished`). Hẹn giờ chỉ là lưới an toàn nếu nhịp dò không chạy, và khi nổ
+     * mà **chưa có phiên** thì KHÔNG promote (đó chính là lỗi 401-rồi-khoá của bản trước).
      */
     const val PANEL_PROMOTE_DELAY_MS = 2500L
+
+    /**
+     * (1.2) Số lần promote **tối đa** cho một phiên app (yêu cầu: 3). Sau khi hết lượt, app ở lại panel và ghi
+     * `skip=limit` **một lần** (không spam log mỗi nhịp dò).
+     */
+    const val MAX_PROMOTE_ATTEMPTS = 3
+
+    /**
+     * (1.2) Giãn cách tối thiểu giữa hai lần promote liên tiếp (yêu cầu: **≥ 1,5 s**) — tránh bắn dồn khi nhịp dò
+     * 1 s vừa thấy phiên.
+     */
+    const val PROMOTE_RETRY_GAP_MS = 1500L
 
     /**
      * (28/11/2026) GD16 — thời gian tối đa chờ JS đọc `src` của iframe (chỉ để lấy TOKEN cho **chính xác hơn**).
@@ -76,15 +94,19 @@ object IngressPromote {
     /**
      * Quyết định của bước promote:
      *  - [PROMOTE] — được phép chuyển sang top-level;
-     *  - [ALREADY] — đã promote (hoặc đã thử) trong lần mở app này → không lặp;
-     *  - [NO_SESSION] — chưa có cookie `ingress_session` ⇒ promote sẽ 401 ⇒ chờ/ở lại panel;
-     *  - [NO_URL] — không dựng được URL top-level (không có origin hợp lệ).
+     *  - [ALREADY] — **đã thành công** trong phiên app này (`ok=top` đã xảy ra) → không lặp;
+     *  - [NO_SESSION] — chưa có cookie `ingress_session` ⇒ promote sẽ 401 ⇒ chờ nhịp dò sau (khi phiên xuất hiện);
+     *  - [NO_URL] — không dựng được URL top-level (không có origin hợp lệ);
+     *  - [LIMIT] — đã dùng hết [MAX_PROMOTE_ATTEMPTS] lượt trong phiên app này;
+     *  - [WAIT] — vừa promote < [PROMOTE_RETRY_GAP_MS] trước đó (giãn cách, không ghi log).
      */
     enum class Decision(val label: String) {
         PROMOTE("promote"),
         ALREADY("already"),
         NO_SESSION("no_session"),
         NO_URL("no_url"),
+        LIMIT("limit"),
+        WAIT("wait"),
     }
 
     /** Kết luận về trang top-level: [TOP] = dùng được, [FAIL] = phải quay lại panel. */
@@ -96,13 +118,15 @@ object IngressPromote {
     // ────────────────────────────────────────────────────────────── quyết định
 
     /**
-     * Được phép promote chưa? Thứ tự kiểm tra = đúng thứ tự log (cờ trước, rồi URL, rồi phiên) để **không bao giờ**
-     * promote lần thứ hai dù phiên còn/ mất.
+     * Được phép promote chưa? (dạng "một lần gọi", dùng khi **chưa** cần đếm số lần — xem [Gate] cho luồng thật
+     * của app.)
      *
-     * (28/11/2026) GD16 — [requireSession] = `false` cho luồng **đặt hẹn giờ**: promote vẫn chạy dù chưa đọc được
-     * cookie `ingress_session` (CookieManager có thể trễ vài trăm ms sau khi panel tạo phiên). Trang top-level tự
-     * trả 401 nếu phiên thật sự thiếu → bước promote ghi `fail=401` rồi quay lại panel, không mất gì.
-     * Mặc định `true` = hành vi cũ (dùng cho màn Cài đặt / các đường cần chắc chắn có phiên).
+     * Thứ tự kiểm tra = đúng thứ tự log: đã thành công ([alreadyPromoted] = `ok=top` đã xảy ra) → không bao giờ
+     * promote lại; rồi URL; rồi phiên.
+     *
+     * [requireSession] = `false` cho các đường **dự phòng** (panel không nạp được): vẫn thử top-level dù chưa đọc
+     * được cookie `ingress_session`. Trang top-level tự trả 401 nếu phiên thật sự thiếu → bước promote ghi
+     * `fail=401` rồi quay lại panel, và **vẫn giữ quyền thử lại** ở nhịp sau (1.2).
      */
     fun decide(
         hasSession: Boolean,
@@ -117,26 +141,79 @@ object IngressPromote {
     }
 
     /**
-     * (28/11/2026) GD16 — **CỜ "CHỈ MỘT LẦN"** của bước promote, tách riêng để unit test được
-     * (`PromoteFlowTest`): [take] trả `true` đúng **một lần** cho tới khi [reset].
+     * (1.2) **CỔNG PROMOTE CÓ THỬ LẠI** — thay cho cờ "chỉ một lần" của bản GD16 ([Once], đã bỏ).
      *
-     * MainActivity dùng `Once()` làm "mỗi lần mở app chỉ promote một lần"; [reset] chỉ chạy khi người dùng bấm
-     * "Kết nối" (một lần mở app mới).
+     * Vì sao phải thay: log thật của người dùng cho thấy promote bắn **một lần duy nhất quá sớm** (2,5 s, lúc
+     * `session=no`) → 401 → và bị khoá bằng `skip=already`; khi phiên ingress xuất hiện (12:58:01) app **không thử
+     * lại** nên người dùng ở lại panel (giao diện HA).
+     *
+     * Luật của cổng:
+     *  - **chỉ** `skip=already` khi `ok=top` đã xảy ra ([succeeded]);
+     *  - thử tối đa [maxAttempts] lần ([MAX_PROMOTE_ATTEMPTS] = 3) trong một phiên app;
+     *  - hai lần liên tiếp cách nhau **≥ [minGapMs]** ([PROMOTE_RETRY_GAP_MS] = 1,5 s) — [Decision.WAIT];
+     *  - chưa có phiên thì [Decision.NO_SESSION] (nhịp dò sau sẽ thử lại khi phiên xuất hiện).
+     *
+     * Thuần + đồng hồ tiêm được ([clock]) ⇒ unit test trên JVM.
      */
-    class Once {
-        /** Đã "lấy" chưa — đọc được từ ngoài để ghi log `skip=already`. */
-        var done: Boolean = false
+    class Gate(
+        val maxAttempts: Int = MAX_PROMOTE_ATTEMPTS,
+        val minGapMs: Long = PROMOTE_RETRY_GAP_MS,
+        private val clock: () -> Long = { System.currentTimeMillis() },
+    ) {
+        /** Số lần đã promote thật (1..[maxAttempts]). */
+        var attempts: Int = 0
             private set
 
-        /** Lấy quyền thử: `true` ở lần gọi ĐẦU TIÊN, `false` ở mọi lần sau. */
-        fun take(): Boolean {
-            if (done) return false
-            done = true
-            return true
+        /** Đã có `ok=top` trong phiên app này chưa. */
+        var succeeded: Boolean = false
+            private set
+
+        /** Thời điểm (ms) của lần promote gần nhất. */
+        var lastAttemptAt: Long = 0L
+            private set
+
+        /** Còn lại bao nhiêu lượt. */
+        val attemptsLeft: Int get() = (maxAttempts - attempts).coerceAtLeast(0)
+
+        /** Dùng cho log `skip=already` — **chỉ** đúng khi đã thành công. */
+        val done: Boolean get() = succeeded
+
+        /** Quyết định cho lần promote kế tiếp. */
+        fun decide(hasSession: Boolean, topUrl: String?, requireSession: Boolean = true): Decision {
+            if (succeeded) return Decision.ALREADY
+            if (topUrl.isNullOrBlank()) return Decision.NO_URL
+            if (requireSession && !hasSession) return Decision.NO_SESSION
+            if (attempts >= maxAttempts) return Decision.LIMIT
+            if (attempts > 0 && clock() - lastAttemptAt < minGapMs) return Decision.WAIT
+            return Decision.PROMOTE
         }
 
+        /**
+         * Nhận quyền thử: tăng bộ đếm, trả **số thứ tự lần promote** (1-based) — dùng cho log `retry=<n>`.
+         * 0 = không còn lượt.
+         */
+        fun take(): Int {
+            if (attempts >= maxAttempts) return 0
+            attempts += 1
+            lastAttemptAt = clock()
+            return attempts
+        }
+
+        /** Promote thành công (`ok=top`) → từ đây mọi lần sau là `skip=already`. */
+        fun success() {
+            succeeded = true
+        }
+
+        /** Người dùng chủ động ("Mở Dashboard"/"Kết nối") → mở lại quyền thử (vẫn nhớ đã thành công hay chưa). */
+        fun resetAttempts() {
+            attempts = 0
+            lastAttemptAt = 0L
+        }
+
+        /** Phiên app mới → quên tất cả (kể cả đã thành công). */
         fun reset() {
-            done = false
+            resetAttempts()
+            succeeded = false
         }
     }
 
@@ -278,6 +355,24 @@ object IngressPromote {
     }
 
     /**
+     * (1.2) **GIỮ trang top-level hay không** — đúng yêu cầu 3 của bản sửa:
+     *
+     *  - **giữ** khi URL là ingress (`…/api/hassio_ingress/<TOKEN>/…`) **và** trang là add-on: nội dung chứa
+     *    `launcher-config` / `Dashboard OS`, hoặc tiêu đề KHÔNG phải "Home Assistant" ([verdict]);
+     *  - **không giữ** (quay lại panel) khi 401/403/404/3xx, SPA của HA, `/auth`, hoặc URL không còn nằm sau ingress.
+     */
+    fun keepTopLevel(
+        status: Int?,
+        title: String?,
+        html: String?,
+        kind: PageKind = PageKind.UNKNOWN,
+        url: String?,
+    ): Boolean {
+        if (!WebTargetResolver.isIngressUrl(url)) return false
+        return verdict(status, title, html, kind) == Verdict.TOP
+    }
+
+    /**
      * Lý do thất bại để ghi vào `fail=` của log: `401` (401/403), `404`, `redirect` (3xx), `http<code>`, `ha-spa`
      * (SPA của HA), `unknown`. Thời gian/ mạng do caller truyền (`timeout`, `net`, `auth`).
      */
@@ -331,6 +426,32 @@ object IngressPromote {
         LOG_PREFIX + " start url=" + DashboardTarget.shortUrl(url) +
             " token=" + tokenSource.trim().ifEmpty { "-" } +
             " timeout=" + TOP_TIMEOUT_MS + "ms"
+
+    /**
+     * (1.2) Dòng log của **lần promote thứ n** (1-based, tối đa [MAX_PROMOTE_ATTEMPTS]):
+     *
+     *     [promote] retry=1 url=…/api/hassio_ingress/KJjH…/launcher-config.html
+     *
+     * `retry=1` = lần promote thật đầu tiên của phiên app này (bản trước bắn lần này **quá sớm** rồi khoá — xem
+     * KDoc đầu tệp); `retry=2|3` = các lần thử lại sau khi có phiên / sau một lần thất bại.
+     */
+    fun retryLine(attempt: Int, url: String?, extra: String? = null): String {
+        val sb = StringBuilder(LOG_PREFIX)
+            .append(" retry=").append(if (attempt < 1) 1 else attempt)
+            .append(" url=").append(DashboardTarget.shortUrl(url))
+        val e = extra?.trim().orEmpty()
+        if (e.isNotEmpty()) sb.append(' ').append(e)
+        return sb.toString()
+    }
+
+    /**
+     * (1.2) `[promote] retry_left=2 wait=1500ms session=yes` — sau một lần thất bại, app **vẫn còn lượt thử lại**
+     * (không còn `skip=already`): sẽ thử lại ngay khi nhịp dò thấy `session=yes`, cách lần trước ≥ 1,5 s.
+     */
+    fun retryLeftLine(left: Int, session: Boolean): String =
+        LOG_PREFIX + " retry_left=" + left.coerceAtLeast(0) +
+            " wait=" + PROMOTE_RETRY_GAP_MS + "ms" +
+            " session=" + (if (session) "yes" else "no")
 
     /**
      * (28/11/2026) GD16 — `[promote] arm in=2500ms panel=…/b39feb53_remote_webview_server` : đã đặt hẹn giờ promote

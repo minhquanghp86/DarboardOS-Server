@@ -13,8 +13,10 @@ import org.junit.Test
  *     → [Prefs] (mặc định `KJjH…`); dự phòng cuối `https://<domain>/launcher-config.html`;
  *  2. **nhận diện "là add-on" vs "SPA HA"** ([IngressPromote.verdict] / [IngressPromote.isAddonHtml] /
  *     [IngressPromote.pageKind]) — bảng quyết định cho từng kiểu trang;
- *  3. **cờ chỉ-1-lần** ([IngressPromote.Once]) đúng như yêu cầu "chỉ thử 1 lần/lần mở app";
- *  4. thời điểm/timeout: hẹn giờ 2,5 s, chờ tối đa 4 s.
+ *  3. **cổng thử lại** ([IngressPromote.Gate], 1.2) — promote lại được khi đã có phiên và **chưa thành công**,
+ *     tối đa 3 lần, cách nhau ≥ 1,5 s; `skip=already` **chỉ** sau `ok=top` (bản 1.1 khoá promote ngay sau lần 401
+ *     đầu tiên nên khi phiên xuất hiện app đứng im ở panel — đúng lỗi người dùng báo);
+ *  4. thời điểm/timeout: hẹn giờ 2,5 s (chỉ còn là lưới an toàn), chờ tối đa 4 s.
  *
  * Chạy: `cd android && ./gradlew testDebugUnitTest --offline --no-daemon`.
  */
@@ -149,21 +151,54 @@ class PromoteFlowTest {
         assertEquals(IngressPromote.PageKind.UNKNOWN, IngressPromote.pageKind(HaIngress.readProbe("null")))
     }
 
-    // ─────────────────────────────────────────── 3) cờ chỉ-1-lần + thời điểm
+    // ─────────────────────────────────────────── 3) cổng thử lại + thời điểm
 
     @Test
-    fun chi_promote_mot_lan_cho_moi_lan_mo_app() {
-        val once = IngressPromote.Once()
-        // Lần mở app: promote đúng một lần, sau đó mọi nhánh (timer, panel_fail, retry) đều bị chặn.
-        assertEquals(IngressPromote.Decision.PROMOTE, IngressPromote.decide(true, once.done, top))
-        assertTrue(once.take())
-        assertEquals(IngressPromote.Decision.ALREADY, IngressPromote.decide(true, once.done, top))
-        assertFalse(once.take())
-        assertFalse(once.take())
-        // "Kết nối" = lần mở mới → mở lại quyền thử.
-        once.reset()
-        assertEquals(IngressPromote.Decision.PROMOTE, IngressPromote.decide(true, once.done, top))
-        assertTrue(once.take())
+    fun promote_duoc_thu_lai_khi_co_phien_va_chua_thanh_cong() {
+        // (1.2) ĐÚNG LỖI ĐÃ SỬA: promote bắn lúc `session=no` (2,5 s) → 401 → KHÔNG được khoá bằng `already`;
+        // khi phiên xuất hiện phải thử lại (tối đa 3 lần, cách nhau ≥ 1,5 s). `already` chỉ sau `ok=top`.
+        var now = 0L
+        val gate = IngressPromote.Gate(clock = { now })
+
+        // 2,5 s: hẹn giờ nổ nhưng CHƯA có phiên ⇒ không promote (không tốn 401).
+        assertEquals(IngressPromote.Decision.NO_SESSION, gate.decide(false, top))
+
+        // 12:58:01 — phiên đã có ⇒ promote ngay (lần 1).
+        now = 31_000
+        assertEquals(IngressPromote.Decision.PROMOTE, gate.decide(true, top))
+        assertEquals(1, gate.take())
+        assertFalse(gate.done)
+
+        // Thất bại (401) ở lần 1 ⇒ vẫn còn 2 lượt, KHÔNG `already`.
+        now += 1_600
+        assertEquals(IngressPromote.Decision.PROMOTE, gate.decide(true, top))
+        assertEquals(2, gate.take())
+
+        // Thành công ⇒ từ đây mới là `skip=already`.
+        gate.success()
+        now += 1_600
+        assertEquals(IngressPromote.Decision.ALREADY, gate.decide(true, top))
+        assertTrue(gate.done)
+    }
+
+    @Test
+    fun dong_log_retry_dung_dinh_dang_ky_vong() {
+        // Đúng dòng người dùng cần thấy khi promote chạy lại sau khi có phiên.
+        assertEquals(
+            "[promote] retry=1 url=…/api/hassio_ingress/KJjH…/launcher-config.html",
+            IngressPromote.retryLine(1, top)
+        )
+        assertEquals(
+            "[promote] retry=3 url=…/api/hassio_ingress/KJjH…/launcher-config.html token=frame",
+            IngressPromote.retryLine(3, top, "token=frame")
+        )
+        assertEquals("[promote] retry_left=2 wait=1500ms session=yes", IngressPromote.retryLeftLine(2, true))
+        assertEquals("[promote] retry_left=0 wait=1500ms session=no", IngressPromote.retryLeftLine(0, false))
+        // `already` chỉ có nghĩa "đã ok=top" — dòng skip tương ứng.
+        assertEquals(
+            "[promote] url=…/b39feb53_remote_webview_server ok=panel skip=already",
+            IngressPromote.skipLine(panel, IngressPromote.Decision.ALREADY)
+        )
     }
 
     @Test

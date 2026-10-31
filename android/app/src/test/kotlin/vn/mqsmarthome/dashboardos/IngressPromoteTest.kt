@@ -15,7 +15,8 @@ import org.junit.Test
  * `https://<domain>/api/hassio_ingress/<TOKEN>/launcher-config.html`.
  *
  * Ở đây khoá lại:
- *  1. **điều kiện được phép promote** ([IngressPromote.decide]) — chỉ một lần, chỉ khi đã có phiên;
+ *  1. **điều kiện được phép promote** ([IngressPromote.decide] / [IngressPromote.Gate]) — khi đã có phiên, thử lại
+ *     tối đa 3 lần cách nhau ≥ 1,5 s; `already` chỉ sau khi thành công;
  *  2. URL top-level dựng đúng + TOKEN lấy từ `src` iframe ([IngressPromote.topUrl], [IngressPromote.tokenFromUrl],
  *     [HaIngress.readFrameSrc]);
  *  3. **kết luận trang top-level** ([IngressPromote.verdict], [IngressPromote.failReason]) — 401/403, SPA HA, 3xx;
@@ -348,16 +349,114 @@ class IngressPromoteTest {
     }
 
     @Test
-    fun co_chi_mot_lan_chi_tra_true_mot_lan() {
-        val once = IngressPromote.Once()
-        assertFalse(once.done)
-        assertTrue(once.take())
-        assertTrue(once.done)
-        assertFalse(once.take())
-        assertFalse(once.take())
-        once.reset()
-        assertFalse(once.done)
-        assertTrue(once.take())
+    fun co_thu_lai_toi_da_3_lan_cach_nhau_it_nhat_15s() {
+        // (1.2) Thay cờ "chỉ một lần": cổng cho thử lại khi đã có phiên, tối đa 3 lần, cách nhau ≥ 1,5 s.
+        var now = 1_000L
+        val gate = IngressPromote.Gate(clock = { now })
+
+        assertEquals(IngressPromote.Decision.PROMOTE, gate.decide(true, topUrl))
+        assertEquals(1, gate.take())
+
+        // Ngay sau đó (nhịp dò 1 s) → chưa đủ 1,5 s ⇒ WAIT (im lặng, không spam log).
+        now += 1_000
+        assertEquals(IngressPromote.Decision.WAIT, gate.decide(true, topUrl))
+        // Đủ 1,5 s ⇒ được thử lần 2 (thất bại trước đó KHÔNG khoá promote — đúng lỗi đã sửa).
+        now += 600
+        assertEquals(IngressPromote.Decision.PROMOTE, gate.decide(true, topUrl))
+        assertEquals(2, gate.take())
+
+        now += 1_500
+        assertEquals(IngressPromote.Decision.PROMOTE, gate.decide(true, topUrl))
+        assertEquals(3, gate.take())
+
+        // Hết 3 lượt ⇒ LIMIT (không phải `already`).
+        now += 5_000
+        assertEquals(IngressPromote.Decision.LIMIT, gate.decide(true, topUrl))
+        assertEquals(0, gate.take())
+        assertEquals(0, gate.attemptsLeft)
+
+        // Người dùng bấm "Mở Dashboard" ⇒ mở lại quyền thử.
+        gate.resetAttempts()
+        assertEquals(IngressPromote.Decision.PROMOTE, gate.decide(true, topUrl))
+    }
+
+    @Test
+    fun skip_already_chi_khi_da_ok_top() {
+        // (1.2) Yêu cầu 4: `skip=already` CHỈ khi promote đã thành công trong phiên app này.
+        var now = 1_000L
+        val gate = IngressPromote.Gate(clock = { now })
+        gate.take()                                  // đã thử, THẤT BẠI
+        assertFalse("thất bại không được khoá promote", gate.done)
+        now += 2_000
+        assertEquals(IngressPromote.Decision.PROMOTE, gate.decide(true, topUrl))
+
+        gate.take()
+        gate.success()                               // ok=top
+        assertTrue(gate.done)
+        now += 10_000
+        assertEquals(IngressPromote.Decision.ALREADY, gate.decide(true, topUrl))
+        assertEquals(IngressPromote.Decision.ALREADY, gate.decide(false, topUrl))
+
+        // Phiên app mới ("Kết nối") → quên cả "đã thành công".
+        gate.reset()
+        assertFalse(gate.done)
+        assertEquals(0, gate.attempts)
+        assertEquals(IngressPromote.Decision.PROMOTE, gate.decide(true, topUrl))
+    }
+
+    @Test
+    fun co_gate_khong_promote_khi_chua_co_phien() {
+        // Đúng log thật: promote lúc `session=no` chỉ tốn một lần 401 vô ích rồi bị khoá.
+        val gate = IngressPromote.Gate(clock = { 0L })
+        assertEquals(IngressPromote.Decision.NO_SESSION, gate.decide(false, topUrl))
+        assertEquals(0, gate.attempts)
+        assertEquals(IngressPromote.Decision.NO_URL, gate.decide(true, null))
+        assertEquals(IngressPromote.Decision.NO_URL, gate.decide(true, "  "))
+        // Đường dự phòng (panel hỏng) được thử dù chưa có cookie.
+        assertEquals(IngressPromote.Decision.PROMOTE, gate.decide(false, topUrl, requireSession = false))
+    }
+
+    @Test
+    fun giu_trang_top_level_theo_yeu_cau_3() {
+        // (1.2) Giữ khi: URL sau ingress + (nội dung `launcher-config` / `Dashboard OS`, hoặc tiêu đề khác
+        // "Home Assistant").
+        assertTrue(
+            IngressPromote.keepTopLevel(
+                200, "Dashboard OS", "<script src=\"launcher-config.js\"></script>",
+                IngressPromote.PageKind.ADDON, topUrl
+            )
+        )
+        assertTrue(IngressPromote.keepTopLevel(200, "Gọi điện", null, IngressPromote.PageKind.UNKNOWN, topUrl))
+        // 401/SPA HA/`/auth` → KHÔNG giữ (quay lại panel, còn quyền thử lại).
+        assertFalse(IngressPromote.keepTopLevel(401, null, null, IngressPromote.PageKind.UNKNOWN, topUrl))
+        assertFalse(IngressPromote.keepTopLevel(200, "Home Assistant", null, IngressPromote.PageKind.HA, topUrl))
+        assertFalse(
+            IngressPromote.keepTopLevel(
+                200, "Đăng nhập", null, IngressPromote.PageKind.AUTH, topUrl
+            )
+        )
+        // URL không còn nằm sau ingress (gốc domain / panel HA) → không phải top-level add-on ⇒ không giữ.
+        assertFalse(
+            IngressPromote.keepTopLevel(
+                200, "Dashboard OS", null, IngressPromote.PageKind.ADDON, "$origin/launcher-config.html"
+            )
+        )
+        assertFalse(
+            IngressPromote.keepTopLevel(
+                200, "Dashboard OS", null, IngressPromote.PageKind.ADDON,
+                "$origin" + DashboardTarget.PANEL_PATH
+            )
+        )
+    }
+
+    @Test
+    fun so_lan_va_giang_cach_dung_yeu_cau() {
+        assertEquals(3, IngressPromote.MAX_PROMOTE_ATTEMPTS)
+        assertEquals(1500L, IngressPromote.PROMOTE_RETRY_GAP_MS)
+        assertTrue(
+            "giãn cách 1,5 s phải dài hơn nhịp dò 1 s (tránh bắn dồn)",
+            IngressPromote.PROMOTE_RETRY_GAP_MS > 1000L
+        )
     }
 
     @Test
