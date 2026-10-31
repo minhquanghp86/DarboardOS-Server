@@ -11,7 +11,10 @@
 //               trang nao khong co 2 ham nay (vd call.html cua man) thi khong hien 2 nut nho,
 //               log?(): (01/12/2026) NHAT KY CUOC GOI — chi co o call-web.html. Co `log` -> man danh ba co 2 TAB:
 //               "Nhật ký" (mac dinh, tu cap nhat 5 s/lan) va "Thiết bị" (danh ba nhu cu). Trang khong co `log` (man P4,
-//               call.html) giu nguyen giao dien cu (khong tab). }
+//               call.html) giu nguyen giao dien cu (khong tab).
+//               clearLog?(): (02/12/2026) NUT "Xoá nhật ký" o goc phai tieu de tab Nhật ký — goi API
+//               POST /calls/log/clear?self=<id> cua trang (tra {ok, removed}). Trang nao co `log` thi nen co luon
+//               `clearLog` (ca call-web.html lan call.html cua man P4). }
 //   va goi ui.set(state) moi khi trang thai doi: {view:'contacts'|'out'|'in'|'active'|'ended'|'join', call, peer, peerName,
 //   since, peerMuted, peerCamOff, reason}. Sau khi sua/xoa thiet bi, trang goi ui.refresh() de ve lai danh ba.
 //   (GD3) view 'join' = DIEN THOAI dang vao cuoc goi co san (call-web.html?call=<id>): hien ten nguoi goi + `sub`
@@ -118,7 +121,9 @@
     // (01/12/2026) HAI TAB duoi header (chi trang co adapter.log): "Nhật ký" (mac dinh) + "Thiết bị".
     // Trang khong co `log` (call.html cua man P4) khong doi gi: danh ba cu, khong tab.
     var hasTabs = typeof A.log === 'function';
-    var tabs = null, tabBar = [], logBox = null, tab = 'log', logT = 0, logSig = '';
+    // (02/12/2026) `tab`: tab MO DAU khi trang co 2 tab — 'log' (mac dinh, nhu call-web.html) hoac 'devices'.
+    // Man P4 (call.html) truyen 'devices' de giu nguyen thao tac cu (mo trang Cuộc gọi = danh bạ để gọi ngay).
+    var tabs = null, tabBar = [], logBox = null, tab = A.tab === 'devices' ? 'devices' : 'log', logT = 0, logSig = '';
     if (hasTabs) {
       root.classList.add('has-tabs');
       tabs = el('div', 'tabs');
@@ -224,6 +229,34 @@
         renderContacts();
       }
     }
+    /**
+     * (02/12/2026) Tieu de tab "Nhật ký" + nut nho "Xoá nhật ký" (goc phai). Chi hien khi trang co adapter.clearLog.
+     * Bam -> `confirm()` -> POST /calls/log/clear?self=<id> -> tai lai danh sach + bao so muc da xoa.
+     */
+    function logHeader() {
+      var hdr = el('div', 'lth');
+      hdr.append(el('div', 'lt', 'Nhật ký'));
+      if (typeof A.clearLog === 'function') {
+        var b = el('button', 'lclr', 'Xoá nhật ký');
+        b.type = 'button';
+        b.title = 'Xoá nhật ký cuộc gọi của thiết bị này';
+        b.onclick = function () {
+          if (!window.confirm('Xoá toàn bộ nhật ký cuộc gọi của thiết bị này?')) return;
+          b.disabled = true;
+          Promise.resolve().then(function () { return A.clearLog(); }).then(function (j) {
+            logSig = '';                                   // buoc renderLog ve lai ke ca khi danh sach khong doi
+            var n = (j && Number(j.removed)) || 0;
+            say(n ? 'Đã xoá nhật ký (' + n + ' mục)' : 'Đã xoá nhật ký');
+            renderLog(false);
+          }).catch(function (e) {
+            say((e && e.message) || 'Không xoá được nhật ký.');
+            renderLog(false);
+          }).then(function () { b.disabled = false; });
+        };
+        hdr.append(b);
+      }
+      return hdr;
+    }
     /** Nhat ky cuoc goi (server: GET /calls/log?self=<id>) — moi nhat truoc; `quiet` = cap nhat ngam, chi ve khi doi. */
     function renderLog(quiet) {
       if (!logBox) return;
@@ -233,7 +266,7 @@
         var sig = items.map(function (i) { return i.id + i.state + i.endedAt + i.peerId; }).join('|');
         if (quiet && sig === logSig) return;
         logSig = sig;
-        logBox.replaceChildren(el('div', 'lt', 'Nhật ký'));
+        logBox.replaceChildren(logHeader());
         if (!items.length) {
           logBox.append(el('div', 'empty', 'Chưa có cuộc gọi nào. Mở tab “Thiết bị” để gọi màn hình, điện thoại hoặc trình duyệt khác.'));
           return;
@@ -243,7 +276,7 @@
         logBox.append(boxL);
       }).catch(function () {
         if (quiet || S.view !== 'contacts' || tab !== 'log') return;
-        logBox.replaceChildren(el('div', 'lt', 'Nhật ký'), el('div', 'empty', 'Không tải được nhật ký.'));
+        logBox.replaceChildren(logHeader(), el('div', 'empty', 'Không tải được nhật ký.'));
       });
     }
     /** Mot dong nhat ky: mui ten (goi di ↖ xanh / goi den ↙ xanh la / nho ↙ do), ten thiet bi, thoi gian, thoi luong. */

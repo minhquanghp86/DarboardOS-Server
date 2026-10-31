@@ -1,3 +1,9 @@
+## V2.9.310
+- **Điện thoại ↔ điện thoại có tiếng**: PCM 16 kHz được định tuyến giữa hai phiên web (`audioPeerOf`), chịu được
+  phiên vừa bị thay/join.
+- **Tab Nhật ký trên màn P4** (trước chỉ có trên trang web), bấm một dòng để gọi lại.
+- **Xoá nhật ký**: `POST /calls/log/clear?self=` + nút “Xoá nhật ký” (có xác nhận) trên cả hai giao diện.
+
 ## V2.9.309
 - **Nhật ký cuộc gọi**: lưu 200 cuộc gần nhất (`/data/rwv-call-log.json`) với hướng gọi, thiết bị, thời điểm,
   thời lượng, trạng thái (đã nói / nhỡ / từ chối / huỷ / lỗi); API `GET /calls/log?self=&limit=`.

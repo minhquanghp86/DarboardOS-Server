@@ -194,6 +194,22 @@ export class CallLog {
     return out;
   }
 
+  /**
+   * (02/12/2026) XOA NHAT KY — `POST /calls/log/clear?self=<id>` (src/calls.ts, handleCallsApi):
+   *   - `self` = id thiet bi -> chi xoa cac muc LIEN QUAN TOI no (muc cua chinh no: `self`; va muc cua ben kia
+   *     trong cung cuoc goi: `peerId`), de nguoi dung xoa tren may nao thi ca hai phia cung sach;
+   *   - `self` rong -> xoa TOAN BO.
+   * Tra ve SO MUC da xoa (`removed`), 0 = khong co gi de xoa (van `ok`).
+   */
+  clear(self = ''): number {
+    const id = clean(self, 64);
+    const before = this.items.length;
+    this.items = id ? this.items.filter((it) => it.self !== id && it.peerId !== id) : [];
+    const removed = before - this.items.length;
+    if (removed) this.save();
+    return removed;
+  }
+
   /** So muc dang giu (ke ca muc dang do chuong) — test gioi han 200. */
   size(): number { return this.items.length; }
 

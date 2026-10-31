@@ -28,8 +28,11 @@ android {
         targetSdk = 35
         // (1.8) YÊU CẦU: versionCode = 9, versionName = "1.8" — sửa lỗi bấm "Nghe" mở nhầm panel của Home Assistant
         // (URL trang gọi phải nằm dưới ingress của add-on — xem CallPageTarget/CallLauncher).
-        versionCode = 9
-        versionName = "1.8"
+        // (1.9) YÊU CẦU: versionCode = 10, versionName = "1.9" — bản app đi kèm add-on có TIẾNG điện thoại ↔ điện thoại
+        // (tiếng do server chuyển tiếp, trang gọi vẫn là call-web.html của add-on) + tab "Nhật ký" trên màn P4 và nút
+        // "Xoá nhật ký". Trang gọi nạp từ add-on nên bản app này không đổi giao diện gọi.
+        versionCode = 10
+        versionName = "1.9"
     }
 
     signingConfigs {

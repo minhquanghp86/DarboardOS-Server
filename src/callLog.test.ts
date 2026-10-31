@@ -107,6 +107,42 @@ describe('mot cuoc goi = hai muc (dir theo tung ben)', () => {
   });
 });
 
+describe('clear() — xoa nhat ky (POST /calls/log/clear?self=)', () => {
+  it('self=<id>: xoa cac muc LIEN QUAN (muc cua no + muc cua ben kia trong cung cuoc), giu muc khac', () => {
+    const log = new CallLog(null);
+    log.open('c1', WEB, PANEL); log.finish('c1', 'Đã kết thúc');
+    log.open('c2', WEB, PHONE); log.finish('c2', 'Từ chối');
+    log.open('c3', PANEL, PHONE); log.finish('c3', 'Đã kết thúc');
+    expect(log.size()).toBe(6);
+
+    expect(log.clear(WEB.id)).toBe(4);                    // c1 (2 muc) + c2 (2 muc) — deu lien quan toi WEB
+    expect(log.list(WEB.id)).toHaveLength(0);
+    expect(log.list(PANEL.id).map((i) => i.id)).toEqual(['c3']);
+    expect(log.list(PHONE.id).map((i) => i.id)).toEqual(['c3']);
+    expect(log.clear(WEB.id)).toBe(0);                    // khong con gi -> 0 (idempotent)
+  });
+
+  it('self rong: xoa TOAN BO', () => {
+    const log = new CallLog(null);
+    log.open('c1', WEB, PANEL); log.finish('c1', 'Đã kết thúc');
+    log.open('c2', PANEL, PHONE); log.finish('c2', 'Đã kết thúc');
+    expect(log.clear('')).toBe(4);
+    expect(log.size()).toBe(0);
+    expect(log.list()).toHaveLength(0);
+  });
+
+  it('xoa ca muc dang do chuong (chua ket thuc) va ghi lai file', () => {
+    const file = tmpFile();
+    const log = new CallLog(file);
+    log.open('c1', WEB, PANEL);
+    log.finish('c1', 'Đã kết thúc');
+    log.open('c2', WEB, PANEL);                            // dang do chuong
+    expect(log.clear(WEB.id)).toBe(4);
+    expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toEqual([]);
+    expect(new CallLog(file).size()).toBe(0);
+  });
+});
+
 describe('gioi han 200 muc gan nhat', () => {
   it('400 muc (200 cuoc goi) -> chi giu 200 muc MOI NHAT', () => {
     const log = new CallLog(null);

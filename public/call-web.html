@@ -179,7 +179,13 @@
       + (BROWSER_ID ? '&id=' + encodeURIComponent(BROWSER_ID) : '')); ws.binaryType = 'arraybuffer';
     // (30/10/2026) GUI `hello` NGAY khi mo WS, TRUOC moi tin khac: id ben vung + ten hien thi. Server dung id nay
     // lam id phien (thay phien cu cung id neu con) -> danh ba khong doi id, khong sinh muc moi.
-    ws.onopen = function () { send({ type: 'hello', id: BROWSER_ID, name: NAME, kind: 'web' }); };
+    ws.onopen = function () {
+      // (02/12/2026) GD11 — kem `phone` khi trang biet id may (app mo `call-web.html?call=…&phone=<id>`): server
+      // giu lai de danh ba danh dau BAN ca khi may la BEN GOI (src/calls.ts wireAudio/busy).
+      var h = { type: 'hello', id: BROWSER_ID, name: NAME, kind: 'web' };
+      if (JOIN_PHONE) h.phone = JOIN_PHONE;
+      send(h);
+    };
     ws.onmessage = function (e) {
       if (typeof e.data !== 'string') {
         var b = new Uint8Array(e.data);
@@ -358,12 +364,23 @@
     self: '', base: BASE, ringUrl: BASE + 'ringtone/call',
     contacts: function () { return new Promise(function (ok) { wantList = ok; send({ type: 'contacts' }); setTimeout(function () { if (wantList) { wantList(list); wantList = null; } }, 2000); }); },
     // (01/12/2026) TAB "Nhật ký": GET /calls/log?self=<id phien cua minh>&limit=50 -> {ok, items:[...]} moi nhat truoc.
-    // Chi co tren trang nay (call.html cua man P4 khong co `log` -> khong hien tab, giu nguyen danh ba cu).
+    // (02/12/2026) Man P4 (call.html) cung co tab nay — cung adapter, `self` = id man (`?dev=`).
     log: function () {
       if (!me) return [];                                  // chua co `hello` -> chua biet minh la ai
       return fetch(BASE + 'calls/log?self=' + encodeURIComponent(me) + '&limit=50', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
         .then(function (j) { return (j && j.items) || []; });
+    },
+    // (02/12/2026) NUT "Xoá nhật ký" (goc phai tieu de tab Nhật ký) -> POST /calls/log/clear?self=<id phien cua minh>.
+    // `me` rong = chua biet minh la ai -> KHONG goi (tranh xoa nhat ky cua MOI thiet bi tren server).
+    clearLog: function () {
+      if (!me) return Promise.reject(new Error('Chưa kết nối máy chủ.'));
+      return fetch(BASE + 'calls/log/clear?self=' + encodeURIComponent(me), { method: 'POST', cache: 'no-store' })
+        .then(function (r) { return r.json().catch(function () { return {}; }); })
+        .then(function (j) {
+          if (!j || j.ok === false) throw new Error('Không xoá được nhật ký.');
+          return j;
+        });
     },
     // (GD8) QUAN LY THIET BI DIEN THOAI ngay trong danh ba (call-ui.js hien 2 nut nho cho kind 'phone'):
     // sua ten -> POST /app/rename, xoa -> POST /app/remove (src/phones.ts). Xong thi ve lai danh ba.

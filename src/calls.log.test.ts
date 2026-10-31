@@ -205,3 +205,43 @@ describe('(d) API /calls/log', () => {
     expect(await logOf('may-khong-ton-tai')).toHaveLength(0);
   });
 });
+
+describe('(e) XOA NHAT KY — POST /calls/log/clear', () => {
+  it('?self=<id>: xoa muc cua thiet bi do -> {ok, removed:n}; muc cua may khac van con', async () => {
+    const a = await openPage('A');
+    a.send({ type: 'start', to: PHONE });
+    const first = (await a.wait('started')).call as string;
+    live.push(first);
+    await post(`/app/decline?phone=${PHONE}&call=${first}`);
+    await a.wait('ended');
+    expect(await logOf(a.id)).toHaveLength(1);
+
+    const r = await fetch(`${base}/calls/log/clear?self=${encodeURIComponent(a.id)}`, { method: 'POST' });
+    expect(r.status).toBe(200);
+    const body = await r.json() as { ok: boolean; removed: number };
+    expect(body).toEqual({ ok: true, removed: 2 });              // 1 muc cua A + 1 muc cua PHONE (cung cuoc goi)
+
+    expect(await logOf(a.id)).toHaveLength(0);
+    expect(await logOf(PHONE)).toHaveLength(0);
+    expect((await fetch(`${base}/calls/log/clear?self=${encodeURIComponent(a.id)}`, { method: 'POST' })).status).toBe(200);
+  });
+
+  it('self rong: xoa TOAN BO nhat ky cua moi thiet bi', async () => {
+    const a = await openPage('A');
+    a.send({ type: 'start', to: PHONE });
+    const callId = (await a.wait('started')).call as string;
+    live.push(callId);
+    await post(`/app/decline?phone=${PHONE}&call=${callId}`);
+    await a.wait('ended');
+
+    const body = await (await fetch(`${base}/calls/log/clear`, { method: 'POST' })).json() as { ok: boolean; removed: number };
+    expect(body.ok).toBe(true);
+    expect(body.removed).toBe(2);
+    expect(await logOf(a.id)).toHaveLength(0);
+    expect(await logOf(PHONE)).toHaveLength(0);
+  });
+
+  it('GET /calls/log/clear -> 405 (chi POST)', async () => {
+    expect((await fetch(`${base}/calls/log/clear?self=x`)).status).toBe(405);
+  });
+});

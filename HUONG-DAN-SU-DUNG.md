@@ -302,13 +302,17 @@ Không ai nhận trong 30 giây → cuộc gọi nhỡ: P4 hiện thông báo tr
 | Trình duyệt không nhận cuộc gọi | Tab Cuộc gọi đã đóng | Giữ tab mở, hoặc dùng ứng dụng Dashboard OS |
 | Danh bạ có nhiều mục trùng tên | Nhiều máy cùng tên / bản cũ | Cập nhật add-on; **sửa tên** hoặc **xoá** trong trang Cuộc gọi |
 | Hình từ điện thoại không hiện trên P4 | Bản add-on cũ | Cập nhật add-on (từ 2.9.302 trở lên) |
-| Gọi điện thoại ↔ điện thoại không có tiếng | Chưa hỗ trợ | Tạm thời gọi qua P4 (P4 ↔ điện thoại) |
+| Gọi điện thoại ↔ điện thoại không có tiếng | Bản add-on cũ (chưa chuyển tiếng giữa hai phiên web) | Cập nhật add-on mới (tiếng đi **hai chiều** giữa hai điện thoại) |
 | Không thấy **tab Nhật ký** | Bản add-on cũ (chưa có nhật ký) | Cập nhật add-on **2.9.309** trở lên rồi tải lại trang |
 | Nhật ký trống dù vừa gọi | Cuộc gọi **chưa kết thúc** (đang đổ chuông / đang nói) | Nhật ký chỉ ghi cuộc **đã xong**; kết thúc cuộc gọi rồi xem lại |
 
 ### 7.9. Nhật ký cuộc gọi (tab **Nhật ký**)
 
-Trang **Cuộc gọi** (trên Dashboard và trình duyệt) có **2 tab**: **Nhật ký** (mở sẵn) và **Thiết bị**.
+Trang **Cuộc gọi** có **2 tab**: **Nhật ký** và **Thiết bị** — trên Dashboard/trình duyệt mở sẵn tab **Nhật ký**,
+trên màn P4 mở sẵn tab **Thiết bị** (danh bạ để gọi ngay như trước).
+
+- Nút nhỏ **Xoá nhật ký** ở góc phải tiêu đề tab **Nhật ký** (cả trên P4 và trên trình duyệt): bấm → xác nhận →
+  xoá nhật ký liên quan tới **thiết bị đang mở** (`POST /calls/log/clear?self=<id>` → `{ok, removed}`) rồi tự tải lại.
 
 | Biểu tượng / cột | Ý nghĩa |
 |---|---|
@@ -323,12 +327,14 @@ Trang **Cuộc gọi** (trên Dashboard và trình duyệt) có **2 tab**: **Nh�
 - Server giữ **200 mục** gần nhất (`/data/rwv-call-log.json`) — mỗi cuộc 2 mục (bên gọi + bên nhận) nên tương đương
   ~**100 cuộc gần nhất**. Nâng cấp add-on hay khởi động lại **không mất**; bản sao lưu add-on có tệp này.
 - Cuộc **đang đổ chuông** chưa vào nhật ký (đã hiện ở màn hình gọi); nhật ký chỉ liệt kê cuộc **đã kết thúc**.
-- API cho trang đọc: `GET /calls/log?self=<id>&limit=` (mặc định 50 mục, tối đa 200).
-- **Trên màn P4**: ứng dụng đã đổi tên **Cuộc gọi** nhưng vẫn là danh bạ; xem nhật ký ở trang Cuộc gọi trên Dashboard.
+- API cho trang đọc: `GET /calls/log?self=<id>&limit=` (mặc định 50 mục, tối đa 200); xoá: `POST /calls/log/clear?self=<id>`
+  (`self` rỗng = xoá toàn bộ) trả `{ok, removed:n}`.
+- **Trên màn P4**: ứng dụng **Cuộc gọi** có đủ 2 tab — **Thiết bị** (danh bạ, mở sẵn) và **Nhật ký** (cùng nút **Xoá nhật ký**);
+  bấm một dòng nhật ký = **gọi lại** thiết bị đó bằng luồng gọi của màn.
 
 ## 8. Ứng dụng Android — Kết nối, bong bóng, Cài đặt, Chẩn đoán, Đăng xuất
 
-Áp dụng cho **Dashboard OS 1.7** (versionCode **8**). Cách cài app: mục **7.3**; xử lý sự cố nhanh: mục **5.12**
+Áp dụng cho **Dashboard OS 1.9** (versionCode **10**). Cách cài app: mục **7.3**; xử lý sự cố nhanh: mục **5.12**
 trong [`README.md`](README.md).
 
 ### 8.1. Màn Kết nối (màn đầu tiên)

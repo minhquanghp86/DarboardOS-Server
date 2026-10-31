@@ -89,6 +89,16 @@
 .call .loglist { position: absolute; inset: 0; overflow-y: auto; background: #0b0d10;
   padding: calc(clamp(22px, 5vmin, 40px) + 76px) clamp(16px, 4vw, 48px) 24px; }
 .call .loglist .lt { font-size: clamp(22px, 5vmin, 30px); font-weight: 700; margin-bottom: clamp(10px, 2.4vmin, 18px); }
+/* (02/12/2026) Tieu de tab "Nhật ký" + nut nho "Xoá nhật ký" o GOC PHAI (call-ui.js logHeader). */
+.call .loglist .lth { display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  margin-bottom: clamp(10px, 2.4vmin, 18px); }
+.call .loglist .lth .lt { margin-bottom: 0; }
+.call .loglist .lclr { flex: none; height: 34px; padding: 0 14px; border-radius: 999px; cursor: pointer;
+  border: 1px solid rgba(255, 59, 48, 0.45); background: rgba(255, 59, 48, 0.12); color: #ff8f8f;
+  font: 600 13.5px "Be Vietnam Pro", Roboto, sans-serif; }
+.call .loglist .lclr:hover { background: rgba(255, 59, 48, 0.22); color: #fff; }
+.call .loglist .lclr:focus-visible { outline: 2px solid #ff453a; outline-offset: 2px; }
+.call .loglist .lclr:disabled { opacity: 0.5; cursor: default; }
 .call .lg { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); }
 .call .lr { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: none; border-radius: 16px;
   background: #171b21; color: #fff; font: inherit; text-align: left; cursor: pointer; }

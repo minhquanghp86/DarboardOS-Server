@@ -28,6 +28,17 @@
 // Tieng di y nhu luong man <-> trinh duyet: mic man -> 0x01 xuong WS; PCM trong WS -> loa man (sendToDevice).
 // Trang thai cuoc goi: GET /calls/state?call= (da co) — trang goi hoi 2,5 s/lan de biet cuoc goi ket thuc.
 //
+// (02/12/2026) GD11 — DIEN THOAI <-> DIEN THOAI CO TIENG (va xoa nhat ky):
+//   - `wireAudio()` (goi tu `accept()` VA `join()`) la CHO DUY NHAT noi tieng: man<->man (linkCalls), man<->web
+//     (mic man -> 0x01 xuong WS, `bridgePanelWeb`) va web<->web (dien thoai <-> dien thoai: PCM 0x01 chuyen thang
+//     WS -> WS trong `webMessage`). Truoc day `join()` chi noi khi `c.from` la MAN va `accept()` chi xu ly `legs`
+//     (man), nen cuoc goi ma CA HAI dau la phien web khong co duong tieng nao.
+//   - `webMessage` dinh tuyen 0x01 qua `audioPeerOf()` (chiu duoc phien web vua bi thay / vua join), ghi log MOT
+//     lan khi khong gui duoc (de biet vi sao "khong co tieng").
+//   - Mat WS mot ben -> ben kia nhan 'ended': `webBound()` doi hoi MOI dau cuoi web con song (truoc day chi can MOT).
+//   - `accept()` nhan lai (idempotent) khi dien thoai da `join` truoc khi app kip POST /app/answer.
+//   - POST /calls/log/clear?self=<id> -> {ok, removed:n}: xoa nhat ky cua thiet bi (self rong = xoa het).
+//
 // (23/11/2026) GD10 — SUA 2 LOI "MAN HINH CUOC GOI KHONG DONG": bam "Ket thuc" o phia NGUOI GOI khong dong duoc man
 // hinh (dong ho van dem) va khi ben NHAN bam "Tu choi" thi may goi di treo o "Dang goi" mai mai. Goc: phien web la
 // thu the TAM (moi lan WS rot roi noi lai la mot id MOI) trong khi cuoc goi van tro toi id CU, ma 'ended' chi gui
@@ -55,13 +66,24 @@ const RING_S = 30;
 export interface Party { kind: 'panel' | 'web' | 'phone'; id: string }
 interface WebSession { id: string; name: string; ws: WebSocket; call: string | null; vcfg: { codec: string; avcc: Buffer } | null; vsinks: Set<FrameSink>;
   /** (17/11/2026) GD9: da nhan khung hinh H.264 dau tien tu trang nay (chi de ghi log MOT lan). */
-  vfirst?: boolean }
+  vfirst?: boolean;
+  /**
+   * (02/12/2026) ID MAY (dien thoai) cua phien web nay, khi trang tu khai (`{type:'hello'|'join', phone}`) hoac khi
+   * server biet qua `join()`. Dung cho `busy()`: dien thoai dang trong cuoc goi bang phien web cua no thi phai BAN
+   * ca khi bi goi theo id may (`c.phone` chi biet ben NHAN, con ben GOI thi khong).
+   */
+  phone?: string }
 interface Call {
   id: string; from: Party; to: Party; state: 'ringing' | 'active';
   ringT: NodeJS.Timeout; startedAt: number; ringId: string | null;
   muted: Set<string>; camOff: Set<string>; unlisten: (() => void)[];
   /** (GD3) Dien thoai dang trong cuoc goi bang trang call-web.html?call= (c.to da doi thanh phien web cua may). */
   phone?: string;
+  /** (02/12/2026) Man hinh DA duoc noi tieng (mic -> 0x01 xuong WS) — `accept()` va `join()` co the cung goi
+   *  `wireAudio()`, tap nay bao dam moi man chi co MOT duong tieng (khong nhan doi am luong). */
+  wired: Set<string>;
+  /** (02/12/2026) Da ghi log MOT lan "khong gui duoc tieng" cho cuoc goi nay (chan log lap lai moi khung 20 ms). */
+  warned?: boolean;
 }
 // (23/11/2026) GD10 — SUA LOI "NGUOI GOI BAM KET THUC KHONG DONG / BEN KIA TU CHOI MA MAY GOI TREO O 'DANG GOI'":
 //   Phien web (WS /calls/web) la thuc the TAM: moi lan WS rot roi noi lai (WebView bi an, ingress dong idle, doi
@@ -94,7 +116,11 @@ const partyName = (p: Party) => (p.kind === 'web' ? webs.get(p.id)?.name || 'Tr�
 /** (01/12/2026) Mot dau cuoc goi kem TEN hien thi — nhat ky ghi ten ngay luc bat dau (phien web co the tat sau do). */
 const sideOf = (p: Party): CallSide => ({ id: p.id, kind: p.kind, name: partyName(p) });
 // (GD3) Dien thoai da "join" bang trang call-web: c.to la phien web, id may nam o `c.phone` -> van phai coi la BAN.
-const busy = (id: string) => [...calls.values()].some((c) => c.from.id === id || c.to.id === id || c.phone === id) || isInCall(id);
+// (02/12/2026) GD11 — BEN GOI cung co the la dien thoai: khi phien web cua may tu khai id may (`w.phone`, tu
+// `{type:'hello'|'join', phone}` hoac tu `join()`) thi id may do cung tinh la BAN (`c.phone` chi biet ben NHAN).
+const sessionPhone = (p: Party): string => (p.kind === 'web' ? webs.get(p.id)?.phone || '' : '');
+const busy = (id: string) => [...calls.values()].some((c) => c.from.id === id || c.to.id === id || c.phone === id
+  || sessionPhone(c.from) === id || sessionPhone(c.to) === id) || isInCall(id);
 const callOf = (id: string) => calls.get(id);
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
@@ -183,9 +209,12 @@ function attachWeb(w: WebSession): void {
  * Trang co the mo WS khong kem `&id=` -> server sinh id tam; hello doi phien sang id ben vung ngay lap tuc
  * (thay phien cu cung id neu con, giu cuoc goi) roi tra lai `hello` + danh ba theo id moi.
  */
-function webHello(w: WebSession, m: { id?: unknown; name?: unknown }): void {
+function webHello(w: WebSession, m: { id?: unknown; name?: unknown; phone?: unknown }): void {
   const name = typeof m.name === 'string' && m.name.trim() ? m.name.trim().slice(0, 40) : w.name;
   w.name = name;
+  // (02/12/2026) GD11 — trang tu khai ID MAY (khi mo bang `call-web.html?phone=<id>` / do app mo): giu lai de
+  // `busy()` biet "dien thoai nay dang trong cuoc goi qua phien web" ca khi no la BEN GOI (c.phone chi biet ben nhan).
+  if (typeof m.phone === 'string' && m.phone.trim()) w.phone = m.phone.trim().slice(0, 64);
   const id = webIdOf(m.id);
   if (!id || id === w.id) return;                             // id rac / khong doi -> giu phien dang co
   const prev = w.id;
@@ -209,13 +238,20 @@ function callOfWeb(w: WebSession, wanted = ''): Call | undefined {
   return ok(w.call || '') || ok(wanted) || [...calls.values()].find((c) => c.from.id === w.id || c.to.id === w.id || c.phone === w.id);
 }
 
-/** (23/11/2026) GD10 — con it nhat MOT phien web dang song giu cuoc goi nay (dung cho an han khi mat WS). */
+/**
+ * (23/11/2026) GD10 — con it nhat MOT phien web dang song giu cuoc goi nay (dung cho an han khi mat WS).
+ * (02/12/2026) GD11 — SUA LOI "DIEN THOAI <-> DIEN THOAI: MOT BEN NGAT THI BEN KIA KHONG BAO GIO NHAN `ended`":
+ * truoc day ham nay tra true khi BAT KY phien web nao con song va dang giu cuoc goi, nen voi cuoc goi ma CA HAI
+ * dau deu la phien web, dong mot ben (tat WebView / mat mang qua an han) thi ben con lai van "dang goi", mic van mo,
+ * dong ho van dem, va khong he nhan duoc 'ended'. Nay: MOI dau cuoi WEB cua cuoc goi phai con mot phien dang song
+ * (phien bi thay cung id da duoc dang ky truoc do nen `webs.has(id)` van true -> khong cat oan khi noi lai).
+ */
 function webBound(callId: string): boolean {
-  for (const w of webs.values()) if (w.call === callId) return true;
   const c = callOf(callId);
   if (!c) return false;
-  if (c.from.kind === 'web' && webs.has(c.from.id)) return true;
-  return c.to.kind === 'web' && webs.has(c.to.id);
+  const sides = [c.from, c.to].filter((p) => p.kind === 'web');
+  if (!sides.length) return false;
+  return sides.every((p) => webs.has(p.id));
 }
 
 /**
@@ -251,7 +287,7 @@ export function start(fromId: string, toId: string): { ok: boolean; call?: strin
   if (busy(toId)) return { ok: false, error: `${partyName(to)} đang bận.` };
   const id = newId();
   const c: Call = { id, from, to, state: 'ringing', ringT: setTimeout(() => finish(id, 'Không trả lời', true), RING_S * 1000),
-    startedAt: 0, ringId: null, muted: new Set(), camOff: new Set(), unlisten: [] };
+    startedAt: 0, ringId: null, muted: new Set(), camOff: new Set(), unlisten: [], wired: new Set() };
   calls.set(id, c);
   // (01/12/2026) Nhat ky: tao MUC CHO CA HAI BEN ngay khi bat dau goi (`dir` theo ben goi) — `accept()` ghi
   // `startedAt`, `finish()` ghi trang thai cuoi + ai cup may.
@@ -276,18 +312,78 @@ export function start(fromId: string, toId: string): { ok: boolean; call?: strin
  * (14/10/2026) Tieng man <-> phien web trong cuoc goi: mic man -> khung 0x01 xuong WS cua trang goi.
  * Chieu nguoc lai (PCM trong WS -> loa man) nam o `webMessage` (nhi phan 0x01) — doi xung san co.
  * (GD3) Dung chung cho ca cuoc goi man <-> trinh duyet va man <-> DIEN THOAI (trang call-web.html?call=).
+ * (02/12/2026) GD11 — chi noi MOT lan cho moi (cuoc goi, man): `accept()` va `join()` co the cung goi `wireAudio()`.
  */
 function bridgePanelWeb(c: Call, panelId: string, webId: string): void {
+  if (c.wired.has(panelId)) return;
+  c.wired.add(panelId);
   c.unlisten.push(onMicListener(panelId, (pcm) => {
-    const w = webs.get(webId);
-    if (!c.muted.has(panelId) && w && w.ws.readyState === WebSocket.OPEN && w.ws.bufferedAmount < 256 * 1024) w.ws.send(Buffer.concat([Buffer.from([1]), pcm]));
+    if (c.muted.has(panelId)) return;
+    sendWebAudio(webId, pcm);
   }));
+}
+
+/** (02/12/2026) GD11 — gui mot khung PCM (0x01 + PCM s16le) toi phien web `id`; false = khong gui duoc. */
+function sendWebAudio(id: string, pcm: Buffer): boolean {
+  const w = webs.get(id);
+  if (!w || w.ws.readyState !== WebSocket.OPEN || w.ws.bufferedAmount >= 256 * 1024) return false;
+  w.ws.send(Buffer.concat([Buffer.from([1]), pcm]));
+  return true;
+}
+
+/**
+ * (02/12/2026) GD11 — NOI TIENG cho cuoc goi vua `active`. DUY NHAT mot cho, goi tu `accept()` va `join()`.
+ *
+ * Ba loai cuoc goi, ba duong tieng khac nhau:
+ *   - man <-> man   : callBridge.linkCalls (noi truc tiep trong callBridge, xem `accept()`);
+ *   - man <-> web   : mic man -> 0x01 xuong WS (`bridgePanelWeb`); PCM trang gui len -> loa man (`webMessage`);
+ *   - web <-> web   : DIEN THOAI <-> DIEN THOAI (hoac trinh duyet <-> dien thoai) — KHONG co mic man nen tieng di
+ *                     thang WS -> WS trong `webMessage`. O day chi can GAN `w.call` cho CA HAI dau: `webMessage`
+ *                     dinh tuyen 0x01 theo `w.call`, va phien web co the vua duoc thay (`takeOver`) hoac vua `join`
+ *                     nen `w.call` phai duoc dat lai, neu khong khung tieng bi bo qua trong im lang.
+ */
+function wireAudio(c: Call): void {
+  // GAN lai `w.call` cho moi dau WEB dang song (phien vua join / vua duoc thay bang phien moi cung id).
+  for (const p of [c.from, c.to]) if (p.kind === 'web') { const w = webs.get(p.id); if (w) w.call = c.id; }
+  const panels = [c.from, c.to].filter((p) => p.kind === 'panel');
+  const websides = [c.from, c.to].filter((p) => p.kind === 'web');
+  if (panels.length === 1 && websides.length === 1) { bridgePanelWeb(c, panels[0].id, websides[0].id); return; }
+  if (panels.length === 2) return;                       // man <-> man: `accept()` da `linkCalls()`
+  if (websides.length === 2) {
+    // Hai dau deu la phien web: tieng 2 chieu chay trong `webMessage` (0x01 -> WS cua ben kia) — ghi MOT lan de
+    // nhat ky add-on thay ro duong tieng da noi (truoc day khong co dong nao nen kho lan ra loi "khong co tieng").
+    console.log(`[calls] ${c.id}: tieng web <-> web (${websides[0].id} <-> ${websides[1].id})`);
+  }
+}
+
+/**
+ * (02/12/2026) GD11 — DAU CUOI TIENG doi dien voi phien web `w` trong cuoc goi `c`.
+ *
+ * Truong hop thuong: `c.from.id` / `c.to.id`. Nhung khi phien web bi THAY (WS rot roi noi lai -> phien moi cung id,
+ * hoac phien vua duoc gan lai sau `resume`) va `c.from`/`c.to` con tro toi mot id khong con song, tin hieu 0x01 cua
+ * phien dang song se bi bo qua (`peer` = chinh no -> khong gui cho ai) = MAT TIENG mot chieu. Vi vay: neu dau kia la
+ * web va phien cua no da chet, coi tin nay la cua dau do.
+ */
+function audioPeerOf(c: Call, w: WebSession): Party | null {
+  if (c.from.id === w.id) return c.to;
+  if (c.to.id === w.id) return c.from;
+  if (c.from.kind === 'web' && !webs.has(c.from.id)) return c.to;
+  if (c.to.kind === 'web' && !webs.has(c.to.id)) return c.from;
+  return null;
 }
 
 /** Ben nhan nghe: noi tieng. */
 export function accept(callId: string, by: string): { ok: boolean; error?: string } {
   const c = callOf(callId);
-  if (!c || c.state !== 'ringing' || c.to.id !== by) return { ok: false, error: 'Cuộc gọi đã kết thúc.' };
+  if (!c) return { ok: false, error: 'Cuộc gọi đã kết thúc.' };
+  // (02/12/2026) GD11 — DIEN THOAI da `join` TRUOC khi app kip POST /app/answer (WebView mo nhanh hon HTTP):
+  // `join()` da tu `accept()` va doi `c.to` thanh phien web cua may, nen lan `accept()` nay thay `c.to.id !== by`.
+  // Truoc day -> 409 'Cuộc gọi đã kết thúc.' va app hien "Nghe thất bại" (du cuoc goi van dang chay).
+  if (c.state !== 'ringing') {
+    if (c.state === 'active' && (c.phone === by || c.to.id === by || c.from.id === by)) return { ok: true };
+    return { ok: false, error: 'Cuộc gọi đã kết thúc.' };
+  }
+  if (c.to.id !== by) return { ok: false, error: 'Cuộc gọi đã kết thúc.' };
   clearTimeout(c.ringT);
   // (14/10/2026) SUA LOI: trang cuoc goi tren man nhan mo voi hen gio tu dong (het do chuong) — da nghe thi bo hen gio,
   // truoc day dung ~32 s sau trang tu dong du cuoc goi van chay.
@@ -298,14 +394,11 @@ export function accept(callId: string, by: string): { ok: boolean; error?: strin
   const legs = [c.from, c.to].filter((p) => p.kind === 'panel');
   for (const p of legs) if (!startCall(p.id)) { finish(callId, 'Máy bận.'); return { ok: false, error: 'Máy bận.' }; }
   if (legs.length === 2) linkCalls(c.from.id, c.to.id);
-  else if (legs.length === 1) {
-    // man <-> trinh duyet: mic man -> phien web; tieng web -> loa man (xem webMessage).
-    // (10/11/2026) man <-> dien thoai (GD2, chua co tieng): chi can mo leg tieng cua man; dien thoai khong co WS
-    // nen KHONG gan onMicListener (khong co noi nhan PCM).
-    // (GD3) neu trang call-web cua dien thoai da "join" TRUOC do thi `other` da la phien web -> noi tieng luon.
-    const panel = legs[0], other = c.from.kind === 'panel' ? c.to : c.from;
-    if (other.kind === 'web') bridgePanelWeb(c, panel.id, other.id);
-  }
+  // (02/12/2026) GD11 — `wireAudio()` lo CA HAI truong hop con lai:
+  //   - man <-> web : man <-> trinh duyet, va man <-> DIEN THOAI da `join` (mic man -> 0x01 xuong WS trang);
+  //   - web <-> web : DIEN THOAI <-> DIEN THOAI (ca hai dau la phien web, KHONG co `panel` nao de noi) — truoc day
+  //                   nhanh `legs.length === 1` bo qua hoan toan nen khong co duong tieng nao duoc noi.
+  wireAudio(c);
   for (const p of [c.from, c.to]) if (p.kind === 'web') sendWeb(p.id, { type: 'active', call: callId, peer: p.id === c.from.id ? c.to.id : c.from.id });
   console.log(`[calls] ${callId}: ${by} nghe`);
   return { ok: true };
@@ -341,9 +434,11 @@ export function join(callId: string, webId: string, phoneId = ''): JoinResult {
   c.phone = phone;
   c.to = { kind: 'web', id: webId };
   w.call = callId;
-  // Tieng: man <-> phien web (ca hai chieu, xem bridgePanelWeb + webMessage). Cac dau khac (dien thoai <-> dien
-  // thoai) khong co duong tieng — giu nguyen nhu truoc.
-  if (c.from.kind === 'panel') bridgePanelWeb(c, c.from.id, webId);
+  w.phone = phone;                    // (GD11) de `busy()` biet may nao dang trong cuoc goi qua phien web nay
+  // (02/12/2026) GD11 — NOI TIENG cho ca ba truong hop, ke ca khi BEN GOI cung la phien web (dien thoai goi dien
+  // thoai: `c.from` = phien web cua may A, `c.to` = phien web cua may B). Truoc day chi noi khi `c.from` la MAN
+  // (`if (c.from.kind === 'panel')`) -> cuoc goi dien thoai <-> dien thoai KHONG co duong tieng nao.
+  wireAudio(c);
   console.log(`[calls] ${callId}: ${webId} vao cuoc goi cua dien thoai ${phone}`);
   return { ok: true, call: callId, peer: c.from.id, peerName: partyName(c.from), since: c.startedAt };
 }
@@ -504,7 +599,11 @@ function webMessage(w: WebSession, data: Buffer, isBinary: boolean): void {
     let m: any;
     try { m = JSON.parse(data.toString()); } catch { return; }
     if (m?.type === 'hello') webHello(w, m);
-    else if (m?.type === 'start') { const r = start(w.id, String(m.to || '')); sendWeb(w.id, { type: 'started', ...r }); }
+    else if (m?.type === 'start') {
+      // (02/12/2026) GD11 — trang GOI cung co the tu khai id may (`{type:'start', to, phone}`): giu lai cho `busy()`.
+      if (typeof m.phone === 'string' && m.phone.trim()) w.phone = m.phone.trim().slice(0, 64);
+      const r = start(w.id, String(m.to || '')); sendWeb(w.id, { type: 'started', ...r });
+    }
     // (GD3) Dien thoai: trang call-web.html?call=<id> xin VAO cuoc goi dang co (sound 2 chieu voi man).
     else if (m?.type === 'join') {
       const r = join(String(m.call || ''), w.id, String(m.phone || ''));
@@ -544,15 +643,23 @@ function webMessage(w: WebSession, data: Buffer, isBinary: boolean): void {
   const c = w.call ? callOf(w.call) : undefined;
   if (!c || c.state !== 'active' || data.length < 2) return;
   if (data[0] === 1) {
-    const peer = c.from.id === w.id ? c.to : c.from;
-    if (peer.kind === 'panel' && !c.muted.has(w.id)) sendToDevice(peer.id, data.subarray(1));
-    // (GD3) hai dau deu la trang web (vd tab "Gọi" tren Dashboard <-> call-web.html?call= cua dien thoai):
-    // chuyen thang PCM 0x01, cung dinh dang voi khung tieng man -> trinh duyet.
-    else if (peer.kind === 'web' && !c.muted.has(w.id)) {
-      const pw = webs.get(peer.id);
-      if (pw && pw.ws.readyState === WebSocket.OPEN && pw.ws.bufferedAmount < 256 * 1024) pw.ws.send(Buffer.concat([Buffer.from([1]), data.subarray(1)]));
+    // (02/12/2026) GD11 — TIENG 2 CHIEU cho MOI to hop dau cuoi, ke ca khi CA HAI deu la phien web (dien thoai <->
+    // dien thoai):  mic phien nay -> 0x01 -> WS cua phien kia (nhu man -> trinh duyet). `audioPeerOf()` chiu duoc
+    // ca truong hop `c.from`/`c.to` con tro toi phien da bi thay (WS rot roi noi lai).
+    const peer = audioPeerOf(c, w);
+    if (!peer || c.muted.has(w.id)) return;                     // dang tat mic / khong xac dinh duoc ben kia
+    if (peer.kind === 'panel') { sendToDevice(peer.id, data.subarray(1)); return; }
+    if (peer.kind === 'web') {
+      if (sendWebAudio(peer.id, data.subarray(1))) return;
+      // Khong gui duoc (phien ben kia vua tat / nghen): ghi MOT lan de biet vi sao "khong co tieng".
+      if (!c.warned) { c.warned = true; console.log(`[calls] ${c.id}: khong gui duoc tieng toi ${peer.id} (phien da tat?)`); }
+      return;
     }
-  } else if (data[0] === 2 && data.length > 6 && !c.camOff.has(w.id)) {
+    // peer.kind === 'phone': dien thoai CHUA mo trang call-web (chua `join`) -> chua co noi nhan PCM. Ghi MOT lan.
+    if (!c.warned) { c.warned = true; console.log(`[calls] ${c.id}: ${w.id} gui tieng nhung dien thoai ${peer.id} chua vao cuoc goi`); }
+    return;
+  }
+  if (data[0] === 2 && data.length > 6 && !c.camOff.has(w.id)) {
     const key = data[1] === 1, ts = data.readUInt32LE(2), frame = data.subarray(6);
     // (17/11/2026) GD9 — HINH tu trang web -> nguoi xem (/call/video). Ghi log khung DAU TIEN mot lan: day la bang
     // chung "dien thoai da gui hinh" trong nhat ky add-on khi man P4 khong hien duoc hinh.
@@ -625,6 +732,16 @@ export function handleCallsApi(req: http.IncomingMessage, res: http.ServerRespon
     return true;
   }
   if (req.method !== 'POST') { json(res, 405, { error: 'POST' }); return true; }
+  // (02/12/2026) XOA NHAT KY CUOC GOI: POST /calls/log/clear?self=<id> -> {ok, removed:n}.
+  //   `self` = id thiet bi (man hinh / dien thoai / phien web) -> xoa cac muc LIEN QUAN TOI no; `self` rong -> xoa het.
+  //   Cung chinh sach truy cap voi /calls/* khac (loopback / trang LAN cung origin), xem src/callLog.ts (clear()).
+  if (p === '/calls/log/clear') {
+    const self = q('self');
+    const removed = callLog.clear(self);
+    console.log(`[calls] xoa nhat ky (self='${self || 'tat ca'}'): ${removed} muc`);
+    json(res, 200, { ok: true, removed });
+    return true;
+  }
   if (p === '/calls/start') { const r = start(q('from'), q('to')); json(res, r.ok ? 200 : 409, r); return true; }
   if (p === '/calls/accept') { const r = accept(q('call'), q('dev')); json(res, r.ok ? 200 : 409, r); return true; }
   if (p === '/calls/decline') { json(res, 200, { ok: finish(q('call'), 'Từ chối', false, q('dev')) }); return true; }
