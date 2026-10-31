@@ -50,6 +50,13 @@ object Prefs {
      */
     const val KEY_NEED_HA_LOGIN = "need_ha_login"
 
+    /**
+     * (19/11/2026) GD11 — ORIGIN cua Home Assistant dùng cho việc ĐĂNG NHẬP (`https://<domain>/`), TÁCH HẲN khỏi
+     * [KEY_WEB_URL]. Nhờ vậy luồng đăng nhập không bao giờ ghi đè trang điều khiển: `webUrl` chỉ được ghi từ kết
+     * quả dò ingress ([DashboardTarget.isValidSaved]), còn `loginUrl` chỉ là chỗ mở form đăng nhập.
+     */
+    const val KEY_LOGIN_URL = "login_url"
+
     const val KEY_PHONE_ID = "phone_id"
 
     /** "Nhan cuoc goi khi app dong" (foreground service + poll). Mac dinh BAT. */
@@ -91,14 +98,33 @@ object Prefs {
     fun oneInput(ctx: Context): String? = webInput(ctx) ?: apiInput(ctx) ?: apiBase(ctx)
 
     /**
-     * (18/11/2026) GD10 — đổi riêng **trang điều khiển** (`webUrl`) sau khi một BIẾN THỂ URL chạy được
+     * (19/11/2026) GD11 — đổi riêng **trang điều khiển** (`webUrl`) sau khi một BIẾN THỂ URL chạy được
      * ([HaLogin.dashboardVariants]): lần mở app sau vào thẳng đúng biến thể đó, không dò/vòng qua Lovelace nữa.
      * Giữ nguyên `apiBase` và chuỗi người dùng đã gõ.
+     *
+     * `webUrl` CHỈ nhận **trang điều khiển của add-on** ([DashboardTarget.isValidSaved]): origin của HA
+     * (`https://<domain>/`) và URL đăng nhập (`/auth/…`, `/lovelace`) bị **từ chối** — đó chính là giá trị khiến
+     * app "refresh rồi lại vào Lovelace" (xem KDoc đầu [DashboardTarget]). Dùng [setLoginUrl] cho origin.
      */
     fun setWebUrl(ctx: Context, url: String?) {
         val v = url?.trim().orEmpty()
         if (v.isEmpty()) return
+        if (!DashboardTarget.isValidSaved(v)) return
         get(ctx).edit().putString(KEY_WEB_URL, v).apply()
+    }
+
+    /**
+     * (19/11/2026) GD11 — lưu ORIGIN của Home Assistant (`https://<domain>/`) để mở form đăng nhập ở lần sau.
+     * Tách khỏi [KEY_WEB_URL] nên luồng đăng nhập KHÔNG BAO GIỜ đụng tới trang điều khiển.
+     */
+    fun loginUrl(ctx: Context): String? =
+        get(ctx).getString(KEY_LOGIN_URL, null)?.trim()?.takeIf { it.isNotEmpty() }
+
+    /** Ghi origin đăng nhập của HA (`https://<domain>/`). Rỗng = không ghi. */
+    fun setLoginUrl(ctx: Context, url: String?) {
+        val v = url?.trim().orEmpty()
+        if (v.isEmpty()) return
+        get(ctx).edit().putString(KEY_LOGIN_URL, v).apply()
     }
 
     /** (17/11/2026) GD9 — doi rieng goc API (PhoneService tu chuyen khi TOKEN ingress doi / thu duong dan khac). */
@@ -116,15 +142,22 @@ object Prefs {
             .apply()
     }
 
-    /** Luu ket qua: webUrl (WebView) + apiBase (API) + 2 chuoi nguoi dung go. */
+    /**
+     * Luu ket qua: webUrl (WebView) + apiBase (API) + 2 chuoi nguoi dung go.
+     *
+     * (19/11/2026) GD11 — `webUrl` chi duoc ghi khi la **trang dieu khien cua add-on**
+     * ([DashboardTarget.isValidSaved]); origin cua HA / URL dang nhap bi bo qua (giu gia tri cu), nho vay
+     * "mo dashboard" khong bao gio nap lai origin (Lovelace).
+     */
     fun saveTargets(ctx: Context, webUrl: String, apiBase: String, webInput: String?, apiInput: String?) {
-        get(ctx).edit()
-            .putString(KEY_WEB_URL, webUrl.trim())
+        val web = webUrl.trim().takeIf { DashboardTarget.isValidSaved(it) }
+        val e = get(ctx).edit()
             .putString(KEY_API_BASE, apiBase.trim())
             .putString(KEY_WEB_INPUT, webInput?.trim().orEmpty())
             .putString(KEY_API_INPUT, apiInput?.trim().orEmpty())
             .putString(KEY_URL, webInput?.trim()?.takeIf { it.isNotEmpty() } ?: webUrl.trim())
-            .apply()
+        if (web != null) e.putString(KEY_WEB_URL, web)
+        e.apply()
     }
 
     /** (GD4) giu nguyen ham cu — gio chi luu 2 gia tri + chuoi go. */
@@ -133,7 +166,12 @@ object Prefs {
     }
 
     fun clearServer(ctx: Context) {
-        get(ctx).edit().remove(KEY_API_BASE).remove(KEY_WEB_URL).remove(KEY_NEED_HA_LOGIN).apply()
+        get(ctx).edit()
+            .remove(KEY_API_BASE)
+            .remove(KEY_WEB_URL)
+            .remove(KEY_NEED_HA_LOGIN)
+            .remove(KEY_LOGIN_URL)
+            .apply()
     }
 
     /**

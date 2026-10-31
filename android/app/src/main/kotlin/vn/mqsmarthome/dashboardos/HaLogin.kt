@@ -58,10 +58,12 @@ object HaLogin {
     /**
      * (18/11/2026) GD10 — máy trạng thái dò `webUrl` qua các **biến thể** (chống kẹt vòng 401):
      *
-     *  1. `webUrl` đã lưu (ingress của HA — dạng chính, cần cookie phiên),
-     *  2. `https://<domain>/<slug>/launcher-config.html` (reverse proxy giữ tên add-on),
-     *  3. `https://<domain>/launcher-config.html` (add-on phục vụ thẳng ở gốc domain),
-     *  4. `http://<host>:18080/launcher-config.html` (add-on mở thẳng cổng nội bộ, KHÔNG cần ingress).
+     *  1. `webUrl` đã lưu — **chỉ khi** nó là trang điều khiển thật ([DashboardTarget.isValidSaved]),
+     *  2. `https://<domain>/api/hassio_ingress/<TOKEN>/launcher-config.html` (dựng lại từ TOKEN khi `webUrl`
+     *     trống/hỏng — xem (19/11/2026) GD11),
+     *  3. `https://<domain>/<slug>/launcher-config.html` (reverse proxy giữ tên add-on),
+     *  4. `https://<domain>/launcher-config.html` (add-on phục vụ thẳng ở gốc domain),
+     *  5. `http://<host>:18080/launcher-config.html` (add-on mở thẳng cổng nội bộ, KHÔNG cần ingress).
      *
      * Luật:
      *  - 200 + body không phải SPA của HA → [Action.NAVIGATE];
@@ -69,14 +71,24 @@ object HaLogin {
      *  - 401/403 **khi đã có cookie** → đếm; đủ [AUTH_FAILS_BEFORE_NEXT_VARIANT] lần liên tiếp mới đổi biến thể;
      *  - 404 (sai TOKEN ingress / sai đường dẫn) → đổi biến thể ngay;
      *  - hết biến thể → [Action.GIVE_UP].
+     *
+     * (19/11/2026) GD11 — **origin của HA KHÔNG BAO GIỜ là một biến thể**: `webUrl` = `https://<domain>/` bị coi
+     * là hỏng và được dựng lại từ TOKEN ([token]) hoặc từ chuỗi người dùng đã gõ ([fallbackInput]).
      */
     class Watch(
         webUrl: String?,
         slug: String = ServerResolver.ADDON_SLUG,
         port: Int = ServerResolver.ADDON_PORT,
+        token: String? = null,
+        fallbackInput: String? = null,
     ) {
         /** Danh sách URL sẽ thử, theo đúng thứ tự ở trên. */
-        val variants: List<String> = dashboardVariants(webUrl, slug, port)
+        val variants: List<String> = dashboardVariants(
+            webUrl?.trim()?.takeIf { DashboardTarget.isHttp(it) } ?: fallbackInput,
+            slug,
+            port,
+            token = token
+        )
 
         /** Biến thể đang thử. */
         var index: Int = 0
@@ -103,6 +115,13 @@ object HaLogin {
             probes = 0
             gaveUp = false
         }
+
+        /**
+         * (19/11/2026) GD11 — biến thể hiện tại ĐÃ NẠP XONG nhưng trang hiện ra không phải add-on (tiêu đề/URL là
+         * của Home Assistant — xem `DashboardTarget.arrival`): bỏ biến thể này **ngay** và trả biến thể kế tiếp.
+         * Dùng ở `WebViewClient.onPageFinished` để app không im lặng dừng ở Lovelace.
+         */
+        fun skip(): Step = nextVariantOrGiveUp()
 
         /** Một kết quả dò: [status] = mã HTTP (null = không kết nối được), [dashboard] = [isDashboardResponse]. */
         fun onProbe(status: Int?, dashboard: Boolean, cookiePresent: Boolean): Step {
@@ -213,26 +232,30 @@ object HaLogin {
     /**
      * Danh sách URL ứng viên cho trang điều khiển, theo đúng thứ tự yêu cầu (loại trùng, giữ thứ tự):
      *
-     *  1. `webUrl` đang lưu,
-     *  2. `https://<domain>/<slug>/launcher-config.html`,
-     *  3. `https://<domain>/launcher-config.html`,
-     *  4. `http://<host>:18080/launcher-config.html`.
+     *  1. `webUrl` đang lưu — **chỉ khi** đó là trang điều khiển thật ([DashboardTarget.isValidSaved]),
+     *  2. `https://<domain>/api/hassio_ingress/<TOKEN>/launcher-config.html` (dựng lại từ [token]),
+     *  3. `https://<domain>/<slug>/launcher-config.html`,
+     *  4. `https://<domain>/launcher-config.html`,
+     *  5. `http://<host>:18080/launcher-config.html`.
      *
-     * Danh sách rỗng = `webUrl` không phải URL http(s).
+     * (19/11/2026) GD11 — `webUrl` là **origin** (`https://<domain>/`) hoặc URL đăng nhập (`/auth/…`, `/lovelace`)
+     * thì KHÔNG được đưa vào danh sách (nạp nó = hiện Lovelace của HA đã đăng nhập); thay vào đó là ứng viên
+     * dựng lại từ TOKEN. `webUrl` có thể là URL đầy đủ hoặc chỉ chuỗi domain người dùng gõ.
+     *
+     * Danh sách rỗng = không dựng được URL http(s) nào.
      */
     fun dashboardVariants(
         webUrl: String?,
         slug: String = ServerResolver.ADDON_SLUG,
         port: Int = ServerResolver.ADDON_PORT,
         page: String = WebTargetResolver.LAUNCHER_PAGE,
+        token: String? = null,
     ): List<String> {
         val u = webUrl?.trim().orEmpty()
-        if (!u.startsWith("http://", ignoreCase = true) && !u.startsWith("https://", ignoreCase = true)) {
-            return emptyList()
-        }
-        val origin = WebTargetResolver.originUrl(u) ?: return emptyList()
+        val origin = DashboardTarget.originOf(u) ?: return emptyList()
         val out = LinkedHashSet<String>()
-        out.add(u)
+        if (DashboardTarget.isValidSaved(u)) out.add(u)
+        out.add("$origin${WebTargetResolver.INGRESS_PREFIX}/${WebTargetResolver.sanitizeToken(token)}/$page")
         out.add("$origin/$slug/$page")
         out.add("$origin/$page")
         val host = hostOf(origin)
@@ -275,6 +298,26 @@ object HaLogin {
             .append(u)
             .append(" cookie=").append(if (cookiePresent) "yes" else "no")
             .append(" web=").append(status?.toString() ?: "-")
+        val e = extra?.trim().orEmpty()
+        if (e.isNotEmpty()) sb.append(' ').append(e)
+        return sb.toString()
+    }
+
+    /**
+     * (19/11/2026) GD11 — dòng log "đang nạp cái gì, kết quả gì" (yêu cầu chẩn đoán trên máy thật):
+     *
+     *     [login] saved=…/api/hassio_ingress/KJjH…/launcher-config.html loading=…/api/hassio_ingress/KJjH…/launcher-config.html result=ok
+     *
+     * `saved` = `webUrl` đang LƯU trong Prefs, `loading` = URL THẬT SỰ nạp vào WebView ([DashboardTarget.shortUrl]),
+     * `result` = `pending` / `ok` / `ha-spa` / `off-ingress` / `401` / `404` / `net`.
+     */
+    fun progressLine(saved: String?, loading: String?, result: String, extra: String? = null): String {
+        val s = DashboardTarget.shortUrl(saved)
+        val l = DashboardTarget.shortUrl(loading)
+        val sb = StringBuilder("[login] saved=")
+            .append(s)
+            .append(" loading=").append(l)
+            .append(" result=").append(result.trim().ifEmpty { "-" })
         val e = extra?.trim().orEmpty()
         if (e.isNotEmpty()) sb.append(' ').append(e)
         return sb.toString()

@@ -80,11 +80,12 @@ class SettingsActivity : Activity() {
         tokenInput.setText(Prefs.ingressToken(this))
         findViewById<Button>(R.id.saveTokenButton).setOnClickListener { saveToken() }
 
-        // (13/11/2026) GD6 — đăng nhập Home Assistant: mở webUrl (https) trong WebView của app.
-        findViewById<Button>(R.id.haLoginButton).setOnClickListener { openInWeb(Prefs.webUrl(this)) }
+        // (13/11/2026) GD6 — đăng nhập Home Assistant: mở trang điều khiển (https) trong WebView của app.
+        // (19/11/2026) GD11 — mở ĐÚNG trang add-on: `webUrl` hỏng (origin/URL đăng nhập) thì dựng lại từ TOKEN.
+        findViewById<Button>(R.id.haLoginButton).setOnClickListener { openInWeb(webDashboardUrl()) }
         // 401 từ ingress cần đăng nhập HA ở chính domain: mở trang chủ HA rồi quay lại trang điều khiển.
         findViewById<Button>(R.id.haHomeButton).setOnClickListener {
-            openInWeb(WebTargetResolver.loginUrl(Prefs.webUrl(this)) ?: WebTargetResolver.originUrl(Prefs.webUrl(this)))
+            openInWeb(WebTargetResolver.loginUrl(Prefs.webUrl(this)) ?: Prefs.loginUrl(this))
         }
         // (14/11/2026) GD7 — "Đăng nhập lại Home Assistant": xoá cookie của origin rồi mở origin (banner + dò cookie).
         findViewById<Button>(R.id.haReloginButton).setOnClickListener { reloginHomeAssistant() }
@@ -325,15 +326,35 @@ class SettingsActivity : Activity() {
     // ── máy chủ đang dùng + TOKEN ingress
 
     /**
+     * (19/11/2026) GD11 — URL trang điều khiển THẬT SỰ dùng để mở WebView: `webUrl` nếu hợp lệ
+     * ([DashboardTarget.isValidSaved]), nếu không thì ứng viên dựng lại từ TOKEN
+     * (`https://<domain>/api/hassio_ingress/<TOKEN>/launcher-config.html` → `<slug>` → gốc domain).
+     */
+    private fun webDashboardUrl(): String? = DashboardTarget.candidates(
+        saved = Prefs.webUrl(this),
+        loginUrl = Prefs.loginUrl(this),
+        typed = Prefs.oneInput(this),
+        token = Prefs.ingressToken(this)
+    ).firstOrNull()
+
+    /**
      * (13/11/2026) GD6 — hiện ĐÚNG 2 giá trị đang dùng (không suy ra giá trị này từ giá trị kia):
      * webUrl cho WebView và apiBase cho API LAN.
+     *
+     * (19/11/2026) GD11 — thêm dòng origin đăng nhập (`loginUrl`, khoá riêng) để phân biệt rõ "trang điều khiển"
+     * với "trang đăng nhập Home Assistant".
      */
     private fun renderTargets() {
         val none = getString(R.string.st_none)
-        val web = Prefs.webUrl(this) ?: none
+        val saved = Prefs.webUrl(this)
+        val web = saved ?: none
         val api = Prefs.apiBase(this) ?: none
         targetsView.text = buildString {
             append(getString(R.string.st_web_url, web)).append('\n')
+            if (saved != null && !DashboardTarget.isValidSaved(saved)) {
+                append(getString(R.string.st_web_url_rebuilt, webDashboardUrl() ?: none)).append('\n')
+            }
+            append(getString(R.string.st_login_url, Prefs.loginUrl(this@SettingsActivity) ?: none)).append('\n')
             append(getString(R.string.st_api_base, api)).append('\n')
             append(getString(R.string.st_ingress_token, Prefs.ingressToken(this@SettingsActivity)))
         }
@@ -352,7 +373,8 @@ class SettingsActivity : Activity() {
      */
     private fun renderHaLogin() {
         val web = Prefs.webUrl(this)
-        val origin = WebTargetResolver.originUrl(web)
+        // (19/11/2026) GD11 — origin lấy từ `webUrl` hoặc khoá riêng `loginUrl` (webUrl có thể chưa có).
+        val origin = DashboardTarget.originOf(web) ?: DashboardTarget.originOf(Prefs.loginUrl(this))
         var cookie: String? = null
         if (origin != null) {
             cookie = try {
@@ -382,16 +404,21 @@ class SettingsActivity : Activity() {
      */
     private fun reloginHomeAssistant() {
         val web = Prefs.webUrl(this)
-        val origin = WebTargetResolver.originUrl(web)
+        // (19/11/2026) GD11 — origin của HA lấy từ `loginUrl` (khoá riêng) hoặc từ chính `webUrl`; KHÔNG ghi origin
+        // vào `webUrl` (xem DashboardTarget).
+        val origin = DashboardTarget.originOf(web)
+            ?: DashboardTarget.originOf(Prefs.loginUrl(this))
+            ?: DashboardTarget.originOf(Prefs.oneInput(this))
         if (origin == null) {
             toast(getString(R.string.st_ha_login_no_web))
             return
         }
         clearHaCookies(origin, web)
         Prefs.setNeedHaLogin(this, true)
+        Prefs.setLoginUrl(this, WebTargetResolver.loginUrl(web) ?: "$origin/")
         renderHaLogin()
 
-        val loginUrl = WebTargetResolver.loginUrl(web) ?: "$origin/"
+        val loginUrl = Prefs.loginUrl(this) ?: "$origin/"
         val i = Intent(this, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             .putExtra(MainActivity.EXTRA_OPEN_URL, loginUrl)

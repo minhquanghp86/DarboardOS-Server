@@ -108,6 +108,9 @@
     <string name="st_api_base">Máy chủ API (LAN): %1$s</string>
     <string name="st_ingress_token">TOKEN ingress: %1$s</string>
     <string name="st_none">chưa có</string>
+    <!-- (19/11/2026) GD11 — webUrl đã lưu không phải trang add-on (origin/URL đăng nhập) → app dùng giá trị dựng lại. -->
+    <string name="st_web_url_rebuilt">Trang điều khiển (dựng lại từ TOKEN): %1$s</string>
+    <string name="st_login_url">Trang đăng nhập Home Assistant: %1$s</string>
     <string name="st_ha_login_button">Đăng nhập Home Assistant</string>
     <string name="st_ha_home_button">Mở trang chủ Home Assistant (để đăng nhập)</string>
     <string name="st_ha_login_hint">Trang điều khiển nằm sau ingress của Home Assistant nên lần đầu sẽ trả 401 — app vẫn mở bình thường. Đăng nhập HA một lần trong app (nút trên), cookie được giữ cho các lần sau; nếu vẫn 401, mở trang chủ HA để đăng nhập rồi quay lại.</string>
@@ -145,4 +148,10 @@
     <string name="st_ha_yes">có</string>
     <string name="st_ha_no">không</string>
     <string name="st_ha_relogin_hint">Xoá cookie phiên của domain rồi mở lại trang đăng nhập Home Assistant (dùng khi trang điều khiển báo 401 dù đã đăng nhập, hoặc đổi mật khẩu).</string>
+
+    <!-- (19/11/2026) GD11 — luôn nhắm trang add-on (không bao giờ nạp origin của HA); hiện URL đang nạp thật. -->
+    <string name="ha_login_loading_url">URL đang nạp: %1$s · kết quả: %2$s</string>
+    <string name="ha_login_not_addon">Trang vừa mở chưa phải Dashboard OS (%1$s): %2$s — đang thử địa chỉ khác…</string>
+    <string name="ha_login_try_next">Đang thử: %1$s</string>
+    <string name="ha_login_401">Add-on trả 401 ở %1$s (chưa có phiên ingress) — đang thử địa chỉ khác, không nạp lại trang Home Assistant.</string>
 </resources>

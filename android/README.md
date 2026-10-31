@@ -119,8 +119,8 @@ Chênh lệch APK (clean build, cùng máy):
 | release | 3.187.361 B (3,04 MB) | 2.314.298 B (2,21 MB) | −873.063 B (−27,4 %) |
 
 APK phát hành hiện tại (`android/DashboardOS-release.apk`, đã bỏ luôn cấu hình chữ ký v1 không cần thiết):
-**2.338.053 B** — md5 `37985ea074080f31141d9cabfe5337f0`,
-sha256 `1c42945ce3909f4065a6410e9f1f5d32c1561b9d32e08f318ba568cafa940860`.
+**2.352.825 B** — md5 `a9e5c76ecea9302262a465f13d881272`,
+sha256 `9f8de608c40d9046314e9a188b621455067596728f6f3357389731aaec6a9995`.
 
 ## 4. Luồng "nhập một ô địa chỉ → đăng nhập Home Assistant → dashboard" (GD10)
 
@@ -164,6 +164,37 @@ Kiểm chứng trên máy thật:
 adb logcat -c && adb logcat -s DashboardOS-login      # xem nhịp dò 1 s
 # lần đầu:  bấm Kết nối → đăng nhập HA → trong ≤ 2 s app tự sang launcher-config.html
 # lần sau:  thoát hẳn app → mở lại → vào thẳng dashboard (không thấy Lovelace)
+```
+
+## 4b. GD11 — "đăng nhập xong vẫn đứng ở Lovelace" (đã sửa)
+
+**Triệu chứng**: nhập `hass.mqsmarthome.io.vn`, đăng nhập HA thành công, app đứng ở dashboard Lovelace của HA;
+bấm **Tôi đã đăng nhập** → trang nạp lại rồi **lại đúng Lovelace**.
+
+**Nguyên nhân (kiểm chứng bằng code)**: không có dòng nào ghi origin của HA vào `webUrl`, nhưng **mọi** đường
+"mở trang điều khiển" (`openWeb`, `onLoginConfirmed`, `onOpenDashboardClicked`, `goDashboard`) nạp **nguyên văn**
+`webUrl` mà **không kiểm tra** nó có phải trang add-on; khi `webUrl` là origin (`https://<domain>/` — dữ liệu bản
+cũ) thì nạp origin = Lovelace; thêm nữa `onAuthRequired` **nạp lại origin mỗi lần gặp 401** (vòng lặp "refresh rồi
+lại Lovelace"), và bản GD10 **không có** `onPageFinished` nên không bao giờ phát hiện "đang ở HA".
+
+**Sửa**:
+
+| Hạng mục | Chi tiết |
+| --- | --- |
+| `DashboardTarget.kt` (mới) | `isValidSaved` (chỉ `…/launcher-config.html`), `candidates` (webUrl → ingress/TOKEN → `<slug>` → gốc domain → `:18080`), `arrival` (ADDON / HOME_ASSISTANT / OFF_INGRESS), `shortUrl` |
+| `Prefs` | `setWebUrl`/`saveTargets` **từ chối** URL không phải trang add-on; khoá riêng `KEY_LOGIN_URL` (`login_url`) giữ origin của HA |
+| `MainActivity` | mọi lần nạp đi qua `loadWeb()` (ghi `loading=…` + lý do); `onPageFinished` xác thực trang vừa nạp → sai thì **thử ứng viên kế tiếp** + hiện thông báo; `onAuthRequired` chỉ mở origin **một lần**; nút "Tôi đã đăng nhập" dựng lại URL từ TOKEN nếu `webUrl` hỏng |
+| Thanh thông báo | hiện **URL đang nạp thật**, rút gọn: `…/api/hassio_ingress/KJjH…/launcher-config.html` |
+| Logcat | `[login] saved=… loading=… result=ok|ha-spa|off-ingress|401|404` (`adb logcat -s DashboardOS-login`) |
+
+Kiểm chứng tự động (cài APK + ghi log + kết luận ĐẠT/KHÔNG ĐẠT):
+
+```bash
+cd android
+./scripts/login-flow-check.sh install    # cài release (giữ dữ liệu) + xoá log
+./scripts/login-flow-check.sh watch      # giữ terminal, thao tác trên máy: (a)→(b)→(c)
+./scripts/login-flow-check.sh verdict
+./scripts/login-flow-check.sh fresh      # xoá dữ liệu app để thử lại kịch bản (a) từ đầu
 ```
 
 ## 5. Smoke test trên máy thật

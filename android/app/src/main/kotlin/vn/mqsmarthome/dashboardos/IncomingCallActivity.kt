@@ -249,9 +249,19 @@ class IncomingCallActivity : Activity() {
      *
      * (13/11/2026) GD6 — trang gọi nằm CÙNG thư mục với trang điều khiển ([Prefs.KEY_WEB_URL]), nên lấy theo webUrl
      * để giữ nguyên tiền tố ingress của Home Assistant (cookie HA vẫn áp dụng); nếu chưa có webUrl thì lùi về apiBase.
+     *
+     * (19/11/2026) GD11 — dùng trang điều khiển ĐÃ KIỂM ([DashboardTarget.candidates]): `webUrl` là origin thì
+     * `call-web.html` sẽ rơi vào Lovelace của HA; dựng lại từ TOKEN thì trang gọi vẫn nằm đúng thư mục ingress.
      */
     private fun openCallPage() {
-        val url = WebTargetResolver.callPageUrl(Prefs.webUrl(this), callId)
+        val dashboard = DashboardTarget.candidates(
+            saved = Prefs.webUrl(this),
+            loginUrl = Prefs.loginUrl(this),
+            typed = Prefs.oneInput(this),
+            token = Prefs.ingressToken(this)
+        ).firstOrNull()
+        val url = WebTargetResolver.callPageUrl(dashboard, callId)
+            ?: WebTargetResolver.callPageUrl(Prefs.webUrl(this), callId)
             ?: PhoneApi.webUrl(Prefs.apiBase(this), WebTargetResolver.CALL_PAGE, "call=$callId")
             ?: return
         val i = Intent(this, MainActivity::class.java)
