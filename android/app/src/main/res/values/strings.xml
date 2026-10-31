@@ -154,4 +154,9 @@
     <string name="ha_login_not_addon">Trang vừa mở chưa phải Dashboard OS (%1$s): %2$s — đang thử địa chỉ khác…</string>
     <string name="ha_login_try_next">Đang thử: %1$s</string>
     <string name="ha_login_401">Add-on trả 401 ở %1$s (chưa có phiên ingress) — đang thử địa chỉ khác, không nạp lại trang Home Assistant.</string>
+
+    <!-- (20/11/2026) GD12 — tự tạo phiên ingress BÊN TRONG WebView (đúng luồng HA frontend: WebSocket
+         `supervisor/api` → `document.cookie ingress_session`). Hướng dẫn ngắn khi mọi cách tự động thất bại. -->
+    <string name="ha_manual_steps">Mở Home Assistant → thanh bên → Dashboard OS (một lần), sau đó quay lại app.</string>
+    <string name="ha_login_creating_session">Đã đăng nhập — đang tạo phiên ingress…</string>
 </resources>

@@ -17,8 +17,8 @@ import org.junit.Test
  *     → `https://<domain>/launcher-config.html` → `http://<host>:18080/launcher-config.html`,
  *  3. máy trạng thái [`HaLogin.Watch`]: 401 hai lần liền (đã có cookie) mới đổi biến thể, 404 đổi ngay, hết biến
  *     thể → GIVE_UP (để MainActivity hiện thông báo + nút "Thử lại"), 401 khi CHƯA có cookie thì chỉ chờ,
- *  4. `localStorage.hassTokens` → access token ([`HaLogin.tokenFromJsValue`]) và body `{"session":…}`
- *     ([`HaIngress.parseSession`]),
+ *  4. `localStorage.hassTokens` → access token ([`HaLogin.tokenFromJsValue`]) và kết quả bridge của JS tạo phiên
+ *     ingress ([`HaIngress.parseResult`] — xem thêm `HaIngressTest`),
  *  5. dòng log `[login] url=… cookie=… web=…` ([`HaLogin.pollLogLine`]).
  *
  * Chạy: `cd android && ./gradlew testDebugUnitTest --offline --no-daemon`.
@@ -251,23 +251,15 @@ class HaLoginTest {
 
     @Test
     fun parse_session_va_duong_dan_tao_phien_ingress() {
-        assertEquals("s3cr3t-token_1", HaIngress.parseSession("{\"session\":\"s3cr3t-token_1\"}"))
-        assertEquals("abc", HaIngress.parseSession("{ \"session\" : \"abc\" }"))
-        assertNull(HaIngress.parseSession("{\"error\":\"unauthorized\"}"))
-        assertNull(HaIngress.parseSession(null))
-
-        assertEquals(
-            listOf("/api/hassio/ingress/session/$slug", "/api/hassio/ingress/session"),
-            HaIngress.sessionPaths(slug)
+        // (20/11/2026) GD12 — kết quả bridge giờ là JSON nhiều trường do JS phát ra; `session` vẫn phải đọc được.
+        val r = HaIngress.parseResult(
+            "{\"step\":\"session\",\"ok\":true,\"session\":\"s3cr3t-token_1\",\"how\":\"hass\",\"cookie\":true}"
         )
-        assertEquals("{}", HaIngress.bodyFor("/api/hassio/ingress/session/$slug", slug))
-        assertEquals("{\"addon\":\"$slug\"}", HaIngress.bodyFor("/api/hassio/ingress/session", slug))
-        // Thử `/session/<slug>` trước (bản mới), rồi body có `addon` (bản cũ) — loại trùng.
-        val attempts = HaIngress.sessionAttempts(slug)
-        assertEquals("/api/hassio/ingress/session/$slug", attempts.first().first)
-        assertEquals("{}", attempts.first().second)
-        assertTrue(attempts.contains("/api/hassio/ingress/session/$slug" to "{\"addon\":\"$slug\"}"))
-        assertEquals(attempts.size, attempts.toSet().size)
+        assertEquals("s3cr3t-token_1", r?.session)
+        assertTrue(r!!.sessionReady)
+        assertNull(HaIngress.parseResult("{\"step\":\"session\",\"ok\":false,\"detail\":\"auth_invalid\"}")?.session)
+        assertNull(HaIngress.parseResult(null))
+        assertNull(HaIngress.parseResult("khong-phai-json"))
     }
 
     // ─────────────────────────────────────────── 5) log chẩn đoán

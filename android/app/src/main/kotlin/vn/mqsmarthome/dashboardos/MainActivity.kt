@@ -16,6 +16,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.webkit.CookieManager
+import android.webkit.JavascriptInterface
 import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -95,6 +96,26 @@ import android.widget.Toast
  *      • [onAuthRequired] chỉ mở origin **tối đa MỘT lần** trong một luồng ([originShown]) — hết vòng lặp 401 →
  *        origin → Lovelace.
  *
+ * (20/11/2026) GD12 — "ĐĂNG NHẬP XONG VẪN KHÔNG TỰ SANG ADD-ON" (người dùng xác nhận lại; nguyên nhân thật):
+ *  - Người dùng phải **mở add-on từ thanh bên của HA một lần**, rồi **thoát hẳn app** và mở lại mới vào thẳng
+ *    add-on ⇒ phiên ingress (`ingress_session`) KHÔNG được tạo bởi việc đăng nhập: nó chỉ có khi **chính HA
+ *    frontend mở panel** (frontend gọi WebSocket rồi tự đặt cookie).
+ *  - Bản GD10 cố tự tạo phiên bằng `HttpURLConnection` tới `POST /api/hassio/ingress/session[/<slug>]` — endpoint
+ *    này **không** phải API HTTP của HA core (core chỉ chuyển tiếp whitelist không có `ingress/session`), nên luôn
+ *    401; và cookie do `HttpURLConnection` tạo cũng không nằm trong cookie store của WebView.
+ *  - **Cách sửa (đúng luồng frontend, có bằng chứng trong [HaIngress])**: chạy **JS trong trang HA** để
+ *    (1) lấy access token — `document.querySelector('home-assistant').hass.callWS(...)` hoặc
+ *    `localStorage['hassTokens']` + `POST /auth/token` (refresh_token) khi hết hạn,
+ *    (2) mở `wss://<domain>/api/websocket` → `auth` → `{type:"supervisor/api", endpoint:"/ingress/session",
+ *        method:"post"}` (dự phòng `{type:"supervisor/ingress/session", slug}`) → `{session}`,
+ *    (3) `document.cookie = "ingress_session=…;path=/api/hassio_ingress/;SameSite=Strict[;Secure]"`,
+ *    (4) báo kết quả về app qua bridge → app **điều hướng ngay** sang `…/launcher-config.html`
+ *        ([IngressBridge] → [onIngressBridgeResult] → [onIngressSessionReady]).
+ *  - Log từng bước: `[login] step=token result=…`, `[login] step=session result=…`, `[login] step=nav result=…`
+ *    ([HaIngress.logLine]); nút **Mở Dashboard** chạy đúng luồng mới này ([onOpenDashboardClicked]).
+ *  - Khi mọi cách thất bại: hiện hướng dẫn ngắn — "Mở Home Assistant → thanh bên → Dashboard OS (một lần), sau đó
+ *    quay lại app" ([R.string.ha_manual_steps]) — vì đó chính là cách người dùng đang phải làm.
+ *
  * Vẫn giữ nguyên: WebView full screen + WebRTC (micro/camera), tự đăng ký thiết bị, PhoneService nhận cuộc gọi khi
  * app đóng, chuông theo kênh thông báo, nút "URL" ở góc phải dưới để quay lại màn nhập.
  */
@@ -128,19 +149,23 @@ class MainActivity : Activity() {
          */
         const val LOG_TAG_LOGIN = "DashboardOS-login"
 
-        /** Giãn cách tối thiểu giữa hai lần đọc `localStorage.hassTokens` (JS) — tránh gọi liên tục. */
-        private const val TOKEN_ASK_MIN_GAP_MS = 2500L
+        /** Giãn cách tối thiểu giữa hai lần chạy JS tạo phiên ingress — tránh gọi liên tục mỗi nhịp 1 s. */
+        private const val INGRESS_ASK_MIN_GAP_MS = 2500L
+
+        /** Chờ tối đa bao lâu cho câu trả lời của JS trước khi coi là "không trả lời" (WebSocket 9 s bên trong). */
+        private const val INGRESS_ASK_TIMEOUT_MS = 12000L
+
+        /** Số lần tạo phiên ingress thất bại trước khi hiện hướng dẫn mở add-on bằng tay (yêu cầu 6). */
+        private const val INGRESS_FAILS_BEFORE_HINT = 2
+
+        /** Số lần tối đa thử tạo phiên trong một luồng (không lặp vô hạn khi tài khoản không phải admin). */
+        private const val INGRESS_MAX_ATTEMPTS = 4
 
         /**
-         * (18/11/2026) GD10 — đoạn JS **chỉ ĐỌC** access token của phiên HA từ `localStorage` của chính trang HA
-         * (`hassTokens`). Token này dùng để app tự tạo phiên ingress ([HaIngress]) — thứ duy nhất khiến
-         * `/api/hassio_ingress/<TOKEN>/launcher-config.html` trả 200 thay vì 401 ngay sau khi đăng nhập.
-         *
-         * Không sửa gì trên trang (không đụng DOM, không gọi mạng): chỉ đọc khoá `hassTokens`.
+         * (20/11/2026) GD12 — KHÔNG còn đoạn JS "chỉ đọc access token": việc lấy token, tạo phiên ingress bằng
+         * WebSocket và đặt cookie `ingress_session` gói trong MỘT script duy nhất ([HaIngress.sessionScript]) do
+         * chính trang HA chạy, nên không có token nào đi qua lớp Kotlin nữa.
          */
-        private const val JS_HA_ACCESS_TOKEN =
-            "(function(){try{var r=window.localStorage.getItem('hassTokens');if(!r){return '';}" +
-                "var o=JSON.parse(r);return (o&&o.access_token)?String(o.access_token):'';}catch(e){return '';}})()"
 
         /** (18/11/2026) GD10 — 2 "liên kết" của màn hình lỗi (bắt ở [DashboardWebClient.shouldOverrideUrlLoading]). */
         private const val RETRY_HREF = "dashboardos://retry"
@@ -165,6 +190,12 @@ class MainActivity : Activity() {
 
         /** Điều hướng do tự dò thấy 200 + trang add-on. */
         private const val LOAD_PROBE = "probe"
+
+        /**
+         * (20/11/2026) GD12 — nạp trang add-on NGAY SAU KHI JS trong trang HA vừa tạo xong phiên ingress
+         * ([onIngressSessionReady]) — đây là đường chính của luồng mới.
+         */
+        private const val LOAD_SESSION = "session"
 
         /**
          * Trang ĐĂNG NHẬP của Home Assistant (`https://<domain>/`) — nạp có chủ đích, nên `onPageFinished`
@@ -242,16 +273,30 @@ class MainActivity : Activity() {
     @Volatile
     private var probeGen = 0
 
-    /** Đang chờ kết quả `evaluateJavascript` đọc `hassTokens`. */
-    private var tokenAskPending = false
+    // ── (20/11/2026) GD12 — tự tạo phiên ingress TRONG WebView (JS), đúng luồng HA frontend
 
-    /** Lần cuối hỏi token (giãn cách [TOKEN_ASK_MIN_GAP_MS]). */
-    private var lastTokenAskAt = 0L
+    /** Đã chạy [HaIngress.sessionScript] và đang chờ bridge trả kết quả. */
+    private var sessionPending = false
 
-    /** Access token của phiên HA (đọc từ `localStorage`) — có thì tự tạo được phiên ingress. */
-    private var haAccessToken: String? = null
+    /** Lần cuối chạy script tạo phiên (giãn cách [INGRESS_ASK_MIN_GAP_MS]). */
+    private var lastSessionAskAt = 0L
 
-    /** Số lần đã mở trang cùng origin rất nhẹ (`/manifest.json`) để đọc `hassTokens` (tối đa 2 — xem [ensureSameOriginForTokens]). */
+    /** Số lần đã chạy script trong luồng hiện tại (tối đa [INGRESS_MAX_ATTEMPTS]). */
+    private var sessionAttempts = 0
+
+    /** Số lần tạo phiên THẤT BẠI liên tiếp — đủ [INGRESS_FAILS_BEFORE_HINT] thì hiện hướng dẫn mở add-on tay. */
+    private var sessionFails = 0
+
+    /**
+     * Session token của Supervisor mà app đã tạo được (`{"session": "…"}`). Có nó nghĩa là cookie
+     * `ingress_session` đã được đặt (`Path=/api/hassio_ingress/`) → `GET …/launcher-config.html` phải trả 200.
+     */
+    private var ingressSession: String? = null
+
+    /** Đã hẹn giờ "JS không trả lời" cho lần chạy hiện tại chưa (tránh hẹn chồng). */
+    private var sessionWatchdogArmed = false
+
+    /** Số lần đã mở trang cùng origin rất nhẹ (`/manifest.json`) để chạy script (tối đa 2 — xem [ensureSameOriginForScript]). */
     private var neutralLoads = 0
 
     /** Đã thấy dấu hiệu "đăng nhập xong" (rời /auth/, cookie mới, token) trong luồng hiện tại. */
@@ -290,6 +335,18 @@ class MainActivity : Activity() {
             loginTick()
             if (showingWeb && loginFlowActive) mainHandler.postDelayed(this, LOGIN_POLL_MS)
         }
+    }
+
+    /**
+     * (20/11/2026) GD12 — JS không trả lời trong [INGRESS_ASK_TIMEOUT_MS] (trang bị thay giữa lúc chạy, WebView
+     * đã huỷ, hoặc trình duyệt nhúng chặn WebSocket): coi là một lần thất bại để app không kẹt ở `sessionPending`
+     * mãi mãi — nhịp 1 s sẽ thử lại (giãn cách [INGRESS_ASK_MIN_GAP_MS]).
+     */
+    private val ingressWatchdogRunnable = Runnable {
+        sessionWatchdogArmed = false
+        if (!sessionPending) return@Runnable
+        sessionPending = false
+        onIngressSessionFailed("timeout")
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -689,10 +746,36 @@ class MainActivity : Activity() {
         web.isScrollbarFadingEnabled = true
         web.webViewClient = DashboardWebClient()
         web.webChromeClient = DashboardChromeClient()
+        // (20/11/2026) GD12 — cầu để JS trong trang HA báo kết quả tạo phiên ingress
+        // ([HaIngress.sessionScript] gọi `window.DashboardOS.postResult(json)`).
+        runCatching { web.addJavascriptInterface(IngressBridge(), HaIngress.BRIDGE) }
+    }
+
+    /**
+     * (20/11/2026) GD12 — cầu JS → Kotlin của luồng tạo phiên ingress.
+     *
+     * JS chạy trong trang HA gọi [postResult] với JSON một bước (`{"step":"token"|"session",…}` —
+     * [HaIngress.parseResult]). Bridge được gọi ở luồng nền nên mọi việc đi qua [post] (main thread). Chỉ xử lý khi
+     * app ĐANG chờ kết quả ([sessionPending]) — trang add-on tự do không thể "bơm" phiên giả vào app.
+     */
+    private inner class IngressBridge {
+        @JavascriptInterface
+        fun postResult(json: String?) {
+            post {
+                if (!sessionPending) {
+                    log(HaIngress.logLine(HaIngress.STEP_SESSION, "ignored", "why=not_waiting"))
+                    return@post
+                }
+                onIngressBridgeResult(json)
+            }
+        }
     }
 
     private fun disposeWebView() {
         mainHandler.removeCallbacks(hideOverlayRunnable)
+        mainHandler.removeCallbacks(ingressWatchdogRunnable)
+        sessionWatchdogArmed = false
+        sessionPending = false
         stopLoginTick()
         loginFlowActive = false
         probeGen++
@@ -781,7 +864,7 @@ class MainActivity : Activity() {
      * Trang gọi (`call-web.html?call=…`) và liên kết ngoài thì không — chúng hợp lệ ở bất kỳ URL nào.
      */
     private fun isDashboardAttempt(): Boolean = when (loadingReason) {
-        LOAD_SAVED, LOAD_CONFIRMED, LOAD_MANUAL, LOAD_NEXT, LOAD_RETRY, LOAD_PROBE -> true
+        LOAD_SAVED, LOAD_CONFIRMED, LOAD_MANUAL, LOAD_NEXT, LOAD_RETRY, LOAD_PROBE, LOAD_SESSION -> true
         else -> false
     }
 
@@ -841,12 +924,20 @@ class MainActivity : Activity() {
         if (u.isEmpty() || !DashboardTarget.isValidSaved(u)) return
         loadResult = DashboardTarget.Arrival.ADDON.label
         loginLog()
+        // (20/11/2026) GD12 — kết thúc bước `nav` của luồng tự tạo phiên ingress: log `[login] step=nav result=ok`.
+        if (loadingReason == LOAD_SESSION || ingressSession != null) {
+            log(HaIngress.logLine(HaIngress.STEP_NAV, "ok", DashboardTarget.shortUrl(u)))
+        }
         stopLoginTick()
+        mainHandler.removeCallbacks(ingressWatchdogRunnable)
+        sessionWatchdogArmed = false
+        sessionPending = false
         probeGen++
         probing = false
         loginFlowActive = false
         loginFailed = false
         loggedInSignal = false
+        sessionFails = 0
         Prefs.setNeedHaLogin(this, false)
         showRetryButton(false)
         showLoginBar(false)
@@ -900,9 +991,14 @@ class MainActivity : Activity() {
         lastWebStatus = null
         loggedInSignal = false
         loginFailed = false
-        haAccessToken = null
+        ingressSession = null
         neutralLoads = 0
-        tokenAskPending = false
+        sessionPending = false
+        sessionAttempts = 0
+        sessionFails = 0
+        lastSessionAskAt = 0L
+        mainHandler.removeCallbacks(ingressWatchdogRunnable)
+        sessionWatchdogArmed = false
         probing = false
         originShown = false
         showRetryButton(false)
@@ -917,8 +1013,12 @@ class MainActivity : Activity() {
      * (18/11/2026) GD10 — MỘT nhịp dò (mỗi 1 s):
      *  1. ghi `[login] url=… cookie=… web=…` ra Logcat **và** lên thanh thông báo,
      *  2. nhận dấu hiệu "đã đăng nhập": URL đã rời `/auth/…` của HA, hoặc có cookie MỚI (bất kỳ tên), hoặc đọc
-     *     được `hassTokens` trong `localStorage` ([maybeReadHaTokens]),
-     *  3. dò `GET <candidate>` kèm cookie ([probeCandidate]) — 200 + body không phải SPA của HA là xong.
+     *     được `hassTokens` trong `localStorage`,
+     *  3. **(20/11/2026) GD12** — chạy JS TRONG trang HA để tự tạo phiên ingress ([requestIngressSession]): lấy
+     *     access token (`hass.callWS` hoặc `hassTokens` + `/auth/token`) → WebSocket `supervisor/api`
+     *     `/ingress/session` → `document.cookie` `ingress_session` `Path=/api/hassio_ingress/` → nạp
+     *     `launcher-config.html`,
+     *  4. dò `GET <candidate>` kèm cookie ([probeCandidate]) — 200 + body không phải SPA của HA là xong.
      */
     private fun loginTick() {
         val url = webView?.url
@@ -942,13 +1042,13 @@ class MainActivity : Activity() {
                 cookiePresent,
                 lastWebStatus,
                 "left_auth=$leftAuth new_cookie=${newNames.size} " +
-                    "token=${yn(haAccessToken != null)} sig=${yn(loggedInSignal)}"
+                    "session=${yn(ingressSession != null)} sig=${yn(loggedInSignal)}"
             )
         )
         showLoginDiag(url, cookiePresent)
-        // Có dấu hiệu đăng nhập → đọc access token (JS, CHỈ đọc localStorage) để tự tạo phiên ingress.
-        if (loggedInSignal) maybeReadHaTokens()
-        if (loggedInSignal) ensureSameOriginForTokens()
+        // Đã đăng nhập → chạy JS tạo phiên ingress ngay trong trang HA (đúng luồng frontend, xem [HaIngress]).
+        if (loggedInSignal) ensureSameOriginForScript()
+        if (loggedInSignal) requestIngressSession(force = false)
         if (!probing) probeCandidate(cookiePresent)
     }
 
@@ -958,7 +1058,10 @@ class MainActivity : Activity() {
      */
     private fun showLoginDiag(url: String?, cookiePresent: Boolean) {
         if (loginFailed) return
-        val base = if (loggedInSignal) {
+        val base = if (sessionPending) {
+            // (20/11/2026) GD12 — đang chờ JS trong trang HA trả `{session}`.
+            getString(R.string.ha_login_creating_session)
+        } else if (loggedInSignal) {
             getString(R.string.ha_login_probing, lastWebStatus?.toString() ?: "-")
         } else {
             getString(R.string.ha_login_banner)
@@ -1091,8 +1194,11 @@ class MainActivity : Activity() {
         val code = status?.toString() ?: "-"
         loadResult = if (loadResult == "pending") code else loadResult
         loginLog()
+        // (20/11/2026) GD12 — yêu cầu 6: khi MỌI cách tự động thất bại, hiện hướng dẫn NGẮN đúng cách người dùng
+        // đang phải làm (mở add-on một lần trong HA để chính HA frontend tạo phiên ingress).
         loginBarText?.text = getString(R.string.ha_login_failed_banner, code) +
-            "\n" + getString(R.string.ha_login_loading_url, DashboardTarget.shortUrl(loadingUrl), loadResult)
+            "\n" + getString(R.string.ha_login_loading_url, DashboardTarget.shortUrl(loadingUrl), loadResult) +
+            "\n" + getString(R.string.ha_manual_steps)
         toast(getString(R.string.ha_login_failed_banner, code))
         val tried = loginWatch?.variants?.joinToString("\n") { "• $it" }.orEmpty()
         log("[login] give_up web=$code tried=${loginWatch?.variants?.size ?: 0} loading=${DashboardTarget.shortUrl(loadingUrl)}")
@@ -1100,7 +1206,7 @@ class MainActivity : Activity() {
         if (HaLogin.isAuthPage(webView?.url)) return
         showLoginPanel(
             getString(R.string.ha_login_failed_title),
-            getString(R.string.ha_login_failed_hint, code, tried),
+            getString(R.string.ha_login_failed_hint, code, tried) + "\n\n" + getString(R.string.ha_manual_steps),
             withRetry = true
         )
     }
@@ -1119,7 +1225,13 @@ class MainActivity : Activity() {
         // Người dùng CHỦ ĐỘNG bấm "Thử lại" → coi như đã đăng nhập: dò và báo kết quả rõ ràng (không im lặng).
         loggedInSignal = true
         startLoginTick()
-        maybeReadHaTokens()
+        runCatching { CookieManager.getInstance().flush() }
+        // (20/11/2026) GD12 — đang ở trang HA cùng origin thì TẠO LẠI PHIÊN INGRESS TRƯỚC (JS), rồi mới điều hướng;
+        // rời trang HA trước thì không còn `localStorage`/`hass.callWS` để tạo phiên nữa.
+        if (canRunIngressScript()) {
+            requestIngressSession(force = true)
+            return
+        }
         val url = loginWatch?.current
         if (url == null) {
             toast(getString(R.string.st_ha_login_no_web))
@@ -1131,15 +1243,35 @@ class MainActivity : Activity() {
 
     /**
      * (18/11/2026) GD10 — nút **"Mở Dashboard"** (LUÔN hiện ở màn đăng nhập): người dùng chủ động, không chờ dò.
-     * Nạp thẳng URL đang thử; nếu vẫn 401 thì [onAuthRequired] chạy chuỗi dò + tự tạo phiên ingress như cũ.
      *
      * (19/11/2026) GD11 — URL đang thử LUÔN là ứng viên add-on ([HaLogin.Watch] không bao giờ chứa origin của HA);
      * nếu `webUrl` hỏng thì dựng lại từ TOKEN trước khi nạp.
+     *
+     * (20/11/2026) GD12 — **LUỒNG MỚI**: nếu WebView đang ở trang HA cùng origin (người dùng vừa đăng nhập) thì
+     * nút này (a) chạy JS tạo phiên ingress ngay ([requestIngressSession]), (b) khi JS trả `{session}` thì app đặt
+     * cookie `ingress_session` và (c) tự điều hướng sang `…/launcher-config.html` ([onIngressSessionReady]).
+     * Chỉ khi KHÔNG chạy được JS (chưa ở trang HA) mới nạp thẳng ứng viên ingress như bản cũ.
      */
     private fun onOpenDashboardClicked() {
         // Nhịp dò cần biết URL/biến thể: chưa có (mở app bình thường) hoặc lần dò trước đã thất bại thì dựng lại
         // từ ĐẦU (biến thể 1) — nếu không sẽ thử tiếp đúng biến thể vừa hỏng.
         if (loginWatch == null || loginFailed) resetLoginWatch()
+        loginFlowActive = true
+        // Người dùng CHỦ ĐỘNG đòi mở dashboard → bật cờ để nhịp dò dám thử/đổi biến thể và báo kết quả rõ ràng.
+        loggedInSignal = true
+        loginFailed = false
+        showLoginBar(true)
+        showRetryButton(false)
+        startLoginTick()
+        runCatching { CookieManager.getInstance().flush() }
+        if (canRunIngressScript()) {
+            // Người dùng bấm nút = ý định rõ ràng: cho phép thử lại từ đầu (kể cả khi lần trước đã hết lượt).
+            sessionAttempts = 0
+            sessionFails = 0
+            log("[login] manual=open_dashboard → tạo phiên ingress trong WebView")
+            requestIngressSession(force = true)
+            return
+        }
         val url = loginWatch?.current
             ?: DashboardTarget.candidates(
                 saved = Prefs.webUrl(this),
@@ -1151,14 +1283,6 @@ class MainActivity : Activity() {
             toast(getString(R.string.st_ha_login_no_web))
             return
         }
-        runCatching { CookieManager.getInstance().flush() }
-        loginFlowActive = true
-        // Người dùng CHỦ ĐỘNG đòi mở dashboard → bật cờ để nhịp dò dám thử/đổi biến thể và báo kết quả rõ ràng.
-        loggedInSignal = true
-        loginFailed = false
-        showLoginBar(true)
-        showRetryButton(false)
-        startLoginTick()
         loadWeb(url, LOAD_MANUAL)
     }
 
@@ -1209,87 +1333,187 @@ class MainActivity : Activity() {
         showRetryButton(false)
         startLoginTick()
         runCatching { CookieManager.getInstance().flush() }
+        // (20/11/2026) GD12 — LUỒNG MỚI: vừa đăng nhập xong (đang ở trang HA cùng origin) → tạo phiên ingress bằng
+        // JS rồi mới điều hướng. Nếu không chạy được JS thì mới nạp thẳng trang add-on như bản cũ.
+        if (canRunIngressScript()) {
+            sessionAttempts = 0
+            sessionFails = 0
+            log("[login] manual=login_done → tạo phiên ingress trong WebView")
+            requestIngressSession(force = true)
+            return
+        }
         toast(getString(R.string.ha_login_ok))
         loadWeb(url, LOAD_CONFIRMED)
     }
 
+    // ── (20/11/2026) GD12 — TỰ TẠO PHIÊN INGRESS TRONG WEBVIEW (JS), ĐÚNG LUỒNG HA FRONTEND
+    //
+    // Bối cảnh đã kiểm chứng (xem KDoc của [HaIngress]): `POST /api/hassio/ingress/session[/<slug>]` mà bản GD10
+    // gọi bằng HttpURLConnection KHÔNG phải API của core (luôn 401), và cookie do HttpURLConnection tạo cũng không
+    // vào cookie store của WebView. HA frontend làm khác hẳn: WebSocket `supervisor/api` `endpoint=/ingress/session`
+    // → nhận `{session}` → tự đặt `document.cookie = "ingress_session=…;path=/api/hassio_ingress/;SameSite=Strict"`.
+    // App nay chạy CHÍNH đoạn JS đó trong trang HA ([HaIngress.sessionScript]) và nhận kết quả qua bridge.
+
     /**
-     * (18/11/2026) GD10 — đọc access token của phiên HA từ `localStorage.hassTokens` của CHÍNH trang HA
-     * ([JS_HA_ACCESS_TOKEN] — chỉ đọc, không sửa trang) rồi tự tạo phiên ingress ([HaIngress] +
-     * [HaCookie.setIngressSession]).
-     *
-     * Đây là mảnh còn thiếu của bản cũ: đăng nhập Lovelace **không** sinh cookie `ingress_session`; chỉ khi app
-     * tự tạo phiên thì `GET <webUrl>` mới trả 200 ngay, không phải mở add-on bằng tay rồi khởi động lại app.
+     * Trang đang mở có chạy được script không: phải là **document thật của HA, cùng origin**, KHÔNG phải đường dẫn
+     * ingress (trang ingress 401 sau `stopLoading()` không có `localStorage`) và KHÔNG phải form đăng nhập (chưa có
+     * `hassTokens`).
      */
-    private fun maybeReadHaTokens() {
-        if (haAccessToken != null || tokenAskPending) return
+    private fun canRunIngressScript(): Boolean {
+        val origin = haOrigin ?: return false
+        val url = webView?.url ?: return false
+        if (!DashboardTarget.isHttp(url)) return false
+        if (DashboardTarget.isIngress(url)) return false
+        if (HaLogin.isAuthPage(url)) return false
+        return HaLogin.isSameOrigin(url, origin)
+    }
+
+    /**
+     * (20/11/2026) GD12 — `localStorage` (`hassTokens`) và `hass.callWS` chỉ dùng được trên một trang **cùng
+     * origin** với HA. Khi WebView đang ở `about:blank` / trang lỗi 401 (đã `stopLoading()`), mở một trang cùng
+     * origin RẤT nhẹ (`/manifest.json` — không phải Lovelace, không phải form đăng nhập) để chạy script, rồi
+     * `onPageFinished` sẽ chạy script ngay. Tối đa 2 lần cho mỗi luồng — không đẩy người dùng ra khỏi trang HA thật.
+     */
+    private fun ensureSameOriginForScript() {
+        if (ingressSession != null || sessionPending) return
+        if (canRunIngressScript()) return
+        val origin = haOrigin ?: return
+        if (sessionAttempts >= INGRESS_MAX_ATTEMPTS) return
+        if (neutralLoads >= 2) return
+        neutralLoads++
+        val page = origin.trimEnd('/') + "/manifest.json"
+        log("[login] neutral_load=$page (chạy JS tạo phiên ingress cùng origin)")
+        // Đi qua loadWeb với lý do [LOAD_TOKENS] để `onPageFinished` không hiểu nhầm đây là "trang sai".
+        loadWeb(page, LOAD_TOKENS)
+    }
+
+    /**
+     * Chạy [HaIngress.sessionScript] trong trang HA: lấy access token (`hass.callWS` của frontend, hoặc
+     * `localStorage.hassTokens` + `POST /auth/token` khi hết hạn) → WebSocket `supervisor/api` `/ingress/session`
+     * → `document.cookie` `ingress_session` `Path=/api/hassio_ingress/`.
+     *
+     * Kết quả về qua bridge ([IngressBridge] → [onIngressBridgeResult]). [force] = bỏ giãn cách
+     * [INGRESS_ASK_MIN_GAP_MS] (dùng khi người dùng bấm nút hoặc vừa nạp xong trang cùng origin).
+     */
+    private fun requestIngressSession(force: Boolean) {
         val web = webView ?: return
+        if (sessionPending) return
+        if (ingressSession != null) return
+        if (sessionAttempts >= INGRESS_MAX_ATTEMPTS) return
         val now = System.currentTimeMillis()
-        if (now - lastTokenAskAt < TOKEN_ASK_MIN_GAP_MS) return
-        lastTokenAskAt = now
-        tokenAskPending = true
+        if (!force && now - lastSessionAskAt < INGRESS_ASK_MIN_GAP_MS) return
+        if (!canRunIngressScript()) return
+        sessionAttempts++
+        lastSessionAskAt = now
+        sessionPending = true
+        log(HaIngress.logLine(HaIngress.STEP_TOKEN, "pending", "attempt=$sessionAttempts"))
         try {
-            web.evaluateJavascript(JS_HA_ACCESS_TOKEN) { raw ->
-                tokenAskPending = false
-                val token = HaLogin.tokenFromJsValue(raw)
-                log("[login] tokens=${if (token == null) "no" else "yes"}")
-                if (token != null && haAccessToken == null) {
-                    haAccessToken = token
-                    loggedInSignal = true
-                    mintIngressSession(token)
-                }
-            }
+            web.evaluateJavascript(HaIngress.sessionScript(ServerResolver.ADDON_SLUG), null)
         } catch (t: Throwable) {
-            tokenAskPending = false
-            log("[login] tokens=error ${t.javaClass.simpleName}")
+            sessionPending = false
+            onIngressSessionFailed("eval_" + t.javaClass.simpleName)
+            return
+        }
+        if (!sessionWatchdogArmed) {
+            sessionWatchdogArmed = true
+            mainHandler.postDelayed(ingressWatchdogRunnable, INGRESS_ASK_TIMEOUT_MS)
         }
     }
 
     /**
-     * (18/11/2026) GD10 — `localStorage` (`hassTokens`) chỉ đọc được trên một trang **cùng origin** với HA.
-     * Nếu WebView đang ở `about:blank` / trang lỗi (vd sau khi chặn body `401: Unauthorized`), mở một trang
-     * cùng origin RẤT nhẹ (`/manifest.json` — không phải Lovelace, không phải form đăng nhập) để đọc token,
-     * rồi nhịp 1 s sẽ tự tạo phiên ingress. Tối đa 2 lần cho mỗi luồng, chỉ khi đã có dấu hiệu đăng nhập và
-     * CHƯA có token — không bao giờ đẩy người dùng ra khỏi trang HA thật.
+     * Kết quả từ bridge của JS ([HaIngress.parseResult]): `step=token` chỉ để ghi log, `step=session` mới quyết
+     * định — OK thì điều hướng sang `…/launcher-config.html` ([onIngressSessionReady]), hỏng thì đếm lần thất bại.
      */
-    private fun ensureSameOriginForTokens() {
-        if (haAccessToken != null || tokenAskPending) return
-        val origin = haOrigin ?: return
-        val url = webView?.url
-        // (19/11/2026) GD11 — KHÔNG chỉ "khác origin": trang ingress bị chặn 401 (sau `stopLoading()`), trang lỗi hay
-        // `about:blank` đều KHÔNG có document để đọc `localStorage` — dù vẫn cùng origin. Chỉ coi là dùng được khi
-        // đang ở một trang thật của HA **không phải** đường dẫn ingress và không phải form đăng nhập.
-        val usable = HaLogin.isSameOrigin(url, origin) &&
-            !DashboardTarget.isIngress(url) &&
-            !HaLogin.isAuthPage(url)
-        if (usable) return
-        if (neutralLoads >= 2) return
-        neutralLoads++
-        val probePage = origin.trimEnd('/') + "/manifest.json"
-        log("[login] neutral_load=$probePage (đọc hassTokens cùng origin)")
-        // (19/11/2026) GD11 — đi qua loadWeb với lý do [LOAD_TOKENS] để `onPageFinished` không hiểu nhầm đây là
-        // "trang sai" (URL ngoài ingress) mà đổi biến thể.
-        loadWeb(probePage, LOAD_TOKENS)
+    private fun onIngressBridgeResult(json: String?) {
+        val result = HaIngress.parseResult(json)
+        if (result == null) {
+            log(HaIngress.logLine(HaIngress.STEP_SESSION, "bad_bridge"))
+            return
+        }
+        when (result.step) {
+            HaIngress.STEP_TOKEN -> log(
+                HaIngress.logLine(
+                    HaIngress.STEP_TOKEN,
+                    if (result.ok) "ok" else "fail",
+                    result.detail?.let { "detail=$it" }
+                )
+            )
+
+            HaIngress.STEP_SESSION -> {
+                mainHandler.removeCallbacks(ingressWatchdogRunnable)
+                sessionWatchdogArmed = false
+                sessionPending = false
+                if (result.sessionReady) {
+                    onIngressSessionReady(result.session.orEmpty(), result.how, result.cookie)
+                } else {
+                    onIngressSessionFailed(result.detail ?: "no_session")
+                }
+            }
+        }
     }
 
-    /** (18/11/2026) GD10 — tạo phiên ingress thật rồi ghi cookie `ingress_session` (luồng nền). */
-    private fun mintIngressSession(accessToken: String) {
-        val origin = haOrigin ?: return
-        if (loginWatch == null) return
-        Thread {
-            val session = HaIngress.createSession(origin, ServerResolver.ADDON_SLUG, accessToken) { line -> log(line) }
-            if (session == null) {
-                log("[login] ingress_session=none")
-                return@Thread
-            }
-            // CookieManager: ghi ở luồng UI cho chắc chắn (WebView cookie store).
-            post {
-                val ok = HaCookie.setIngressSession(origin, session)
-                log("[login] ingress_session=ok written=$ok")
-                // Dò NGAY (không chờ nhịp 1 s kế tiếp) để tổng thời gian từ "đăng nhập xong" tới dashboard ≤ 2 s.
-                if (!probing) probeCandidate(cookiePresent = true)
-            }
-        }.also { it.isDaemon = true; it.name = "ha-ingress-session" }.start()
+    /**
+     * (20/11/2026) GD12 — ĐÃ CÓ PHIÊN: JS vừa đặt cookie `ingress_session` (đúng `Path=/api/hassio_ingress/` như
+     * frontend). Ghi hộ thêm một lần bằng [CookieManager] (cùng giá trị, cùng `Path` — lưới an toàn khi trình
+     * duyệt nhúng chặn `document.cookie`), `flush()` xuống đĩa, rồi **điều hướng ngay** sang
+     * `…/api/hassio_ingress/<TOKEN>/launcher-config.html`.
+     */
+    private fun onIngressSessionReady(session: String, how: String?, jsCookie: Boolean) {
+        ingressSession = session
+        val origin = haOrigin
+        val wrote = HaCookie.setIngressSession(origin, session)
+        runCatching { CookieManager.getInstance().flush() }
+        log(
+            HaIngress.logLine(
+                HaIngress.STEP_SESSION,
+                "ok",
+                "how=${how ?: "-"} cookie=${yn(wrote || jsCookie)} js_cookie=${yn(jsCookie)}"
+            )
+        )
+        val url = ingressLauncherUrl()
+        if (url == null) {
+            onLoginFailed(null)
+            return
+        }
+        // Dò lại từ biến thể ĐẦU (ingress dựng từ TOKEN) — phiên vừa tạo phải làm nó trả 200.
+        loginWatch?.reset()
+        log(HaIngress.logLine(HaIngress.STEP_NAV, "pending", DashboardTarget.shortUrl(url)))
+        loadWeb(url, LOAD_SESSION)
+        if (!probing) probeCandidate(cookiePresent = true)
+    }
+
+    /** Trang điều khiển của add-on (ưu tiên URL ingress đang nhắm, không thì dựng lại từ TOKEN). */
+    private fun ingressLauncherUrl(): String? {
+        val target = targetUrl
+        if (target != null && DashboardTarget.isIngress(target) && DashboardTarget.hasLauncherPage(target)) {
+            return target
+        }
+        val origin = haOrigin ?: return target
+        return DashboardTarget.ingressUrl(origin, Prefs.ingressToken(this))
+    }
+
+    /**
+     * (20/11/2026) GD12 — không tạo được phiên (JS báo lỗi, hoặc quá hạn chờ). **Không im lặng**: ghi log
+     * `[login] step=session result=fail detail=…`, và sau [INGRESS_FAILS_BEFORE_HINT] lần thì hiện hướng dẫn ngắn
+     * trên thanh thông báo — đúng cách người dùng đang phải làm bằng tay.
+     */
+    private fun onIngressSessionFailed(detail: String?) {
+        sessionPending = false
+        sessionFails++
+        mainHandler.removeCallbacks(ingressWatchdogRunnable)
+        sessionWatchdogArmed = false
+        log(HaIngress.logLine(HaIngress.STEP_SESSION, "fail", "detail=${detail ?: "-"} fails=$sessionFails"))
+        if (sessionFails >= INGRESS_FAILS_BEFORE_HINT) showManualHint()
+    }
+
+    /**
+     * (20/11/2026) GD12 — hướng dẫn ngắn khi MỌI cách tự động thất bại (yêu cầu 6): mở add-on bằng tay trong HA
+     * một lần (chính HA frontend sẽ tạo phiên ingress), sau đó quay lại app.
+     */
+    private fun showManualHint() {
+        if (loginFailed || !loginFlowActive) return
+        loginBarText?.text = getString(R.string.ha_manual_steps)
+        log(HaIngress.logLine("manual", "hint"))
     }
 
     /**
@@ -1382,7 +1606,7 @@ class MainActivity : Activity() {
             startLoginFlow(openOrigin = !cookie && !originShown && origin != null)
             return
         }
-        if (origin != null && haAccessToken == null && !cookie && !originShown &&
+        if (origin != null && ingressSession == null && !cookie && !originShown &&
             !HaLogin.isAuthPage(webView?.url)
         ) {
             // Không có cookie VÀ chưa đọc được `hassTokens`: người dùng còn phải đăng nhập → mở trang đăng nhập
@@ -1459,6 +1683,9 @@ class MainActivity : Activity() {
             if (loadingReason == LOAD_LOGIN_PAGE || loadingReason == LOAD_TOKENS) {
                 loadResult = arrival.label
                 loginLog()
+                // (20/11/2026) GD12 — vừa nạp xong trang CÙNG ORIGIN rất nhẹ (`/manifest.json`): đây là lúc chạy
+                // script tạo phiên ingress (trước đó WebView ở trang lỗi 401 nên không có `localStorage`).
+                if (loadingReason == LOAD_TOKENS && loginFlowActive) requestIngressSession(force = true)
                 return
             }
             when (arrival) {

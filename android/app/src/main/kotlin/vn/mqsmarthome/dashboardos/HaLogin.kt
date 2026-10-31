@@ -12,7 +12,7 @@ import java.net.HttpURLConnection
  *  2. Người dùng đăng nhập Home Assistant **thành công**; HA điều hướng sang `/lovelace`.
  *  3. NHƯNG: đăng nhập Lovelace **không** sinh ra cookie `ingress_session` / `hassio_ingress` — Home Assistant
  *     KHÔNG dùng cookie cho phiên của nó (token nằm trong `localStorage` → `hassTokens`) và Supervisor chỉ cấp
- *     `ingress_session` khi **mở add-on** (trang HA gọi `POST /api/hassio/ingress/session/<slug>` rồi tự đặt
+ *     `ingress_session` khi **mở add-on** (frontend gọi WebSocket `supervisor/api` `/ingress/session` rồi tự đặt
  *     cookie). Vì vậy `CookieManager.getCookie(origin)` **không bao giờ** có cookie đó lúc này → nhịp dò cũ
  *     ([WebTargetResolver.hasSessionCookie], ràng buộc 2 tên) **không bao giờ** khớp → app đứng ở Lovelace.
  *  4. Người dùng mở add-on bằng tay (lúc đó Supervisor/HA mới đặt `ingress_session`) → thoát hẳn app → mở lại:
@@ -23,8 +23,8 @@ import java.net.HttpURLConnection
  *    (`<title>Home Assistant</title>`) → đã vào được add-on → điều hướng ngay ([isDashboardResponse]);
  *  - URL hiện tại đã **rời khỏi** `/auth/…` của HA ([leftAuthPage]) → người dùng đã đăng nhập xong;
  *  - hoặc **có cookie mới** bất kỳ của origin so với lúc bắt đầu ([newCookieNames] — không ràng buộc tên);
- *  - hoặc đọc được `hassTokens` (access token) trong `localStorage` ([tokenFromJsValue]) → có thể tự tạo phiên
- *    ingress ([HaIngress]).
+ *  - hoặc đọc được `hassTokens` (access token) trong `localStorage` → có thể tự tạo phiên ingress
+ *    ([HaIngress.sessionScript] — từ GD12 làm **trong WebView**, xem KDoc của [HaIngress]).
  *
  * Tệp này THUẦN (chỉ `java.net` + [WebTargetResolver], không API Android, không mở kết nối) nên unit test được
  * trên JVM — xem `HaLoginTest`.

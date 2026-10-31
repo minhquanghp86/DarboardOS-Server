@@ -19,6 +19,11 @@ import android.webkit.CookieManager
  * (18/11/2026) GD10 — [setIngressSession]: ghi cookie `ingress_session` NGAY sau khi app tự tạo phiên ingress
  * ([HaIngress]) — bản thân việc đăng nhập Lovelace không sinh cookie đó.
  *
+ * (20/11/2026) GD12 — phiên ingress nay do **JS trong trang HA** tạo và tự đặt cookie (`document.cookie`, xem
+ * [HaIngress.sessionScript]) — đó là đường DUY NHẤT hoạt động (WS `supervisor/api` rồi `path=/api/hassio_ingress/`).
+ * [setIngressSession] chỉ còn là lưới an toàn: nếu `document.cookie` không đọc lại được thì app ghi hộ bằng
+ * [CookieManager] với **cùng** `Path` như frontend.
+ *
  * Tệp này chỉ gọi API Android (không mạng) nên không unit-test trên JVM được; phần quyết định "có phải ingress
  * không / có cookie chưa" nằm ở [WebTargetResolver.isIngressBase] + [WebTargetResolver.hasSessionCookie] (đã có test).
  */
@@ -64,13 +69,15 @@ object HaCookie {
     fun has(url: String?): Boolean = !header(url).isNullOrBlank()
 
     /**
-     * (18/11/2026) GD10 — ghi cookie phiên ingress ([HaLogin.INGRESS_COOKIE] = `ingress_session`) cho [origin].
+     * (18/11/2026) GD10 — ghi cookie phiên ingress ([HaIngress.COOKIE_NAME] = `ingress_session`) cho [origin].
      *
-     * Dùng ngay sau [HaIngress.createSession]: phiên vừa tạo phải nằm trong cookie store của WebView thì
-     * `GET /api/hassio_ingress/<TOKEN>/launcher-config.html` mới trả **200** thay vì 401 — đúng việc trang HA
-     * vẫn làm khi người dùng mở add-on (đó là lý do "thoát app, mở lại thì được").
+     * Dùng ngay sau khi JS trong trang HA tạo được phiên ([HaIngress.sessionScript]): phiên vừa tạo phải nằm trong
+     * cookie store của WebView thì `GET /api/hassio_ingress/<TOKEN>/launcher-config.html` mới trả **200** thay vì
+     * 401 — đúng việc trang HA vẫn làm khi người dùng mở add-on (đó là lý do "thoát app, mở lại thì được").
      *
-     * `Path=/` để cookie áp cho cả origin **và** đường dẫn ingress `/api/hassio_ingress/<TOKEN>/…`.
+     * (20/11/2026) GD12 — `Path=/api/hassio_ingress/` **đúng như HA frontend** (`document.cookie` trong bundle
+     * đang chạy: `path=/api/hassio_ingress/;SameSite=Strict[;Secure]`). Bản GD10 ghi `Path=/`: cookie vẫn tới
+     * được ingress, nhưng khác hẳn frontend và bị gửi kèm mọi request khác của HA.
      * Trả false khi CookieManager không ghi được (không có WebView / URL không hợp lệ).
      */
     fun setIngressSession(origin: String?, session: String?): Boolean {
@@ -78,15 +85,16 @@ object HaCookie {
         val s = session?.trim().orEmpty()
         if (o.isEmpty() || s.isEmpty()) return false
         if (!o.startsWith("http://", true) && !o.startsWith("https://", true)) return false
-        // Giá trị cookie phải là token an toàn (không khoảng trắng / dấu ';').
-        if (s.any { it.isWhitespace() || it == ';' || it == ',' }) return false
+        // Session token của Supervisor phải "an toàn" (chỉ chữ/số/-/_/.) — xem [HaIngress.isSafeSession].
+        if (!HaIngress.isSafeSession(s)) return false
         return try {
             val cm = CookieManager.getInstance()
             cm.setAcceptCookie(true)
-            cm.setCookie(o, "${HaLogin.INGRESS_COOKIE}=$s; Path=/")
+            cm.setCookie(o, HaIngress.cookieValue(s, secure = o.startsWith("https://", true)))
             cm.flush()
-            val now = header(o)
-            WebTargetResolver.hasSessionCookie(now)
+            // Đọc lại ĐÚNG đường dẫn ingress: cookie có `Path=/api/hassio_ingress/` nên `getCookie(origin)`
+            // KHÔNG thấy nó (khác `Path=/` của bản GD10).
+            WebTargetResolver.hasSessionCookie(header(o + HaIngress.COOKIE_PATH))
         } catch (t: Throwable) {
             Log.d(TAG, "setIngressSession loi: ${t.javaClass.simpleName}")
             false
