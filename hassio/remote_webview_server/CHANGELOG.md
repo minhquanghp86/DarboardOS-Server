@@ -1,3 +1,9 @@
+## V2.9.307
+- **Sửa lỗi báo thức hiện nhầm màn**: `GET /alarm/list?dev=<id>` nay chỉ trả báo thức của màn đó + báo thức "Mọi màn
+  hình". Trước đây mở Báo thức của P4 lại thấy cả báo thức tạo trên màn 480×272.
+- App Android: **ký release** (keystore riêng, SHA-256 `3F:80:86:9D…`), icon đủ 5 mật độ (APK nhỏ hơn ~25%),
+  thêm `android/scripts/smoke-test.sh` kiểm thử on-device.
+
 ## V2.9.306
 - **Trình duyệt là thiết bị gọi được, ổn định**: mỗi trình duyệt có id bền trong `localStorage` và gửi `{type:'hello'}`
   khi kết nối, nên mở lại tab / rớt mạng **không sinh thêm thiết bị** và **không đổi id**. Hai tab cùng máy: tab cũ
