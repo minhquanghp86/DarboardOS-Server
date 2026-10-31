@@ -129,6 +129,9 @@ object DiagFile {
         val text = line?.trim().orEmpty()
         if (text.isEmpty()) return false
         if (text.startsWith(Logout.LOG_PREFIX)) return false
+        // (1.8) Dòng `[answer] …` (dựng/mở URL trang gọi khi bấm "Nghe") là chẩn đoán BÌNH THƯỜNG: không bao giờ tự
+        // lưu tệp, kể cả khi chuỗi UUID của máy hay TOKEN ingress tình cờ chứa "401".
+        if (text.startsWith(CallPageTarget.LOG_PREFIX)) return false
         if (text.startsWith(IngressPromote.LOG_PREFIX) && text.contains("fail=")) return true
         return HTTP_401.containsMatchIn(text)
     }

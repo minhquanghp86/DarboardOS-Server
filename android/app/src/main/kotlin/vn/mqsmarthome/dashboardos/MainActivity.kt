@@ -220,8 +220,43 @@ class MainActivity : Activity() {
          */
         private const val LOAD_LOGIN_PAGE = "login-page"
 
-        /** Trang khác (trang gọi `call-web.html?call=…`, liên kết ngoài…). */
+        /** Trang khác (liên kết ngoài…). */
         private const val LOAD_OTHER = "other"
+
+        /**
+         * (1.8) **TRANG GỌI** (`<apiBase>/call-web.html?call=<id>&phone=<phoneId>`) — nạp khi bấm "Nghe" lúc app đang
+         * mở: điều hướng **chính WebView đang sống** ([navigateLive]) thay vì tạo lại WebView/activity (giữ nguyên
+         * chế độ full-screen của add-on). KHÔNG phải "lần nạp nhắm panel" nên [isDashboardAttempt] trả `false` — mọi
+         * bước xác thực trang add-on (promote/panel/wrong-page) đều bỏ qua trang gọi.
+         */
+        private const val LOAD_CALL_PAGE = "call-page"
+
+        /**
+         * (1.8) Activity **đang sống** (có WebView) — xem [openUrlIfLive]. `@Volatile` vì được đọc/ghi từ luồng khác
+         * (IncomingCallActivity, CallActionReceiver chạy trên luồng riêng sau `goAsync`).
+         */
+        @Volatile
+        private var live: MainActivity? = null
+
+        /**
+         * (1.8) **MỞ [url] TRONG WEBVIEW ĐANG SỐNG** — đúng yêu cầu "app đang mở và WebView đang sống thì điều hướng
+         * WebView hiện tại, KHÔNG tạo activity mới, giữ full-screen add-on".
+         *
+         * @return `true` ⇔ **đã** nhận việc điều hướng (caller KHÔNG được mở activity mới). `false` ⇔ không có
+         *   WebView nào đang sống (app ở nền / đã đóng / đang ở màn nhập địa chỉ) ⇒ caller mở [MainActivity] với
+         *   [EXTRA_OPEN_URL] như cũ.
+         */
+        fun openUrlIfLive(url: String?): Boolean {
+            val u = url?.trim().orEmpty()
+            if (u.isEmpty()) return false
+            val a = live ?: return false
+            if (a.isFinishing || a.isDestroyed) return false
+            if (!a.hasLiveWebView()) return false
+            if (Looper.myLooper() == Looper.getMainLooper()) return a.navigateLive(u)
+            // Gọi từ luồng nền (CallActionReceiver): đẩy sang UI thread rồi trả `true` ngay — activity không phải chờ.
+            a.mainHandler.post { if (!a.isFinishing && !a.isDestroyed) a.navigateLive(u) }
+            return true
+        }
     }
 
     private lateinit var prefs: SharedPreferences
@@ -470,7 +505,7 @@ class MainActivity : Activity() {
     /** Mo URL tu extra (trang cuoc goi / nut "Dang nhap Home Assistant"). true = da xu ly. */
     private fun openFromIntent(intent: Intent?): Boolean {
         val raw = intent?.getStringExtra(EXTRA_OPEN_URL) ?: return false
-        val url = raw.trim()
+        val url = repairCallUrl(raw.trim())
         if (!url.startsWith("http://") && !url.startsWith("https://")) return false
         val startLogin = intent.getBooleanExtra(EXTRA_HA_LOGIN, false)
         intent.removeExtra(EXTRA_OPEN_URL)
@@ -932,6 +967,79 @@ class MainActivity : Activity() {
             return
         }
         loadWeb(url, LOAD_OTHER)
+    }
+
+    // ------------------------------------------------------ (1.8) trang gọi trong WebView ĐANG SỐNG
+
+    /**
+     * (1.8) **HÀNG RÀO THỨ HAI** — URL trang gọi nhận được qua [EXTRA_OPEN_URL] mà KHÔNG dùng được
+     * ([CallPageTarget.openable]: panel của HA `…/b39feb53_remote_webview_server/call-web.html`, gốc domain…) thì
+     * **dựng lại** URL đúng từ `apiBase`/domain + TOKEN ([CallPageTarget.build]) trước khi nạp.
+     *
+     * Vì sao cần: `EXTRA_OPEN_URL` có thể đến từ nguồn khác — PendingIntent/Intent của bản 1.7 còn sót, hay một chỗ
+     * gọi mới quên dùng [CallLauncher]. Nạp nguyên URL panel = quay lại đúng lỗi "hiện dashboard Home Assistant".
+     */
+    private fun repairCallUrl(url: String): String {
+        if (!CallPageTarget.isCallPage(url)) return url
+        if (CallPageTarget.openable(url)) return url
+        val call = CallPageTarget.callIdOf(url)
+        val fixed = CallPageTarget.build(
+            callId = call.orEmpty(),
+            phoneId = Prefs.phoneId(this),
+            apiBase = Prefs.apiBase(this),
+            webUrl = Prefs.webUrl(this),
+            loginUrl = Prefs.loginUrl(this),
+            typed = Prefs.oneInput(this),
+            token = Prefs.ingressToken(this)
+        )
+        log(CallPageTarget.logLine(fixed.url, fixed.source, fixed.ok))
+        return fixed.url ?: url
+    }
+
+    /** WebView hiện tại còn dùng được không (màn WebView đang hiện + view chưa bị huỷ). */
+    private fun hasLiveWebView(): Boolean = showingWeb && webView != null
+
+    /**
+     * (1.8) **ĐIỀU HƯỚNG WEBVIEW ĐANG SỐNG TỚI TRANG GỌI** — không tạo WebView/activity mới, nên chế độ full-screen
+     * của add-on và phiên ingress (`ingress_session`) được giữ nguyên.
+     *
+     * Ba việc phải làm trước khi nạp, nếu không trang gọi sẽ bị "kéo" đi mất:
+     *  1. **dừng nhịp dò 1 s** ([loginTick]) — nó điều hướng về panel mỗi khi URL cùng origin mà không phải `/auth/…`,
+     *     tức là đúng trang gọi (`…/api/hassio_ingress/<TOKEN>/call-web.html`) ⇒ mất cuộc gọi;
+     *  2. **huỷ mọi chuyến promote đang treo** (timeout 4 s / hẹn giờ 2,5 s) — promote thất bại sẽ nạp lại panel;
+     *  3. ẩn thanh thông báo đăng nhập (lý do [LoginBar.Reason.CALL_PAGE], không phải "cần đăng nhập").
+     *
+     * Sau đó nạp URL với lý do [LOAD_CALL_PAGE] ([isDashboardAttempt] = `false`) và **đưa activity lên trước** bằng
+     * một intent KHÔNG có [EXTRA_OPEN_URL] (singleTop + CLEAR_TOP ⇒ `onNewIntent` của chính instance này, không dựng
+     * lại WebView).
+     *
+     * @return `true` ⇔ đã nạp.
+     */
+    private fun navigateLive(url: String): Boolean {
+        if (!hasLiveWebView()) return false
+        mainHandler.removeCallbacks(promoteTimeoutRunnable)
+        mainHandler.removeCallbacks(promoteAfterPanelRunnable)
+        mainHandler.removeCallbacks(promoteStartGuardRunnable)
+        promotePending = false
+        promoteFallback = false
+        panelPromoteArmed = false
+        loginFlowActive = false
+        loginFailed = false
+        stopLoginTick()
+        showLoginBar(false, LoginBar.Reason.CALL_PAGE)
+        log(CallPageTarget.navLine(url, CallLauncher.NAV_WEBVIEW))
+        loadWeb(url, LOAD_CALL_PAGE)
+        // Đưa app lên trước (nếu đang ở nền) — KHÔNG kèm EXTRA_OPEN_URL nên KHÔNG dựng lại WebView.
+        runCatching {
+            startActivity(
+                Intent(this, MainActivity::class.java).addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+                )
+            )
+        }
+        return true
     }
 
     /** Cookie header của origin HA + trang đích (gộp cả hai path, xem [HaCookie.header]). */
@@ -2036,6 +2144,10 @@ class MainActivity : Activity() {
         if (isFinishing || isDestroyed) return
         // (27/11/2026) GD15 — đang chờ kết luận của trang TOP-LEVEL (promote): nhịp dò không được kéo WebView về panel.
         if (promotePending) return
+        // (1.8) ĐANG Ở TRANG GỌI (`call-web.html?call=…`): nhịp dò TUYỆT ĐỐI không được điều hướng — URL trang gọi
+        // nằm cùng origin với panel nhưng KHÔNG phải `/auth/…` nên nhánh `sameOrigin` bên dưới sẽ kéo WebView về
+        // panel và làm mất cuộc gọi (bên gọi không nhận `accepted`).
+        if (CallPageTarget.isCallPage(webView?.url)) return
         val url = webView?.url
         val cookiePresent = !currentCookieHeader().isNullOrBlank()
         val sessionPresent = hasPanelSession()
@@ -2870,6 +2982,8 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        // (1.8) Activity này là chỗ nhận "mở trang gọi" khi WebView còn sống (xem [openUrlIfLive]).
+        live = this
         // Quay lại app giữa lúc đăng nhập: chạy tiếp nhịp dò 1 s.
         if (showingWeb && loginFlowActive) startLoginTick()
     }
@@ -2884,6 +2998,9 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        // (1.8) Không còn WebView nào để nhận trang gọi (xem [openUrlIfLive]) — nếu không xoá, lần gọi sau sẽ tưởng
+        // WebView còn sống và không mở MainActivity.
+        if (live === this) live = null
         searchToken++
         searching = false
         mainHandler.removeCallbacks(bubbleIdleRunnable)

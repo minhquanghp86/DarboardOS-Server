@@ -86,6 +86,12 @@ object LoginBar {
         /** Đường TỰ ĐỘNG mở dashboard (nút "Mở Dashboard" / `[auto] openDashboard`) — **nguyên nhân nhấp nháy 1.4**. */
         OPEN_DASHBOARD("open_dashboard", false),
 
+        /**
+         * (1.8) Đang mở **trang gọi** (`call-web.html?call=…`) trong WebView đang sống
+         * (`MainActivity.navigateLive`): không phải "cần đăng nhập" ⇒ ẩn thanh.
+         */
+        CALL_PAGE("call_page", false),
+
         // ── cần thật: có thể bật thanh (vẫn bị lọc bởi `session` + thời gian ân hạn)
         /** 401/403 trên ingress — thiếu phiên `ingress_session` (yêu cầu 2). */
         AUTH_HTTP("auth_http", true),

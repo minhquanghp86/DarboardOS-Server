@@ -23,7 +23,9 @@ import android.widget.Toast
  *
  * Service gửi thông báo full-screen intent trỏ vào đây, nên activity tự bật lên trên màn khoá
  * (setShowWhenLocked + setTurnScreenOn + xin bỏ khoá tạm thời). Khi:
- *   - "Nghe"     -> POST /app/answer  rồi mở WebView tới <origin>call-web.html?call=<id>
+ *   - "Nghe"     -> POST /app/answer  rồi mở trang gọi THẬT của add-on
+ *                   (`<apiBase>/call-web.html?call=<id>&phone=<phoneId>`, tức dưới `/api/hassio_ingress/<TOKEN>` —
+ *                   xem [CallLauncher] / [CallPageTarget]; bản 1.8 sửa lỗi mở nhầm panel của HA)
  *   - "Từ chối"  -> POST /app/decline rồi đóng
  * Cuộc gọi hết (người gọi cúp, quá 30 s) -> PhoneService gọi dismissFor() để huỷ thông báo và đóng.
  *
@@ -210,7 +212,9 @@ class IncomingCallActivity : Activity() {
             val ok = PhoneApi.answer(base, Prefs.phoneId(this), call, cookie)
             runOnUiThread {
                 if (!ok) Toast.makeText(this, R.string.call_answer_failed, Toast.LENGTH_SHORT).show()
-                openCallPage()
+                // (1.8) URL trang gọi do [CallPageTarget] quyết (ingress của add-on, KHÔNG phải panel của HA) và được
+                // mở ngay trong WebView đang sống nếu app còn mở — xem [CallLauncher].
+                CallLauncher.open(this, call, from = "activity")
                 finish()
             }
         }
@@ -245,35 +249,14 @@ class IncomingCallActivity : Activity() {
     }
 
     /**
-     * Mở đúng trang gọi trong WebView của app (call-web.html?call=<id>).
+     * (1.8) **ĐÃ BỎ [openCallPage] CŨ** — bản 1.7 lấy `webUrl` (panel của add-on trên HA,
+     * `https://<domain>/b39feb53_remote_webview_server`) rồi ghép `call-web.html` vào ⇒ URL thành
+     * `…/b39feb53_remote_webview_server/call-web.html?call=…`, tức **route của SPA Home Assistant** ⇒ app hiện
+     * dashboard Hass, không có giao diện gọi, bên gọi không nhận `accepted` (xem KDoc đầu [CallPageTarget]).
      *
-     * (13/11/2026) GD6 — trang gọi nằm CÙNG thư mục với trang điều khiển ([Prefs.KEY_WEB_URL]), nên lấy theo webUrl
-     * để giữ nguyên tiền tố ingress của Home Assistant (cookie HA vẫn áp dụng); nếu chưa có webUrl thì lùi về apiBase.
-     *
-     * (19/11/2026) GD11 — dùng trang điều khiển ĐÃ KIỂM ([DashboardTarget.candidates]): `webUrl` là origin thì
-     * `call-web.html` sẽ rơi vào Lovelace của HA; dựng lại từ TOKEN thì trang gọi vẫn nằm đúng thư mục ingress.
+     * Nay việc dựng URL + mở trang nằm ở [CallLauncher]: `apiBase` (ingress `…/api/hassio_ingress/<TOKEN>`) →
+     * dựng lại từ domain + TOKEN → `webUrl` (chỉ chế độ IP LAN), kèm kiểm tra "panel HA thuần thì KHÔNG mở".
      */
-    private fun openCallPage() {
-        val dashboard = DashboardTarget.candidates(
-            saved = Prefs.webUrl(this),
-            loginUrl = Prefs.loginUrl(this),
-            typed = Prefs.oneInput(this),
-            token = Prefs.ingressToken(this)
-        ).firstOrNull()
-        val url = WebTargetResolver.callPageUrl(dashboard, callId)
-            ?: WebTargetResolver.callPageUrl(Prefs.webUrl(this), callId)
-            ?: PhoneApi.webUrl(Prefs.apiBase(this), WebTargetResolver.CALL_PAGE, "call=$callId")
-            ?: return
-        val i = Intent(this, MainActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            .putExtra(MainActivity.EXTRA_OPEN_URL, url)
-        try {
-            startActivity(i)
-        } catch (t: Throwable) {
-            Toast.makeText(this, t.message ?: "?", Toast.LENGTH_SHORT).show()
-        }
-    }
-
     private fun thread(body: () -> Unit) {
         Thread {
             try {

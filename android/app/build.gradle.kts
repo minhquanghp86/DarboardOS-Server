@@ -26,10 +26,10 @@ android {
         applicationId = "vn.mqsmarthome.dashboardos"
         minSdk = 29
         targetSdk = 35
-        // (1.7) YÊU CẦU: versionCode = 8, versionName = "1.7" — nút URL lên góc phải TRÊN (44dp, alpha 0.55),
-        // màn Cài đặt thiết kế lại theo phong cách trang Kết nối (4 nhóm card).
-        versionCode = 8
-        versionName = "1.7"
+        // (1.8) YÊU CẦU: versionCode = 9, versionName = "1.8" — sửa lỗi bấm "Nghe" mở nhầm panel của Home Assistant
+        // (URL trang gọi phải nằm dưới ingress của add-on — xem CallPageTarget/CallLauncher).
+        versionCode = 9
+        versionName = "1.8"
     }
 
     signingConfigs {
