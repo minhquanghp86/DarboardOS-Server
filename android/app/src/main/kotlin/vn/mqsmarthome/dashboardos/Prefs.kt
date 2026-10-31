@@ -90,6 +90,17 @@ object Prefs {
      */
     fun oneInput(ctx: Context): String? = webInput(ctx) ?: apiInput(ctx) ?: apiBase(ctx)
 
+    /**
+     * (18/11/2026) GD10 — đổi riêng **trang điều khiển** (`webUrl`) sau khi một BIẾN THỂ URL chạy được
+     * ([HaLogin.dashboardVariants]): lần mở app sau vào thẳng đúng biến thể đó, không dò/vòng qua Lovelace nữa.
+     * Giữ nguyên `apiBase` và chuỗi người dùng đã gõ.
+     */
+    fun setWebUrl(ctx: Context, url: String?) {
+        val v = url?.trim().orEmpty()
+        if (v.isEmpty()) return
+        get(ctx).edit().putString(KEY_WEB_URL, v).apply()
+    }
+
     /** (17/11/2026) GD9 — doi rieng goc API (PhoneService tu chuyen khi TOKEN ingress doi / thu duong dan khac). */
     fun setApiBase(ctx: Context, base: String?) {
         val v = base?.trim().orEmpty()

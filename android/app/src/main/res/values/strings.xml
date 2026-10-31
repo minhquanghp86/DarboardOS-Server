@@ -126,6 +126,16 @@
     <string name="ha_login_banner">Đăng nhập Home Assistant để tiếp tục</string>
     <string name="ha_login_done">Tôi đã đăng nhập</string>
     <string name="ha_login_ok">Đã có phiên Home Assistant — đang mở trang điều khiển…</string>
+
+    <!-- (18/11/2026) GD10 — tự chuyển sang dashboard add-on sau khi đăng nhập; nút chủ động + thông báo thất bại. -->
+    <string name="ha_dashboard_button">Mở Dashboard</string>
+    <string name="ha_retry_button">Thử lại</string>
+    <string name="ha_login_again_button">Đăng nhập Home Assistant</string>
+    <string name="ha_login_waiting_dashboard">Đã đăng nhập — đang mở Dashboard OS…</string>
+    <string name="ha_login_probing">Đang kiểm tra Dashboard OS… (web=%1$s)</string>
+    <string name="ha_login_failed_title">Chưa tự vào được Dashboard OS</string>
+    <string name="ha_login_failed_banner">Chưa vào được Dashboard OS (add-on trả %1$s). Bấm “Thử lại”.</string>
+    <string name="ha_login_failed_hint">Trang điều khiển nằm sau ingress của Home Assistant và vẫn trả %1$s dù bạn đã đăng nhập (app đã thử tự tạo phiên ingress nhưng không được — thường do tài khoản không phải quản trị viên, hoặc add-on chưa chạy).\nĐã thử:\n%2$s\nBấm “Thử lại” (app dò lại từ đầu), hoặc “Đăng nhập Home Assistant” để đăng nhập lại / đổi tài khoản. Nếu vẫn lỗi: mở add-on Dashboard OS bằng tay trong Home Assistant một lần rồi bấm “Mở Dashboard”.</string>
     <string name="ha_login_required_title">Cần đăng nhập Home Assistant</string>
     <string name="ha_login_required_hint">Trang điều khiển nằm sau ingress của Home Assistant nên cần một phiên đăng nhập. Bấm nút dưới để mở trang đăng nhập, sau khi đăng nhập app sẽ tự quay lại trang điều khiển.</string>
     <string name="ha_login_button">Đăng nhập</string>

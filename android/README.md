@@ -119,10 +119,54 @@ Chênh lệch APK (clean build, cùng máy):
 | release | 3.187.361 B (3,04 MB) | 2.314.298 B (2,21 MB) | −873.063 B (−27,4 %) |
 
 APK phát hành hiện tại (`android/DashboardOS-release.apk`, đã bỏ luôn cấu hình chữ ký v1 không cần thiết):
-**2.310.181 B** — md5 `674670e6217b84eebb7eb3b87c393e2e`,
-sha256 `63efe9a61b55d949d06f332d06ec56b499530e0e34d8cb502f32b777ff098d35`.
+**2.338.053 B** — md5 `37985ea074080f31141d9cabfe5337f0`,
+sha256 `1c42945ce3909f4065a6410e9f1f5d32c1561b9d32e08f318ba568cafa940860`.
 
-## 4. Smoke test trên máy thật
+## 4. Luồng "nhập một ô địa chỉ → đăng nhập Home Assistant → dashboard" (GD10)
+
+App chỉ có **một ô** địa chỉ (`hass.mqsmarthome.io.vn` hoặc `192.168.10.2`). Với tên miền, trang điều khiển nằm
+sau **ingress** của Home Assistant: `https://<domain>/api/hassio_ingress/<TOKEN>/launcher-config.html` — nơi này
+trả **401** cho tới khi có phiên ingress.
+
+**Vì sao bản trước đứng ở Lovelace:** đăng nhập Lovelace **không** sinh cookie `ingress_session` (HA giữ phiên
+trong `localStorage` → `hassTokens`); Supervisor chỉ cấp `ingress_session` khi **mở add-on** (trang HA gọi
+`POST /api/hassio/ingress/session/<slug>` rồi đặt cookie). Bản trước dò đúng 2 tên cookie đó nên **không bao giờ**
+khớp → phải mở add-on bằng tay rồi khởi động lại app.
+
+Luồng hiện tại (`MainActivity` + `HaLogin` + `HaIngress`):
+
+1. **Kết nối**: `WebTargetResolver.webCandidates` dò ingress / slug / gốc domain (kèm cookie nếu đã đăng nhập).
+   401 = đúng add-on nhưng chưa đăng nhập → lưu `webUrl`, mở `https://<domain>/` để đăng nhập.
+2. **Nhịp dò 1 s** (`loginTickRunnable`, Logcat tag **`DashboardOS-login`**), mỗi nhịp ghi
+   `[login] url=… cookie=yes/no web=200/401 …` (đồng thời hiện trên thanh thông báo):
+   - dấu hiệu "đã đăng nhập": URL đã **rời `/auth/…`**, hoặc **có cookie mới** (bất kỳ tên), hoặc đọc được
+     `hassTokens` từ `localStorage` (JS chỉ đọc);
+   - `GET <webUrl>` (HttpURLConnection, kèm cookie): **200** + body **không** phải `<title>Home Assistant</title>`
+     → mở dashboard ngay.
+3. **Tự tạo phiên ingress** (`HaIngress`): đọc `access_token` trong `hassTokens` → `POST
+   /api/hassio/ingress/session/<slug>` (thử thêm body `{"addon":"<slug>"}` cho bản Supervisor cũ) →
+   ghi cookie `ingress_session` (`Path=/`) → dò lại. Đây chính là việc trang HA vẫn làm khi người dùng mở add-on.
+4. **Chống kẹt vòng** (`HaLogin.Watch`): 401 hai lần liền dù đã có cookie → thử
+   `…/<slug>/launcher-config.html` → `https://<domain>/launcher-config.html` → `http://<host>:18080/launcher-config.html`;
+   hết biến thể → màn hình thông báo rõ ràng + nút **Thử lại** (không im lặng). Biến thể chạy được sẽ được lưu
+   làm `webUrl` cho lần sau.
+5. **Thanh thông báo** ở màn đăng nhập: luôn có nút **Mở Dashboard** (chủ động), nút **Thử lại** (khi tự dò thất
+   bại) và **Tôi đã đăng nhập**.
+6. **Lần mở app sau**: có cookie → nạp **thẳng** `webUrl` (không đi vòng qua Lovelace); 401 thật thì tự dò/tạo
+   phiên ingress trước khi nghĩ tới việc mở trang đăng nhập.
+
+`localStorage` chỉ đọc được trên trang **cùng origin** với HA; nếu WebView đang ở `about:blank`/trang lỗi, app mở
+một trang cùng origin rất nhẹ (`/manifest.json`, tối đa 2 lần) để đọc token — không mở Lovelace.
+
+Kiểm chứng trên máy thật:
+
+```bash
+adb logcat -c && adb logcat -s DashboardOS-login      # xem nhịp dò 1 s
+# lần đầu:  bấm Kết nối → đăng nhập HA → trong ≤ 2 s app tự sang launcher-config.html
+# lần sau:  thoát hẳn app → mở lại → vào thẳng dashboard (không thấy Lovelace)
+```
+
+## 5. Smoke test trên máy thật
 
 `android/scripts/smoke-test.sh` chạy cả chuỗi "cài app → mở app → PhoneService sống → server thấy máy →
 gọi từ màn hình → từ chối". Không cần thiết bị lúc viết script; chỉ cần lúc chạy.

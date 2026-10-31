@@ -341,8 +341,12 @@ object WebTargetResolver {
      * (14/11/2026) GD7 — cookie header (`CookieManager.getCookie(origin)`) đã có phiên HA chưa?
      *
      * Chỉ dò TÊN cookie trong header dạng `a=1; ingress_session=…; b=2`; không cần giá trị. Header rỗng /
-     * null → false. Đây là toàn bộ logic "đã đăng nhập chưa" (dùng chung cho poll 1,5 s, nút "Tôi đã đăng
-     * nhập" và dòng trạng thái ở Cài đặt) nên tách ra để unit test được, không cần WebView.
+     * null → false.
+     *
+     * (18/11/2026) GD10 — **KHÔNG còn là logic "đã đăng nhập chưa"**: đăng nhập Lovelace của HA không sinh cookie
+     * nào trong hai tên này (HA giữ phiên trong `localStorage`; `ingress_session` chỉ có khi mở add-on hoặc khi app
+     * tự tạo — xem [HaLogin]/[HaIngress]). Nay hàm này chỉ dùng để biết "đã có phiên ingress chưa" trong log /
+     * màn Cài đặt.
      */
     fun hasSessionCookie(cookieHeader: String?): Boolean {
         val header = cookieHeader ?: return false

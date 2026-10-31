@@ -12,8 +12,12 @@ import android.webkit.CookieManager
  * cookie phiên HA (đã kiểm chứng), mà `HttpURLConnection` **không** dùng chung cookie store với WebView — nên phải
  * đọc `CookieManager.getInstance().getCookie(...)` rồi gắn header `Cookie:` cho từng request.
  *
- * Không có cookie = chưa đăng nhập Home Assistant → app hiện luồng đăng nhập (MainActivity: thanh thông báo + dò
- * cookie 1,5 s) và **chờ** có cookie rồi mới chạy service (PhoneService bỏ qua các nhịp poll khi thiếu cookie).
+ * Không có cookie = chưa đăng nhập Home Assistant → app hiện luồng đăng nhập (MainActivity: thanh thông báo +
+ * nhịp dò **1 s**, xem [HaLogin]) và **chờ** có cookie rồi mới chạy service (PhoneService bỏ qua các nhịp poll khi
+ * thiếu cookie).
+ *
+ * (18/11/2026) GD10 — [setIngressSession]: ghi cookie `ingress_session` NGAY sau khi app tự tạo phiên ingress
+ * ([HaIngress]) — bản thân việc đăng nhập Lovelace không sinh cookie đó.
  *
  * Tệp này chỉ gọi API Android (không mạng) nên không unit-test trên JVM được; phần quyết định "có phải ingress
  * không / có cookie chưa" nằm ở [WebTargetResolver.isIngressBase] + [WebTargetResolver.hasSessionCookie] (đã có test).
@@ -58,4 +62,34 @@ object HaCookie {
 
     /** Có cookie (bất kỳ) cho [url] — ingress chỉ cần đúng phiên, nhưng vẫn hữu ích để log. */
     fun has(url: String?): Boolean = !header(url).isNullOrBlank()
+
+    /**
+     * (18/11/2026) GD10 — ghi cookie phiên ingress ([HaLogin.INGRESS_COOKIE] = `ingress_session`) cho [origin].
+     *
+     * Dùng ngay sau [HaIngress.createSession]: phiên vừa tạo phải nằm trong cookie store của WebView thì
+     * `GET /api/hassio_ingress/<TOKEN>/launcher-config.html` mới trả **200** thay vì 401 — đúng việc trang HA
+     * vẫn làm khi người dùng mở add-on (đó là lý do "thoát app, mở lại thì được").
+     *
+     * `Path=/` để cookie áp cho cả origin **và** đường dẫn ingress `/api/hassio_ingress/<TOKEN>/…`.
+     * Trả false khi CookieManager không ghi được (không có WebView / URL không hợp lệ).
+     */
+    fun setIngressSession(origin: String?, session: String?): Boolean {
+        val o = origin?.trim()?.trimEnd('/').orEmpty()
+        val s = session?.trim().orEmpty()
+        if (o.isEmpty() || s.isEmpty()) return false
+        if (!o.startsWith("http://", true) && !o.startsWith("https://", true)) return false
+        // Giá trị cookie phải là token an toàn (không khoảng trắng / dấu ';').
+        if (s.any { it.isWhitespace() || it == ';' || it == ',' }) return false
+        return try {
+            val cm = CookieManager.getInstance()
+            cm.setAcceptCookie(true)
+            cm.setCookie(o, "${HaLogin.INGRESS_COOKIE}=$s; Path=/")
+            cm.flush()
+            val now = header(o)
+            WebTargetResolver.hasSessionCookie(now)
+        } catch (t: Throwable) {
+            Log.d(TAG, "setIngressSession loi: ${t.javaClass.simpleName}")
+            false
+        }
+    }
 }

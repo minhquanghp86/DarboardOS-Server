@@ -343,8 +343,12 @@ class SettingsActivity : Activity() {
 
     /**
      * (14/11/2026) GD7 — "Đã đăng nhập: có/không", dò bằng cookie thật của WebView:
-     * `CookieManager.getInstance().getCookie(origin)` có `ingress_session` / `hassio_ingress` hay không
-     * ([WebTargetResolver.hasSessionCookie]). Không có webUrl → coi như "không".
+     * `CookieManager.getInstance().getCookie(origin)`.
+     *
+     * (18/11/2026) GD10 — KHÔNG chỉ dò 2 tên `ingress_session`/`hassio_ingress` nữa: đăng nhập Lovelace của HA
+     * không sinh cookie nào trong hai tên đó (HA giữ phiên trong `localStorage`), nên bản cũ hiện "không" dù đã
+     * đăng nhập. Nay có **cookie bất kỳ** của domain là coi như đã có phiên; `ingress_session` (khi app tự tạo —
+     * xem [HaIngress]) vẫn được nhận riêng.
      */
     private fun renderHaLogin() {
         val web = Prefs.webUrl(this)
@@ -357,7 +361,7 @@ class SettingsActivity : Activity() {
                 null
             }
         }
-        val logged = WebTargetResolver.hasSessionCookie(cookie)
+        val logged = WebTargetResolver.hasSessionCookie(cookie) || HaLogin.hasAnyCookie(cookie)
         haStatusView.text = buildString {
             append(
                 getString(
@@ -374,7 +378,7 @@ class SettingsActivity : Activity() {
     /**
      * (14/11/2026) GD7 — "Đăng nhập lại Home Assistant": xoá cookie phiên của origin (và cookie theo path ingress
      * của webUrl), đặt `need_ha_login = true`, rồi mở origin trong WebView của app ở CHẾ ĐỘ đăng nhập
-     * (thanh thông báo 40dp + dò cookie 1,5 s → tự sang trang điều khiển khi đăng nhập xong).
+     * (thanh thông báo + nhịp dò 1 s → tự sang trang điều khiển khi đăng nhập xong; GD10).
      */
     private fun reloginHomeAssistant() {
         val web = Prefs.webUrl(this)

@@ -11,6 +11,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
@@ -54,6 +55,25 @@ import android.widget.Toast
  *  - `onReceivedHttpError` 401/403 trên ingress → **không load nội dung lỗi thô**: quay về origin (nếu là chính
  *    trang điều khiển) hoặc hiện màn hình "Cần đăng nhập Home Assistant" có nút Đăng nhập.
  *
+ * (18/11/2026) GD10 — "ĐĂNG NHẬP XONG MÀ KHÔNG TỰ SANG DASHBOARD" (lỗi người dùng báo, tái hiện được):
+ *  - **Nguyên nhân**: dò "đã đăng nhập" bằng TÊN cookie (`ingress_session` / `hassio_ingress`) là sai bản chất.
+ *    Đăng nhập Lovelace KHÔNG tạo cookie nào — HA giữ phiên trong `localStorage` (`hassTokens`), còn
+ *    `ingress_session` chỉ được Supervisor cấp khi **mở add-on** (trang HA gọi `POST /api/hassio/ingress/session/<slug>`
+ *    rồi đặt cookie). Vì thế nhịp dò cũ không bao giờ khớp → app đứng ở Lovelace cho tới khi người dùng mở add-on
+ *    bằng tay và khởi động lại app.
+ *  - **Cách sửa**: nhịp dò **1 s** ([loginTick]) dựa trên HÀNH VI, không dựa tên cookie:
+ *      • `GET <webUrl>` (kèm cookie) trả **200** + body không phải `<title>Home Assistant</title>` → mở dashboard;
+ *      • URL đã rời `/auth/…` của HA **hoặc** có cookie mới (bất kỳ tên) **hoặc** đọc được `hassTokens` → coi là
+ *        đã đăng nhập, thử mở dashboard ngay ([HaLogin]);
+ *      • **tự tạo phiên ingress** (`POST /api/hassio/ingress/session/<slug>` bằng access token đọc từ
+ *        `localStorage` → ghi cookie `ingress_session`) — đúng việc trang HA vẫn làm khi mở add-on ([HaIngress]);
+ *      • 401 hai lần liền dù có cookie → thử biến thể `…/<slug>/launcher-config.html` →
+ *        `https://<domain>/launcher-config.html` → `http://<host>:18080/launcher-config.html` ([HaLogin.Watch]);
+ *        hết biến thể → màn hình thông báo rõ ràng + nút **Thử lại** (không im lặng).
+ *  - Thanh thông báo có thêm nút **Mở Dashboard** (luôn hiện) và dòng chẩn đoán `[login] url=… cookie=… web=…`
+ *    (giống hệt dòng ghi ra Logcat với tag [LOG_TAG_LOGIN]).
+ *  - Lần mở app SAU: có cookie (bất kỳ) → nạp THẲNG `webUrl`, không đi vòng qua Lovelace (hết nhấp nháy).
+ *
  * Vẫn giữ nguyên: WebView full screen + WebRTC (micro/camera), tự đăng ký thiết bị, PhoneService nhận cuộc gọi khi
  * app đóng, chuông theo kênh thông báo, nút "URL" ở góc phải dưới để quay lại màn nhập.
  */
@@ -75,8 +95,35 @@ class MainActivity : Activity() {
         /** Do dam luc nghi cua nut URL o goc phai duoi (van bam duoc, khong che noi dung). */
         private const val URL_BUTTON_ALPHA = 0.45f
 
-        /** (14/11/2026) GD7 — nhịp dò cookie phiên Home Assistant khi đang ở bước đăng nhập. */
-        private const val COOKIE_POLL_MS = 1500L
+        /**
+         * (18/11/2026) GD10 — nhịp dò "đã đăng nhập Home Assistant" **mỗi 1 giây** (bản cũ 1,5 s và chỉ dò cookie
+         * theo tên). Mỗi nhịp ghi một dòng `[login] url=… cookie=… web=…` ra Logcat (tag [LOG_TAG_LOGIN]).
+         */
+        private const val LOGIN_POLL_MS = 1000L
+
+        /**
+         * (18/11/2026) GD10 — tag Logcat của luồng đăng nhập. Xem trên máy thật:
+         * `adb logcat -s DashboardOS-login`.
+         */
+        const val LOG_TAG_LOGIN = "DashboardOS-login"
+
+        /** Giãn cách tối thiểu giữa hai lần đọc `localStorage.hassTokens` (JS) — tránh gọi liên tục. */
+        private const val TOKEN_ASK_MIN_GAP_MS = 2500L
+
+        /**
+         * (18/11/2026) GD10 — đoạn JS **chỉ ĐỌC** access token của phiên HA từ `localStorage` của chính trang HA
+         * (`hassTokens`). Token này dùng để app tự tạo phiên ingress ([HaIngress]) — thứ duy nhất khiến
+         * `/api/hassio_ingress/<TOKEN>/launcher-config.html` trả 200 thay vì 401 ngay sau khi đăng nhập.
+         *
+         * Không sửa gì trên trang (không đụng DOM, không gọi mạng): chỉ đọc khoá `hassTokens`.
+         */
+        private const val JS_HA_ACCESS_TOKEN =
+            "(function(){try{var r=window.localStorage.getItem('hassTokens');if(!r){return '';}" +
+                "var o=JSON.parse(r);return (o&&o.access_token)?String(o.access_token):'';}catch(e){return '';}})()"
+
+        /** (18/11/2026) GD10 — 2 "liên kết" của màn hình lỗi (bắt ở [DashboardWebClient.shouldOverrideUrlLoading]). */
+        private const val RETRY_HREF = "dashboardos://retry"
+        private const val LOGIN_HREF = "dashboardos://login"
     }
 
     private lateinit var prefs: SharedPreferences
@@ -88,7 +135,7 @@ class MainActivity : Activity() {
     private var showingWeb = false
     private var pendingPermissionRequest: PermissionRequest? = null
 
-    /** Thanh thông báo 40dp + câu chữ của nó (chỉ có ở màn WebView). */
+    /** Thanh thông báo đăng nhập + câu chữ của nó (chỉ có ở màn WebView). */
     private var loginBar: View? = null
     private var loginBarText: TextView? = null
 
@@ -98,18 +145,47 @@ class MainActivity : Activity() {
     /** Origin của Home Assistant (`https://<domain>`), null khi webUrl không phải URL http(s). */
     private var haOrigin: String? = null
 
-    /** Đang ở bước "đăng nhập HA": thanh thông báo hiện + dò cookie 1,5 s. */
+    /** Đang ở bước "đăng nhập HA": thanh thông báo hiện + nhịp dò 1 s chạy. */
     private var loginFlowActive = false
 
     /** URL sẽ mở sau khi đăng nhập xong (mặc định = [targetUrl]). */
     private var afterLoginUrl: String? = null
 
-    /**
-     * (14/11/2026) GD7 — số lần đã tự chuyển về origin vì 401. Chặn vòng lặp
-     * origin → webUrl → 401 → origin → … (cookie không đủ): từ lần thứ 3 thì hiện màn hình
-     * "Cần đăng nhập Home Assistant" để người dùng tự bấm Đăng nhập.
-     */
-    private var authRedirects = 0
+    // ── (18/11/2026) GD10 — trạng thái dò "đã đăng nhập" (không dựa tên cookie)
+
+    /** Máy trạng thái dò `webUrl` + các biến thể URL ([HaLogin.Watch]). null = chưa vào luồng đăng nhập. */
+    private var loginWatch: HaLogin.Watch? = null
+
+    /** Tên cookie của origin LÚC BẮT ĐẦU luồng — có tên mới = dấu hiệu "vừa đăng nhập". */
+    private var baselineCookieNames: Set<String> = emptySet()
+
+    /** Mã HTTP của lần dò `webUrl` gần nhất (chỉ để log + hiện trên thanh thông báo). */
+    private var lastWebStatus: Int? = null
+
+    /** Đang dò ở luồng nền (không dò chồng). */
+    private var probing = false
+
+    /** Tăng mỗi lần vào lại luồng đăng nhập — kết quả dò của luồng cũ bị bỏ qua. */
+    @Volatile
+    private var probeGen = 0
+
+    /** Đang chờ kết quả `evaluateJavascript` đọc `hassTokens`. */
+    private var tokenAskPending = false
+
+    /** Lần cuối hỏi token (giãn cách [TOKEN_ASK_MIN_GAP_MS]). */
+    private var lastTokenAskAt = 0L
+
+    /** Access token của phiên HA (đọc từ `localStorage`) — có thì tự tạo được phiên ingress. */
+    private var haAccessToken: String? = null
+
+    /** Số lần đã mở trang cùng origin rất nhẹ (`/manifest.json`) để đọc `hassTokens` (tối đa 2 — xem [ensureSameOriginForTokens]). */
+    private var neutralLoads = 0
+
+    /** Đã thấy dấu hiệu "đăng nhập xong" (rời /auth/, cookie mới, token) trong luồng hiện tại. */
+    private var loggedInSignal = false
+
+    /** Tự dò đã thất bại (hết biến thể mà vẫn 401) → hiện thông báo + nút "Thử lại". */
+    private var loginFailed = false
 
     /** Đang dò máy chủ ở luồng nền (chặn bấm "Kết nối" 2 lần). */
     @Volatile
@@ -127,20 +203,19 @@ class MainActivity : Activity() {
     }
 
     /**
-     * (14/11/2026) GD7 — nhịp dò cookie 1,5 s trong lúc chờ người dùng đăng nhập Home Assistant.
+     * (18/11/2026) GD10 — NHỊP DÒ 1 GIÂY trong lúc chờ/đã đăng nhập Home Assistant.
      *
-     * Không dùng `onPageFinished` để đoán "đã đăng nhập" vì trang 401 cũng bắn sự kiện đó; cookie là bằng chứng
-     * duy nhất đáng tin (HA đặt `ingress_session` cho domain ngay khi đăng nhập thành công).
+     * Bản cũ ([cookieWatchRunnable], 1,5 s) chỉ hỏi "cookie có tên `ingress_session`/`hassio_ingress` chưa" — mà
+     * đăng nhập Lovelace **không** sinh cookie đó (xem KDoc đầu tệp), nên nó không bao giờ khớp. Nhịp mới dò
+     * HÀNH VI: probe `GET <webUrl>` trả 200 & không phải SPA của HA, URL đã rời `/auth/…`, cookie mới bất kỳ, hoặc
+     * đọc được `hassTokens` → mở dashboard ngay.
      */
-    private val cookieWatchRunnable = object : Runnable {
+    private val loginTickRunnable = object : Runnable {
         override fun run() {
             if (isFinishing || isDestroyed) return
             if (!showingWeb || !loginFlowActive) return
-            if (hasHaCookie()) {
-                onLoginDetected()
-                return
-            }
-            mainHandler.postDelayed(this, COOKIE_POLL_MS)
+            loginTick()
+            if (showingWeb && loginFlowActive) mainHandler.postDelayed(this, LOGIN_POLL_MS)
         }
     }
 
@@ -401,8 +476,12 @@ class MainActivity : Activity() {
     /**
      * (14/11/2026) GD7 — mở WebView cho [url].
      *
-     * Nếu [url] chính là trang điều khiển đã lưu (`webUrl`) mà lần dò trước trả 401 (`need_ha_login`) và WebView
-     * chưa có cookie HA → KHÔNG mở thẳng (sẽ chỉ thấy "401: Unauthorized") mà vào bước đăng nhập Home Assistant.
+     * (18/11/2026) GD10 — "lần sau mở app" phải vào THẲNG dashboard, không nhấp nháy qua Lovelace: nếu [url] là
+     * chính trang điều khiển đã lưu và WebView **đã có cookie** (bất kỳ tên — xem [hasAnyCookie]) thì nạp luôn
+     * trang đó; chỉ khi **không có cookie nào** mới mở origin của HA để đăng nhập. 401 thật (cookie cũ/hết hạn)
+     * do [DashboardWebClient.onReceivedHttpError] → [onAuthRequired] xử lý: dò + tự tạo phiên ingress trước, chỉ
+     * khi không được mới đưa về trang đăng nhập.
+     *
      * Các URL khác (trang gọi `call-web.html?call=…`) vẫn mở ngay như trước.
      */
     private fun openWeb(url: String) {
@@ -411,15 +490,31 @@ class MainActivity : Activity() {
         val target = targetUrl
         if (target != null && WebTargetResolver.sameUrl(url, target)) {
             afterLoginUrl = target
-            if (hasHaCookie()) {
+            if (hasAnyCookie() || !Prefs.needHaLogin(this)) {
+                // (GD10) có cookie (hoặc lần dò trước đã 200) → vào thẳng trang điều khiển.
                 Prefs.setNeedHaLogin(this, false)
-            } else if (Prefs.needHaLogin(this)) {
-                startLoginFlow(openOrigin = true)
+                webView?.loadUrl(url)
                 return
             }
+            startLoginFlow(openOrigin = true)
+            return
         }
         webView?.loadUrl(url)
     }
+
+    /**
+     * (18/11/2026) GD10 — cookie header của origin HA + trang điều khiển (gộp cả hai path, xem [HaCookie.header]).
+     * null = WebView chưa có cookie nào.
+     */
+    private fun currentCookieHeader(): String? =
+        HaCookie.header(targetUrl) ?: haOrigin?.let { HaCookie.header(it) }
+
+    /**
+     * (18/11/2026) GD10 — đã có cookie BẤT KỲ chưa (**không** ràng buộc tên: `ingress_session`, `hassio_ingress`
+     * hay bất cứ tên nào HA/Supervisor dùng). Đây là dấu hiệu "đã từng đăng nhập" — đủ để thử mở thẳng dashboard
+     * thay vì đẩy người dùng về trang chủ HA.
+     */
+    private fun hasAnyCookie(): Boolean = HaLogin.hasAnyCookie(currentCookieHeader())
 
     /** Dựng màn WebView + thanh thông báo + nút URL (dùng chung cho mọi đường vào). */
     private fun buildWebScreen() {
@@ -436,12 +531,16 @@ class MainActivity : Activity() {
         targetUrl = Prefs.webUrl(this)
         haOrigin = WebTargetResolver.originUrl(targetUrl)
         afterLoginUrl = targetUrl
-        authRedirects = 0
+        loginWatch = null
 
         loginBar = findViewById(R.id.haLoginBar)
         loginBarText = findViewById(R.id.haLoginText)
         loginBarText?.text = getString(R.string.ha_login_banner)
+        // (GD10) ba nút của thanh thông báo: "Mở Dashboard" (luôn hiện), "Thử lại" (hiện khi tự dò thất bại),
+        // "Tôi đã đăng nhập" (dự phòng cũ).
         findViewById<Button>(R.id.haLoginDoneButton).setOnClickListener { onLoginConfirmed() }
+        findViewById<Button>(R.id.haDashboardButton).setOnClickListener { onOpenDashboardClicked() }
+        findViewById<Button>(R.id.haRetryButton).setOnClickListener { onRetryClicked() }
         showLoginBar(false)
 
         val changeUrlButton = findViewById<Button>(R.id.changeUrlButton)
@@ -496,8 +595,10 @@ class MainActivity : Activity() {
 
     private fun disposeWebView() {
         mainHandler.removeCallbacks(hideOverlayRunnable)
-        stopCookieWatch()
+        stopLoginTick()
         loginFlowActive = false
+        probeGen++
+        probing = false
         loginBar = null
         loginBarText = null
         val web = webView ?: return
@@ -516,49 +617,370 @@ class MainActivity : Activity() {
     }
 
     /**
-     * (14/11/2026) GD7 — bước "đăng nhập Home Assistant": hiện thanh thông báo 40dp, (tuỳ chọn) mở origin của HA
-     * (`https://<domain>/` — Lovelace tự hiện form đăng nhập) và bắt đầu dò cookie mỗi 1,5 s.
+     * (14/11/2026) GD7 / (18/11/2026) GD10 — vào bước "đăng nhập Home Assistant": hiện thanh thông báo,
+     * (tuỳ chọn) mở origin của HA (`https://<domain>/` — Lovelace hiện form đăng nhập) và bật nhịp dò **1 s**.
      *
-     * openOrigin = false dùng khi phía trên đã có nội dung khác (màn "Cần đăng nhập Home Assistant").
+     * openOrigin = false dùng khi người dùng ĐÃ đăng nhập (đã có cookie) mà ingress vẫn 401: giữ nguyên trang hiện
+     * tại, chỉ dò + tự tạo phiên ingress — KHÔNG đẩy người dùng về Lovelace thêm lần nữa.
      */
     private fun startLoginFlow(openOrigin: Boolean) {
         loginFlowActive = true
         Prefs.setNeedHaLogin(this, true)
         showLoginBar(true)
-        startCookieWatch()
+        resetLoginWatch()
+        startLoginTick()
 
         val origin = haOrigin
         if (origin == null) {
             // webUrl không phải URL http(s) (vd apiBase LAN): không có trang đăng nhập để mở.
-            showLoginRequiredPanel()
+            showLoginPanel(
+                getString(R.string.ha_login_required_title),
+                getString(R.string.ha_login_required_hint),
+                withRetry = true
+            )
             return
         }
-        if (openOrigin) webView?.loadUrl(loginPageUrl(origin))
+        if (openOrigin) {
+            loginBarText?.text = getString(R.string.ha_login_banner)
+            webView?.loadUrl(loginPageUrl(origin))
+        }
     }
 
     /** `https://<domain>` → `https://<domain>/` (đúng origin của HA). */
     private fun loginPageUrl(origin: String): String = origin.trimEnd('/') + "/"
 
+    // ── (18/11/2026) GD10 — nhịp dò 1 s: "đã đăng nhập chưa" và "đã vào được add-on chưa"
+
+    private fun startLoginTick() {
+        mainHandler.removeCallbacks(loginTickRunnable)
+        mainHandler.post(loginTickRunnable)
+    }
+
+    private fun stopLoginTick() {
+        mainHandler.removeCallbacks(loginTickRunnable)
+    }
+
+    /** Ghi một dòng log chẩn đoán (Logcat tag [LOG_TAG_LOGIN] — `adb logcat -s DashboardOS-login`). */
+    private fun log(line: String) {
+        Log.i(LOG_TAG_LOGIN, line)
+    }
+
+    private fun yn(value: Boolean): String = if (value) "yes" else "no"
+
     /**
-     * (14/11/2026) GD7 — đã có phiên HA: ẩn thanh thông báo, xoá cờ, chuyển sang [afterLoginUrl] (= `webUrl`).
-     * Dùng chung cho nhịp dò cookie và nút "Tôi đã đăng nhập".
+     * (18/11/2026) GD10 — quên trạng thái của lần dò trước (cookie baseline, token, biến thể URL).
+     * Dùng mỗi lần vào / vào lại luồng đăng nhập (kể cả nút "Thử lại").
      */
-    private fun finishLoginFlow() {
-        stopCookieWatch()
+    private fun resetLoginWatch() {
+        probeGen++
+        // afterLoginUrl dùng khi webUrl chưa có (đường vào từ Cài đặt: "Đăng nhập lại Home Assistant").
+        val watch = HaLogin.Watch(targetUrl ?: afterLoginUrl)
+        loginWatch = watch
+        baselineCookieNames = HaLogin.cookieNames(currentCookieHeader())
+        lastWebStatus = null
+        loggedInSignal = false
+        loginFailed = false
+        haAccessToken = null
+        neutralLoads = 0
+        tokenAskPending = false
+        probing = false
+        showRetryButton(false)
+        log(
+            "[login] start web=${targetUrl ?: "-"} variants=${watch.variants.size} " +
+                "cookie=${yn(hasAnyCookie())} baseline=${baselineCookieNames.joinToString("/").ifEmpty { "-" }}"
+        )
+    }
+
+    /**
+     * (18/11/2026) GD10 — MỘT nhịp dò (mỗi 1 s):
+     *  1. ghi `[login] url=… cookie=… web=…` ra Logcat **và** lên thanh thông báo,
+     *  2. nhận dấu hiệu "đã đăng nhập": URL đã rời `/auth/…` của HA, hoặc có cookie MỚI (bất kỳ tên), hoặc đọc
+     *     được `hassTokens` trong `localStorage` ([maybeReadHaTokens]),
+     *  3. dò `GET <candidate>` kèm cookie ([probeCandidate]) — 200 + body không phải SPA của HA là xong.
+     */
+    private fun loginTick() {
+        val url = webView?.url
+        val cookieHeader = currentCookieHeader()
+        val cookiePresent = !cookieHeader.isNullOrBlank()
+        val newNames = HaLogin.newCookieNames(baselineCookieNames, HaLogin.cookieNames(cookieHeader))
+        val leftAuth = HaLogin.leftAuthPage(url, haOrigin)
+        if (!loggedInSignal && (leftAuth || newNames.isNotEmpty())) {
+            loggedInSignal = true
+            // Dò LẠI TỪ BIẾN THỂ ĐẦU: trong lúc người dùng còn đăng nhập, các biến thể có thể đã bị "thử" (nếu
+            // origin có cookie lạ) — sau khi đăng nhập xong phải thử lại từ `webUrl` (ingress là dạng chính).
+            loginWatch?.reset()
+            log(
+                "[login] signal=logged_in left_auth=$leftAuth " +
+                    "new_cookie=${newNames.joinToString("/").ifEmpty { "-" }}"
+            )
+        }
+        log(
+            HaLogin.pollLogLine(
+                url,
+                cookiePresent,
+                lastWebStatus,
+                "left_auth=$leftAuth new_cookie=${newNames.size} " +
+                    "token=${yn(haAccessToken != null)} sig=${yn(loggedInSignal)}"
+            )
+        )
+        showLoginDiag(url, cookiePresent)
+        // Có dấu hiệu đăng nhập → đọc access token (JS, CHỈ đọc localStorage) để tự tạo phiên ingress.
+        if (loggedInSignal) maybeReadHaTokens()
+        if (loggedInSignal) ensureSameOriginForTokens()
+        if (!probing) probeCandidate(cookiePresent)
+    }
+
+    /** Dòng chẩn đoán trên thanh thông báo (đúng dòng vừa ghi ra Logcat). */
+    private fun showLoginDiag(url: String?, cookiePresent: Boolean) {
+        if (loginFailed) return
+        val base = if (loggedInSignal) {
+            getString(R.string.ha_login_probing, lastWebStatus?.toString() ?: "-")
+        } else {
+            getString(R.string.ha_login_banner)
+        }
+        loginBarText?.text = base + "\n" + HaLogin.pollLogLine(url, cookiePresent, lastWebStatus)
+    }
+
+    /**
+     * (18/11/2026) GD10 — dò trang điều khiển ở LUỒNG NỀN (không chặn UI): `GET <candidate>` kèm cookie hiện có
+     * ([HaCookie.header]) rồi trả kết quả về UI ([onProbeResult]). Đây là phép thử "đã đăng nhập" **không** dựa
+     * vào tên cookie: ingress trả 200 kèm `<title>Dashboard</title>` khi phiên hợp lệ, 401 khi chưa.
+     */
+    private fun probeCandidate(cookiePresent: Boolean) {
+        val watch = loginWatch ?: return
+        val url = watch.current ?: return
+        val gen = probeGen
+        probing = true
+        Thread {
+            val cookie = HaCookie.header(url)
+            val check = WebTargetResolver.probeWeb(url, cookie)
+            post {
+                if (gen != probeGen) return@post      // đã vào lại luồng khác → bỏ kết quả cũ
+                probing = false
+                if (!loginFlowActive) return@post
+                val cookieNow = cookiePresent || !HaCookie.header(url).isNullOrBlank()
+                val status = check?.status
+                lastWebStatus = status
+                onProbeResult(
+                    url,
+                    status,
+                    HaLogin.isDashboardResponse(status ?: 0, check?.body),
+                    cookieNow
+                )
+            }
+        }.also { it.isDaemon = true; it.name = "login-probe" }.start()
+    }
+
+    /**
+     * (18/11/2026) GD10 — quyết định theo [HaLogin.Watch]:
+     * 200 + không phải SPA của HA → mở dashboard; 401 hai lần liền dù đã có cookie → biến thể URL kế tiếp;
+     * hết biến thể → thông báo rõ ràng + nút "Thử lại" (không im lặng).
+     */
+    private fun onProbeResult(url: String, status: Int?, dashboard: Boolean, cookiePresent: Boolean) {
+        val watch = loginWatch ?: return
+        // 200 + không phải SPA của HA = đã vào được add-on: mở NGAY, không cần chờ thêm dấu hiệu đăng nhập nào.
+        if (dashboard) {
+            log("[login] probe url=$url web=${status ?: "-"} dash=true → NAVIGATE")
+            goDashboard(url)
+            return
+        }
+        // CHƯA có dấu hiệu đăng nhập thì 401 là chuyện đương nhiên (người dùng còn ở form đăng nhập): không đếm
+        // lỗi, không đổi biến thể — tránh việc "đi hết biến thể" trong lúc còn đang đăng nhập (rồi kẹt ở biến thể
+        // cuối và không bao giờ thử lại ingress sau khi đăng nhập xong).
+        if (!loggedInSignal) {
+            log("[login] probe url=$url web=${status ?: "-"} dash=false → WAIT (chưa đăng nhập)")
+            return
+        }
+        val step = watch.onProbe(status, dashboard, cookiePresent)
+        log("[login] probe url=$url web=${status ?: "-"} dash=$dashboard cookie=$cookiePresent → ${step.action}")
+        when (step.action) {
+            HaLogin.Action.NAVIGATE -> step.url?.let { goDashboard(it) }
+
+            HaLogin.Action.NEXT_VARIANT -> log(
+                "[login] next_variant=${watch.index + 1}/${watch.variants.size} url=${step.url ?: "-"}"
+            )
+
+            HaLogin.Action.GIVE_UP -> onLoginFailed(status)
+
+            HaLogin.Action.WAIT -> Unit
+        }
+    }
+
+    /**
+     * (18/11/2026) GD10 — ĐÃ VÀO ĐƯỢC add-on: nạp [url] vào WebView, tắt thanh thông báo, lưu `webUrl` nếu đây
+     * là một BIẾN THỂ khác (lần sau vào thẳng, không dò lại), rồi đăng ký thiết bị + chạy PhoneService.
+     */
+    private fun goDashboard(url: String) {
+        stopLoginTick()
+        probeGen++
+        probing = false
         loginFlowActive = false
-        authRedirects = 0
+        loginFailed = false
+        loggedInSignal = false
         Prefs.setNeedHaLogin(this, false)
         showLoginBar(false)
-        // (17/11/2026) GD9 — đã có cookie phiên HA: API qua ingress mới dùng được. Đăng ký lại thiết bị + chạy
-        // PhoneService NGAY (trước đây service poll 401 liên tục cho tới khi có người mở Cài đặt).
+        afterLoginUrl = url
+        if (!WebTargetResolver.sameUrl(url, targetUrl)) {
+            // Biến thể khác đã chạy được (vd add-on ở gốc domain / cổng 18080) → nhớ luôn cho lần sau.
+            Prefs.setWebUrl(this, url)
+            targetUrl = url
+            haOrigin = WebTargetResolver.originUrl(url)
+            log("[login] webUrl=$url (lưu biến thể chạy được)")
+        }
+        // Giữ cookie (kể cả `ingress_session` vừa tạo) qua lần mở app sau.
+        runCatching { CookieManager.getInstance().flush() }
+        toast(getString(R.string.ha_login_ok))
         if (Prefs.receiveEnabled(this)) PhoneService.start(this)
         registerInBackground()
-        val next = afterLoginUrl ?: targetUrl
-        if (next != null) {
-            webView?.loadUrl(next)
-        } else {
-            showUrlScreen()
+        webView?.loadUrl(url)
+    }
+
+    /**
+     * (18/11/2026) GD10 — tự dò thất bại (đã thử hết biến thể mà vẫn 401/403): **KHÔNG im lặng**.
+     * Hiện thông báo rõ ràng + nút **Thử lại** trên thanh thông báo và một màn hình có 2 lối thoát
+     * (Thử lại / Đăng nhập Home Assistant).
+     */
+    private fun onLoginFailed(status: Int?) {
+        loginFailed = true
+        stopLoginTick()
+        probing = false
+        showLoginBar(true)
+        showRetryButton(true)
+        val code = status?.toString() ?: "-"
+        loginBarText?.text = getString(R.string.ha_login_failed_banner, code)
+        toast(getString(R.string.ha_login_failed_banner, code))
+        val tried = loginWatch?.variants?.joinToString("\n") { "• $it" }.orEmpty()
+        log("[login] give_up web=$code tried=${loginWatch?.variants?.size ?: 0}")
+        // Người dùng đang gõ ở FORM ĐĂNG NHẬP của HA: KHÔNG thay trang (chỉ báo trên thanh thông báo + nút Thử lại).
+        if (HaLogin.isAuthPage(webView?.url)) return
+        showLoginPanel(
+            getString(R.string.ha_login_failed_title),
+            getString(R.string.ha_login_failed_hint, code, tried),
+            withRetry = true
+        )
+    }
+
+    /**
+     * (18/11/2026) GD10 — nút **"Thử lại"** (trên thanh thông báo hoặc màn hình thất bại): dò LẠI TỪ ĐẦU
+     * (biến thể 1, đếm 401 lại từ 0, đọc lại token) — không phải thoát app rồi mở lại.
+     */
+    private fun onRetryClicked() {
+        loginFlowActive = true
+        showLoginBar(true)
+        resetLoginWatch()
+        // Người dùng CHỦ ĐỘNG bấm "Thử lại" → coi như đã đăng nhập: dò và báo kết quả rõ ràng (không im lặng).
+        loggedInSignal = true
+        startLoginTick()
+        maybeReadHaTokens()
+        if (!probing) probeCandidate(hasAnyCookie())
+    }
+
+    /**
+     * (18/11/2026) GD10 — nút **"Mở Dashboard"** (LUÔN hiện ở màn đăng nhập): người dùng chủ động, không chờ dò.
+     * Nạp thẳng URL đang thử; nếu vẫn 401 thì [onAuthRequired] chạy chuỗi dò + tự tạo phiên ingress như cũ.
+     */
+    private fun onOpenDashboardClicked() {
+        // Nhịp dò cần biết URL/biến thể: chưa có (mở app bình thường) hoặc lần dò trước đã thất bại thì dựng lại
+        // từ ĐẦU (biến thể 1) — nếu không sẽ thử tiếp đúng biến thể vừa hỏng.
+        if (loginWatch == null || loginFailed) resetLoginWatch()
+        val url = loginWatch?.current ?: afterLoginUrl ?: targetUrl
+        if (url == null) {
+            toast(getString(R.string.st_ha_login_no_web))
+            return
         }
+        runCatching { CookieManager.getInstance().flush() }
+        loginFlowActive = true
+        // Người dùng CHỦ ĐỘNG đòi mở dashboard → bật cờ để nhịp dò dám thử/đổi biến thể và báo kết quả rõ ràng.
+        loggedInSignal = true
+        showLoginBar(true)
+        startLoginTick()
+        log("[login] manual_open url=$url cookie=${yn(hasAnyCookie())}")
+        webView?.loadUrl(url)
+    }
+
+    private fun showRetryButton(shown: Boolean) {
+        findViewById<Button>(R.id.haRetryButton)?.visibility = if (shown) View.VISIBLE else View.GONE
+    }
+
+    /**
+     * (14/11/2026) GD7 — nút "Tôi đã đăng nhập" (dự phòng khi trình duyệt nhúng không ghi cookie hoặc cookie nằm
+     * ở path khác): thử sang `webUrl` NGAY, không cần chờ dò.
+     * (18/11/2026) GD10 — vẫn bật nhịp dò 1 s để tự tạo phiên ingress nếu ingress trả 401.
+     */
+    private fun onLoginConfirmed() {
+        toast(getString(R.string.ha_login_ok))
+        onOpenDashboardClicked()
+    }
+
+    /**
+     * (18/11/2026) GD10 — đọc access token của phiên HA từ `localStorage.hassTokens` của CHÍNH trang HA
+     * ([JS_HA_ACCESS_TOKEN] — chỉ đọc, không sửa trang) rồi tự tạo phiên ingress ([HaIngress] +
+     * [HaCookie.setIngressSession]).
+     *
+     * Đây là mảnh còn thiếu của bản cũ: đăng nhập Lovelace **không** sinh cookie `ingress_session`; chỉ khi app
+     * tự tạo phiên thì `GET <webUrl>` mới trả 200 ngay, không phải mở add-on bằng tay rồi khởi động lại app.
+     */
+    private fun maybeReadHaTokens() {
+        if (haAccessToken != null || tokenAskPending) return
+        val web = webView ?: return
+        val now = System.currentTimeMillis()
+        if (now - lastTokenAskAt < TOKEN_ASK_MIN_GAP_MS) return
+        lastTokenAskAt = now
+        tokenAskPending = true
+        try {
+            web.evaluateJavascript(JS_HA_ACCESS_TOKEN) { raw ->
+                tokenAskPending = false
+                val token = HaLogin.tokenFromJsValue(raw)
+                log("[login] tokens=${if (token == null) "no" else "yes"}")
+                if (token != null && haAccessToken == null) {
+                    haAccessToken = token
+                    loggedInSignal = true
+                    mintIngressSession(token)
+                }
+            }
+        } catch (t: Throwable) {
+            tokenAskPending = false
+            log("[login] tokens=error ${t.javaClass.simpleName}")
+        }
+    }
+
+    /**
+     * (18/11/2026) GD10 — `localStorage` (`hassTokens`) chỉ đọc được trên một trang **cùng origin** với HA.
+     * Nếu WebView đang ở `about:blank` / trang lỗi (vd sau khi chặn body `401: Unauthorized`), mở một trang
+     * cùng origin RẤT nhẹ (`/manifest.json` — không phải Lovelace, không phải form đăng nhập) để đọc token,
+     * rồi nhịp 1 s sẽ tự tạo phiên ingress. Tối đa 2 lần cho mỗi luồng, chỉ khi đã có dấu hiệu đăng nhập và
+     * CHƯA có token — không bao giờ đẩy người dùng ra khỏi trang HA thật.
+     */
+    private fun ensureSameOriginForTokens() {
+        if (haAccessToken != null || tokenAskPending) return
+        val origin = haOrigin ?: return
+        val url = webView?.url
+        if (HaLogin.isSameOrigin(url, origin)) return
+        if (neutralLoads >= 2) return
+        neutralLoads++
+        val probePage = origin.trimEnd('/') + "/manifest.json"
+        log("[login] neutral_load=$probePage (đọc hassTokens cùng origin)")
+        webView?.loadUrl(probePage)
+    }
+
+    /** (18/11/2026) GD10 — tạo phiên ingress thật rồi ghi cookie `ingress_session` (luồng nền). */
+    private fun mintIngressSession(accessToken: String) {
+        val origin = haOrigin ?: return
+        if (loginWatch == null) return
+        Thread {
+            val session = HaIngress.createSession(origin, ServerResolver.ADDON_SLUG, accessToken) { line -> log(line) }
+            if (session == null) {
+                log("[login] ingress_session=none")
+                return@Thread
+            }
+            // CookieManager: ghi ở luồng UI cho chắc chắn (WebView cookie store).
+            post {
+                val ok = HaCookie.setIngressSession(origin, session)
+                log("[login] ingress_session=ok written=$ok")
+                // Dò NGAY (không chờ nhịp 1 s kế tiếp) để tổng thời gian từ "đăng nhập xong" tới dashboard ≤ 2 s.
+                if (!probing) probeCandidate(cookiePresent = true)
+            }
+        }.also { it.isDaemon = true; it.name = "ha-ingress-session" }.start()
     }
 
     /**
@@ -582,59 +1004,23 @@ class MainActivity : Activity() {
     }
 
     /**
-     * (14/11/2026) GD7 — nút "Tôi đã đăng nhập": chuyển sang `webUrl` NGAY, không cần dò được cookie
-     * (dự phòng khi trình duyệt nhúng không ghi cookie hoặc cookie nằm ở path khác).
+     * (18/11/2026) GD10 — màn hình thay thế cho trang lỗi thô (người dùng KHÔNG bao giờ thấy
+     * `401: Unauthorized`): tiêu đề + giải thích + lối thoát dạng liên kết `dashboardos://retry` /
+     * `dashboardos://login` (bắt ở [DashboardWebClient.shouldOverrideUrlLoading], không phải URL thật).
      */
-    private fun onLoginConfirmed() {
-        runCatching { CookieManager.getInstance().flush() }
-        toast(getString(R.string.ha_login_ok))
-        finishLoginFlow()
-    }
-
-    /** Nhịp dò cookie phát hiện phiên HA → tự chuyển sang `webUrl`. */
-    private fun onLoginDetected() {
-        runCatching { CookieManager.getInstance().flush() }
-        toast(getString(R.string.ha_login_ok))
-        finishLoginFlow()
-    }
-
-    private fun startCookieWatch() {
-        mainHandler.removeCallbacks(cookieWatchRunnable)
-        mainHandler.postDelayed(cookieWatchRunnable, COOKIE_POLL_MS)
-    }
-
-    private fun stopCookieWatch() {
-        mainHandler.removeCallbacks(cookieWatchRunnable)
-    }
-
-    /**
-     * (14/11/2026) GD7 — WebView đã có phiên Home Assistant chưa?
-     *
-     * Dò `CookieManager.getInstance().getCookie(origin)` (và cả cookie của chính `webUrl`, vì một số bản HA đặt
-     * cookie theo path ingress) tìm [WebTargetResolver.SESSION_COOKIE_NAMES] = `ingress_session` / `hassio_ingress`.
-     */
-    private fun hasHaCookie(): Boolean {
-        val cm = CookieManager.getInstance()
-        val urls = listOfNotNull(haOrigin, targetUrl).distinct()
-        for (url in urls) {
-            val header = try {
-                cm.getCookie(url)
-            } catch (t: Throwable) {
-                null
-            }
-            if (WebTargetResolver.hasSessionCookie(header)) return true
-        }
-        return false
-    }
-
-    /**
-     * (14/11/2026) GD7 — màn hình thay thế cho trang lỗi thô: "Cần đăng nhập Home Assistant" + nút **Đăng nhập**
-     * (mở origin). Không bao giờ để người dùng thấy `401: Unauthorized`.
-     */
-    private fun showLoginRequiredPanel() {
+    private fun showLoginPanel(title: String, message: String, withRetry: Boolean) {
         val web = webView ?: return
         val base = haOrigin?.let { loginPageUrl(it) }
-        val href = base.orEmpty()
+        val body = message.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>")
+        val buttons = StringBuilder()
+        if (withRetry) {
+            buttons.append("<a href=\"$RETRY_HREF\">").append(getString(R.string.ha_retry_button)).append("</a>")
+        }
+        if (base != null) {
+            buttons.append("<a class=\"ghost\" href=\"$LOGIN_HREF\">")
+                .append(getString(R.string.ha_login_again_button))
+                .append("</a>")
+        }
         val html = """
             <!doctype html>
             <html><head><meta charset="utf-8">
@@ -644,49 +1030,46 @@ class MainActivity : Activity() {
             display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;
             text-align:center;box-sizing:border-box}
             h1{font-size:20px;margin:0 0 10px}
-            p{color:#9aa7bd;font-size:14px;line-height:1.45;margin:0 0 22px;max-width:520px}
+            p{color:#9aa7bd;font-size:14px;line-height:1.45;margin:0 0 22px;max-width:560px}
             a{display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:14px 26px;
-            border-radius:10px;font-size:16px;font-weight:bold}
+            border-radius:10px;font-size:16px;font-weight:bold;margin:4px}
+            a.ghost{background:#243044}
             </style></head>
             <body>
-            <h1>${getString(R.string.ha_login_required_title)}</h1>
-            <p>${getString(R.string.ha_login_required_hint)}</p>
-            <a href="$href">${getString(R.string.ha_login_button)}</a>
+            <h1>$title</h1>
+            <p>$body</p>
+            <div>$buttons</div>
             </body></html>
         """.trimIndent()
         web.loadDataWithBaseURL(base, html, "text/html", "utf-8", null)
     }
 
     /**
-     * (14/11/2026) GD7 — gặp 401/403 trên ingress:
-     *  - nếu đúng là trang điều khiển đã lưu → quay về origin của HA để đăng nhập lại (kèm thanh thông báo),
-     *  - ngược lại (trang gọi, URL ingress khác) → hiện màn "Cần đăng nhập Home Assistant" có nút Đăng nhập.
-     * Cả hai trường hợp: đặt `need_ha_login = true` và bắt đầu dò cookie.
+     * (14/11/2026) GD7 / (18/11/2026) GD10 — gặp 401/403 trên ingress.
+     *
+     * (GD10) 401 **KHÔNG** còn đồng nghĩa "phải mở trang đăng nhập": HA có thể đã có phiên nhưng thiếu cookie
+     * `ingress_session` (đăng nhập Lovelace không sinh cookie đó). Nên:
+     *  - đang trong luồng dò → để nhịp 1 s tự lo (dò lại / tự tạo phiên ingress / đổi biến thể URL); chỉ khi
+     *    **chưa có dấu hiệu đăng nhập và chưa có cookie nào** mới mở trang đăng nhập;
+     *  - ngoài luồng dò → vào luồng, và chỉ `openOrigin = true` (mở Lovelace) khi chưa có cookie nào.
      */
     private fun onAuthRequired(url: String) {
         Prefs.setNeedHaLogin(this, true)
         afterLoginUrl = if (WebTargetResolver.sameUrl(url, targetUrl)) targetUrl else url
+        val cookie = hasAnyCookie()
+        log("[login] auth_required url=$url cookie=${yn(cookie)} flow=${yn(loginFlowActive)} sig=${yn(loggedInSignal)}")
 
-        val control = targetUrl
-        if (control != null && WebTargetResolver.sameUrl(url, control) && haOrigin != null) {
-            // Chống vòng lặp: đã tự chuyển về origin 2 lần mà vẫn 401 → cho người dùng tự đăng nhập.
-            if (authRedirects >= 2) {
-                showAuthPanel()
-                return
+        if (loginFlowActive) {
+            if (haAccessToken == null && !cookie) {
+                val origin = haOrigin
+                if (origin != null && !HaLogin.isAuthPage(webView?.url)) {
+                    // Không có cookie VÀ chưa đọc được `hassTokens`: người dùng còn phải đăng nhập → mở trang đăng nhập.
+                    webView?.loadUrl(loginPageUrl(origin))
+                }
             }
-            authRedirects++
-            startLoginFlow(openOrigin = true)
             return
         }
-        showAuthPanel()
-    }
-
-    /** 401/403 không tự chuyển được: thanh thông báo + màn hình "Cần đăng nhập Home Assistant". */
-    private fun showAuthPanel() {
-        loginFlowActive = true
-        showLoginBar(true)
-        startCookieWatch()
-        showLoginRequiredPanel()
+        startLoginFlow(openOrigin = !cookie)
     }
 
     // ------------------------------------------------------------------ WebView clients
@@ -698,7 +1081,27 @@ class MainActivity : Activity() {
             request: WebResourceRequest?
         ): Boolean {
             val uri: Uri = request?.url ?: return false
-            return when (uri.scheme?.lowercase()) {
+            val scheme = uri.scheme?.lowercase()
+            // (18/11/2026) GD10 — 2 "liên kết" của màn hình lỗi tự dựng ([showLoginPanel]): không phải URL thật,
+            // bắt ở đây rồi làm đúng việc (thử lại / mở trang đăng nhập của HA).
+            if (scheme == "dashboardos") {
+                when (uri.host?.lowercase()) {
+                    "retry" -> onRetryClicked()
+                    "login" -> {
+                        val origin = haOrigin
+                        if (origin == null) {
+                            toast(getString(R.string.st_ha_login_no_web))
+                        } else {
+                            loginFlowActive = true
+                            showLoginBar(true)
+                            startLoginTick()
+                            webView?.loadUrl(loginPageUrl(origin))
+                        }
+                    }
+                }
+                return true
+            }
+            return when (scheme) {
                 null, "http", "https", "about", "blob", "data", "javascript" -> false
                 else -> {
                     // mailto:, tel:, intent:, ... -> hand over to the system.
@@ -832,15 +1235,24 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        // (14/11/2026) GD7 — quay lại app giữa lúc đăng nhập: dò cookie tiếp.
-        if (showingWeb && loginFlowActive) startCookieWatch()
+        // (14/11/2026) GD7 / (18/11/2026) GD10 — quay lại app giữa lúc đăng nhập: chạy tiếp nhịp dò 1 s.
+        if (showingWeb && loginFlowActive) startLoginTick()
+    }
+
+    /**
+     * (18/11/2026) GD10 — ghi cookie xuống đĩa khi app bị đẩy xuống nền: `ingress_session` (và các cookie phiên)
+     * phải còn cho lần mở app sau, nếu không "lần sau vào thẳng dashboard" sẽ lại phải dò/đăng nhập.
+     */
+    override fun onPause() {
+        runCatching { CookieManager.getInstance().flush() }
+        super.onPause()
     }
 
     override fun onDestroy() {
         searchToken++
         searching = false
         mainHandler.removeCallbacks(hideOverlayRunnable)
-        stopCookieWatch()
+        stopLoginTick()
         pendingPermissionRequest?.let {
             it.deny()
             pendingPermissionRequest = null
