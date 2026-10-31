@@ -7,6 +7,9 @@ local.properties
 *.iml
 .idea/
 
-# Signing material (never commit)
+# Signing material — KHONG commit khoa la ca nhan...
 *.jks
 *.keystore
+
+# ...nhung khoa PHAT HANH cua DashboardOS thi CO (repo private; xem android/README.md):
+!keystore/dashboardos-release.jks

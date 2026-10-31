@@ -1,7 +1,21 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
+
+// (26/11/2026) KY APK RELEASE bang khoa cua DashboardOS (android/keystore/dashboardos-release.jks).
+// Mat khau nam trong android/keystore/keystore.properties (repo private, CO COMMIT — xem android/README.md).
+// Khong co keystore.properties (may khac / clone thieu file) -> release tu fallback ve chu ky DEBUG de build
+// khong vo; APK van cai duoc, chi la khong dung khoa phat hanh.
+val keystoreProps = Properties().apply {
+    val f = rootProject.file("keystore/keystore.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+val hasReleaseKeystore = keystoreProps.getProperty("storeFile")?.let { f ->
+    rootProject.file(f).exists() && keystoreProps.getProperty("storePassword") != null
+} == true
 
 android {
     namespace = "vn.mqsmarthome.dashboardos"
@@ -16,6 +30,17 @@ android {
         versionName = "1.0"
     }
 
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword") ?: keystoreProps.getProperty("storePassword")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             isMinifyEnabled = false
@@ -23,6 +48,9 @@ android {
         }
         release {
             isMinifyEnabled = false
+            isShrinkResources = false
+            // Co khoa release -> ky bang khoa that; khong co -> debug (build khong vo).
+            signingConfig = if (hasReleaseKeystore) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
         }
     }
 

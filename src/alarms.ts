@@ -44,6 +44,13 @@ export function normAlarm(a: any, old?: Alarm): Alarm {
   return { id: old?.id ?? crypto.randomBytes(6).toString('hex'), time, days, label, enabled: a?.enabled === undefined ? (old?.enabled ?? true) : !!a.enabled, devices: devs.length === 0 ? 'all' : devs, snooze };
 }
 
+/** (26/11/2026) Bao thuc `a` co reo tren man hinh `device` khong: 'all' = moi man hinh; khong co `device`
+ *  (trang quan ly tong / alarm.html khong co ?dev=) = hien TAT CA. Dung chung cho GET /alarm/list va `next()`. */
+export function alarmsOn(a: Alarm, device?: string): boolean {
+  if (!device || a.devices === 'all') return true;
+  return a.devices.includes(device);
+}
+
 /** Lan reo ke tiep (ms epoch) sau `now`, voi mui gio `tzMin` (phut, dong). null = khong bat. */
 export function nextFire(a: Alarm, now: number, tzMin: number): number | null {
   if (!a.enabled) return null;
@@ -105,7 +112,7 @@ export class AlarmStore {
   next(now: number, tz: number, device?: string): { id: string; at: number; label: string; time: string } | null {
     let best: { id: string; at: number; label: string; time: string } | null = null;
     for (const a of this.alarms) {
-      if (device && a.devices !== 'all' && !a.devices.includes(device)) continue;
+      if (!alarmsOn(a, device)) continue;
       const at = this.snoozed.get(a.id) ?? nextFire(a, now, tz);
       if (at != null && (!best || at < best.at)) best = { id: a.id, at, label: a.label, time: a.time };
     }
@@ -190,18 +197,24 @@ function allowedSource(req: http.IncomingMessage): boolean {
   return /^10\./.test(ip) || /^192\.168\./.test(ip) || /^172\.(1[6-9]|2\d|3[01])\./.test(ip);
 }
 
-/** API cho alarm.html + alarm-ctl.html (man hinh, LAN/Tailscale, ingress). true = da xu ly. */
+/** API cho alarm.html + alarm-ctl.html (man hinh, LAN/Tailscale, ingress). true = da xu ly.
+ *  `store` de test bom kho rieng (mac dinh = kho that). */
 export function handleAlarmApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL,
-  screensInfo: () => { id: string; name: string; spk: boolean }[]): boolean {
+  screensInfo: () => { id: string; name: string; spk: boolean }[], store: AlarmStore = alarms): boolean {
   if (!url.pathname.startsWith('/alarm/')) return false;
   if (!allowedSource(req)) { json(res, 403, { error: 'Chỉ dùng được trong mạng nội bộ.' }); return true; }
   const route = url.pathname.slice(7), q = url.searchParams;
-  const tz = alarms.hooks?.tz() ?? 420;
+  const tz = store.hooks?.tz() ?? 420;
   if (route === 'list' && req.method === 'GET') {
     const now = Date.now();
+    // (26/11/2026) LOC THEO MAN HINH: ?dev=<id> -> chi bao thuc cua man do + bao thuc 'all'. Truoc day tra TOAN BO
+    // danh sach nen trang Bao thuc cua man P4 hien ca bao thuc tao tren man 480x272 (JC4827w543). Khong co ?dev=
+    // (trang quan ly tong, alarm-ctl "Tat ca man hinh") -> tra tat ca.
+    const dev = (q.get('dev') || '').trim() || undefined;
     json(res, 200, {
-      alarms: alarms.alarms.map((a) => ({ ...a, next: alarms.snoozed.get(a.id) ?? nextFire(a, now, tz), snoozed: alarms.snoozed.has(a.id) })),
-      next: alarms.next(now, tz, q.get('dev') || undefined), screens: screensInfo(), now, tz,
+      alarms: store.alarms.filter((a) => alarmsOn(a, dev))
+        .map((a) => ({ ...a, next: store.snoozed.get(a.id) ?? nextFire(a, now, tz), snoozed: store.snoozed.has(a.id) })),
+      next: store.next(now, tz, dev), screens: screensInfo(), now, tz,
     });
     return true;
   }
@@ -212,15 +225,15 @@ export function handleAlarmApi(req: http.IncomingMessage, res: http.ServerRespon
     try {
       const b = body ? JSON.parse(body) : {};
       const id = q.get('id') || b.id || '';
-      if (route === 'save') return json(res, 200, { ok: true, alarm: alarms.upsert(b) });
-      if (route === 'del') return json(res, 200, { ok: alarms.remove(id) });
+      if (route === 'save') return json(res, 200, { ok: true, alarm: store.upsert(b) });
+      if (route === 'del') return json(res, 200, { ok: store.remove(id) });
       if (route === 'toggle') {
-        const a = alarms.alarms.find((x) => x.id === id);
+        const a = store.alarms.find((x) => x.id === id);
         if (!a) return json(res, 404, { error: 'Không tìm thấy báo thức.' });
-        return json(res, 200, { ok: true, alarm: alarms.upsert({ id, enabled: q.get('on') === '1' }) });
+        return json(res, 200, { ok: true, alarm: store.upsert({ id, enabled: q.get('on') === '1' }) });
       }
-      if (route === 'stop') return json(res, 200, { ok: alarms.stop(id) });
-      if (route === 'snooze') return json(res, 200, { ok: alarms.snooze(id) });
+      if (route === 'stop') return json(res, 200, { ok: store.stop(id) });
+      if (route === 'snooze') return json(res, 200, { ok: store.snooze(id) });
       json(res, 404, { error: 'khong co' });
     } catch (e) { json(res, 400, { error: (e as Error).message }); }
   });
