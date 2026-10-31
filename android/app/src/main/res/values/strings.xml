@@ -28,6 +28,9 @@
     <string name="err_bad_api">Địa chỉ máy chủ API không hợp lệ. Nhập IP và cổng, vd 192.168.10.2:18080</string>
     <string name="err_load">Không tải được trang. Kiểm tra URL hoặc kết nối mạng.</string>
     <string name="perm_denied">Cần quyền micro/camera để dùng tính năng đàm thoại</string>
+    <!-- (2.0) ĐÍNH KÈM TỆP/ẢNH: WebView chuyển `<input type="file">` cho onShowFileChooser; máy không có ứng dụng
+         chọn tệp nào (hiếm — thiếu DocumentsUI) thì báo câu này thay vì im lặng. -->
+    <string name="file_chooser_no_app">Không có ứng dụng chọn tệp trên máy này</string>
 
     <!-- (30/10/2026) GD4 — trạng thái ở màn nhập địa chỉ.
          (1.6) Chỉ còn các dòng NGẮN: đã bỏ "Đã kết nối: <webUrl> · API · Điện thoại", các dòng "Gợi ý…" và

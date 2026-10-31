@@ -565,6 +565,76 @@ APK phát hành (release, ký khoá `dashboardos`): `android/DashboardOS-release
 md5 `8c4937b6be88968d46dd004d542bfe35`, sha256 `814f003f01937eb416f6dbf27fcae46207fea9b009f4f8b03abec74dad383bd7`,
 `versionCode=8`, `versionName=1.7`.
 
+## 4l. (2.0) — ĐÍNH KÈM TỆP/ẢNH TRONG WEBVIEW (v2.0, versionCode 11)
+
+`versionCode = 11`, `versionName = "2.0"`.
+
+### 4l.1 Triệu chứng và nguyên nhân
+
+| | |
+| --- | --- |
+| Triệu chứng | Trong app, trang **Tin nhắn** bấm **đính kèm** (`<input type="file" id="files" accept="image/*,video/*" multiple hidden>` của `launcher-config.html`) → **không có phản ứng gì**; nút **Tải lên** ở màn *Tệp* (`#fmFile`) cũng vậy. Trên Chrome thì bình thường. |
+| Nguyên nhân (chuẩn Android) | `WebView` **không tự** mở hộp chọn tệp. Mọi yêu cầu `<input type="file">` được chuyển cho `WebChromeClient.onShowFileChooser(...)`; app **chưa cài** hàm này nên yêu cầu bị **bỏ im lặng** — không `startActivity`, không lỗi, không toast. Không có `onActivityResult` thì kể cả khi mở được hộp chọn, kết quả cũng không có đường về trang. |
+| Vì sao ảnh hưởng **mọi** trang | `DashboardChromeClient` là **một** `WebChromeClient` dùng chung cho WebView duy nhất của app (`MainActivity.kt:1419`) ⇒ sửa một chỗ là chat, màn Tệp và mọi form upload khác trong add-on đều chạy. |
+
+### 4l.2 Sửa gì (file:line)
+
+| Yêu cầu | Cách làm | Chỗ nào |
+| --- | --- | --- |
+| Cài `onShowFileChooser` | `Intent` SAF: `ACTION_OPEN_DOCUMENT` (API ≥ 19 — app có `minSdk 29` nên luôn dùng; hàm thuần `FileChooser.actionFor`), dự phòng `ACTION_GET_CONTENT` khi máy không có DocumentsUI. `+ CATEGORY_OPENABLE`, `type` = MIME đầu tiên trong `accept` (hoặc `ANY_MIME`), `EXTRA_MIME_TYPES` khi `accept` có nhiều MIME, `EXTRA_ALLOW_MULTIPLE = (params.mode == MODE_OPEN_MULTIPLE)`. Trả `true` ở **mọi** nhánh đã xử lý | `MainActivity.kt:2978` (`onShowFileChooser`), `:3024` (`chooserIntent`) |
+| Lưu callback + `startActivityForResult` | `pendingFilePathCallback` (thành viên) ← callback của WebView, rồi `startActivityForResult(chooser, FileChooser.REQ_FILE_CHOOSER = 1002)`; yêu cầu **mới** huỷ yêu cầu cũ bằng `onReceiveValue(null)` | `MainActivity.kt:282` (biến), `:2987-3003` |
+| Không app nào nhận Intent | `callback.onReceiveValue(null)` **ngay** + toast `file_chooser_no_app` + log `[file] chooser noapp` | `MainActivity.kt:3011-3016`, `strings.xml:33` |
+| `onActivityResult` trả `Uri[]` | `data.clipData` (nhiều tệp) + `data.data` (một tệp), khử trùng (`LinkedHashSet`) → `callback.onReceiveValue(uris)`; **luôn** lấy callback ra và đặt `null` trước khi dùng; **huỷ** (RESULT_CANCELED / không có Uri) → `onReceiveValue(null)` + log `[file] chooser cancel` | `MainActivity.kt:3074` (`onActivityResult`), `:3108` (`pickedUris`) |
+| Activity bị huỷ khi hộp chọn còn mở | trả `null` cho callback trong `onDestroy` để trang không treo "đang chọn tệp" | `MainActivity.kt:3177-3181` |
+| Giữ nguyên camera/mic | `onPermissionRequest` (WebRTC) **không sửa một dòng**; hai đường (quyền runtime media ↔ SAF) độc lập, không dùng chung mã yêu cầu | `MainActivity.kt:2922-2953` |
+| Log kiểm thử tay (Diag, không auto-save) | `[file] chooser open mode=… mime=… multi=… action=…`, `[file] chooser picked n=<số tệp>`, `[file] chooser cancel`, `[file] chooser noapp action=…`; `DiagFile.shouldAutoSave` **chặn tường minh** tiền tố `[file]` (kể cả khi tên tệp chứa "401") | `FileChooser.kt:112-127`, `DiagFile.kt:135-137` |
+| Logic thuần, unit test JVM | `FileChooser.kt` chỉ có chuỗi + số (không `android.*`): lọc `accept` → MIME, `type`/`EXTRA_MIME_TYPES`, `mode` → chọn nhiều, action theo API, dựng dòng log | `FileChooser.kt:51-127`, test `FileChooserTest.kt` (13 test) |
+
+### 4l.3 Quyền — **KHÔNG thêm quyền nào**
+
+* Dùng **SAF** (`ACTION_OPEN_DOCUMENT` / `ACTION_GET_CONTENT`, `CATEGORY_OPENABLE`): hệ thống cấp cho app quyền **đọc
+  tạm thời đúng những `Uri` người dùng chọn** (grant gắn với kết quả Intent). Vì vậy **không** cần
+  `READ_EXTERNAL_STORAGE`, `READ_MEDIA_IMAGES/VIDEO`, `MANAGE_EXTERNAL_STORAGE`, cũng **không** có hộp thoại xin
+  quyền runtime nào khi chọn ảnh/video ⇒ `AndroidManifest.xml` **không đổi**.
+* Không dùng `ACTION_PICK` / `MediaStore` (những đường đó mới cần quyền đọc bộ nhớ) và không
+  `takePersistableUriPermission` (tệp chỉ đọc một lần để gửi lên máy chủ; giữ grant lâu sẽ rò rỉ quyền).
+* `WebSettings.allowContentAccess = false` (`MainActivity.kt:1405`) **giữ nguyên**: cờ này chặn trang tự nạp
+  `content://` trong nội dung, còn tệp người dùng chọn được `WebView` đọc qua `ContentResolver` của **chính app**
+  (đường browser-side của WebView) — không bị cờ này chặn.
+* Quyền micro/camera (`RECORD_AUDIO`, `CAMERA`) vẫn như cũ, chỉ xin khi trang WebRTC gọi `getUserMedia`.
+
+### 4l.4 Kiểm thử
+
+```bash
+cd android && JAVA_HOME=/opt/jdk-21.0.12.1+1 ./gradlew testDebugUnitTest assembleRelease --offline --no-daemon
+# FileChooserTest: 13 test (accept → MIME: image/*,video/* / một MIME / gộp chuỗi / đuôi tệp bị bỏ / rỗng;
+#                   mode → EXTRA_ALLOW_MULTIPLE; ACTION_OPEN_DOCUMENT từ API 19; hằng số khớp framework;
+#                   dựng đúng 3 dòng log; `[file] …` KHÔNG kích hoạt tự lưu)   → tổng 271 test, tất cả xanh
+```
+
+APK phát hành (release, ký khoá `dashboardos`): `android/DashboardOS-release.apk` — **2.520.557 B**,
+md5 `7756c24962363400579657b857d828b8`, sha256 `f40b9324af0941cdd7773ffa415e0a3633c424558ba852e07f10db86cf7d44cb`,
+`versionCode=11`, `versionName=2.0`.
+
+### 4l.5 Kiểm chứng trên máy (bấm đính kèm → chọn ảnh → gửi được)
+
+1. Cài bản mới **đè** bản cũ (cùng khoá ký nên giữ nguyên dữ liệu/phiên HA):
+   `adb install -r android/DashboardOS-release.apk`.
+2. Mở app → vào dashboard → trang **Tin nhắn** → chọn một cuộc trò chuyện → bấm **đính kèm** (icon kẹp giấy).
+   * Kỳ vọng: **hộp chọn tệp của hệ thống mở ra** (Files/DocumentsUI), bộ lọc chỉ ảnh + video (vì `accept="image/*,video/*"`).
+3. Chọn **1 ảnh** → khung chat hiện ảnh vừa gửi (trang tự tải lại luồng).
+4. Bấm đính kèm lần nữa → chọn **nhiều ảnh** (nhấn giữ / chọn nhiều trong hộp chọn) → gửi được **mọi** ảnh đã chọn
+   (`EXTRA_ALLOW_MULTIPLE` = `true` vì input có `multiple`).
+5. Bấm đính kèm rồi **Back/Huỷ** → không có gì được gửi, bấm đính kèm **lại vẫn mở hộp chọn** (không bị treo trạng
+   thái "đang chọn tệp").
+6. Màn **Tệp** → **Tải lên** (`#fmFile`, không có `accept`) → hộp chọn tệp hiện **mọi loại tệp**, chọn nhiều tệp được.
+7. Vẫn kiểm tra camera/mic không bị ảnh hưởng: mở trang **Gọi** (`call-web.html`) → bấm gọi → vẫn xin quyền
+   micro/camera và đàm thoại được như trước.
+8. Đọc log (không cần adb): **Cài đặt → Chẩn đoán** phải thấy
+   `[file] chooser open mode=open_multiple mime=image/*,video/* multi=yes action=open_document` →
+   `[file] chooser picked n=2`; huỷ thì `[file] chooser cancel`. Các dòng này **không** tạo tệp `diag-auto-*.txt`.
+   Có adb thì: `adb logcat -s DashboardOS-login | grep '\[file\]'`.
+
 ## 5. Smoke test trên máy thật
 
 `android/scripts/smoke-test.sh` chạy cả chuỗi "cài app → mở app → PhoneService sống → server thấy máy →

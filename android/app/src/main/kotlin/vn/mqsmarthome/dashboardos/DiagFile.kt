@@ -132,6 +132,9 @@ object DiagFile {
         // (1.8) Dòng `[answer] …` (dựng/mở URL trang gọi khi bấm "Nghe") là chẩn đoán BÌNH THƯỜNG: không bao giờ tự
         // lưu tệp, kể cả khi chuỗi UUID của máy hay TOKEN ingress tình cờ chứa "401".
         if (text.startsWith(CallPageTarget.LOG_PREFIX)) return false
+        // (2.0) Dòng `[file] chooser open|picked|cancel|noapp` (đính kèm tệp/ảnh trong WebView) là chẩn đoán BÌNH
+        // THƯỜNG: không bao giờ tự lưu tệp — kể cả khi tên tệp người dùng chọn tình cờ chứa "401".
+        if (text.startsWith(FileChooser.LOG_PREFIX)) return false
         if (text.startsWith(IngressPromote.LOG_PREFIX) && text.contains("fail=")) return true
         return HTTP_401.containsMatchIn(text)
     }

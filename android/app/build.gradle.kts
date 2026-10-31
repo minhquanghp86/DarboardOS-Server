@@ -31,8 +31,12 @@ android {
         // (1.9) YÊU CẦU: versionCode = 10, versionName = "1.9" — bản app đi kèm add-on có TIẾNG điện thoại ↔ điện thoại
         // (tiếng do server chuyển tiếp, trang gọi vẫn là call-web.html của add-on) + tab "Nhật ký" trên màn P4 và nút
         // "Xoá nhật ký". Trang gọi nạp từ add-on nên bản app này không đổi giao diện gọi.
-        versionCode = 10
-        versionName = "1.9"
+        // (2.0) YÊU CẦU: versionCode = 11, versionName = "2.0" — **ĐÍNH KÈM TỆP/ẢNH TRONG WEBVIEW**: cài
+        // `WebChromeClient.onShowFileChooser` (+ `onActivityResult`) bằng SAF `ACTION_OPEN_DOCUMENT` để nút đính kèm
+        // ở trang Tin nhắn (`#files`) và nút Tải lên ở màn Tệp (`#fmFile`) mở được hộp chọn tệp (trước đây bấm không
+        // phản ứng). Không thêm quyền bộ nhớ nào — xem FileChooser.kt / android/README.md §4l.
+        versionCode = 11
+        versionName = "2.0"
     }
 
     signingConfigs {

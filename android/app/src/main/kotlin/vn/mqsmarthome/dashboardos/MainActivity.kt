@@ -4,12 +4,14 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
 import android.net.http.SslError
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -23,6 +25,7 @@ import android.view.inputmethod.EditorInfo
 import android.webkit.CookieManager
 import android.webkit.PermissionRequest
 import android.webkit.SslErrorHandler
+import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -267,6 +270,16 @@ class MainActivity : Activity() {
     private var statusView: TextView? = null
     private var showingWeb = false
     private var pendingPermissionRequest: PermissionRequest? = null
+
+    /**
+     * (2.0) **Callback của `<input type="file">` đang chờ kết quả** — `WebView` trao cho app trong
+     * [DashboardChromeClient.onShowFileChooser] và **chỉ** được trả lời một lần trong [onActivityResult].
+     *
+     * Không bao giờ để nó treo: nếu không gọi `onReceiveValue`, trang giữ trạng thái "đang chọn tệp" mãi (nút đính
+     * kèm bấm không ăn nữa). Vì vậy: huỷ hộp chọn → `null`, chọn xong → `Uri[]`, Activity bị huỷ → `null`
+     * ([onDestroy]), và một yêu cầu mới khi cái cũ còn treo → cái cũ nhận `null` trước.
+     */
+    private var pendingFilePathCallback: ValueCallback<Array<Uri>>? = null
 
     /** Thanh thông báo đăng nhập + câu chữ của nó (chỉ có ở màn WebView). */
     private var loginBar: View? = null
@@ -2938,6 +2951,86 @@ class MainActivity : Activity() {
                 request.deny()
             }
         }
+
+        /**
+         * (2.0) **ĐÍNH KÈM TỆP/ẢNH — `WebView` KHÔNG tự mở hộp chọn tệp**.
+         *
+         * Triệu chứng người dùng báo: ở trang **Tin nhắn** (`launcher-config.html` → `#files` của khung chat, và
+         * `#fmFile` của màn *Tệp*) bấm **đính kèm** thì **không có phản ứng gì**; trên Chrome thì bình thường.
+         * Nguyên nhân chuẩn của Android: `WebView` chuyển yêu cầu `<input type="file">` cho **`WebChromeClient`**;
+         * không cài [onShowFileChooser] thì yêu cầu bị **bỏ im lặng** (không có `startActivity`, không có lỗi).
+         *
+         * Cách làm (SAF — Storage Access Framework, **không cần quyền bộ nhớ**):
+         *  1. `ACTION_OPEN_DOCUMENT` (API ≥ 19, xem [FileChooser.actionFor]) `+ CATEGORY_OPENABLE`,
+         *     `type` = MIME đầu tiên trong `accept` (hoặc `ANY_MIME`), `EXTRA_MIME_TYPES` khi `accept` có nhiều MIME,
+         *     `EXTRA_ALLOW_MULTIPLE` = (`params.mode == MODE_OPEN_MULTIPLE`).
+         *  2. Lưu callback vào [pendingFilePathCallback] rồi `startActivityForResult(chooser, REQ_FILE_CHOOSER)`.
+         *  3. Máy không có DocumentsUI → thử `ACTION_GET_CONTENT` (cùng SAF) trước khi bỏ cuộc.
+         *  4. Không ứng dụng nào nhận → `callback.onReceiveValue(null)` **ngay** + toast (nếu không, trang treo
+         *     trạng thái "đang chọn tệp" và nút đính kèm câm luôn).
+         *
+         * `onPermissionRequest` (micro/camera của WebRTC) ở trên **không đổi**: hai đường này độc lập, nên luồng
+         * gọi điện vẫn nguyên.
+         *
+         * Trả `true` ở **mọi** nhánh đã xử lý (kể cả nhánh lỗi) để `WebView` không rơi về hành vi mặc định (im lặng).
+         */
+        @Suppress("DEPRECATION")
+        override fun onShowFileChooser(
+            webView: WebView?,
+            filePathCallback: ValueCallback<Array<Uri>>?,
+            fileChooserParams: FileChooserParams?
+        ): Boolean {
+            if (filePathCallback == null) return false
+
+            // Một hộp chọn tệp tại một thời điểm: yêu cầu CŨ (nếu còn treo) nhận `null` trước — nếu không, lần bấm
+            // trước đó sẽ treo vĩnh viễn ở trạng thái "đang chọn tệp".
+            pendingFilePathCallback?.onReceiveValue(null)
+            pendingFilePathCallback = filePathCallback
+
+            val mode = fileChooserParams?.mode ?: WebChromeClient.FileChooserParams.MODE_OPEN
+            val mimes = FileChooser.mimeTypes(fileChooserParams?.acceptTypes)
+            val multiple = FileChooser.isMultiple(mode)
+
+            // 1) SAF của hệ thống (API ≥ 19 = ACTION_OPEN_DOCUMENT); 2) dự phòng ACTION_GET_CONTENT cùng là SAF.
+            val candidates = listOf(
+                chooserIntent(FileChooser.actionFor(Build.VERSION.SDK_INT), mimes, multiple),
+                chooserIntent(FileChooser.ACTION_GET_CONTENT, mimes, multiple)
+            )
+            for (chooser in candidates) {
+                try {
+                    startActivityForResult(chooser, FileChooser.REQ_FILE_CHOOSER)
+                    Diag.log(FileChooser.openLine(chooser.action, mimes, multiple, mode))
+                    return true
+                } catch (t: ActivityNotFoundException) {
+                    // Máy không có ứng dụng cho action này (vd không có DocumentsUI) → thử ứng viên kế tiếp.
+                } catch (t: Throwable) {
+                    break
+                }
+            }
+
+            // 3) Không có ứng dụng nào nhận Intent: trả `null` NGAY cho trang + báo người dùng.
+            pendingFilePathCallback = null
+            Diag.log(FileChooser.noAppLine(candidates[0].action))
+            toast(getString(R.string.file_chooser_no_app))
+            runCatching { filePathCallback.onReceiveValue(null) }
+            return true
+        }
+
+        /**
+         * Intent SAF dùng để chọn tệp: `CATEGORY_OPENABLE` (chỉ tệp mở được → `content://` có quyền đọc tạm),
+         * `type` theo `accept` của trang, `EXTRA_MIME_TYPES` khi có nhiều MIME, `EXTRA_ALLOW_MULTIPLE` khi
+         * `multiple`. KHÔNG xin quyền bộ nhớ — quyền đọc do SAF cấp cho đúng những `Uri` trả về.
+         */
+        private fun chooserIntent(action: String, mimes: List<String>, multiple: Boolean): Intent {
+            val intent = Intent(action)
+            intent.addCategory(FileChooser.CATEGORY_OPENABLE)
+            intent.type = FileChooser.intentType(mimes)
+            if (FileChooser.needsMimeExtra(mimes)) {
+                intent.putExtra(Intent.EXTRA_MIME_TYPES, mimes.toTypedArray())
+            }
+            intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, multiple)
+            return intent
+        }
     }
 
     override fun onRequestPermissionsResult(
@@ -2959,6 +3052,70 @@ class MainActivity : Activity() {
             request.deny()
             toast(getString(R.string.perm_denied))
         }
+    }
+
+    /**
+     * (2.0) **KẾT QUẢ HỘP CHỌN TỆP/ẢNH** (`ACTION_OPEN_DOCUMENT` / `ACTION_GET_CONTENT` mở ở
+     * [DashboardChromeClient.onShowFileChooser]).
+     *
+     * Trả `Uri[]` cho `WebView`:
+     *  - nhiều tệp → `data.clipData` (mỗi item một `Uri`), một tệp → `data.data`
+     *    ([pickedUris] gom cả hai, khử trùng);
+     *  - người dùng **huỷ** (Back / "Huỷ") hoặc kết quả rỗng → `onReceiveValue(null)` — **bắt buộc**, nếu không
+     *    trang treo trạng thái "đang chọn tệp" và nút đính kèm im lặng.
+     *
+     * Callback được **lấy ra và đặt `null` NGAY** trước khi dùng (đúng một lần cho một yêu cầu), mọi nhánh đều
+     * trả lời — không nhánh nào để callback treo.
+     *
+     * `Uri` trả về là `content://` do SAF cấp **quyền đọc tạm** cho app: `WebView` đọc được ngay để gửi lên máy
+     * chủ, **không** cần quyền bộ nhớ và không cần `takePersistableUriPermission` (tệp chỉ dùng một lần).
+     */
+    @Suppress("DEPRECATION")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (requestCode != FileChooser.REQ_FILE_CHOOSER) {
+            super.onActivityResult(requestCode, resultCode, data)
+            return
+        }
+
+        // Lấy ra rồi xoá NGAY: dù kết quả thế nào, callback này cũng chỉ được trả lời đúng một lần.
+        val callback = pendingFilePathCallback
+        pendingFilePathCallback = null
+        if (callback == null) return
+
+        if (resultCode != RESULT_OK) {
+            Diag.log(FileChooser.cancelLine())
+            runCatching { callback.onReceiveValue(null) }
+            return
+        }
+
+        val uris = pickedUris(data)
+        if (uris.isEmpty()) {
+            // Chọn xong nhưng không có Uri nào dùng được (ứng dụng lạ trả kết quả rỗng) → coi như huỷ.
+            Diag.log(FileChooser.cancelLine())
+            runCatching { callback.onReceiveValue(null) }
+            return
+        }
+
+        Diag.log(FileChooser.pickedLine(uris.size))
+        runCatching { callback.onReceiveValue(uris.toTypedArray()) }
+            .onFailure { runCatching { callback.onReceiveValue(null) } }
+    }
+
+    /**
+     * Gom `Uri` từ kết quả của hộp chọn tệp: `data.clipData` (chọn nhiều) + `data.data` (chọn một), khử trùng,
+     * bỏ `null`. Trả danh sách rỗng khi `data` null (người dùng huỷ).
+     */
+    private fun pickedUris(data: Intent?): List<Uri> {
+        if (data == null) return emptyList()
+        val out = LinkedHashSet<Uri>(4)
+        val clip = data.clipData
+        if (clip != null) {
+            for (i in 0 until clip.itemCount) {
+                clip.getItemAt(i)?.uri?.let { out.add(it) }
+            }
+        }
+        data.data?.let { out.add(it) }
+        return out.toList()
     }
 
     // ------------------------------------------------------------------ Back handling
@@ -3015,6 +3172,12 @@ class MainActivity : Activity() {
         pendingPermissionRequest?.let {
             it.deny()
             pendingPermissionRequest = null
+        }
+        // (2.0) Hộp chọn tệp còn mở mà Activity bị huỷ: trả `null` để trang không treo "đang chọn tệp" và không
+        // giữ `ValueCallback` của WebView đã chết.
+        pendingFilePathCallback?.let {
+            runCatching { it.onReceiveValue(null) }
+            pendingFilePathCallback = null
         }
         disposeWebView()
         super.onDestroy()
