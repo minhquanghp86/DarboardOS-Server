@@ -64,6 +64,17 @@
             android:textColorHint="#FF5B6B85"
             android:textSize="15sp" />
 
+        <!-- (21/11/2026) GD13 — KHUYẾN NGHỊ IP LAN ngay dưới ô nhập: add-on tự phục vụ HTTPS (cổng 18443, chứng chỉ
+             tự ký) nên KHÔNG cần đăng nhập Home Assistant. Đây là đường chính; chế độ tên miền/ingress chỉ là phụ. -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="@string/url_web_recommend"
+            android:textColor="#FF7BE3B0"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

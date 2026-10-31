@@ -55,14 +55,32 @@ import { isLocalBrowser } from './requestOrigin.js';
 import { handleCalendarApi } from './calendarSource.js';
 // (17/11/2026) GD9: bo tien to ingress cua HA o MOT cho (`/api/hassio_ingress/<TOKEN>/app/register` -> `/app/register`).
 import { routeOf } from './routePath.js';
+// (21/11/2026) GD13 — add-on TU phuc vu HTTPS (port 18443) bang chung chi tu ky trong /data/tls: app Android co secure
+// context (micro/camera) ma KHONG can ingress cua HA. Xem src/tls.ts.
+import { createHttpsServer, ensureSelfSignedCert, tlsStartupLine } from './tls.js';
+import type { TlsMaterial } from './tls.js';
+import type { IncomingMessage, ServerResponse } from 'http';
+import type { Duplex } from 'stream';
 import type WebSocket from 'ws';
 
 const WS_PORT   = env.get("WS_PORT").default("8081").asIntPositive();
 const HEALTH_PORT = env.get("HEALTH_PORT").default("18080").asIntPositive();
+// (21/11/2026) GD13 — cong HTTPS (0 = tat). Chay CUNG handler voi HEALTH_PORT, chi khac TLS.
+const HTTPS_PORT = env.get("HTTPS_PORT").default("18443").asInt();
 
 const inputRouter = new InputRouter();
 
-await bootstrapAsync();
+// (21/11/2026) GD13 — Chrome / CDP hong KHONG duoc keo ca HTTP/HTTPS listener xuong: dien thoai (app Android) va
+// trang trong LAN van phai vao duoc dashboard de sua cai dat / xem trang thai. Truoc day `await bootstrapAsync()`
+// nem loi -> tien trinh chet ngay dong dau (khong co listener nao), nen tren may khong co Chrome (may dev, hoac
+// image thieu Chrome) khong the kiem chung HTTPS/firewall. Nay: ghi log ro rang roi CHAY TIEP (man hinh ESP32 se
+// khong nhan duoc khung hinh cho toi khi Chrome san sang — dung nhu cu, vi khong co Chrome thi khong co khung hinh).
+try {
+  await bootstrapAsync();
+} catch (e) {
+  console.error(`[cdp] KHONG khoi dong duoc Chrome/CDP: ${(e as Error).message}`);
+  console.error('[cdp] HTTP/HTTPS van chay (trang dashboard, API dien thoai); khung hinh toi man ESP32 se khong co.');
+}
 
 // (30/09/2026) SUA LOI "man hinh ket noi nhung server khong biet": truoc day cong WS mo TRUOC `await bootstrapAsync()`
 // (khoi dong Chrome ~2,5 s) con handler 'connection' dang ky SAU do. Panel noi lai dung khoang nay: thu vien ws bat
@@ -254,7 +272,9 @@ for (const [route, rel] of Object.entries(VENDOR)) {
   try { vendorCache.set(route, fs.readFileSync(p)); } catch (e) { console.warn(`[static] khong doc duoc ${p}: ${(e as Error).message}`); }
 }
 
-http.createServer((req, res) => {
+// (21/11/2026) GD13 — TACH handler thanh HAM de HTTP 18080 va HTTPS 18443 dung CHUNG mot ban (khong chep doi, do la
+// nguon loi da gap voi ingress: hai duong lech nhau thi WebSocket / MJPEG hong o mot ben). Xem `startHttpsListener`.
+function handleRequest(req: IncomingMessage, res: ServerResponse): void {
   const reqUrl = new URL(req.url || "/", `http://localhost:${HEALTH_PORT}`);
   // (17/11/2026) GD9 — duong dan DA BO tien to ingress/proxy. Moi handler nhan `routeUrl` (pathname da chuan hoa,
   // query giu nguyen) thay vi URL goc, nho vay `/api/hassio_ingress/<TOKEN>/app/register`, `/chat/list`,
@@ -463,7 +483,11 @@ http.createServer((req, res) => {
   }
 
   res.writeHead(200); res.end('ok');
-}).on('upgrade', (req, socket, head) => {
+}
+
+// (21/11/2026) GD13 — nang cap WebSocket cung la MOT ham dung chung cho HTTP va HTTPS: `/calls/web`, `/call/video`,
+// `/go2rtc/*`, `/control/*` phai chay ca tren trang mo bang `https://<ip>:18443` (app Android).
+function handleUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer): void {
   // (17/11/2026) GD9 — WebSocket mo tu trang chay qua ingress cung mang tien to
   // (`/api/hassio_ingress/<TOKEN>/calls/web`, `/call/video`, `/go2rtc/...`). Bo tien to ngay tai day de moi handler
   // nang cap thay dung duong dan (truoc day /calls/web + /call/video da dung `endsWith` nen van chay, con
@@ -474,7 +498,43 @@ http.createServer((req, res) => {
     if (rp !== u.pathname) req.url = rp + u.search;
   } catch { /* URL hong: giu nguyen, handler tu quyet dinh */ }
   if (!handleCallUpgrade(req, socket, head) && !handleCallsUpgrade(req, socket, head) && !handleGo2rtcUpgrade(req, socket, head) && !handleControlUpgrade(req, socket, head)) socket.destroy();
-}).listen(HEALTH_PORT);
+}
+
+// ── HTTP 18080 (man hinh ESP32 + trang trong LAN + ingress HA) ────────────────────────────────────────────────
+const httpServer = http.createServer(handleRequest);
+httpServer.on('upgrade', handleUpgrade);
+httpServer.listen(HEALTH_PORT);
+
+// ── HTTPS 18443 (21/11/2026) GD13 — CUNG handler, chung chi TU KY trong /data/tls ─────────────────────────────
+//
+// Vi sao can: WebView cua app Android chi cap micro/camera trong SECURE CONTEXT (https). Truoc day chi co ingress cua
+// HA la https, ma phien ingress CHI duoc tao khi chinh HA frontend mo panel -> nguoi dung dang nhap HA van khong vao
+// duoc dashboard. Nay dien thoai chi can `https://<ip>:18443/launcher-config.html`.
+//
+// HTTP 18080 GIU NGUYEN (man hinh ESP32 dung, va cac trang trong LAN dang dung 18080 khong bi anh huong).
+function startHttpsListener(): void {
+  if (!(HTTPS_PORT > 0)) {
+    console.log('[tls] HTTPS tat (HTTPS_PORT=0)');
+    return;
+  }
+  let material: TlsMaterial;
+  try {
+    material = ensureSelfSignedCert();
+  } catch (e) {
+    console.warn(`[tls] TAT HTTPS: ${(e as Error).message}`);
+    return;
+  }
+  console.log(tlsStartupLine(HTTPS_PORT, material));
+  const secureServer = createHttpsServer(handleRequest, material);
+  secureServer.on('upgrade', handleUpgrade);
+  secureServer.on('error', (e: NodeJS.ErrnoException) => {
+    console.warn(`[tls] khong mo duoc cong ${HTTPS_PORT}: ${e.code || ''} ${e.message}`);
+  });
+  secureServer.listen(HTTPS_PORT, () => {
+    console.log(`[tls] san sang: https://127.0.0.1:${HTTPS_PORT}/app/ping (chung chi tu ky — chi dung trong LAN/Tailscale)`);
+  });
+}
+startHttpsListener();
 initPush();
 
 setInterval(() => cleanupIdleAsync(), 60_000);

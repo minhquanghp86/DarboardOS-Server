@@ -53,6 +53,9 @@ export MAX_BYTES_PER_MESSAGE="$(get_opt max_bytes_per_message "61440")"
 export WS_PORT="$(get_opt ws_port "8081")"
 export DEBUG_PORT="$(get_opt debug_port "9221")"
 export HEALTH_PORT="$(get_opt health_port "18080")"
+# (21/11/2026) GD13 — HTTPS TU KY (src/tls.ts): app Android can secure context de WebView cap micro/camera ma khong
+# phai qua ingress HA. 0 = tat. Chung chi sinh mot lan trong /data/tls (ben qua update add-on).
+export HTTPS_PORT="$(get_opt https_port "18443")"
 export PREFERS_REDUCED_MOTION="$(get_opt prefers_reduced_motion "false")"
 export SCREENSAVER_IDLE_S="$(get_opt screensaver_idle_s "120")"
 # (27/09/2026) Man hinh cho khung anh; chao buoi sang (camera thay nguoi -> "Hom nay" + doc qua loa panel).

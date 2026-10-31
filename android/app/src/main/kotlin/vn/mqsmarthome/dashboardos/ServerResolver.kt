@@ -23,6 +23,14 @@ object ServerResolver {
     /** Cổng mặc định của web server add-on (chạy host network). */
     const val ADDON_PORT = 18080
 
+    /**
+     * (21/11/2026) GD13 — cổng **HTTPS tự ký** của add-on (`src/tls.ts`, config add-on `18443/tcp`).
+     *
+     * Đây là đường vào KHUYẾN NGHỊ cho điện thoại: https mới cho WebView secure context (micro/camera), và vì là
+     * HTTPS của chính add-on nên KHÔNG cần đăng nhập Home Assistant, KHÔNG cần phiên ingress.
+     */
+    const val ADDON_TLS_PORT = TlsPolicy.TLS_PORT
+
     /** Cổng Home Assistant (add-on đứng sau HA: https://<domain>:8123/<slug>/...). */
     const val HA_PORT = 8123
 
@@ -197,10 +205,13 @@ object ServerResolver {
      *
      * (17/11/2026) GD9 — [cookie] = header `Cookie:` của phiên Home Assistant. Khi gốc API nằm sau ingress
      * (`https://<domain>/api/hassio_ingress/<TOKEN>`) thì KHÔNG có cookie là 401, nên phải gửi kèm.
+     *
+     * (21/11/2026) GD13 — [allowedHosts]: host được chấp nhận **chứng chỉ tự ký** (mặc định rỗng = không chấp nhận
+     * gì, tức hành vi cũ). Cần cho `https://<ip>:18443` — HTTPS của chính add-on (xem [TlsPolicy]).
      */
-    fun probe(base: String?, cookie: String? = null): Server? {
+    fun probe(base: String?, cookie: String? = null, allowedHosts: Set<String> = emptySet()): Server? {
         val b = normalizeBase(base) ?: return null
-        val (code, body) = httpGet(b + PING_PATH, cookie) ?: return null
+        val (code, body) = httpGet(b + PING_PATH, cookie, allowedHosts) ?: return null
         if (code != HttpURLConnection.HTTP_OK || body == null) return null
         if (!SERVICE_RE.containsMatchIn(body)) return null
         return Server(base = b, apiBase = b, webUrl = "$b/$WEB_PAGE")
@@ -213,13 +224,18 @@ object ServerResolver {
      *  - **404** → sai token ingress / sai đường dẫn → thử ứng viên kế tiếp.
      * null = không kết nối được.
      */
-    fun probeStatus(base: String?, cookie: String? = null): Int? {
+    fun probeStatus(base: String?, cookie: String? = null, allowedHosts: Set<String> = emptySet()): Int? {
         val b = normalizeBase(base) ?: return null
-        return httpGet(b + PING_PATH, cookie)?.first
+        return httpGet(b + PING_PATH, cookie, allowedHosts)?.first
     }
 
-    /** GET đơn giản bằng HttpURLConnection; trả (mã HTTP, body nếu 200). */
-    private fun httpGet(urlStr: String, cookie: String? = null): Pair<Int, String?>? {
+    /**
+     * GET đơn giản bằng HttpURLConnection; trả (mã HTTP, body nếu 200).
+     *
+     * (21/11/2026) GD13 — [allowedHosts] được gắn vào connection qua [TlsPolicy.applyTo]: chỉ host trong danh sách
+     * (IP LAN đã cấu hình) mới chấp nhận chứng chỉ tự ký của add-on; host khác vẫn xác thực TLS bình thường.
+     */
+    private fun httpGet(urlStr: String, cookie: String? = null, allowedHosts: Set<String> = emptySet()): Pair<Int, String?>? {
         var conn: HttpURLConnection? = null
         try {
             val c = (URL(urlStr).openConnection() as HttpURLConnection).apply {
@@ -233,6 +249,7 @@ object ServerResolver {
                 setRequestProperty("user-agent", "DashboardOS-Android")
                 if (!cookie.isNullOrBlank()) setRequestProperty("cookie", cookie)
             }
+            TlsPolicy.applyTo(c, allowedHosts)
             conn = c
             val code = c.responseCode
             if (code != HttpURLConnection.HTTP_OK) {

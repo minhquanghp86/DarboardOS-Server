@@ -163,6 +163,10 @@ object PhoneApi {
                     setRequestProperty("content-type", "application/json; charset=utf-8")
                 }
             }
+            // (21/11/2026) GD13 — `apiBase` có thể là HTTPS TỰ KÝ của add-on (`https://<ip>:18443`, server: src/tls.ts).
+            // Chỉ host LAN/loopback mới chấp nhận chứng chỉ tự ký, và chỉ trên connection này (không đổi SSLContext
+            // mặc định của app) — xem [TlsPolicy].
+            TlsPolicy.applyTo(conn, TlsPolicy.lanHostsOf(urlStr))
             if (body != null) {
                 conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
             }

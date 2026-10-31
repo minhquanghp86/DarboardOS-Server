@@ -1,3 +1,8 @@
+## V2.9.308
+- **Add-on tự phục vụ HTTPS (port 18443) với chứng chỉ tự ký** → app Android có secure context cho micro/camera mà
+  **không cần ingress của Home Assistant** (trước đây phải mở add-on từ sidebar HA một lần mới tạo được phiên).
+  Điện thoại chỉ cần `https://<ip-LAN>:18443`. HTTP 18080 giữ nguyên cho các màn ESP32.
+
 ## V2.9.307
 - **Sửa lỗi báo thức hiện nhầm màn**: `GET /alarm/list?dev=<id>` nay chỉ trả báo thức của màn đó + báo thức "Mọi màn
   hình". Trước đây mở Báo thức của P4 lại thấy cả báo thức tạo trên màn 480×272.

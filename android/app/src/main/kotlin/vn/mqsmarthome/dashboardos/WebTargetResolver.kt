@@ -61,6 +61,12 @@ object WebTargetResolver {
     /** Cổng mặc định của web server add-on (host network). */
     const val ADDON_PORT = ServerResolver.ADDON_PORT
 
+    /**
+     * (21/11/2026) GD13 — cổng **HTTPS tự ký** của add-on (`src/tls.ts`; cấu hình add-on `18443/tcp`). Xem
+     * [TlsPolicy]: đây là đường vào KHUYẾN NGHỊ cho điện thoại (secure context + không cần đăng nhập HA).
+     */
+    const val ADDON_TLS_PORT = ServerResolver.ADDON_TLS_PORT
+
     /** Giá trị điền sẵn cho ô "Máy chủ API (LAN)". */
     const val DEFAULT_API_INPUT = "192.168.10.2:18080"
 
@@ -96,8 +102,9 @@ object WebTargetResolver {
      *      1. `https://<domain>/api/hassio_ingress/<TOKEN>/launcher-config.html`  (ingress HA — cần đăng nhập HA)
      *      2. `https://<domain>/b39feb53_remote_webview_server/launcher-config.html` (proxy giữ tên add-on)
      *      3. `https://<domain>/launcher-config.html` (add-on phục vụ thẳng ở gốc domain)
-     *  - **IP LAN** (192.168.x, 10.x, 172.16-31.x, 127.x, localhost) → https trước (secure context cho micro/camera):
-     *      `https://<ip>/launcher-config.html`, `https://<ip>/<slug>/launcher-config.html`,
+     *  - **IP LAN** (192.168.x, 10.x, 172.16-31.x, 127.x, localhost) → **https trước** (secure context cho micro/camera):
+     *      `https://<ip>:18443/launcher-config.html` ← (21/11/2026 GD13) HTTPS TỰ KÝ của chính add-on, KHÔNG cần đăng
+     *      nhập HA; rồi `https://<ip>/launcher-config.html`, `https://<ip>/<slug>/launcher-config.html`,
      *      `http://<ip>:18080/launcher-config.html`, `http://<ip>/launcher-config.html`.
      *  - Loại trùng, giữ thứ tự. Chuỗi rỗng / rác → danh sách rỗng.
      */
@@ -117,13 +124,18 @@ object WebTargetResolver {
         // Đúng thứ người dùng gõ (họ đã dán URL đầy đủ, kể cả URL ingress).
         if (prefix.isNotEmpty()) add(a.scheme, a.port, "$prefix/$LAUNCHER_PAGE")
 
+        // Cổng add-on: cổng người dùng gõ (nếu có), ngược lại 18080.
+        val port = if (a.port > 0) a.port else ADDON_PORT
         if (a.lan) {
-            val port = if (a.port > 0) a.port else ADDON_PORT
-            // TLS trước: chỉ https mới là secure context (WebView mới cấp micro/camera). Không có TLS thì
-            // lần thử này thất bại rất nhanh rồi rơi xuống http.
+            // (21/11/2026) GD13 — ƯU TIÊN SỐ MỘT: HTTPS của chính add-on (`https://<ip>:18443`, chứng chỉ tự ký do
+            // server sinh trong /data/tls — xem src/tls.ts). Chỉ https mới là secure context (WebView mới cấp
+            // micro/camera) VÀ đường này KHÔNG cần đăng nhập Home Assistant, không cần phiên ingress — đúng lỗi
+            // người dùng báo (đăng nhập HA xong vẫn không vào được dashboard).
+            add("https", ADDON_TLS_PORT, "/$LAUNCHER_PAGE")
+            // Dự phòng TLS sẵn có (reverse proxy trên máy) trên cổng người dùng gõ.
             add("https", a.port, "/$LAUNCHER_PAGE")
             add("https", a.port, "/$ADDON_SLUG/$LAUNCHER_PAGE")
-            // add-on chạy thẳng trên LAN (http, cổng 18080) — trang vẫn mở được nhưng KHÔNG có micro/camera.
+            // Add-on mở thẳng (http, cổng 18080): trang vẫn mở được nhưng KHÔNG có micro/camera.
             add("http", port, "/$LAUNCHER_PAGE")
             if (prefix.isNotEmpty()) add("http", port, "$prefix/$LAUNCHER_PAGE")
             add("http", a.port, "/$LAUNCHER_PAGE")
@@ -239,7 +251,13 @@ object WebTargetResolver {
         if (a.prefix.isNotEmpty() && !a.prefix.equals("/$ADDON_SLUG", ignoreCase = true)) out.add("${a.scheme}://$netloc${a.prefix}")
 
         if (a.lan) {
-            apiCandidates(raw).forEach { out.add(it) }
+            // (21/11/2026) GD13 — API native đi LAN bằng http://<ip>:18080 như cũ (không cần TLS, không cookie), và
+            // thêm HTTPS tự ký của add-on ngay sau đó làm phương án hai (khi 18080 bị chặn / người dùng chỉ mở 18443).
+            // Trang điều khiển trong WebView thì NGƯỢC LẠI: https://<ip>:18443 là ứng viên đầu (cần secure context).
+            val lan = apiCandidates(raw)
+            if (lan.isNotEmpty()) out.add(lan.first())
+            out.add("https://${a.host}:$ADDON_TLS_PORT")
+            lan.drop(1).forEach { out.add(it) }
             if (a.prefix.isNotEmpty()) out.add("${a.scheme}://$netloc${a.prefix}")
         } else {
             // (1) ingress HA — dạng CHÍNH khi người dùng chỉ nhập domain.
@@ -396,8 +414,11 @@ object WebTargetResolver {
      *
      * (17/11/2026) GD9 — [cookie] (header `Cookie:` của phiên HA, xem [HaCookie]) để lần dò SAU KHI đăng nhập thấy
      * 200 thay vì 401 (nhờ vậy không phải mở lại trang đăng nhập).
+     *
+     * (21/11/2026) GD13 — [allowedHosts]: host được chấp nhận **chứng chỉ tự ký** (mặc định rỗng = hành vi cũ). Cần
+     * để dò được `https://<ip>:18443/launcher-config.html` — HTTPS tự ký của chính add-on (xem [TlsPolicy]).
      */
-    fun probeWeb(url: String?, cookie: String? = null): WebCheck? {
+    fun probeWeb(url: String?, cookie: String? = null, allowedHosts: Set<String> = emptySet()): WebCheck? {
         val u = url?.trim().orEmpty()
         if (!u.startsWith("http://") && !u.startsWith("https://")) return null
         var conn: HttpURLConnection? = null
@@ -413,6 +434,8 @@ object WebTargetResolver {
                 setRequestProperty("user-agent", "DashboardOS-Android")
                 if (!cookie.isNullOrBlank()) setRequestProperty("cookie", cookie)
             }
+            // (21/11/2026) GD13 — chứng chỉ tự ký của add-on chỉ được chấp nhận cho host đã cấu hình.
+            TlsPolicy.applyTo(c, allowedHosts)
             conn = c
             val code = c.responseCode
             val stream = if (code in 200..299) c.inputStream else c.errorStream

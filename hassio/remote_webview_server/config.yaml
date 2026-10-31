@@ -1,5 +1,5 @@
 name: "Dashboard OS Server"
-version: "2.9.307"
+version: "2.9.308"
 slug: "remote_webview_server"
 # (02/10/2026) Anh dung san tren ghcr (CI tag = version). Truoc day addon build tai may HA tu build.yaml + Dockerfile,
 # va Supervisor xuat ca anh Docker (~1,1 GB sau nen) vao moi ban sao luu; anh keo ve thi khong. build.yaml/Dockerfile
@@ -23,8 +23,14 @@ ingress_port: 18080
 # (22/10/2026) Mo them cong truc tiep tren LAN/Tailscale: trang Dieu khien (control.html) can
 # WebSocket lien tuc — qua ingress HA thi WS bi dong sau vai khung va MJPEG bi dem -> trang phai
 # polling va bi 429. Vao thang http://<ip-ha>:18080/... thi WS chay ~18 fps.
+# (21/11/2026) GD13 — 18443/tcp: HTTPS TU KY cua chinh add-on (src/tls.ts). App Android can https de WebView duoc cap
+# micro/camera; truoc day phai qua ingress HA (chi chay khi HA frontend da mo panel mot lan). Nay dien thoai chi can
+# https://<ip-ha>:18443/launcher-config.html — KHONG can dang nhap HA. Chung chi sinh mot lan trong /data/tls (ben qua
+# update add-on), SAN gom moi IPv4 cua may + localhost + hostname; het han/doi IP thi tu sinh lai.
+# 18080 GIU NGUYEN: man hinh ESP32 va cac trang trong LAN dang dung 18080.
 ports:
   18080/tcp: 18080
+  18443/tcp: 18443
 ingress_entry: launcher-config.html
 # (01/10/2026) Trang thanh ben gio co hai the: Tin nhan (noi bo voi cac man hinh) + Menu ung dung -> ten "Dashboard".
 panel_icon: mdi:tablet-dashboard
@@ -74,6 +80,9 @@ options:
   expose_debug_proxy: false
   debug_proxy_port: 9222
   health_port: 18080
+  # (21/11/2026) GD13 — cong HTTPS tu ky (0 = tat). Doi cong thi phai sua ca app Android (Cài đặt → địa chỉ IP vẫn
+  # dò được, nhưng app ưu tiên đúng 18443; đổi chỉ nên làm khi 18443 bị chiếm).
+  https_port: 18443
   prefers_reduced_motion: false
   screensaver_idle_s: 120
   screensaver_photos: true
@@ -103,6 +112,7 @@ schema:
   expose_debug_proxy: bool
   debug_proxy_port: int
   health_port: int
+  https_port: "port?"
   prefers_reduced_motion: bool
   screensaver_idle_s: "int(0,)?"
   screensaver_photos: "bool?"

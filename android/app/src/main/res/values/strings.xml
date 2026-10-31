@@ -5,14 +5,17 @@
     <string name="url_hint">Địa chỉ Home Assistant</string>
     <string name="url_hint_example">192.168.10.2 hoặc hass.example.com</string>
     <!-- (17/11/2026) GD9 — MỘT Ô: nhập domain hoặc IP LAN, app tự lo cả trang điều khiển và API. -->
-    <string name="url_hint_web">Địa chỉ Home Assistant (một ô duy nhất)</string>
-    <string name="url_hint_web_example">hass.mqsmarthome.io.vn hoặc 192.168.10.2</string>
-    <string name="url_web_hint">Nhập TÊN MIỀN (vd hass.mqsmarthome.io.vn): app dùng https://&lt;domain&gt;/api/hassio_ingress/&lt;TOKEN&gt;/ cho cả trang điều khiển và API (kèm cookie đăng nhập Home Assistant). Nhập IP LAN (vd 192.168.10.2): app dùng http://&lt;ip&gt;:18080 — KHÔNG có micro/camera (cần HTTPS).</string>
+    <string name="url_hint_web">Địa chỉ máy chủ Dashboard OS (một ô duy nhất)</string>
+    <string name="url_hint_web_example">192.168.10.2 hoặc hass.mqsmarthome.io.vn</string>
+    <!-- (21/11/2026) GD13 — KHUYẾN NGHỊ IP LAN: add-on tự phục vụ HTTPS (cổng 18443, chứng chỉ tự ký) nên KHÔNG
+         cần đăng nhập Home Assistant, KHÔNG cần phiên ingress. Đây là dòng ghi chú ngay dưới ô nhập. -->
+    <string name="url_web_recommend">Khuyến nghị: IP LAN, vd 192.168.10.2 — không cần đăng nhập HA</string>
+    <string name="url_web_hint">App tự dò: IP LAN (vd 192.168.10.2) → ưu tiên https://&lt;ip&gt;:18443 (HTTPS tự ký của add-on, có micro/camera, KHÔNG cần đăng nhập HA) rồi http://&lt;ip&gt;:18080. Tên miền → https://&lt;domain&gt;/api/hassio_ingress/&lt;TOKEN&gt;/ (cần đăng nhập HA một lần — phương án phụ).</string>
     <string name="action_connect">Kết nối</string>
     <string name="action_change_url">URL</string>
     <string name="action_settings">Cài đặt</string>
     <string name="action_close">Đóng</string>
-    <string name="url_footer">Chỉ cần MỘT địa chỉ: app tự dò trang điều khiển và API. Với tên miền, mọi thứ đi qua ingress Home Assistant (đăng nhập HA một lần trong app — cookie được giữ lại cho các lần sau). Với IP LAN, app gọi thẳng http://&lt;ip&gt;:18080 nhưng mất micro/camera.</string>
+    <string name="url_footer">Chỉ cần MỘT địa chỉ. Chế độ IP LAN (khuyến nghị): app mở https://&lt;ip&gt;:18443 của add-on — có micro/camera, không cần đăng nhập HA (chứng chỉ tự ký, chỉ dùng trong LAN/Tailscale). Chế độ tên miền vẫn giữ: mọi thứ đi qua ingress Home Assistant (phải đăng nhập HA trong app).</string>
     <string name="err_empty_url">Vui lòng nhập địa chỉ Home Assistant</string>
     <string name="err_bad_address">Địa chỉ không hợp lệ. Nhập IP (vd 192.168.10.2) hoặc tên miền (vd hass.example.com)</string>
     <string name="err_empty_web">Vui lòng nhập địa chỉ Home Assistant (tên miền hoặc IP LAN)</string>
@@ -122,7 +125,7 @@
     <string name="st_token_saved">Đã lưu TOKEN ingress</string>
 
     <!-- (17/11/2026) GD9 — cảnh báo mất micro/camera khi địa chỉ không phải https. -->
-    <string name="warn_no_secure">⚠ Không có micro/camera (cần HTTPS): địa chỉ %1$s dùng http nên WebView không được cấp micro/camera. Muốn gọi video, hãy nhập tên miền của Home Assistant.</string>
+    <string name="warn_no_secure">⚠ Không có micro/camera (cần HTTPS): địa chỉ %1$s dùng http nên WebView không được cấp micro/camera. Hãy dùng IP LAN (app tự chọn https://&lt;ip&gt;:18443) hoặc tên miền của Home Assistant.</string>
     <string name="st_need_login">Đang chờ đăng nhập Home Assistant (API qua ingress cần cookie) — bấm “Đăng nhập Home Assistant”.</string>
 
     <!-- (14/11/2026) GD7 — đăng nhập Home Assistant trước khi mở ingress (401 không còn hiện ra WebView). -->
@@ -159,4 +162,13 @@
          `supervisor/api` → `document.cookie ingress_session`). Hướng dẫn ngắn khi mọi cách tự động thất bại. -->
     <string name="ha_manual_steps">Mở Home Assistant → thanh bên → Dashboard OS (một lần), sau đó quay lại app.</string>
     <string name="ha_login_creating_session">Đã đăng nhập — đang tạo phiên ingress…</string>
+
+    <!-- (21/11/2026) GD13 — HTTPS TỰ KÝ của chính add-on (cổng 18443). Đây là đường CHÍNH của app: có secure context
+         (micro/camera) và KHÔNG cần đăng nhập Home Assistant ⇒ bỏ hẳn phụ thuộc ingress. -->
+    <string name="err_tls_blocked">Đã chặn chứng chỉ của %1$s: không phải địa chỉ bạn đã cấu hình. Kiểm tra lại địa chỉ trong Cài đặt.</string>
+    <string name="lan_no_ha_title">Chưa mở được Dashboard OS</string>
+    <string name="lan_no_ha_hint">Đang dùng IP LAN (%1$s): app mở HTTPS tự ký của add-on ở cổng 18443 nên KHÔNG cần đăng nhập Home Assistant.\nKiểm tra: add-on Dashboard OS đang chạy · đã mở cổng 18443/tcp (Cài đặt add-on) · điện thoại cùng Wi-Fi/LAN · đúng IP của máy chủ.\nBấm “Thử lại” để dò lại (http://&lt;ip&gt;:18080 vẫn là phương án dự phòng nhưng KHÔNG có micro/camera).</string>
+    <string name="st_url_in_use">URL đang dùng: %1$s</string>
+    <string name="st_tls_self_signed">⚠ Chứng chỉ tự ký (chỉ dùng trong LAN/Tailscale): trang đang mở bằng HTTPS của add-on (cổng 18443). Không dùng địa chỉ này ra Internet. Điện thoại chỉ chấp nhận chứng chỉ cho đúng host đã cấu hình.</string>
+    <string name="st_tls_hint">Cách hoạt động: add-on sinh chứng chỉ tự ký MỘT LẦN trong /data/tls (SAN = mọi IPv4 của máy + localhost + hostname), rồi phục vụ https://&lt;ip&gt;:18443 cùng nội dung với http://&lt;ip&gt;:18080. Nhờ vậy WebView có secure context (micro/camera) mà không cần ingress Home Assistant.</string>
 </resources>

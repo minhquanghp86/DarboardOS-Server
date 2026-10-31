@@ -349,7 +349,11 @@ class SettingsActivity : Activity() {
         val saved = Prefs.webUrl(this)
         val web = saved ?: none
         val api = Prefs.apiBase(this) ?: none
+        // (21/11/2026) GD13 — URL ĐANG DÙNG (thật sự mở trong WebView): `webUrl` nếu hợp lệ, không thì ứng viên dựng
+        // lại (với IP LAN: `https://<ip>:18443/launcher-config.html` — HTTPS tự ký của add-on).
+        val inUse = saved?.takeIf { DashboardTarget.isValidSaved(it) } ?: webDashboardUrl()
         targetsView.text = buildString {
+            append(getString(R.string.st_url_in_use, inUse ?: none)).append('\n')
             append(getString(R.string.st_web_url, web)).append('\n')
             if (saved != null && !DashboardTarget.isValidSaved(saved)) {
                 append(getString(R.string.st_web_url_rebuilt, webDashboardUrl() ?: none)).append('\n')
@@ -357,6 +361,12 @@ class SettingsActivity : Activity() {
             append(getString(R.string.st_login_url, Prefs.loginUrl(this@SettingsActivity) ?: none)).append('\n')
             append(getString(R.string.st_api_base, api)).append('\n')
             append(getString(R.string.st_ingress_token, Prefs.ingressToken(this@SettingsActivity)))
+            // (21/11/2026) GD13 — CẢNH BÁO chứng chỉ tự ký: nói rõ đang dùng HTTPS của add-on (cổng 18443) và chỉ
+            // dùng được trong LAN/Tailscale.
+            if (TlsPolicy.isSelfSignedUrl(inUse)) {
+                append('\n').append(getString(R.string.st_tls_self_signed))
+                append('\n').append(getString(R.string.st_tls_hint))
+            }
         }
     }
 

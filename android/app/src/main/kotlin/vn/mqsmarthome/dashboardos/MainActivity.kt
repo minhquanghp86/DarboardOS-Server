@@ -8,6 +8,7 @@ import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
+import android.net.http.SslError
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -18,6 +19,7 @@ import android.view.inputmethod.EditorInfo
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.PermissionRequest
+import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -248,6 +250,13 @@ class MainActivity : Activity() {
 
     /** Origin của Home Assistant (`https://<domain>`), null khi webUrl không phải URL http(s). */
     private var haOrigin: String? = null
+
+    /**
+     * (21/11/2026) GD13 — host được phép **chấp nhận chứng chỉ tự ký** (HTTPS 18443 của chính add-on). Lấy từ địa chỉ
+     * người dùng đã nhập/đã lưu (`webUrl`, `loginUrl`, ô nhập, `apiBase`); host KHÁC vẫn bị chặn như mặc định.
+     * Xem [TlsPolicy] và [DashboardWebClient.onReceivedSslError].
+     */
+    private var allowedTlsHosts: Set<String> = emptySet()
 
     /** Đang ở bước "đăng nhập HA": thanh thông báo hiện + nhịp dò 1 s chạy. */
     private var loginFlowActive = false
@@ -499,6 +508,11 @@ class MainActivity : Activity() {
         val t = ++searchToken
         searching = true
         setSearchingUi(true)
+        // (21/11/2026) GD13 — host được CHẤP NHẬN chứng chỉ tự ký = đúng địa chỉ người dùng vừa nhập (+ địa chỉ đã
+        // lưu). Nhờ vậy lần dò `https://<ip>:18443` (HTTPS tự ký của add-on) không bị SSLHandshakeException, còn
+        // host lạ thì vẫn xác thực TLS bình thường.
+        allowedTlsHosts = TlsPolicy.allowedHosts(text, Prefs.webUrl(this), Prefs.oneInput(this), Prefs.apiBase(this))
+        val tlsHosts = allowedTlsHosts
         setStatus(getString(R.string.status_searching_web, 1, webList.size))
 
         Thread {
@@ -510,7 +524,7 @@ class MainActivity : Activity() {
                 if (t != searchToken) return@Thread
                 post { if (t == searchToken) setStatus(getString(R.string.status_searching_web, index + 1, webList.size)) }
                 triedWeb.add(url)
-                val check = WebTargetResolver.probeWeb(url, HaCookie.header(url))
+                val check = WebTargetResolver.probeWeb(url, HaCookie.header(url), tlsHosts)
                 if (check != null && check.accepted) {
                     foundWeb = check.url
                     foundCheck = check
@@ -540,11 +554,11 @@ class MainActivity : Activity() {
                 post { if (t == searchToken) setStatus(getString(R.string.status_searching_api, index + 1, apiList.size)) }
                 triedApi.add(base)
                 val cookie = HaCookie.header(base)
-                if (ServerResolver.probe(base, cookie) != null) {
+                if (ServerResolver.probe(base, cookie, tlsHosts) != null) {
                     foundApi = base
                     break
                 }
-                val code = ServerResolver.probeStatus(base, cookie) ?: continue
+                val code = ServerResolver.probeStatus(base, cookie, tlsHosts) ?: continue
                 if (authApi == null && WebTargetResolver.needsHaLogin(code)) {
                     authApi = base                 // đúng ingress, chỉ thiếu đăng nhập -> dùng sau khi đăng nhập
                     needLogin = true
@@ -579,6 +593,12 @@ class MainActivity : Activity() {
                 if (t != searchToken) return@post
                 searching = false
                 setSearchingUi(false)
+                // (21/11/2026) GD13 — vào thẳng bằng HTTPS tự ký của add-on: KHÔNG cần phiên HA/ingress. Ghi rõ để
+                // lần sau đọc log là biết app đang đi đường nào (`adb logcat -s DashboardOS-login`).
+                if (TlsPolicy.isSelfSignedUrl(webUrl)) {
+                    log("[tls] webUrl=${DashboardTarget.shortUrl(webUrl)} host=${TlsPolicy.hostOf(webUrl) ?: "-"} " +
+                        "→ HTTPS tự ký của add-on, không cần đăng nhập HA")
+                }
                 toast(getString(if (registered) R.string.connect_ok else R.string.connect_ok_noreg))
                 // Không phải https -> KHÔNG có micro/camera: nói rõ ngay (vẫn mở trang).
                 if (WebTargetResolver.lacksSecureContext(webUrl)) toast(getString(R.string.warn_no_secure, webUrl))
@@ -667,6 +687,14 @@ class MainActivity : Activity() {
         haOrigin = DashboardTarget.originOf(savedWebUrl)
             ?: DashboardTarget.originOf(Prefs.loginUrl(this))
             ?: DashboardTarget.originOf(Prefs.oneInput(this))
+        // (21/11/2026) GD13 — host được chấp nhận chứng chỉ tự ký: địa chỉ người dùng đã cấu hình (ô nhập / webUrl /
+        // apiBase). Trang WebView mở bằng `https://<ip>:18443` sẽ gọi [DashboardWebClient.onReceivedSslError].
+        allowedTlsHosts = TlsPolicy.allowedHosts(
+            savedWebUrl,
+            Prefs.loginUrl(this),
+            Prefs.oneInput(this),
+            Prefs.apiBase(this)
+        )
         targetUrl = DashboardTarget.candidates(
             saved = savedWebUrl,
             loginUrl = Prefs.loginUrl(this),
@@ -805,6 +833,21 @@ class MainActivity : Activity() {
      * tại, chỉ dò + tự tạo phiên ingress — KHÔNG đẩy người dùng về Lovelace thêm lần nữa.
      */
     private fun startLoginFlow(openOrigin: Boolean) {
+        // (21/11/2026) GD13 — CHẾ ĐỘ IP LAN: add-on tự phục vụ HTTPS (18443) nên KHÔNG có ingress, KHÔNG cần phiên
+        // HA, KHÔNG cần `hassTokens`. Đẩy người dùng sang trang đăng nhập HA ở đây chính là vòng lặp "đăng nhập xong
+        // vẫn đứng ở Lovelace" mà họ báo. Nên: bỏ hẳn nhánh đăng nhập, chỉ báo rõ + cho "Thử lại".
+        if (isLanMode()) {
+            log("[login] skip=ha_login (IP LAN: HTTPS tự ký của add-on, không cần đăng nhập HA)")
+            Prefs.setNeedHaLogin(this, false)
+            loginFlowActive = false
+            showLoginBar(false)
+            showLoginPanel(
+                getString(R.string.lan_no_ha_title),
+                getString(R.string.lan_no_ha_hint, DashboardTarget.shortUrl(targetUrl ?: savedWebUrl)),
+                withRetry = true
+            )
+            return
+        }
         loginFlowActive = true
         Prefs.setNeedHaLogin(this, true)
         showLoginBar(true)
@@ -832,6 +875,21 @@ class MainActivity : Activity() {
 
     /** `https://<domain>` → `https://<domain>/` (đúng origin của HA). */
     private fun loginPageUrl(origin: String): String = origin.trimEnd('/') + "/"
+
+    /**
+     * (21/11/2026) GD13 — app đang ở **chế độ IP LAN** (địa chỉ đã cấu hình là IP riêng / localhost): add-on phục vụ
+     * HTTPS tự ký ở cổng 18443 nên mọi thứ đi thẳng, KHÔNG có ingress và KHÔNG cần đăng nhập Home Assistant.
+     *
+     * Dùng để chặn hai đường phụ thuộc HA — đúng yêu cầu "bỏ luồng `hassTokens`/`ingress/session` khỏi đường vào
+     * dashboard khi dùng IP":
+     *  - [startLoginFlow] (không đẩy người dùng sang form đăng nhập HA),
+     *  - [canRunIngressScript] (không chạy JS lấy `hassTokens` / tạo phiên ingress).
+     */
+    private fun isLanMode(): Boolean =
+        TlsPolicy.isLanUrl(targetUrl) ||
+            TlsPolicy.isLanUrl(savedWebUrl) ||
+            TlsPolicy.isLanInput(Prefs.oneInput(this)) ||
+            TlsPolicy.isLanUrl(Prefs.apiBase(this))
 
     // ── (19/11/2026) GD11 — nạp trang + xác thực "đây có phải add-on không"
 
@@ -1084,7 +1142,7 @@ class MainActivity : Activity() {
         probing = true
         Thread {
             val cookie = HaCookie.header(url)
-            val check = WebTargetResolver.probeWeb(url, cookie)
+            val check = WebTargetResolver.probeWeb(url, cookie, allowedTlsHosts)
             post {
                 if (gen != probeGen) return@post      // đã vào lại luồng khác → bỏ kết quả cũ
                 probing = false
@@ -1360,6 +1418,9 @@ class MainActivity : Activity() {
      * `hassTokens`).
      */
     private fun canRunIngressScript(): Boolean {
+        // (21/11/2026) GD13 — chế độ IP LAN: không có ingress để tạo phiên, và cũng KHÔNG cần (`https://<ip>:18443`
+        // của add-on trả trang trực tiếp). Không chạy JS `hassTokens`/WebSocket supervisor → không còn phụ thuộc HA.
+        if (isLanMode()) return false
         val origin = haOrigin ?: return false
         val url = webView?.url ?: return false
         if (!DashboardTarget.isHttp(url)) return false
@@ -1743,6 +1804,56 @@ class MainActivity : Activity() {
                 return
             }
             if (code >= 500) toast(getString(R.string.err_load))
+        }
+
+        /**
+         * (21/11/2026) GD13 — CHẤP NHẬN CHỨNG CHỈ TỰ KÝ, nhưng CHỈ cho host đã cấu hình.
+         *
+         * Đây là mảnh cuối của việc bỏ ingress: add-on tự phục vụ `https://<ip>:18443` bằng chứng chỉ tự ký
+         * (`src/tls.ts`), mà WebView mặc định **chặn** mọi chứng chỉ không do CA công cộng ký — chặn thì trang không
+         * mở được, và micro/camera (chỉ có trong secure context) cũng không có.
+         *
+         * Nguyên tắc (xem [TlsPolicy]):
+         *  - `proceed()` **chỉ khi** `error.url.host` nằm trong [allowedTlsHosts] (IP/domain người dùng đã cấu hình)
+         *    **và** lỗi là lỗi chứng chỉ (tự ký / không tin cậy / sai tên / hết hạn / chưa hiệu lực);
+         *  - host khác (quảng cáo, iframe, chuyển hướng ra Internet) → **cancel()** như mặc định;
+         *  - mọi lần chấp nhận/từ chối đều ghi log `[tls] ssl=…` (Logcat: `adb logcat -s DashboardOS-login`).
+         */
+        override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: SslError?) {
+            val url = error?.url?.toString().orEmpty()
+            // (21/11/2026) GD13 — host lấy qua [TlsPolicy.hostOf] (cùng logic với phần dò URL) thay vì `Uri.getHost()`
+            // để một chỗ duy nhất quyết định "host nào đã được cấu hình".
+            val host = TlsPolicy.hostOf(url)
+            val primary = error?.primaryError ?: -1
+            val certError = primary == SslError.SSL_UNTRUSTED ||
+                primary == SslError.SSL_IDMISMATCH ||
+                primary == SslError.SSL_INVALID ||
+                primary == SslError.SSL_EXPIRED ||
+                primary == SslError.SSL_NOTYETVALID ||
+                primary == SslError.SSL_DATE_INVALID
+            val allow = TlsPolicy.allowProceed(host, allowedTlsHosts, certError)
+            log(
+                "[tls] ssl=${if (allow) "proceed" else "block"} host=${host ?: "-"} err=${sslLabel(primary)} " +
+                    "url=${DashboardTarget.shortUrl(url)} allowed=${allowedTlsHosts.joinToString("/").ifEmpty { "-" }}"
+            )
+            if (allow) {
+                // Chứng chỉ tự ký của add-on trong LAN/Tailscale: chấp nhận để trang chạy trong secure context.
+                runCatching { handler?.proceed() }
+            } else {
+                runCatching { handler?.cancel() }
+                toast(getString(R.string.err_tls_blocked, host ?: "-"))
+            }
+        }
+
+        /** Tên lỗi SSL cho log (`ssl=proceed` kèm lý do) — hằng số của [SslError]. */
+        private fun sslLabel(primary: Int): String = when (primary) {
+            SslError.SSL_UNTRUSTED -> "untrusted"
+            SslError.SSL_IDMISMATCH -> "id_mismatch"
+            SslError.SSL_EXPIRED -> "expired"
+            SslError.SSL_NOTYETVALID -> "not_yet_valid"
+            SslError.SSL_DATE_INVALID -> "date_invalid"
+            SslError.SSL_INVALID -> "invalid"
+            else -> "other($primary)"
         }
 
         override fun onReceivedError(

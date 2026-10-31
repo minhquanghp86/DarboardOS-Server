@@ -145,7 +145,16 @@ object DashboardTarget {
         val origin = originOf(saved) ?: originOf(loginUrl) ?: originOf(typed) ?: return emptyList()
         val out = LinkedHashSet<String>()
         val keep = saved?.trim().orEmpty()
-        if (isValidSaved(keep)) out.add(keep)
+        val valid = isValidSaved(keep)
+        if (valid) out.add(keep)
+        // (21/11/2026) GD13 — chế độ IP LAN: khi CHƯA có `webUrl` hợp lệ thì ứng viên ĐẦU TIÊN là HTTPS tự ký của
+        // chính add-on (`https://<ip>:18443/launcher-config.html`) — có secure context (micro/camera) và KHÔNG cần
+        // đăng nhập Home Assistant. `webUrl` đã xác thực vẫn đứng trước (nó là địa chỉ đã dò được 200).
+        val addr = ServerResolver.parse(saved?.takeIf { isValidSaved(it) } ?: loginUrl ?: typed)
+        if (!valid && addr != null && addr.lan) {
+            out.add("https://${addr.host}:${ServerResolver.ADDON_TLS_PORT}/$page")
+            out.add("http://${addr.host}:${if (addr.port > 0) addr.port else port}/$page")
+        }
         out.add(ingressUrl(origin, token, page))
         out.add("$origin/$slug/$page")
         out.add("$origin/$page")
