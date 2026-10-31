@@ -6,8 +6,8 @@
 // (31/10/2026) AGC + LIMITER cho duong tieng DIEN THOAI -> LOA MAN (P4) — kiem tra thuan so hoc, khong can
 // thiet bi that:
 //   - im lang -> khong doi mau nao (khong khuech dai nhieu nen phong);
-//   - khung nho -> gain tang dung huong, dung gioi han [-6 dB, +24 dB], dua RMS ve ~-18 dBFS;
-//   - khung lon (0 dBFS) -> limiter mem giu dinh <= -1 dBFS, khong thanh "song vuong"/rach tieng;
+//   - khung nho -> gain tang dung huong, dung gioi han [-6 dB, +12 dB], dua RMS ve ~-26 dBFS;
+//   - khung lon (0 dBFS) -> limiter mem giu dinh <= -4 dBFS, khong thanh "song vuong"/rach tieng;
 //   - attack 5 ms (len nhanh) / release 200 ms (xuong cham);
 //   - CCR_CALL_AGC=0 -> passthrough y nguyen byte (A/B);
 //   - khung 20 ms: vao 640 byte ra 640 byte (khong doi kich thuoc goi, khong them do tre).
@@ -15,7 +15,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   AGC_ENABLED, AGC_MAX_GAIN_DB, AGC_MIN_GAIN_DB, AGC_TARGET_DBFS, AGC_SILENCE_DBFS,
-  FRAME_BYTES, LIMIT_KNEE, LIMIT_PEAK, newAgcState, peakOf, processFrame, processPcm, rmsDbOf, softClip,
+  FRAME_BYTES, LIMIT_DBFS, LIMIT_KNEE, LIMIT_PEAK, newAgcState, peakOf, processFrame, processPcm, rmsDbOf, softClip,
 } from './audioAgc.js';
 
 /** Mot khung 20 ms (320 mau) hinh sin `hz`, dinh = `dbfs`. */
@@ -80,26 +80,27 @@ describe('audioAgc — im lang', () => {
 });
 
 describe('audioAgc — khung nho: tang gain dung huong va dung gioi han', () => {
-  it('-30 dBFS (RMS -33 dBFS) -> gain ~ +15 dB, RMS ra ~ -18 dBFS', () => {
+  it('-30 dBFS (RMS -33 dBFS) -> gain ~ +7 dB, RMS ra ~ -26 dBFS', () => {
     const st = newAgcState(0);
     const pcm = sinePcm(40, -30);                   // ~800 ms: du cho release/attack on dinh
     const out = processPcm(pcm, st);
-    expect(st.gainDb).toBeCloseTo(AGC_TARGET_DBFS - rmsDbOf(sineFrame(-30)), 0);   // -18 - (-33) = 15
-    expect(st.gainDb).toBeGreaterThan(14);
-    expect(st.gainDb).toBeLessThan(16);
+    const want = AGC_TARGET_DBFS - rmsDbOf(sineFrame(-30));   // -26 - (-33) = +7 dB
+    expect(st.gainDb).toBeCloseTo(want, 0);
+    expect(st.gainDb).toBeGreaterThan(want - 1);
+    expect(st.gainDb).toBeLessThan(want + 1);
     const last = out.subarray(out.length - FRAME_BYTES);
     expect(rmsDbOf(last)).toBeGreaterThan(AGC_TARGET_DBFS - 1);
     expect(rmsDbOf(last)).toBeLessThan(AGC_TARGET_DBFS + 1);
   });
 
-  it('-40 dBFS -> gain len nhung KHONG vuot +24 dB (gain toi da)', () => {
+  it('-40 dBFS -> gain len nhung KHONG vuot +12 dB (gain toi da)', () => {
     const st = newAgcState(0);
-    processPcm(sinePcm(40, -40), st);               // target -18 - (-43) = +25 dB -> kep o +24
+    processPcm(sinePcm(40, -40), st);               // target -26 - (-43) = +17 dB -> kep o +12
     expect(st.gainDb).toBeCloseTo(AGC_MAX_GAIN_DB, 2);
     expect(st.gainDb).toBeLessThanOrEqual(AGC_MAX_GAIN_DB);
   });
 
-  it('khung rat nho (-50 dBFS) va khung lon (0 dBFS) -> gain luon trong [-6, +24]', () => {
+  it('khung rat nho (-50 dBFS) va khung lon (0 dBFS) -> gain luon trong [-6, +12]', () => {
     const st = newAgcState(0);
     processPcm(sinePcm(60, -50), st);
     expect(st.gainDb).toBeLessThanOrEqual(AGC_MAX_GAIN_DB + 1e-9);
@@ -109,17 +110,29 @@ describe('audioAgc — khung nho: tang gain dung huong va dung gioi han', () => 
   });
 });
 
-describe('audioAgc — khung lon: limiter mem -1 dBFS', () => {
-  it('0 dBFS -> dinh ra <= -1 dBFS, meo dang nho (khong bi cat cung thanh song vuong)', () => {
+describe('audioAgc — khung lon: limiter mem -4 dBFS', () => {
+  it('0 dBFS -> dinh ra <= -4 dBFS, meo dang nho (khong bi cat cung thanh song vuong)', () => {
     const st = newAgcState(0);                      // vao tu gain 0 dB: dinh 0 dBFS vuot nguong -> limiter chay
     const f = sineFrame(0, 250);                    // 250 Hz: 5 chu ky / khung -> do THD chinh xac
     const r = processFrame(f, st);
     expect(r.limited).toBeGreaterThan(0);           // co mau phai qua limiter
     expect(r.peak).toBeLessThanOrEqual(LIMIT_PEAK);
-    expect(dbfsOf(r.peak)).toBeLessThanOrEqual(-1);
-    expect(dbfsOf(r.peak)).toBeGreaterThan(-3);     // van to, chi bi nen dinh chu khong bi bop nho
-    expect(thdPct(f, 250)).toBeLessThan(10);        // cat cung ~20-30%, song vuong > 40%
-    expect(crestFactor(f)).toBeGreaterThan(1.25);   // song vuong ~1,0
+    expect(dbfsOf(r.peak)).toBeLessThanOrEqual(LIMIT_DBFS);
+    expect(dbfsOf(r.peak)).toBeGreaterThan(LIMIT_DBFS - 1);   // van to, chi bi nen dinh chu khong bi bop nho
+    // Tran -4 dBFS nen mot sin 0 dBFS bi nen that su (THD ~14%): do la gia cua tran thap, KHONG phai cat cung.
+    // Muc thuc te cua tep mau (dinh <= -6 dBFS) nam DUOI knee -4,9 dBFS -> trong suot, xem test ngay duoi.
+    expect(thdPct(f, 250)).toBeLessThan(20);        // cat cung ~20-30%, song vuong > 40%
+    // Tran -4 dBFS nen mot sin 0 dBFS bi nen sau hon so voi tran -1 dBFS: crest ~1,2 (van khac song vuong = 1,0).
+    expect(crestFactor(f)).toBeGreaterThan(1.15);   // song vuong ~1,0, sin nguyen ven ~1,41
+  });
+
+  it('-5 dBFS (duoi knee -4,9 dBFS, dung muc tep mau) -> limiter TRONG SUOT: THD < 1%', () => {
+    const st = newAgcState(AGC_MIN_GAIN_DB);        // gain da xuong day -> chinh xac muc vao, khong AGC keo len
+    const f = sineFrame(-5, 250);
+    const r = processFrame(f, st);
+    expect(r.limited).toBe(0);
+    expect(thdPct(f, 250)).toBeLessThan(1);
+    expect(dbfsOf(r.peak)).toBeLessThan(LIMIT_DBFS + 0.2);
   });
 
   it('khung o muc binh thuong (sau AGC: dinh ~ -15 dBFS) -> limiter KHONG dung (trong suot)', () => {
@@ -131,7 +144,7 @@ describe('audioAgc — khung lon: limiter mem -1 dBFS', () => {
     expect(thdPct(sineFrame(-30, 250), 250)).toBeLessThan(1);
   });
 
-  it('gain cuc dai (+24 dB) van khong bao gio vuot -1 dBFS', () => {
+  it('gain cuc dai (+12 dB) van khong bao gio vuot -4 dBFS', () => {
     const st = newAgcState(AGC_MAX_GAIN_DB);
     for (let k = 0; k < 5; k++) {
       const f = sineFrame(0, 1000, k * 320);
@@ -162,14 +175,16 @@ describe('audioAgc — attack 5 ms / release 200 ms', () => {
   it('gain LEN nhanh: mot khung -30 dBFS da dat >90% gain muc tieu', () => {
     const st = newAgcState(0);
     processFrame(sineFrame(-30), st);
-    expect(st.gainDb).toBeGreaterThan(0.9 * 15);    // 0,9817 * 15 = 14,7 dB
+    const want = AGC_TARGET_DBFS - rmsDbOf(sineFrame(-30));    // +7 dB
+    expect(st.gainDb).toBeGreaterThan(0.9 * want);             // 0,9817 * 7 = 6,9 dB
   });
 
   it('gain XUONG cham: mot khung 0 dBFS chi giam <15% quang duong', () => {
-    const st = newAgcState(15);
-    processFrame(sineFrame(0), st);                 // target = -6 dB -> quang duong 21 dB
-    expect(st.gainDb).toBeLessThan(15);
-    expect(st.gainDb).toBeGreaterThan(12);          // 0,0952 * 21 = 2 dB moi khung (200 ms)
+    const st = newAgcState(AGC_MAX_GAIN_DB);
+    processFrame(sineFrame(0), st);                 // target bi kep o AGC_MIN_GAIN_DB -> quang duong 18 dB
+    const dist = AGC_MAX_GAIN_DB - AGC_MIN_GAIN_DB;
+    expect(st.gainDb).toBeLessThan(AGC_MAX_GAIN_DB);
+    expect(st.gainDb).toBeGreaterThan(AGC_MAX_GAIN_DB - 0.2 * dist);   // 0,0952 * 18 = 1,7 dB moi khung
   });
 });
 
@@ -228,12 +243,14 @@ describe('audioAgc — bat/tat bang env CCR_CALL_AGC (A/B) và kích thước g�
 
   it('goi ngan 10 ms (320 byte) van duoc xu ly, do dai khong doi', () => {
     const st = newAgcState(0);
-    const pcm = sineFrame(-30, 250).subarray(0, 320);       // client gui goi 10 ms thay vi 20 ms
-    const out = processPcm(pcm, st);
+    const src = Buffer.from(sineFrame(-30, 250).subarray(0, 320));   // client gui goi 10 ms thay vi 20 ms
+    const want = Math.min(AGC_MAX_GAIN_DB, AGC_TARGET_DBFS - rmsDbOf(src));
+    const out = processPcm(src, st);
     expect(out.length).toBe(320);
-    expect(out.equals(pcm)).toBe(false);
-    expect(rmsDbOf(out)).toBeGreaterThan(rmsDbOf(pcm));
-    // Hang so thoi gian tinh theo do dai that cua khung: 10 ms -> he so attack 1 - e^-2 = 0,865.
-    expect(st.gainDb).toBeGreaterThan(12);
+    expect(out.equals(src)).toBe(false);
+    expect(rmsDbOf(out)).toBeGreaterThan(rmsDbOf(src));
+    // Hang so thoi gian tinh theo do dai that cua khung: 10 ms -> he so attack 1 - e^-2 = 0,865 (khong phai ~1).
+    expect(st.gainDb).toBeCloseTo(0.865 * want, 0);
+    expect(st.gainDb).toBeLessThanOrEqual(AGC_MAX_GAIN_DB);
   });
 });

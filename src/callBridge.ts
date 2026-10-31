@@ -13,18 +13,32 @@
 //   POST /call/test/loop?dev=&aec=0|1  do vong lap: bip ra loa man -> mic thu lai (do tre khu hoi, muc vong) — 127.0.0.1
 //   WS   /call/video?dev=<id>          HINH camera man (dung chung ket noi /live voi Frigate — src/mkvLive.ts): tin text dau
 //                                      {codec, avcc(base64)}, roi khung nhi phan [co: 1 = khung khoa][ts u32le ms] + AVCC
+//   (05/12/2026) BO PHAT THU NGHIEM — do duong PHAT tren P4 bang file CO DINH, khong can mic nguoi:
+//   GET  /call/test/files              liet ke tep mau trong test-audio/ (xem scripts/gen-test-audio.mjs)
+//   POST /call/test/play?dev=&file=&loop=&agc=0|1&gain=<dB>[&eq=0|1]
+//                                      phat WAV 16 kHz mono s16le qua DUNG duong `sendToSpeaker()`, nhip 20 ms/khung
+//                                      (src/audioPacer.ts), tra {ok, dev, frames, dropped, ms}. Chi loopback / trang LAN
+//                                      cung origin (KHONG qua ingress) — day la duong bom tieng ra loa that.
+import fs from 'node:fs';
 import http from 'node:http';
 import type { Duplex } from 'node:stream';
 import { WebSocket, WebSocketServer } from 'ws';
 
 import { newAgcState, processPcm, AGC_ENABLED, AGC_SILENCE_DBFS, peakOf, type AgcState } from './audioAgc.js';
-// (31/10/2026) DO MUC TIENG THAT (web -> man): mot dong log moi 2 s, xem src/audioMeter.ts.
+// (05/12/2026) NHIP GUI DEU 20 ms/khung xuong loa man (burst -> tran ring buffer 250 ms cua P4 -> "giat cuc").
+import { FramePacer, type DropReason } from './audioPacer.js';
+// (05/12/2026) EQ bu loa nho cua P4: high-pass 120 Hz + presence +4 dB @ 1,5 kHz (env CCR_CALL_EQ de A/B).
+import { EQ_ENABLED, eqApply, newEqState, type EqState } from './callEq.js';
+// (05/12/2026) Do muc tieng that (web -> man): mot dong log moi 2 s, xem src/audioMeter.ts.
 import { AudioMeters, METER_WINDOW_MS, type AudioMeter } from './audioMeter.js';
+// (05/12/2026) Bo phat thu nghiem: doc WAV + nhip 20 ms theo moc tuyet doi (src/testAudio.ts).
+import { frameCount, listTestAudio, loadTestAudio, playPaced, readPlayParams } from './testAudio.js';
 import { callHold } from './audioCapture.js';
 import { subscribeLiveFrames } from './camProxy.js';
 import { isDoor, subscribeDoorFrames } from './door.js';
 import { isCallParty, isWebSource, subscribeWebFrames, videoAllowed, videoSourceOf } from './calls.js';
 import { broadcaster, connectedScreens } from './deviceManager.js';
+import { isLanBrowser, isLoopback } from './requestOrigin.js';
 import { ControlField } from './protocol.js';
 
 export const SAMPLE_RATE = 16000;
@@ -46,6 +60,8 @@ interface Leg {
 const calls = new Map<string, Leg>();
 /** (31/10/2026) Gain AGC/limiter rieng cho tung man (xem src/audioAgc.ts) — chi cho nhanh xuong LOA MAN. */
 const agc = new Map<string, AgcState>();
+/** (05/12/2026) Trang thai EQ (high-pass + presence) rieng cho tung man — xem src/callEq.ts. */
+const eqs = new Map<string, EqState>();
 /**
  * (31/10/2026) BO DO MUC TIENG (src/audioMeter.ts) — mot bo do / man, chi song trong cuoc goi:
  *   - `startCall()` mo bo do, `endCall()` dong (khong log gi khi dong);
@@ -54,6 +70,11 @@ const agc = new Map<string, AgcState>();
  * Chi man dang trong cuoc goi moi co bo do => ranh thi khong spam log.
  */
 const meters = new AudioMeters(METER_WINDOW_MS);
+/**
+ * (05/12/2026) Man dang duoc BO PHAT THU NGHIEM bom tieng (`POST /call/test/play`) — khong co cuoc goi nhung VAN can
+ * cac dong `[audio]` de so sanh A/B (do la bang chung cua phep do). Chi song trong luc phat (xem `playTestAudio`).
+ */
+const testMeters = new Set<string>();
 /** Nhip kiem tra cua so 2 s: 0,5 s de moi man dong cua so dung luc (nhieu man khong bi lech toi 2 s). */
 const METER_TICK_MS = 500;
 let meterT: NodeJS.Timeout | null = null;
@@ -62,7 +83,7 @@ let meterT: NodeJS.Timeout | null = null;
 function meterTimer(): void {
   if (meterT) return;
   meterT = setInterval(() => {
-    for (const line of meters.tick(Date.now(), (d) => calls.has(d))) console.log(line);
+    for (const line of meters.tick(Date.now(), (d) => calls.has(d) || testMeters.has(d))) console.log(line);
     if (!meters.size && meterT) { clearInterval(meterT); meterT = null; }
   }, METER_TICK_MS);
   meterT.unref?.();                       // khong giu tien trinh song vi bo do
@@ -70,8 +91,50 @@ function meterTimer(): void {
 
 /** Bo do cua `dev` neu man do DANG trong cuoc goi (moi lai neu hen gio chua kip mo), nguoc lai null. */
 function meterOf(dev: string): AudioMeter | undefined {
-  return meters.get(dev) || (calls.has(dev) ? (meterTimer(), meters.start(dev)) : undefined);
+  return meters.get(dev) || (calls.has(dev) || testMeters.has(dev) ? (meterTimer(), meters.start(dev)) : undefined);
 }
+
+// ── (05/12/2026) NHIP GUI XUONG LOA MAN: 20 ms/khung, co tran ────────────────────────────────────────────────────
+/** Doc env `CCR_CALL_PACE` MOT lan: mac dinh BAT, '0'/'off'/'no' -> gui ngay (hanh vi CU, de A/B). */
+function readPace(): boolean {
+  const v = (process.env.CCR_CALL_PACE ?? '').trim().toLowerCase();
+  return !(v === '0' || v === 'off' || v === 'false' || v === 'no');
+}
+const intEnv = (k: string, d: number): number => {
+  const v = parseInt(process.env[k] ?? '', 10);
+  return Number.isFinite(v) && v >= 0 ? v : d;
+};
+export const PACE_ENABLED: boolean = readPace();
+/**
+ * Hang doi nhip cho TUNG man — xem src/audioPacer.ts (vi sao: burst lam tran ring buffer 250 ms cua loa P4 roi HUT
+ * 20-40 ms sau do = "giat cuc, hut hoi"). Tran:
+ *   - `CCR_CALL_PACE_QUEUE`    so khung 20 ms trong hang doi (mac dinh 5 = 100 ms do tre toi da);
+ *   - `CCR_CALL_PACE_BACKLOG`  tran bufferedAmount cua socket (mac dinh 32 KB ~ 1 s tieng); vuot -> bo khung.
+ */
+export const framePacer = new FramePacer({
+  send: (dev, frame) => sendFrameToDevice(dev, frame),
+  backlog: (dev) => broadcaster.backlogBytes(dev),
+  pace: PACE_ENABLED,
+  maxQueueFrames: intEnv('CCR_CALL_PACE_QUEUE', 5) || 5,
+  maxBacklogBytes: intEnv('CCR_CALL_PACE_BACKLOG', 32 * 1024),
+  onDrop: (dev, reason, queued) => logDrop(dev, reason, queued),
+});
+
+/** Bo dem khung BI BO theo tung man (log toi da 1 lan / 5 s de khong spam khi mang nghen keo dai). */
+const drops = new Map<string, { n: number; at: number; queue: number; backlog: number; send: number }>();
+function logDrop(dev: string, reason: DropReason, queued: number): void {
+  const now = Date.now();
+  let d = drops.get(dev);
+  if (!d) { d = { n: 0, at: 0, queue: 0, backlog: 0, send: 0 }; drops.set(dev, d); }
+  d.n++;
+  d[reason]++;
+  if (now - d.at < 5000) return;
+  d.at = now;
+  console.warn(`[audio] dev=${dev} bo ${d.n} khung (hang doi ${d.queue}, socket ${d.backlog}, gui loi ${d.send}) — dang cho ${queued} khung`);
+  d.n = 0; d.queue = 0; d.backlog = 0; d.send = 0;
+}
+
+if (!process.env.VITEST) console.log(`[audio] pace=${PACE_ENABLED ? 'on' : 'off'} 20ms/khung`);
 
 export function isInCall(dev: string): boolean { return calls.has(dev); }
 
@@ -92,6 +155,9 @@ export function endCall(dev: string): void {
   if (!leg) return;
   calls.delete(dev);
   agc.delete(dev);
+  eqs.delete(dev);
+  framePacer.forget(dev);                  // (05/12/2026) bo khung con lai + hen gio cua man nay
+  drops.delete(dev);
   meters.stop(dev);                        // (31/10/2026) dong bo do: het cuoc goi thi khong log nua
   callHold.delete(dev);
   broadcaster.sendDeviceControl(dev, ControlField.Call, 0);
@@ -135,39 +201,79 @@ export function onMicListener(dev: string, fn: (pcm: Buffer) => void): () => voi
 
 export function setMuted(dev: string, on: boolean): boolean { const l = calls.get(dev); if (!l) return false; l.muted = on; return true; }
 
-/** Tieng cua dau goi xuong loa man (chia dung khung 20 ms). */
+/** Ghi de tung lan goi cho `sendToSpeaker` (bo phat thu nghiem A/B) — bo qua = lay theo env. */
+export interface SpeakerOpts {
+  agc?: boolean;
+  eq?: boolean;
+  /** Gain them (dB) truoc AGC — do do nhay cua loa theo muc vao. */
+  gainDb?: number;
+}
+
+/**
+ * Gui MOT khung PCM xuong man qua broadcaster. `false` = KHONG gui duoc (socket dong / bufferedAmount qua cao —
+ * xem AUDIO_HIGH_WATER trong src/broadcaster.ts). Nho co `false` ma bo dem nhip (src/audioPacer.ts) dem duoc `dropped`
+ * that su thay vi "gui ma khong biet co toi noi hay khong".
+ */
+export function sendFrameToDevice(dev: string, frame: Buffer): boolean {
+  return broadcaster.sendAudioFrame(dev, frame) !== false;
+}
+
+/** Tieng cua dau goi xuong loa man (chia dung khung 20 ms) — GUI NGAY, khong qua bo dem nhip. */
 export function sendToDevice(dev: string, pcm: Buffer): void {
-  for (let o = 0; o + 1 < pcm.length; o += FRAME_BYTES) broadcaster.sendAudioFrame(dev, pcm.subarray(o, Math.min(pcm.length, o + FRAME_BYTES)));
+  for (let o = 0; o + 1 < pcm.length; o += FRAME_BYTES) sendFrameToDevice(dev, pcm.subarray(o, Math.min(pcm.length, o + FRAME_BYTES)));
+}
+
+/** Ap them gain tuyen tinh (dB) vao MOT buffer PCM — copy, khong sua buffer goc. Dung cho tham so `gain=` cua
+ *  `POST /call/test/play` (do do nhay cua loa theo muc vao, khong doi AGC). */
+export function applyGainDb(pcm: Buffer, gainDb: number): Buffer {
+  const g = 10 ** (gainDb / 20);
+  const out = Buffer.from(pcm);
+  for (let i = 0; i + 1 < out.length; i += 2) {
+    const v = Math.max(-32768, Math.min(32767, Math.round(out.readInt16LE(i) * g)));
+    out.writeInt16LE(v, i);
+  }
+  return out;
 }
 
 /**
  * (31/10/2026) Tieng MIC -> LOA MAN co AGC + limiter (src/audioAgc.ts). Day la duong DUY NHAT xuong loa man cho
  * tieng nguoi noi (trang goi -> man, chuong cong -> man); tieng may phat ra (bip do vong lap) van di thang qua
  * `sendToDevice` de phep do khong bi AGC lam sai lech.
- *   - Muc nham -18 dBFS, attack 5 ms / release 200 ms, gain [-6 dB, +24 dB], limiter mem -1 dBFS.
+ *   - (05/12/2026) Muc nham -26 dBFS, attack 5 ms / release 200 ms, gain [-6 dB, +12 dB], limiter mem -4 dBFS.
+ *   - (05/12/2026) TRUOC AGC co EQ (src/callEq.ts): high-pass 120 Hz + presence +4 dB @ 1,5 kHz, `CCR_CALL_EQ=0` de tat.
+ *   - (05/12/2026) SAU AGC di vao bo dem nhip 20 ms/khung (src/audioPacer.ts), `CCR_CALL_PACE=0` = gui ngay nhu cu.
  *   - Khong im lang: khung < -60 dBFS di nguyen (khong khuech dai nhieu nen phong).
- *   - Khong them do tre (xu ly tung khung 20 ms) va KHONG doi kich thuoc goi (vao 640 byte, ra 640 byte).
- *   - Tat bang env CCR_CALL_AGC=0 (A/B: so sanh truc tiep tren cung mot cuoc goi).
+ *   - Khong them do tre trong xu ly tung khung va KHONG doi kich thuoc goi (vao 640 byte, ra 640 byte).
+ *   - Tat AGC bang env CCR_CALL_AGC=0 (A/B: so sanh truc tiep tren cung mot cuoc goi).
  *   - (31/10/2026) DO MUC THAT tai day: `in` = RMS truoc AGC, `out` = RMS sau AGC, `peak` = dinh sau limiter,
  *     `gain` = gain hien tai (src/audioMeter.ts in ra mot dong log moi 2 s cho moi man dang trong cuoc goi).
+ *   - (05/12/2026) `opts` cho phep GHI DE tung lan goi (bo phat thu nghiem A/B khong can khoi dong lai add-on):
+ *     `{agc, eq, gainDb}` — khong co gi thi lay theo env nhu cu.
  */
-export function sendToSpeaker(dev: string, pcm: Buffer): void {
+export function sendToSpeaker(dev: string, pcm: Buffer, opts?: SpeakerOpts): void {
   const m = meterOf(dev);                                   // null = man nay khong trong cuoc goi -> khong do
   const inDb = m ? db(rms(pcm)) : 0;
-  let out: Buffer;
+  const eqOn = opts?.eq ?? EQ_ENABLED;
+  const agcOn = opts?.agc ?? AGC_ENABLED;
+  const extraDb = opts?.gainDb ?? 0;
+  let out: Buffer = pcm;
   let gainDb = 0;
-  if (!AGC_ENABLED) {
-    out = pcm;                                              // A/B: y nguyen byte nhu truoc (sendToDevice chi doc)
-  } else {
+  if (eqOn) {                                               // (05/12/2026) EQ TRUOC AGC: dinh tang do presence bi limiter chan
+    let st = eqs.get(dev);
+    if (!st) { st = newEqState(SAMPLE_RATE); eqs.set(dev, st); }
+    out = eqApply(st, out, true);
+  }
+  if (extraDb) out = applyGainDb(out, extraDb);
+  if (agcOn) {
     let st = agc.get(dev);
     if (!st) { st = newAgcState(); agc.set(dev, st); }
-    out = processPcm(pcm, st);
+    out = processPcm(out, st);
     gainDb = st.gainDb;
-  }
-  sendToDevice(dev, out);
+  }                                                         // AGC tat -> passthrough y nguyen byte (A/B)
+  framePacer.push(dev, out);                                // (05/12/2026) 20 ms/khung, khong bun no
   if (m) {
     m.add({ inDb, outDb: db(rms(out)), peakDb: db(peakOf(out) / 32768), gainDb,
-      silent: inDb < AGC_SILENCE_DBFS, frames: pcm.length / FRAME_BYTES });   // 640 byte = 1 khung 20 ms -> ~100 khung/2 s
+      silent: inDb < AGC_SILENCE_DBFS, frames: frameCount(pcm.length) });   // 640 byte = 1 khung 20 ms -> ~100 khung/2 s
   }
 }
 
@@ -245,6 +351,106 @@ async function loopTest(dev: string, aec: boolean): Promise<unknown> {
   return { dev, aec, ...stats, ...analyze(frames, beepAt) };
 }
 
+// ── (05/12/2026) BO PHAT THU NGHIEM: tep WAV co dinh -> loa man, khong can cuoc goi that ─────────────────────────
+/**
+ * Phep do "duong phat" tren P4 bang tep CO DINH (`POST /call/test/play`).
+ *
+ * Vi sao khong dung cuoc goi that: doi tuong can do la DUONG XUONG LOA (AGC/EQ/nhip/pacer/buffer cua P4), khong phai
+ * micro cua dien thoai. Bo cuoc goi ra khoi phep do thi moi lan chay lai cho ra cung mot dau vao -> so sanh duoc
+ * `frames`/`dropped`/`[audio]`/`[audio-diag]` giua hai lan bat/tat AGC, EQ, pace.
+ *
+ * Di DUNG duong that: `sendToSpeaker()` (AGC -> EQ -> pacer -> broadcaster.sendAudioFrame), KHONG tao call record
+ * (`startCall` khong duoc goi => khong co `[call]`, khong bat ControlField.Call, khong dung mic cua man).
+ * Man phai dang ket noi WS voi server (`connectedScreens()`), neu khong `broadcaster.sendAudioFrame` khong co socket
+ * nao de gui -> `dropped` tang, va do la thong tin that (khong phai loi).
+ */
+export interface TestPlayResult {
+  ok: true;
+  dev: string;
+  file: string;
+  /** So khung 20 ms DA GUI xuong socket (khong tinh khung bi bo). */
+  frames: number;
+  /** So khung bi bo (hang doi day / socket nghen / gui loi) — xem src/audioPacer.ts. */
+  dropped: number;
+  /** Thoi gian tu khung dau toi khi hang doi nhip rong (ms). */
+  ms: number;
+  loop: number;
+  agc: boolean;
+  eq: boolean;
+  gain: number;
+  /** So nhip bi tre qua muc bu (event loop cua server bi chan) — "giat do server". */
+  late: number;
+}
+
+export interface TestPlayOptions {
+  dev: string;
+  file: string;
+  loop?: number;
+  agc?: boolean;
+  eq?: boolean;
+  gainDb?: number;
+}
+
+/** Moi man chi MOT phep phat cung luc (hai luong cung bom vao mot loa la vo nghia va lam sai so lieu). */
+const playing = new Map<string, { aborted: boolean }>();
+
+/** Cho hang doi nhip cua `dev` rong (toi da `timeoutMs`) — de `frames`/`dropped` tinh ca cac khung con dang xep. */
+async function waitPacerIdle(dev: string, timeoutMs = 300): Promise<void> {
+  const t0 = Date.now();
+  while (framePacer.stats(dev).queued > 0 && Date.now() - t0 < timeoutMs) {
+    await new Promise<void>((ok) => setTimeout(ok, 10));
+  }
+}
+
+/** Phat `file` ra loa cua `dev` theo nhip 20 ms/khung; tra so lieu do duoc (xem TestPlayResult). */
+export async function playTestAudio(o: TestPlayOptions): Promise<TestPlayResult> {
+  if (playing.has(o.dev)) throw new Error(`${o.dev} dang phat mot tep thu nghiem khac`);
+  const { name, wav } = loadTestAudio(o.file, fs);
+  const loop = Math.max(1, Math.min(600, Math.round(o.loop ?? 1)));
+  const agcOn = o.agc ?? AGC_ENABLED;
+  const eqOn = o.eq ?? EQ_ENABLED;
+  const gainDb = o.gainDb ?? 0;
+  const signal = { aborted: false };
+  playing.set(o.dev, signal);
+  framePacer.forget(o.dev);                // so lieu sach cho lan phat nay
+  agc.delete(o.dev);                       // gain bat dau tu 0 (khong keo gain cu cua cuoc goi truoc)
+  eqs.delete(o.dev);                       // trang thai EQ sach
+  drops.delete(o.dev);
+  testMeters.add(o.dev);                   // in `[audio] ...` moi 2 s du KHONG co cuoc goi — day la bang chung do
+  meters.start(o.dev);
+  meterTimer();
+  const t0 = Date.now();
+  try {
+    const r = await playPaced({
+      pcm: wav.data,
+      loop,
+      send: (frame) => sendToSpeaker(o.dev, frame, { agc: agcOn, eq: eqOn, gainDb }),
+      signal,
+    });
+    await waitPacerIdle(o.dev);
+    const st = framePacer.stats(o.dev);
+    const last = meters.get(o.dev)?.flush(Date.now());     // chot cua so cuoi (< 2 s) de khong mat so lieu
+    if (last) console.log(last.line);
+    const ms = Date.now() - t0;
+    console.log(`[test] play dev=${o.dev} file=${name} frames=${st.frames} dropped=${st.dropped} ` +
+      `loop=${loop} agc=${agcOn ? 1 : 0} eq=${eqOn ? 1 : 0} gain=${gainDb} ms=${ms} late=${r.lateTicks}`);
+    return { ok: true, dev: o.dev, file: name, frames: st.frames, dropped: st.dropped, ms, loop, agc: agcOn, eq: eqOn, gain: gainDb, late: r.lateTicks };
+  } finally {
+    playing.delete(o.dev);
+    testMeters.delete(o.dev);
+    meters.stop(o.dev);
+    framePacer.forget(o.dev);
+  }
+}
+
+/** Dung phep phat dang chay cua `dev` (vd. thiet bi ngat / nguoi do bam dung). */
+export function stopTestAudio(dev: string): boolean {
+  const s = playing.get(dev);
+  if (!s) return false;
+  s.aborted = true;
+  return true;
+}
+
 // ── HTTP + WS ────────────────────────────────────────────────────────────────────────────────────────────────
 const isLocal = (req: http.IncomingMessage) => /^(::ffff:)?127\.0\.0\.1$|^::1$/.test(req.socket.remoteAddress || '');
 const isIngress = (req: http.IncomingMessage) => (req.socket.remoteAddress || '').replace(/^::ffff:/, '') === '172.30.32.2';
@@ -266,6 +472,26 @@ export function handleCallApi(req: http.IncomingMessage, res: http.ServerRespons
     const dev = url.searchParams.get('dev') || '';
     if (!callableScreens().some((s) => s.id === dev)) { json(res, 404, { error: 'man khong goi duoc' }); return true; }
     loopTest(dev, url.searchParams.get('aec') !== '0').then((r) => json(res, 200, r)).catch((e) => json(res, 409, { error: (e as Error).message }));
+    return true;
+  }
+  // (05/12/2026) BO PHAT THU NGHIEM — chi loopback hoac trang trong LAN cung origin, KHONG qua ingress: day la duong
+  // bom tieng ra loa that cua mot man trong nha, khong duoc phep tu ben ngoai.
+  if (p.startsWith('/call/test/play') || p.startsWith('/call/test/files')) {
+    if (!isLoopback(req) && !isLanBrowser(req)) { json(res, 403, { error: 'chỉ loopback hoặc trang trong LAN' }); return true; }
+    if (p === '/call/test/files' && req.method === 'GET') {
+      json(res, 200, { ok: true, files: listTestAudio(fs) });
+      return true;
+    }
+    if (p === '/call/test/play' && req.method === 'POST') {
+      const dev = url.searchParams.get('dev') || '';
+      if (!callableScreens().some((s) => s.id === dev)) { json(res, 404, { error: 'man khong goi duoc (chua ket noi / khong co loa)' }); return true; }
+      const q = readPlayParams((k) => url.searchParams.get(k));
+      playTestAudio({ dev, ...q })
+        .then((r) => json(res, 200, r))
+        .catch((e) => json(res, 400, { error: (e as Error).message }));
+      return true;
+    }
+    json(res, 405, { error: 'GET /call/test/files hoac POST /call/test/play' });
     return true;
   }
   json(res, 404, { error: 'khong co' });

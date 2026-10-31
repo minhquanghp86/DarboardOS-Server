@@ -248,9 +248,12 @@ export class DeviceBroadcaster {
   // giat — tai lieu deu la goi PCM nho (~640-1280 byte/20-40ms), khong dang
   // ke so voi kich thuoc khung anh, nen gui thang khong lam nang them tac
   // dong nghen mang thuc su.
-  public sendAudioFrame(id: string, pcm: Buffer): void {
+  // (05/12/2026) Tra ve true = da giao it nhat MOT socket, false = khong giao duoc (khong co client / socket dong /
+  // bufferedAmount > AUDIO_HIGH_WATER). Bo dem nhip (src/audioPacer.ts) dung gia tri nay de dem `dropped` THAT SU —
+  // truoc day khung bi bo o day la "bo im lang", khong ai biet (va do la mot phan cua trieu chung "hut hoi").
+  public sendAudioFrame(id: string, pcm: Buffer): boolean {
     const peers = this._clients.get(id);
-    if (!peers || peers.size === 0) return;
+    if (!peers || peers.size === 0) return false;
     const pkt = buildAudioFramePacket(pcm);
     let any = false;
     for (const ws of peers) {
@@ -259,6 +262,7 @@ export class DeviceBroadcaster {
       try { this._send(ws, pkt); any = true; } catch { }
     }
     if (any) this._audioPackets.set(id, (this._audioPackets.get(id) ?? 0) + 1);
+    return any;
   }
 
   /**

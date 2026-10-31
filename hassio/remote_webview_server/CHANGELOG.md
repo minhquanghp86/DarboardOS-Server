@@ -13,6 +13,13 @@
 - Test: `src/audioAgc.test.ts` (im lặng, khung nhỏ/khung lớn, attack/release, giới hạn gain, limiter −1 dBFS, tắt env
   → passthrough y nguyên byte, khung 20 ms vào 640 byte ra 640 byte).
 
+## V2.9.315
+- **Nhịp gửi đều 20 ms/khung** xuống loa màn (audio pacer, trần hàng đợi 100 ms + trần `bufferedAmount`) — sửa lỗi
+  “giật cục, hụt hơi” do server dồn khung theo nhịp điện thoại rồi làm tràn ring buffer 250 ms của loa.
+- Thêm **EQ cho giọng nói** (high-pass 120 Hz + presence +4 dB @1,5 kHz) bật/tắt bằng `CCR_CALL_EQ`.
+- Thêm **bộ phát thử nghiệm**: `POST /call/test/play?dev=&file=&loop=&agc=&eq=` với 3 file WAV mẫu cố định
+  (`speech-like`, `tone-1k`, `noise`) để đo khách quan đường phát của P4.
+
 ## V2.9.314
 - **Đo mức âm thanh thật** của luồng điện thoại → màn: log `[audio] dev=… in=/out=/peak=/gain=/frames=` mỗi 2 giây
   trong cuộc gọi, để phân biệt “mic gửi nhỏ” với “đường phát của màn”.

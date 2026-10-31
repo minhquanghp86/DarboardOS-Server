@@ -22,17 +22,25 @@ export const FRAME_SAMPLES = 320;
 export const FRAME_BYTES = FRAME_SAMPLES * 2;         // 640
 
 /** Muc am luong khung nham toi (dBFS). */
-export const AGC_TARGET_DBFS = -18;
+// (05/12/2026) -18 -> -26 dBFS: do that tren P4 cho thay muc nham -18 dBFS lam loa nho cua may bi nen manh
+// (AGC day gain len +15..+24 dB roi limiter phai lam viec lien tuc) — tieng "to nhung rop", de kich vong lap am hoc
+// (loa P4 -> mic dien thoai -> "ru rit"). -26 dBFS = con du headroom cho loa + 14 dB dinh cua tieng noi.
+export const AGC_TARGET_DBFS = -26;
 /** Gain len nhanh (5 ms) — tieng nho thanh ro ngay. */
 export const AGC_ATTACK_MS = 5;
 /** Gain xuong cham (200 ms) — khong "tho" am luong theo tung tu. */
 export const AGC_RELEASE_MS = 200;
 export const AGC_MIN_GAIN_DB = -6;
-export const AGC_MAX_GAIN_DB = 24;
+// (05/12/2026) +24 -> +12 dB: tren -26 dBFS thi +12 dB da dua khung -38 dBFS len dung muc nham; khuech dai qua
+// +12 dB chi keo nhieu nen phong len (tieng "re re" giua cac tu) — dung voi chieu "giam AGC / tat NS" cua bao cao.
+export const AGC_MAX_GAIN_DB = 12;
 /** Duoi muc nay la im lang: KHONG khuech dai (tranh khuech dai nhieu nen phong). */
 export const AGC_SILENCE_DBFS = -60;
-/** Nguong limiter: -1 dBFS = 32767 * 0.891 (~29195). */
-export const LIMIT_PEAK = Math.round(32767 * 0.891);
+/** Nguong limiter (dBFS): -4 dBFS = 32767 * 0,6310. */
+// (05/12/2026) -1 -> -4 dBFS: DAC ES8311 cua P4 da phi tuyen gan dinh (tai -1 dBFS tieng bi "vo"); -4 dBFS van
+// to hon 3 dB so voi muc nham -26 dBFS RMS nhung con 4 dB du phong cho dinh cua tieng noi, va tranh kich vong lap.
+export const LIMIT_DBFS = -4;
+export const LIMIT_PEAK = Math.round(32767 * 10 ** (LIMIT_DBFS / 20));
 /** Bat dau vao mien nen mem: duoi nguong nay giu NGUYEN mau (chi dinh moi qua limiter). */
 export const LIMIT_KNEE = Math.round(LIMIT_PEAK * 0.8);
 
