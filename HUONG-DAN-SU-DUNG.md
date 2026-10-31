@@ -100,7 +100,7 @@ Mỗi màn hình trở thành **một thiết bị** trong HA, tự cập nhật
 | Thao tác | Kết quả |
 |---|---|
 | Vuốt từ **đáy** lên | Về màn hình chính |
-| Vuốt từ **mép trái/phải** | Quay lại (như nút Back) — xem video ở mục 16 |
+| Vuốt từ **mép trái/phải** | Quay lại (như nút Back) — xem video ở mục 17 |
 | Chạm giữ ứng dụng ở màn hình chính | Vào chế độ sắp xếp: đổi thứ tự, gom thư mục, ẩn/hiện |
 | Vuốt từ **trên** xuống | Mở bảng thông báo |
 | Không chạm ~1 phút | Vào **màn hình chờ** (đồng hồ, lịch âm, thời tiết, ảnh gia đình) |
@@ -125,14 +125,15 @@ vuốt lên ở màn khoá để mở — trong một video: [`images/swipe-gest
 **không gọi** được (không có mic/camera) nhưng vẫn **nhận chuông cổng** (xem mục dưới). Chi tiết đầy đủ ở **chương 7**.
 
 **Cách gọi**
-1. Trên P4: mở ứng dụng **Gọi** → danh sách liên hệ hiện các thiết bị có thể gọi.
+1. Trên P4: mở ứng dụng **Cuộc gọi** → danh sách liên hệ hiện các thiết bị có thể gọi.
 2. Trên điện thoại: cài **ứng dụng Dashboard OS** (xem 7.3) để chuông reo **kể cả khi app đóng**; hoặc mở
-   **Dashboard → Gọi** trong trình duyệt và **giữ trang này mở**.
+   **Dashboard → Cuộc gọi** trong trình duyệt và **giữ trang này mở**.
 3. Chọn bên cần gọi → bên kia đổ chuông → **Nghe** để nói chuyện.
 4. Trong cuộc gọi: **Tắt mic**, **Đổi camera**, **Kết thúc**. Cuộc gọi đến hiện **đè lên màn hình khoá** của P4.
 
-> Trang Gọi trong trình duyệt chỉ nhận cuộc gọi khi **tab còn mở**. Muốn nhận cả khi đã đóng app, dùng ứng dụng
-> Android Dashboard OS — chuông do dịch vụ nền lo, không cần mở app.
+> Trang Cuộc gọi trong trình duyệt chỉ nhận cuộc gọi khi **tab còn mở**. Muốn nhận cả khi đã đóng app, dùng ứng dụng
+> Android Dashboard OS — chuông do dịch vụ nền lo, không cần mở app. Cài đặt app, bong bóng bánh răng, Chẩn đoán và
+> Đăng xuất: **chương 8**. Nhật ký cuộc gọi: **7.9**.
 
 ### Chuông cổng có hình (video doorbell)
 
@@ -198,7 +199,7 @@ Trong nhà có **ba loại thiết bị** gọi và nhận cuộc gọi video v�
 |---|---|---|---|
 | **Màn hình P4** (1024×600) | Có | Có | Thiết bị gọi chính; cuộc gọi đến hiện đè màn hình khoá |
 | **Điện thoại** — ứng dụng Dashboard OS | Có | Có | Chuông reo cả khi app đóng (xem 7.3) |
-| **Trình duyệt** — trang Gọi | Có | Có (nếu cấp quyền) | Mỗi trình duyệt là **một thiết bị cố định**; cần HTTPS |
+| **Trình duyệt** — trang Cuộc gọi | Có | Có (nếu cấp quyền) | Mỗi trình duyệt là **một thiết bị cố định**; cần HTTPS |
 
 Màn S3 (480×272, 480×480, 800×480) **không có micro/camera** nên không gọi được — vẫn nhận chuông cổng như bình thường.
 
@@ -207,7 +208,7 @@ Màn S3 (480×272, 480×480, 800×480) **không có micro/camera** nên không g
 ```
    P4 (camera + micro)                  Điện thoại (ứng dụng Dashboard OS)
           │                                      │  hỏi server 2 giây/lần
-          │                                      │  bấm "Nghe" → mở trang Gọi
+          │                                      │  bấm "Nghe" → mở trang Cuộc gọi
           ▼                                      ▼
    ┌──────────────────────────────────────────────────────────┐
    │            Add-on Dashboard OS — "tổng đài"              │
@@ -215,7 +216,7 @@ Màn S3 (480×272, 480×480, 800×480) **không có micro/camera** nên không g
    └──────────────────────────────────────────────────────────┘
           ▲                                      ▲
           │                                      │
-   Trình duyệt (tab Gọi, HTTPS)          Trang Gọi (quản lý thiết bị)
+   Trình duyệt (tab Cuộc gọi, HTTPS)    Trang Cuộc gọi (quản lý thiết bị)
 ```
 
 1. Bên gọi chọn một thiết bị trong danh bạ → server **đổ chuông** bên nhận (tối đa 30 giây).
@@ -230,7 +231,7 @@ Màn S3 (480×272, 480×480, 800×480) **không có micro/camera** nên không g
 
 ### 7.2. Gọi từ màn hình P4
 
-1. Mở ứng dụng **Gọi**.
+1. Mở ứng dụng **Cuộc gọi**.
 2. Danh bạ hiện mọi thiết bị đang online theo thứ tự **Màn hình → Điện thoại → Trình duyệt**; **chấm xanh** = đang online.
 3. Chạm thiết bị cần gọi → chờ bên kia nhận.
 4. Trong cuộc gọi: **Tắt mic**, **Đổi camera**, **Kết thúc**.
@@ -241,22 +242,26 @@ Màn S3 (480×272, 480×480, 800×480) **không có micro/camera** nên không g
 
 | Bước | Việc |
 |---|---|
-| 1 | Tải **`DashboardOS-debug.apk`** trong thư mục `android/` của repo server → cài (cho phép cài từ nguồn ngoài) |
+| 1 | Tải **`DashboardOS-release.apk`** (1.7, versionCode 8, md5 `8c4937b6be88968d46dd004d542bfe35`) trong thư mục `android/` của repo server → cài (cho phép cài từ nguồn ngoài) |
 | 2 | Mở app → nhập **một ô** địa chỉ Home Assistant (tên miền, hoặc IP LAN) → **Kết nối** → đăng nhập HA một lần |
 | 3 | Vào **Cài đặt** trong app: bật **Nhận cuộc gọi khi app đóng**, cấp quyền thông báo / micro / camera, **bỏ tối ưu pin**, cho phép **hiện toàn màn hình** + **cửa sổ nổi** |
 | 4 | Có cuộc gọi: màn hình gọi bật lên + chuông; bấm **Nghe** hoặc **Từ chối** |
 | 5 | Nói chuyện xong bấm **Kết thúc** |
 
-App **không cần mở** — chuông do dịch vụ nền lo. Muốn nhận bằng trình duyệt thì phải **giữ tab Gọi mở** (xem 7.4).
+App **không cần mở** — chuông do dịch vụ nền lo. Muốn nhận bằng trình duyệt thì phải **giữ tab Cuộc gọi mở** (xem 7.4).
 
 ### 7.4. Gọi từ trình duyệt (máy tính hoặc điện thoại)
 
-1. Mở **Dashboard → Gọi** (trang Gọi) bằng **HTTPS** — micro/camera chỉ hoạt động trên HTTPS.
+1. Mở **Dashboard → Cuộc gọi** (trang Cuộc gọi) bằng **HTTPS** — micro/camera chỉ hoạt động trên HTTPS.
 2. Lần đầu trình duyệt hỏi quyền **micro/camera** → **Cho phép**.
 3. Chọn thiết bị cần gọi. Cuộc gọi đến sẽ đổ chuông khi tab còn mở.
 4. Trình duyệt được nhớ là **một thiết bị**: id lưu trong trình duyệt đó, nên đóng/mở lại tab, rớt mạng hay mở tab
    thứ hai đều **không sinh thêm thiết bị**, không đổi tên trong danh bạ.
-5. Xoá dữ liệu trang (cookie/website) = trình duyệt thành thiết bị mới; mục cũ xoá được trong trang Gọi.
+5. Xoá dữ liệu trang (cookie/website) = trình duyệt thành thiết bị mới; mục cũ xoá được trong trang Cuộc gọi.
+
+> Không có tên miền HTTPS? Dùng thẳng **HTTPS tự ký của add-on**: `https://<ip-ha>:18443/launcher-config.html`
+> (cổng 18443, có từ add-on **2.9.308**). Trình duyệt sẽ cảnh báo chứng chỉ — bấm **Nâng cao → Vẫn truy cập**.
+> App Android thì tự chấp nhận, không hỏi.
 
 ### 7.5. Bảng nút và kết quả
 
@@ -267,9 +272,9 @@ App **không cần mở** — chuông do dịch vụ nền lo. Muốn nhận b�
 | **Kết thúc** | trong cuộc gọi, mọi thiết bị | Đóng cuộc gọi ở cả hai bên, tắt mic/camera |
 | **Tắt mic** | trong cuộc gọi | Bên kia không nghe thấy bạn; hình vẫn gửi |
 | **Đổi camera** | trong cuộc gọi (P4, điện thoại, trình duyệt) | Chuyển camera trước/sau |
-| **Bật chuông** | khối "Chuông trên điện thoại" ở trang Gọi | Bật thông báo đẩy của trình duyệt (nếu máy chủ đã cấu hình); chỉ báo, **không tự nhấc máy** |
-| **Sửa tên** (biểu tượng bút) | trang Gọi, cạnh mỗi thiết bị | Đổi tên trong danh bạ, vd "Điện thoại của mẹ" |
-| **Xoá** (biểu tượng thùng rác) | trang Gọi, cạnh mỗi thiết bị | Xoá thiết bị khỏi danh bạ; máy đó tự đăng ký lại khi mở app |
+| **Bật chuông** | khối "Chuông trên điện thoại" ở trang Cuộc gọi | Bật thông báo đẩy của trình duyệt (nếu máy chủ đã cấu hình); chỉ báo, **không tự nhấc máy** |
+| **Sửa tên** (biểu tượng bút) | trang Cuộc gọi, cạnh mỗi thiết bị | Đổi tên trong danh bạ, vd "Điện thoại của mẹ" |
+| **Xoá** (biểu tượng thùng rác) | trang Cuộc gọi, cạnh mỗi thiết bị | Xoá thiết bị khỏi danh bạ; máy đó tự đăng ký lại khi mở app |
 
 ### 7.6. Danh bạ: ai gọi được, ai đang online
 
@@ -282,7 +287,7 @@ App **không cần mở** — chuông do dịch vụ nền lo. Muốn nhận b�
 ### 7.7. Cuộc gọi nhỡ
 
 Không ai nhận trong 30 giây → cuộc gọi nhỡ: P4 hiện thông báo trên màn hình, add-on gửi Telegram nếu đã cấu hình
-(`Dashboard → Gọi → ⚙`). Chuông cổng có nhật ký riêng ở trang **Chuông cổng**.
+(`Dashboard → Cuộc gọi → ⚙`). Chuông cổng có nhật ký riêng ở trang **Chuông cổng**.
 
 ### 7.8. Lỗi thường gặp khi gọi
 
@@ -294,12 +299,115 @@ Không ai nhận trong 30 giây → cuộc gọi nhỡ: P4 hiện thông báo tr
 | Bấm Nghe nhưng không có tiếng | Thiếu quyền micro, hoặc trang mở bằng `http` | Dùng tên miền HTTPS; cấp quyền micro/camera |
 | Màn hình gọi treo ở "Đang gọi" | Bản cũ: bên kia từ chối mà không đóng | Cập nhật add-on và app mới |
 | Rớt Wi-Fi là mất cuộc gọi | Mất mạng quá 6 giây | Đứng gần router; app tự nối lại trong 6 giây |
-| Trình duyệt không nhận cuộc gọi | Tab Gọi đã đóng | Giữ tab mở, hoặc dùng ứng dụng Dashboard OS |
-| Danh bạ có nhiều mục trùng tên | Nhiều máy cùng tên / bản cũ | Cập nhật add-on; **sửa tên** hoặc **xoá** trong trang Gọi |
+| Trình duyệt không nhận cuộc gọi | Tab Cuộc gọi đã đóng | Giữ tab mở, hoặc dùng ứng dụng Dashboard OS |
+| Danh bạ có nhiều mục trùng tên | Nhiều máy cùng tên / bản cũ | Cập nhật add-on; **sửa tên** hoặc **xoá** trong trang Cuộc gọi |
 | Hình từ điện thoại không hiện trên P4 | Bản add-on cũ | Cập nhật add-on (từ 2.9.302 trở lên) |
 | Gọi điện thoại ↔ điện thoại không có tiếng | Chưa hỗ trợ | Tạm thời gọi qua P4 (P4 ↔ điện thoại) |
+| Không thấy **tab Nhật ký** | Bản add-on cũ (chưa có nhật ký) | Cập nhật add-on **2.9.309** trở lên rồi tải lại trang |
+| Nhật ký trống dù vừa gọi | Cuộc gọi **chưa kết thúc** (đang đổ chuông / đang nói) | Nhật ký chỉ ghi cuộc **đã xong**; kết thúc cuộc gọi rồi xem lại |
 
-## 8. Sử dụng trang Dashboard trên điện thoại
+### 7.9. Nhật ký cuộc gọi (tab **Nhật ký**)
+
+Trang **Cuộc gọi** (trên Dashboard và trình duyệt) có **2 tab**: **Nhật ký** (mở sẵn) và **Thiết bị**.
+
+| Biểu tượng / cột | Ý nghĩa |
+|---|---|
+| Mũi tên chéo **lên** (↗) | Cuộc gọi **đi** — máy này gọi đi |
+| Mũi tên chéo **xuống** màu xanh lá (↙) | Cuộc gọi **đến, đã nghe** |
+| Mũi tên chéo **xuống** màu đỏ (↙) | Cuộc gọi **đến nhưng nhỡ** |
+| Tên + dòng phụ | Tên thiết bị bên kia · `Hôm nay 14:32` / `Hôm qua 14:32` / `05/03` · loại (màn hình / điện thoại / trình duyệt) |
+| Cuối dòng | `00:42` = thời lượng đã nói · **Nhỡ** · **Từ chối** · **Đã huỷ** · **Lỗi** |
+| **Bấm vào dòng** | **Gọi lại** đúng thiết bị đó — không cần sang tab **Thiết bị** |
+
+- Mỗi máy chỉ thấy **cuộc của mình**, hướng đi/đến đúng; tab tự cập nhật **5 giây/lần** khi đang mở.
+- Server giữ **200 mục** gần nhất (`/data/rwv-call-log.json`) — mỗi cuộc 2 mục (bên gọi + bên nhận) nên tương đương
+  ~**100 cuộc gần nhất**. Nâng cấp add-on hay khởi động lại **không mất**; bản sao lưu add-on có tệp này.
+- Cuộc **đang đổ chuông** chưa vào nhật ký (đã hiện ở màn hình gọi); nhật ký chỉ liệt kê cuộc **đã kết thúc**.
+- API cho trang đọc: `GET /calls/log?self=<id>&limit=` (mặc định 50 mục, tối đa 200).
+- **Trên màn P4**: ứng dụng đã đổi tên **Cuộc gọi** nhưng vẫn là danh bạ; xem nhật ký ở trang Cuộc gọi trên Dashboard.
+
+## 8. Ứng dụng Android — Kết nối, bong bóng, Cài đặt, Chẩn đoán, Đăng xuất
+
+Áp dụng cho **Dashboard OS 1.7** (versionCode **8**). Cách cài app: mục **7.3**; xử lý sự cố nhanh: mục **5.12**
+trong [`README.md`](README.md).
+
+### 8.1. Màn Kết nối (màn đầu tiên)
+
+| Thành phần | Nội dung |
+|---|---|
+| Logo + **Dashboard OS** | nhận diện app |
+| Dòng phiên bản | **v1.7 (8)** — số bản + versionCode, luôn hiện |
+| Ô **Địa chỉ Home Assistant** | nhập **tên miền** (vd `hass.example.com`) hoặc **IP LAN** (vd `192.168.10.2`) |
+| Nút **KẾT NỐI** | dò máy chủ, đăng ký thiết bị rồi mở dashboard |
+| Dòng trạng thái | *Chưa kết nối* / *Đã kết nối: …* / lỗi ngắn — đúng **1 dòng** |
+| Hàng chip | **Cài đặt · Chẩn đoán · Đăng xuất** |
+
+- Chip **Đăng xuất** chỉ hiện khi app đã có cấu hình hoặc phiên đăng nhập (máy mới thì ẩn).
+- Các khối mô tả dài đã bỏ khỏi màn này; **danh sách URL đã thử** chuyển vào **Chẩn đoán** (8.4).
+
+### 8.2. Bong bóng bánh răng
+
+Trong dashboard, góc phải trên có **bong bóng 44 dp hình bánh răng** — thay cho nút chữ "URL" của bản cũ.
+
+| Thao tác | Kết quả |
+|---|---|
+| **Chạm** (nhấc tay < 200 ms, dời < 8 dp) | Mở màn **Kết nối** |
+| **Kéo** | Dời tới bất kỳ đâu trong màn hình; thả ra là **nhớ vị trí** |
+| Xoay máy / đổi độ phân giải | Vẫn đúng chỗ **theo tỉ lệ** |
+| Không chạm **5 giây** | **Mờ dần** (vẫn chạm và kéo được) |
+| Chạm lại | Sáng lại |
+
+Bong bóng **không bao giờ tự ẩn**; kéo sang chỗ khác nếu nó che nút của trang.
+
+### 8.3. Màn Cài đặt (4 nhóm card)
+
+Cùng phong cách với màn Kết nối: mỗi dòng một tiêu đề ngắn + trạng thái + công tắc hoặc chip.
+
+| Nhóm | Các dòng |
+|---|---|
+| **Kết nối** | Máy chủ · Mã máy · Trang đang dùng · Home Assistant (chip **Đăng nhập / Trang chủ HA / Đăng nhập lại**) · TOKEN ingress (chip **Lưu**) |
+| **Nhận cuộc gọi** | Công tắc **Nhận cuộc gọi khi app đóng** · Dịch vụ nền · Cuộc gọi đang đến · Chuông · Kênh thông báo · Lần kiểm tra cuối |
+| **Quyền cần thiết** | Thông báo · Tối ưu pin · Toàn màn hình · Cửa sổ nổi · Không làm phiền (chip **Bật / Cho phép / Bỏ / Mở**) |
+| **Chẩn đoán** | **Log & chẩn đoán** (8.4) · **Thông tin app** (mở cài đặt hệ thống Android) |
+
+### 8.4. Chẩn đoán và xuất log
+
+Mở bằng **Cài đặt → Log & chẩn đoán**, hoặc chip **Chẩn đoán** ngay ở màn Kết nối.
+
+| Nút / mục | Việc |
+|---|---|
+| **Sao chép** | Chép toàn bộ chẩn đoán vào bộ nhớ tạm (dán vào tin nhắn cho hỗ trợ) |
+| **Chia sẻ** | Gửi nội dung qua Zalo / Telegram / Gmail… |
+| **Lưu ra tệp** | Ghi `diag-YYYYMMDD-HHmmss.txt`, hiện **đường dẫn**, bật **Chia sẻ tệp** |
+| Danh sách tệp | **5 tệp mới nhất** (`tên · thời gian · dung lượng`); bấm một dòng = chia sẻ tệp đó |
+| **Xoá tất cả** | Xoá mọi tệp chẩn đoán (log trong bộ nhớ vẫn giữ) |
+
+- Nội dung tệp: thông tin máy + 5 giá trị chẩn đoán + **300 dòng log gần nhất** (mỗi dòng có `HH:mm:ss`).
+- **Tự lưu khi lỗi**: không nâng được lên trang add-on hoặc gặp lỗi đăng nhập (401) → app tự ghi
+  `diag-auto-<thời điểm>.txt`, không cần canh đúng lúc bấm nút. Giữ **5 tệp**, hai lần cách nhau ≥ 30 giây.
+- Đường dẫn trên điện thoại: `/sdcard/Android/data/vn.mqsmarthome.dashboardos/files/` — mở bằng ứng dụng Quản lý tệp
+  hoặc bấm **Chia sẻ tệp**. Gỡ app thì thư mục mất theo, hãy chia sẻ tệp trước.
+- **Đăng xuất không** tạo tệp tự lưu (đó là thao tác có chủ đích, không phải sự cố).
+
+### 8.5. Đăng xuất và đổi tài khoản Home Assistant
+
+Dùng khi đổi tài khoản HA, đổi nhà/máy chủ, cho mượn hoặc bán máy.
+
+1. Màn **Kết nối** → chip **Đăng xuất** → xác nhận trong hộp thoại.
+2. App lần lượt: **huỷ đăng ký thiết bị** trên máy chủ → dừng dịch vụ nền → huỷ thông báo cuộc gọi → xoá **cookie** →
+   xoá **localStorage/cache WebView** → xoá **cấu hình app** → về màn Kết nối trống.
+3. Nhập **địa chỉ HA mới** → **KẾT NỐI** → đăng nhập tài khoản mới.
+
+| Bị xoá | Giữ lại |
+|---|---|
+| Phiên đăng nhập HA (cookie + `hassTokens` trong localStorage) | Cờ "đã xem hướng dẫn" |
+| Địa chỉ đã lưu, mã máy, TOKEN ingress | Quyền của hệ điều hành (thông báo, micro/camera, bỏ tối ưu pin) |
+| Cấu hình nhận cuộc gọi / chuông của app | Tệp chẩn đoán đã lưu (nếu chưa xoá) |
+| Đăng ký thiết bị trên máy chủ (mục "Điện thoại" trong danh bạ gọi) | — |
+
+> Đừng "Xoá dữ liệu" app bằng tay trong Android: cách đó để lại thiết bị **mồ côi** trong danh bạ gọi. Dùng **Đăng xuất**.
+
+## 9. Sử dụng trang Dashboard trên điện thoại
 
 Mở **Sidebar → Dashboard**:
 
@@ -312,12 +420,12 @@ Mở **Sidebar → Dashboard**:
 | **IPTV** | Danh sách kênh, phát lên màn, điều khiển |
 | **Quản lý file** | Duyệt/tải/xoá tệp trên thẻ SD của màn |
 | **Chuông cổng** | Nhật ký bấm chuông, ảnh, trả lời |
-| **Gọi** | Gọi với P4, điện thoại (ứng dụng Dashboard OS) và trình duyệt; sửa tên/xoá thiết bị trong danh bạ (chương 7) |
+| **Cuộc gọi** | Gọi với P4, điện thoại (ứng dụng Dashboard OS) và trình duyệt; tab **Nhật ký** (200 mục) + tab **Thiết bị** (sửa tên / xoá) — chương 7 |
 | **Menu ứng dụng** | Bật/tắt, sắp xếp, đổi biểu tượng/màu lưới ứng dụng từng màn |
 
 ![Điều khiển](images/control.png)
 
-## 9. Thông báo lên màn hình
+## 10. Thông báo lên màn hình
 
 Hành động `dashboard_os.send` — gửi chữ, ảnh, video, âm thanh, camera.
 
@@ -348,7 +456,7 @@ hiện ở **góc trên** màu xanh nõn chuối để không chồng lên water
 
 **Sau khi thông báo kết thúc**, màn trở về đúng trạng thái trước đó: đang khoá → khoá lại; đang mở → về màn hình chính.
 
-## 10. Dùng Blueprint (không cần viết YAML)
+## 11. Dùng Blueprint (không cần viết YAML)
 
 Repo client có 6 blueprint sẵn: thông báo, nhắc lịch, chào buổi sáng, hiện camera, chuông cổng báo cả nhà,
 cảnh báo an ninh.
@@ -360,7 +468,7 @@ cảnh báo an ninh.
 
 > Khi sửa blueprint có sẵn, chạy **Developer Tools → Actions → automation.reload** để áp dụng.
 
-## 11. Dịch vụ (hành động) thường dùng
+## 12. Dịch vụ (hành động) thường dùng
 
 | Nhóm | Hành động |
 |---|---|
@@ -401,7 +509,7 @@ Ví dụ thường dùng:
   data: { message: "Màn hình", data: { photo: "{{ shot.screenshots[0].path }}" } }
 ```
 
-## 12. Entity của mỗi màn hình
+## 13. Entity của mỗi màn hình
 
 | Loại | Entity và ý nghĩa |
 |---|---|
@@ -413,12 +521,12 @@ Ví dụ thường dùng:
 
 Dùng trực tiếp trong dashboard HA hoặc làm điều kiện automation.
 
-## 12.1. Automation mẫu
+## 13.1. Automation mẫu
 
 10 kịch bản copy-paste sẵn (chuông cổng, báo động, chào buổi sáng, nhắc thuốc, báo mưa…):
 [`AUTOMATION-MAU.md`](AUTOMATION-MAU.md).
 
-## 13. Xử lý sự cố
+## 14. Xử lý sự cố
 
 | Hiện tượng | Nguyên nhân thường gặp | Cách xử lý |
 |---|---|---|
@@ -429,14 +537,18 @@ Dùng trực tiếp trong dashboard HA hoặc làm điều kiện automation.
 | Chữ thông báo không hiện | Bản add-on cũ (< 2.9.290) | Cập nhật add-on |
 | Không điều khiển được từ điện thoại | Mở qua tên miền, WebSocket bị chặn | Mở bằng `http://<ip-ha>:18080` |
 | Báo thức không reo | Màn không nằm trong "Reo trên" của báo thức | Sửa báo thức, chọn đúng màn |
+| **App không tự vào dashboard** (dừng ở giao diện Home Assistant) | Phiên ingress chưa sẵn sàng / trang top-level trả 401 | Bấm **Mở Dashboard** trên thanh của app; app đã tự thử 3 lần cách 1,5 giây. Vẫn lỗi: **Chẩn đoán → Sao chép** gửi hỗ trợ (mục 8.4) |
+| **Cần log của app** (không dùng được adb) | — | Màn Kết nối → **Chẩn đoán** (hoặc Cài đặt → **Log & chẩn đoán**): 300 dòng log, nút **Sao chép / Chia sẻ / Lưu ra tệp**; tệp ở `/sdcard/Android/data/vn.mqsmarthome.dashboardos/files/` (mục 8.4) |
+| **Đổi tài khoản Home Assistant** trên điện thoại | Chỉ xoá ô địa chỉ là chưa đủ (còn cookie + localStorage) | **Đăng xuất** ở màn Kết nối rồi kết nối lại bằng địa chỉ mới (mục 8.5) |
+| Bong bóng bánh răng che nút của trang | Vị trí mặc định góc phải trên | **Kéo** bong bóng sang chỗ khác — app nhớ vị trí (mục 8.2) |
 
-## 14. Sao lưu & nâng cấp
+## 15. Sao lưu & nâng cấp
 
 - Sao lưu add-on trong HA (bộ đệm Chrome đã được loại để bản sao nhẹ).
 - Nâng cấp: **Settings → Add-ons → Dashboard OS Server → Update**. Cấu hình màn, báo thức, tin nhắn nằm trong `/data` nên **không mất** khi nâng cấp.
 - Cập nhật tích hợp: HACS → Dashboard OS → Update → restart HA.
 
-## 15. Câu hỏi thường gặp
+## 16. Câu hỏi thường gặp
 
 **Có cần Internet không?** Không. Toàn bộ chạy trong LAN.
 
@@ -448,7 +560,7 @@ Dùng trực tiếp trong dashboard HA hoặc làm điều kiện automation.
 
 **Có thể dùng camera của chính panel (P4) không?** Có — ứng dụng Camera, và luồng H.264 của panel cũng đẩy được sang Frigate.
 
-## 16. Video giới thiệu (quay trực tiếp từ panel)
+## 17. Video giới thiệu (quay trực tiếp từ panel)
 
 Bản ghi **180 giây** thao tác thật trên màn P4 (1024×600), lấy trực tiếp khung hình mà panel nhận (~19 fps):
 vuốt về màn hình chính, mở/điều hướng **YouTube TV**, **IPTV**, chuyển ứng dụng, thông báo.
