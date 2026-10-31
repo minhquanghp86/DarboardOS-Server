@@ -68,7 +68,12 @@
   .dset { position: fixed; z-index: 10; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(5, 7, 10, 0.7);
     font-family: "Be Vietnam Pro", sans-serif; color: #eef1f5; }
   .dset[hidden] { display: none; }
-  .dset .box { width: min(100%, 520px); max-height: 90vh; overflow-y: auto; background: #12161b; border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+  /* (hidden ben trong hop thoai) Cac khoi con deu co `display:flex` (class .sec / .tln / .ck) nen luat cua trinh
+     duyet `[hidden]{display:none}` bi de: can luat nay de #pushBox / #tgSec thuc su an khi can. */
+  .dset [hidden] { display: none !important; }
+  /* Hop thoai CUON DUOC khi noi dung dai (them "Chuông trên điện thoại" o cuoi -> co the cao hon man hinh). */
+  .dset .box { box-sizing: border-box; width: min(100%, 520px); max-height: 90vh; overflow-y: auto; overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch; background: #12161b; border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
   .dset h2 { margin: 0; font-size: 20px; }
   .dset .sec { display: flex; flex-direction: column; gap: 8px; }
   .dset .k { color: #9aa4b2; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
@@ -127,6 +132,15 @@
       <div class="tln"><button type="button" class="sm" id="tgTest">Gửi thử</button><span class="hint" id="tgRes"></span></div>
       <div class="hint">Cách lấy: Telegram → <b>@BotFather</b> → /newbot → chép token. Nhắn một tin bất kỳ cho bot (hoặc thêm bot vào nhóm
         gia đình) → bấm <b>Tìm chat ID</b> → chọn. Lưu rồi bấm <b>Gửi thử</b>.</div></div>
+    <!-- "Chuông trên điện thoại" (Web Push) NAM TRONG hop thoai Cai dat: #dset la position:fixed nen khoi nay
+         KHONG con o luong trang -> khong the de len thanh tab "Nhật ký / Thiết bị". Van `hidden` cho toi khi
+         script phat hien co PushManager (WebView app khong co -> an nhu cu). -->
+    <div class="sec" id="pushBox" hidden><span class="k">Chuông trên điện thoại (trình duyệt)</span>
+      <div class="tln" style="justify-content:space-between">
+        <span class="hint" id="pushSt">Chưa bật</span>
+        <button type="button" class="sm" id="pushBtn">Bật chuông</button>
+      </div>
+    </div>
     <div class="acts"><button type="button" id="dCancel">Đóng</button><button type="button" class="ok" id="dSave">Lưu</button></div>
   </div>
 </div>
@@ -712,14 +726,9 @@
 })();
 </script>
 
-<section id="pushBox" hidden style="margin:18px 12px 0;padding:14px;border-radius:14px;background:#16202f;border:1px solid #22304a">
-  <div class="row" style="display:flex;align-items:center;gap:10px;justify-content:space-between;padding:6px 0">
-    <div><b>Chuông trên điện thoại</b><div id="pushSt" style="opacity:.7;font-size:.85em">Chưa bật</div></div>
-    <button id="pushBtn" type="button">Bật chuông</button>
-  </div>
-</section>
 <script>
 /* (30/10/2026) Web Push: nhận cuộc gọi khi tab đã đóng. Chỉ chuông + thông báo, KHÔNG tự nhấc máy. */
+/* Khối UI (#pushBox / #pushSt / #pushBtn) nay nằm CUỐI hộp thoại Cài đặt (#dset) — xem markup phía trên. */
 (function () {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
   var box = document.getElementById('pushBox'), btn = document.getElementById('pushBtn'), st = document.getElementById('pushSt');

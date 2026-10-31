@@ -1,3 +1,7 @@
+## V2.9.312
+- Trang **Cuộc gọi**: khối “Chuông trên điện thoại” được chuyển vào **hộp thoại Cài đặt** (bánh răng), không còn
+  đè lên thanh tab Nhật ký / Thiết bị khi mở trong Home Assistant.
+
 ## V2.9.311
 - **Nhật ký cuộc gọi 2 chiều**: mỗi cuộc chỉ lưu **một bản ghi** rồi chiếu theo thiết bị đang xem, nên máy nhận
   thấy đúng **gọi đến** (nhỡ/đã nghe kèm thời lượng) và máy gọi thấy **gọi đi**. Trước đây điện thoại không thấy
