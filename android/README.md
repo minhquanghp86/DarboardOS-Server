@@ -526,6 +526,45 @@ APK phát hành (release, ký khoá `dashboardos`): `android/DashboardOS-release
 md5 `6eed6f906a6e30a67bfd25ab767a6cf0`, sha256 `aece0fbe0beac235701b44ada4b59f456fa4e85e882fff3c912f554cfbeb8923`,
 `versionCode=7`, `versionName=1.6`.
 
+## 4k. (1.7) — NÚT “URL” THÀNH **BONG BÓNG KÉO ĐƯỢC** (v1.7, versionCode 8)
+
+`versionCode = 8`, `versionName = "1.7"` (giữ nguyên như bản 1.7 đang phát hành — **không bump**).
+
+### 4k.1 Vì sao đổi
+
+Nút tròn chữ “URL” cũ nằm **cố định** ở góc phải trên và **che nội dung** một số trang; chữ “URL” ở 44dp không đọc
+được khi alpha 0.55; và nó **tự `GONE` sau 4 s** ⇒ có lúc người dùng không còn lối thoát. Bản 1.7 thay bằng **bong
+bóng 44dp** (icon bánh răng trắng) **kéo được khắp màn hình**, nhớ vị trí, không bao giờ tự ẩn.
+
+### 4k.2 Cơ chế (file:line)
+
+| Yêu cầu | Cách làm | Chỗ nào |
+| --- | --- | --- |
+| Icon bánh răng, bỏ chữ “URL” | `ImageView` 44dp, `@drawable/ic_bubble_settings` (vector trắng 24dp) trên nền tròn `@drawable/url_button_bg` (`#CC16202F` + viền 1dp `#55FFFFFF`), `padding=10dp`, `elevation=8dp` | `activity_web.xml:138-151`, `ic_bubble_settings.xml` |
+| Kéo tự do trong màn hình | `onTouchListener`: `ACTION_DOWN` ghi `rawX/rawY` + vị trí bắt đầu; `ACTION_MOVE` (vượt 8dp) dời bong bóng bằng **margin** của `FrameLayout.LayoutParams`; toạ độ luôn bị **kẹp** trong `webHost` | `MainActivity.kt:1199` (`BubbleTouchListener`), `:1117` (`moveBubble`), `BubbleDrag.clamp` (`BubbleDrag.kt:75`) |
+| Tap vs kéo | **TAP** ⇔ dịch chuyển `< 8dp` **và** `< 200 ms`; KÉO ⇒ chỉ lưu vị trí, **không mở** màn Kết nối | `BubbleDrag.isTap` (`BubbleDrag.kt:54`), `MainActivity.kt:1237-1255` |
+| Tap ⇒ màn Kết nối | `performClick()` → `showUrlScreen()` (hành vi cũ, vẫn qua `OnClickListener` cho accessibility) | `MainActivity.kt:1074` |
+| Nhớ vị trí | Lưu **tỉ lệ 0..1** vào `Prefs` (`bubble_x`, `bubble_y`); khôi phục bằng `fromRatio` khi mở lại; khung đổi kích thước (xoay máy / thanh đăng nhập bật-tắt) ⇒ đặt lại theo tỉ lệ | `Prefs.kt:76,79,276,287`, `BubbleDrag.ratioOf/fromRatio` (`:90`,`:99`), `MainActivity.kt:1097` (`applyBubblePos`) |
+| Mặc định góc phải trên | cách mép phải 12dp, cách mép trên 12dp **dưới status bar** (`FLAG_FULLSCREEN`/`LAYOUT_NO_LIMITS` ⇒ cộng `status_bar_height`) | `BubbleDrag.defaultPos` (`:112`), `MainActivity.kt:1172` (`bubbleTopInsetPx`) |
+| Nằm trên WebView | cùng `FrameLayout`, khai báo **sau** WebView + `elevation` 8dp + `bringToFront()` mỗi lần chạm và khi trang lỗi | `activity_web.xml:113-151`, `MainActivity.kt:1158` (`bringBubbleToFront`) |
+| Alpha | 0.55 rảnh · 0.85 đang kéo · **0.4 sau 5 s** không chạm (vẫn bấm/kéo được, **không bao giờ ẩn**) | `BubbleDrag.ALPHA_*`/`FADE_AFTER_MS`, `MainActivity.kt:426` (`bubbleIdleRunnable`) |
+| Không cản cuộn trang | chỉ vùng 44dp của bong bóng nhận sự kiện; phần còn lại của `webHost` vẫn thuộc WebView | `BubbleTouchListener.onTouch` (chỉ trả `true` khi chạm vào bong bóng) |
+
+Bong bóng để `visibility="invisible"` trong XML và chỉ hiện ở lần đặt vị trí **đầu tiên** (`applyBubblePos`) ⇒ không có
+khung hình nào bong bóng hiện sai chỗ ở góc trái trên.
+
+### 4k.3 Kiểm thử
+
+```bash
+cd android && ./gradlew testDebugUnitTest --offline --no-daemon
+# BubbleDragTest: 14 test (tap/kéo 8dp & 200ms, kẹp trong khung, tỉ lệ 0..1 khi xoay ngang/đổi độ phân giải,
+#                 mặc định góc phải trên & dưới status bar, hằng số theo yêu cầu)  → tổng 241 test, tất cả xanh
+```
+
+APK phát hành (release, ký khoá `dashboardos`): `android/DashboardOS-release.apk` — **2.500.781 B**,
+md5 `8c4937b6be88968d46dd004d542bfe35`, sha256 `814f003f01937eb416f6dbf27fcae46207fea9b009f4f8b03abec74dad383bd7`,
+`versionCode=8`, `versionName=1.7`.
+
 ## 5. Smoke test trên máy thật
 
 `android/scripts/smoke-test.sh` chạy cả chuỗi "cài app → mở app → PhoneService sống → server thấy máy →

@@ -11,6 +11,8 @@
 //   phien web (khung 0x02) -> server chuyen cho nguoi xem (WS /call/video?dev=web-...).
 // API man (127.0.0.1): GET /calls/contacts?self=, POST /calls/start?from=&to=, GET /calls/state?call=,
 //   POST /calls/accept|decline|hangup?call=&dev=, POST /calls/mute|cam?call=&dev=&on=.
+//   (01/12/2026) GET /calls/log?self=<id>&limit=50 -> {ok, items:[...]} — NHAT KY CUOC GOI cua MOT thiet bi (moi
+//   nhat truoc, toi da 200 muc trong /data/rwv-call-log.json; xem src/callLog.ts).
 // Phien web (ingress): WS /calls/web?name= — JSON dieu khien + nhi phan (0x01 tieng, 0x02 hinh).
 //
 // (10/11/2026) GD2 — DIEN THOAI (app Android, src/phoneStore.ts + src/phones.ts): moi dien thoai da dang ky la mot
@@ -38,6 +40,8 @@ import { WebSocket, WebSocketServer } from 'ws';
 import { telegramNotify, tgText } from './telegram.js';
 
 import { endCall, isInCall, linkCalls, onMicListener, sendToDevice, setMuted, startCall } from './callBridge.js';
+// (01/12/2026) NHAT KY CUOC GOI — 200 muc gan nhat trong /data/rwv-call-log.json (tab "Nhật ký" cua trang Cuộc gọi).
+import { DEFAULT_LIMIT, callLog, type CallSide } from './callLog.js';
 import { answerDoorbell, closeDoorbell, connectedScreens, openRingPage, postNotify } from './deviceManager.js';
 import { LOCAL_ORIGIN } from './launcherApps.js';
 import type { FrameSink } from './mkvLive.js';
@@ -87,6 +91,8 @@ export function setCallHooks(h: { name: (id: string) => string | undefined }): v
 
 const partyName = (p: Party) => (p.kind === 'web' ? webs.get(p.id)?.name || 'Trình duyệt'
   : p.kind === 'phone' ? phoneLabel(phones.get(p.id)) : nameOf(p.id) || p.id);
+/** (01/12/2026) Mot dau cuoc goi kem TEN hien thi — nhat ky ghi ten ngay luc bat dau (phien web co the tat sau do). */
+const sideOf = (p: Party): CallSide => ({ id: p.id, kind: p.kind, name: partyName(p) });
 // (GD3) Dien thoai da "join" bang trang call-web: c.to la phien web, id may nam o `c.phone` -> van phai coi la BAN.
 const busy = (id: string) => [...calls.values()].some((c) => c.from.id === id || c.to.id === id || c.phone === id) || isInCall(id);
 const callOf = (id: string) => calls.get(id);
@@ -247,6 +253,9 @@ export function start(fromId: string, toId: string): { ok: boolean; call?: strin
   const c: Call = { id, from, to, state: 'ringing', ringT: setTimeout(() => finish(id, 'Không trả lời', true), RING_S * 1000),
     startedAt: 0, ringId: null, muted: new Set(), camOff: new Set(), unlisten: [] };
   calls.set(id, c);
+  // (01/12/2026) Nhat ky: tao MUC CHO CA HAI BEN ngay khi bat dau goi (`dir` theo ben goi) — `accept()` ghi
+  // `startedAt`, `finish()` ghi trang thai cuoi + ai cup may.
+  callLog.open(id, sideOf(from), sideOf(to));
   if (from.kind === 'web') webs.get(from.id)!.call = id;
   if (to.kind === 'panel') {
     const url = `${LOCAL_ORIGIN}/call.html?mode=in&call=${id}&dev=${encodeURIComponent(to.id)}&peer=${encodeURIComponent(from.id)}` +
@@ -284,6 +293,8 @@ export function accept(callId: string, by: string): { ok: boolean; error?: strin
   // truoc day dung ~32 s sau trang tu dong du cuoc goi van chay.
   if (c.ringId) answerDoorbell(c.ringId, c.to.id);
   c.state = 'active'; c.startedAt = Date.now();
+  // (01/12/2026) Nhat ky: da nghe may -> `answered` + `startedAt` (thoi luong tinh tu day).
+  callLog.answered(callId, c.startedAt);
   const legs = [c.from, c.to].filter((p) => p.kind === 'panel');
   for (const p of legs) if (!startCall(p.id)) { finish(callId, 'Máy bận.'); return { ok: false, error: 'Máy bận.' }; }
   if (legs.length === 2) linkCalls(c.from.id, c.to.id);
@@ -342,7 +353,7 @@ export function hangupFromPhone(callId: string, phoneId: string): boolean {
   const c = callOf(callId);
   if (!c || !phoneId) return false;
   const mine = (c.to.kind === 'phone' && c.to.id === phoneId) || c.phone === phoneId;
-  return mine && finish(callId, 'Đã kết thúc');
+  return mine && finish(callId, 'Đã kết thúc', false, phoneId);
 }
 
 export interface IncomingCall { id: string; from: string; fromName: string }
@@ -366,16 +377,23 @@ export function incomingFor(phoneId: string): IncomingCall | null {
 export function declineFromPhone(callId: string, phoneId: string): boolean {
   const c = callOf(callId);
   if (!c || c.to.kind !== 'phone' || c.to.id !== phoneId) return false;
-  return finish(callId, 'Từ chối');
+  return finish(callId, 'Từ chối', false, phoneId);
 }
 
-/** Ket thuc / tu choi / het gio. missed: bao "goi nho" cho ben nhan. */
-export function finish(callId: string, reason: string, missed = false): boolean {
+/**
+ * Ket thuc / tu choi / het gio. missed: bao "goi nho" cho ben nhan.
+ * (01/12/2026) `by` = thiet bi BAM cup / tu choi (nhat ky: `byMe`); '' = het gio / mat ket noi / loi.
+ */
+export function finish(callId: string, reason: string, missed = false, by = ''): boolean {
   const c = callOf(callId);
   if (!c) return false;
   calls.delete(callId);
   clearTimeout(c.ringT);
   for (const u of c.unlisten) u();
+  // (01/12/2026) Nhat ky: trang thai cuoi (`answered`/`missed`/`declined`/`cancelled`/`failed`) + ai cup.
+  // Dien thoai da `join` thi `c.to` la PHIEN WEB con id may o `c.phone` -> doi `by` ve id may de dung ben so huu muc.
+  const byId = !by ? '' : (c.to.kind === 'web' && c.phone && by === c.to.id ? c.phone : by);
+  callLog.finish(callId, reason, byId);
   // (23/11/2026) GD10 — 'ended' phai toi MOI phien web dang giu cuoc goi nay, khong chi `c.from` / `c.to`: phien vua
   // noi lai (id moi) hoac phien con tro trong `w.call` khong con nam trong [c.from, c.to] -> truoc day KHONG nhan
   // duoc 'ended' => man hinh cuoc goi treo va dong ho van dem (loi 1 va 2 nguoi dung bao).
@@ -502,7 +520,7 @@ function webMessage(w: WebSession, data: Buffer, isBinary: boolean): void {
       const reason = m.type === 'decline' ? 'Từ chối' : 'Đã kết thúc';
       const c = callOfWeb(w, String(m.call || ''));
       if (c) {
-        finish(c.id, reason);
+        finish(c.id, reason, false, w.id);
         // Trang bấm luôn nhận được 'ended' (kể cả khi nó không còn là đầu cuối của cuộc gọi): client đóng màn hình
         // ngay, không phụ thuộc thứ tự tin nhắn.
         sendWeb(w.id, { type: 'ended', call: c.id, reason });
@@ -600,11 +618,17 @@ export function handleCallsApi(req: http.IncomingMessage, res: http.ServerRespon
   const q = (k: string) => url.searchParams.get(k) || '';
   if (p === '/calls/contacts' && req.method === 'GET') { json(res, 200, contacts(q('self'))); return true; }
   if (p === '/calls/state' && req.method === 'GET') { json(res, 200, state(q('call'))); return true; }
+  // (01/12/2026) NHAT KY CUOC GOI cua MOT thiet bi: GET /calls/log?self=<id>&limit=50 -> {ok, items:[...]} moi nhat
+  // truoc. Cung chinh sach truy cap voi cac /calls/* khac (loopback / trang LAN cung origin).
+  if (p === '/calls/log' && req.method === 'GET') {
+    json(res, 200, { ok: true, items: callLog.list(q('self'), Number(q('limit')) || DEFAULT_LIMIT) });
+    return true;
+  }
   if (req.method !== 'POST') { json(res, 405, { error: 'POST' }); return true; }
   if (p === '/calls/start') { const r = start(q('from'), q('to')); json(res, r.ok ? 200 : 409, r); return true; }
   if (p === '/calls/accept') { const r = accept(q('call'), q('dev')); json(res, r.ok ? 200 : 409, r); return true; }
-  if (p === '/calls/decline') { json(res, 200, { ok: finish(q('call'), 'Từ chối') }); return true; }
-  if (p === '/calls/hangup') { json(res, 200, { ok: finish(q('call'), 'Đã kết thúc') }); return true; }
+  if (p === '/calls/decline') { json(res, 200, { ok: finish(q('call'), 'Từ chối', false, q('dev')) }); return true; }
+  if (p === '/calls/hangup') { json(res, 200, { ok: finish(q('call'), 'Đã kết thúc', false, q('dev')) }); return true; }
   if (p === '/calls/mute' || p === '/calls/cam') { json(res, 200, { ok: setFlag(q('call'), q('dev'), p === '/calls/mute' ? 'mute' : 'cam', q('on') === '1') }); return true; }
   json(res, 404, { error: 'khong co' });
   return true;

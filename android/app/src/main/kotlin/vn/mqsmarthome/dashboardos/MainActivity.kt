@@ -13,8 +13,12 @@ import android.net.http.SslError
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
+import android.util.TypedValue
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.webkit.CookieManager
 import android.webkit.PermissionRequest
@@ -29,8 +33,11 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.Toast
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * (26/11/2026) GD14 — **MỞ THẲNG PANEL CỦA ADD-ON TRONG HOME ASSISTANT**.
@@ -114,7 +121,8 @@ import android.widget.Toast
  * có phiên HA nào để API native dùng. Giao diện đã ghi rõ điều này.
  *
  * Phần còn lại giữ nguyên: WebView full screen + WebRTC (micro/camera), tự đăng ký thiết bị, PhoneService nhận cuộc
- * gọi khi app đóng, chuông theo kênh thông báo, nút "URL" ở góc phải dưới để quay lại màn nhập.
+ * gọi khi app đóng, chuông theo kênh thông báo, BONG BÓNG “Kết nối” (1.7: icon bánh răng, 44dp, KÉO ĐƯỢC khắp màn
+ * hình và nhớ vị trí theo tỉ lệ) để quay lại màn nhập.
  */
 class MainActivity : Activity() {
 
@@ -129,10 +137,12 @@ class MainActivity : Activity() {
         const val EXTRA_HA_LOGIN = "ha_login"
 
         private const val REQ_WEB_MEDIA = 1001
-        private const val OVERLAY_VISIBLE_MS = 4000L
 
-        /** Do dam luc nghi cua nut URL o goc phai duoi (van bam duoc, khong che noi dung). */
-        private const val URL_BUTTON_ALPHA = 0.45f
+        /**
+         * (1.7) **BONG BÓNG “KẾT NỐI” THAY NÚT “URL”** — mọi hằng số của nó (44dp, ngưỡng tap 8dp/200ms, alpha
+         * 0.55/0.85/0.4, mờ sau 5 s, khoảng cách mép 12dp) nằm trong [BubbleDrag] để unit test được trên JVM
+         * ([BubbleDragTest]); ở đây chỉ còn phần gắn `MotionEvent` vào view.
+         */
 
         /**
          * (18/11/2026) GD10 — nhịp dò **mỗi 1 giây** trong lúc chờ đăng nhập HA / chờ panel mở.
@@ -387,11 +397,36 @@ class MainActivity : Activity() {
     @Volatile
     private var searchToken = 0
 
-    private val hideOverlayRunnable = Runnable {
-        val button: Button? = findViewById(R.id.changeUrlButton)
-        button?.animate()?.alpha(0f)?.setDuration(300)?.withEndAction {
-            button.visibility = View.GONE
-        }?.start()
+    // ── (1.7) BONG BÓNG “KẾT NỐI” KÉO ĐƯỢC (thay nút “URL” cố định ở góc — yêu cầu 1..6 của người dùng)
+
+    /** Khung chứa WebView + bong bóng (`activity_web.xml` → `webHost`) = **phạm vi kéo** và gốc toạ độ. */
+    private var bubbleHost: ViewGroup? = null
+
+    /** Bong bóng 44dp (icon bánh răng, nền tròn `url_button_bg`). */
+    private var urlBubble: View? = null
+
+    /** Vị trí hiện tại của bong bóng (px, góc trên-trái) — đúng bằng `leftMargin` / `topMargin` của nó. */
+    private var bubbleX = 0f
+    private var bubbleY = 0f
+
+    /** Vị trí đã chuẩn hoá 0..1 (đọc từ [Prefs] khi mở màn, ghi lại sau mỗi lần KÉO). */
+    private var bubbleRatio: BubbleDrag.Pos? = null
+
+    /** Kích thước khung ở lần bố cục trước — đổi (xoay máy / thanh đăng nhập bật-tắt) thì đặt lại theo tỉ lệ. */
+    private var bubbleHostW = 0
+    private var bubbleHostH = 0
+
+    /** Đang KÉO (đã vượt ngưỡng 8dp) — dùng để không tụt alpha giữa lúc kéo. */
+    private var bubbleDragging = false
+
+    /**
+     * (1.7) YÊU CẦU 5 — **5 s không chạm thì mờ về [BubbleDrag.ALPHA_FADED] (0.4)**, KHÔNG BAO GIỜ ẩn hẳn: bong bóng
+     * vẫn bấm và kéo được (khác nút “URL” cũ: nó tự `GONE` sau 4 s, sai yêu cầu).
+     */
+    private val bubbleIdleRunnable = Runnable {
+        val b = urlBubble ?: return@Runnable
+        if (bubbleDragging) return@Runnable
+        b.animate().alpha(BubbleDrag.ALPHA_FADED).setDuration(600).start()
     }
 
     /**
@@ -1004,14 +1039,227 @@ class MainActivity : Activity() {
         // (1.5) YÊU CẦU 1 — dựng màn xong vẫn KHÔNG hiện thanh: "chưa biết trạng thái" không phải "cần đăng nhập".
         showLoginBar(false, LoginBar.Reason.STARTUP)
 
-        val changeUrlButton = findViewById<Button>(R.id.changeUrlButton)
-        changeUrlButton.setOnClickListener { showUrlScreen() }
-        changeUrlButton.alpha = 0.75f
-        changeUrlButton.visibility = View.VISIBLE
-        mainHandler.removeCallbacks(hideOverlayRunnable)
-        mainHandler.postDelayed({
-            changeUrlButton.animate().alpha(URL_BUTTON_ALPHA).setDuration(400).start()
-        }, OVERLAY_VISIBLE_MS)
+        // (1.7) YÊU CẦU 1..6 — BONG BÓNG “KẾT NỐI” (44dp, icon bánh răng) KÉO ĐƯỢC khắp màn hình, nhớ vị trí.
+        // Thay hẳn nút “URL” cố định (nó tự `GONE` sau 4 s và che nội dung một số trang).
+        setupUrlBubble()
+    }
+
+    // ------------------------------------------------------------------ (1.7) BONG BÓNG KÉO ĐƯỢC
+
+    /**
+     * (1.7) **DỰNG BONG BÓNG “KẾT NỐI” KÉO ĐƯỢC** — đúng 6 yêu cầu của người dùng:
+     *
+     *  1. view là `ImageView` 44dp trong `webHost` (icon bánh răng `ic_bubble_settings`, nền tròn `url_button_bg`) —
+     *     KHÔNG còn chữ “URL” (layout `activity_web.xml`);
+     *  2. **kéo tự do** trong `webHost`: [BubbleTouchListener] cập nhật `margin` theo ngón tay ([moveBubble]);
+     *  3. **tap** ⇒ [showUrlScreen] (hành vi cũ), **kéo** ⇒ không mở (ngưỡng ở [BubbleDrag.isTap]);
+     *  4. **nhớ vị trí**: khôi phục từ [Prefs.bubblePos] (tỉ lệ 0..1), chưa có thì góc phải trên 12dp dưới status bar;
+     *     lưu lại sau mỗi lần kéo ([saveBubblePos]);
+     *  5. **luôn nằm trên WebView**: cùng `FrameLayout`, khai báo SAU WebView + `elevation` 8dp + `bringToFront()` mỗi
+     *     lần chạm; alpha 0.55 / 0.85 khi kéo / 0.4 sau 5 s không chạm — **không bao giờ tự ẩn**;
+     *  6. **không cản cuộn trang**: chỉ đúng vùng 44dp của bong bóng nhận sự kiện (`onTouch` trả `true` chỉ khi chạm
+     *     vào nó); phần còn lại của `webHost` vẫn thuộc WebView.
+     */
+    private fun setupUrlBubble() {
+        val host = findViewById<ViewGroup>(R.id.webHost) ?: return
+        val bubble = findViewById<View>(R.id.urlBubble) ?: return
+        bubbleHost = host
+        urlBubble = bubble
+        bubbleRatio = Prefs.bubblePos(this)
+        bubbleHostW = host.width
+        bubbleHostH = host.height
+        bubbleDragging = false
+        bubble.alpha = BubbleDrag.ALPHA_IDLE
+        bubble.elevation = dp(8).toFloat()
+        bubble.bringToFront()
+        bubble.setOnClickListener { showUrlScreen() }
+        bubble.setOnTouchListener(BubbleTouchListener())
+
+        // Khung đổi kích thước (XOAY MÁY, thanh đăng nhập bật/tắt, màn hình khác) ⇒ đặt lại vị trí theo TỈ LỆ đã lưu:
+        // đây là lý do phải lưu tỉ lệ 0..1 chứ không lưu px (yêu cầu 4).
+        host.addOnLayoutChangeListener { _, l, t, r, bt, _, _, _, _ ->
+            val w = r - l
+            val h = bt - t
+            if (w == bubbleHostW && h == bubbleHostH) return@addOnLayoutChangeListener
+            bubbleHostW = w
+            bubbleHostH = h
+            applyBubblePos()
+        }
+        // Ngay sau `setContentView` khung có thể chưa bố cục (0x0) → chờ một nhịp.
+        host.post { applyBubblePos() }
+        armBubbleIdleFade()
+    }
+
+    /**
+     * Đặt bong bóng về vị trí đã lưu ([bubbleRatio]) hoặc **mặc định góc phải trên** ([BubbleDrag.defaultPos]):
+     * cách mép phải 12dp, cách mép trên 12dp dưới status bar (yêu cầu 4).
+     */
+    private fun applyBubblePos() {
+        val host = bubbleHost ?: return
+        val w = host.width
+        val h = host.height
+        if (w <= 0 || h <= 0) return
+        val size = dp(BubbleDrag.SIZE_DP)
+        val pos = bubbleRatio
+            ?.let { BubbleDrag.fromRatio(it, w, h, size, bubbleTopInsetPx()) }
+            ?: BubbleDrag.defaultPos(w, h, size, dp(BubbleDrag.EDGE_GAP_DP), bubbleTopInsetPx())
+        moveBubble(pos.x, pos.y)
+        // XML để `invisible` (không có khung hình nào bong bóng hiện SAI CHỖ ở góc trái trên): chỉ hiện sau lần đặt
+        // vị trí ĐẦU TIÊN, khi khung đã có kích thước thật.
+        urlBubble?.visibility = View.VISIBLE
+    }
+
+    /**
+     * Dời bong bóng tới (`x`,`y`) px trong khung, **kẹp trong màn hình** ([BubbleDrag.clamp]) rồi ghi vào `margin`
+     * của `FrameLayout.LayoutParams` — nhờ vậy vị trí là thật trong layout (không dùng `translationX/Y` để khỏi lệch
+     * khi khung đổi kích thước) và không cần tính lại offset gốc.
+     */
+    private fun moveBubble(x: Float, y: Float) {
+        val host = bubbleHost ?: return
+        val bubble = urlBubble ?: return
+        val size = dp(BubbleDrag.SIZE_DP)
+        val p = BubbleDrag.clamp(BubbleDrag.Pos(x, y), host.width, host.height, size, bubbleTopInsetPx())
+        val lp = bubble.layoutParams as? FrameLayout.LayoutParams ?: return
+        lp.leftMargin = BubbleDrag.px(p.x)
+        lp.topMargin = BubbleDrag.px(p.y)
+        bubble.layoutParams = lp
+        bubbleX = BubbleDrag.px(p.x).toFloat()
+        bubbleY = BubbleDrag.px(p.y).toFloat()
+    }
+
+    /**
+     * Lưu vị trí hiện tại dưới dạng **tỉ lệ 0..1** (`bubble_x`, `bubble_y`) — gọi sau mỗi lần KÉO.
+     * Tỉ lệ (không phải px) nên lần mở sau / sau khi xoay máy bong bóng vẫn ở đúng góc tương ứng.
+     */
+    private fun saveBubblePos() {
+        val host = bubbleHost ?: return
+        if (host.width <= 0 || host.height <= 0) return
+        val ratio = BubbleDrag.ratioOf(
+            BubbleDrag.Pos(bubbleX, bubbleY),
+            host.width,
+            host.height,
+            dp(BubbleDrag.SIZE_DP),
+            bubbleTopInsetPx()
+        )
+        bubbleRatio = ratio
+        Prefs.setBubblePos(this, ratio)
+    }
+
+    /** Hẹn lại mốc “5 s không chạm ⇒ mờ 0.4” (mỗi lần chạm đều đặt lại). */
+    private fun armBubbleIdleFade() {
+        mainHandler.removeCallbacks(bubbleIdleRunnable)
+        mainHandler.postDelayed(bubbleIdleRunnable, BubbleDrag.FADE_AFTER_MS)
+    }
+
+    /**
+     * Trang lỗi / cần lối thoát: bong bóng phải **nằm trên WebView** và ở độ đậm bình thường (yêu cầu 5) —
+     * trước đây là “hiện lại nút URL rồi hẹn giờ ẩn”.
+     */
+    private fun bringBubbleToFront() {
+        val b = urlBubble ?: return
+        b.visibility = View.VISIBLE
+        b.bringToFront()
+        b.animate().cancel()
+        b.animate().alpha(BubbleDrag.ALPHA_IDLE).setDuration(160).start()
+        armBubbleIdleFade()
+    }
+
+    /**
+     * Chiều cao vùng **status bar** cần chừa (px) — chỉ khác 0 khi cửa sổ vẽ TRÀN xuống dưới status bar
+     * (`FLAG_FULLSCREEN` / `FLAG_LAYOUT_NO_LIMITS`). App dùng `Theme.Material.NoActionBar` (không tràn) nên bình
+     * thường = 0, và 12dp mặc định đã nằm dưới status bar (yêu cầu 4: “dưới status bar”).
+     */
+    private fun bubbleTopInsetPx(): Int {
+        val flags = window?.attributes?.flags ?: 0
+        val overStatusBar = (flags and WindowManager.LayoutParams.FLAG_FULLSCREEN) != 0 ||
+            (flags and WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS) != 0
+        if (!overStatusBar) return 0
+        val id = resources.getIdentifier("status_bar_height", "dimen", "android")
+        return if (id > 0) runCatching { resources.getDimensionPixelSize(id) }.getOrDefault(0) else 0
+    }
+
+    /** dp → px (bong bóng 44dp, ngưỡng tap 8dp, khoảng cách mép 12dp đều tính bằng dp). */
+    private fun dp(value: Int): Int =
+        TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value.toFloat(), resources.displayMetrics).toInt()
+
+    /**
+     * (1.7) **CHẠM / KÉO BONG BÓNG** — trái tim của yêu cầu 2 + 3.
+     *
+     *  - `ACTION_DOWN`: ghi mốc ngón tay (`rawX/rawY` — toạ độ màn hình, không bị ảnh hưởng khi view tự dời), vị trí
+     *    bắt đầu của bong bóng, thời điểm chạm; **sáng lên 0.85** ([BubbleDrag.ALPHA_DRAG]), `bringToFront()` để chắc
+     *    chắn nằm trên WebView, và huỷ hẹn giờ mờ;
+     *  - `ACTION_MOVE`: vượt **8dp** ⇒ coi là KÉO, dời bong bóng theo `start + (raw - down)`; chưa vượt ⇒ KHÔNG dời
+     *    (rung tay vài px vẫn là “bấm”, bong bóng không bị giật);
+     *  - `ACTION_UP`: **TAP** ⇔ chưa vượt 8dp **và** < 200 ms ([BubbleDrag.isTap]) ⇒ `performClick()` → mở màn Kết
+     *    nối (hành vi cũ); **KÉO** ⇒ chỉ lưu vị trí ([saveBubblePos]), KHÔNG mở gì;
+     *  - `ACTION_CANCEL`: trả alpha về 0.55, không mở.
+     *
+     * `onTouch` chỉ nhận sự kiện **trong phạm vi 44dp của bong bóng** nên cuộn trang (WebView) không bị cản — yêu cầu 6.
+     */
+    private inner class BubbleTouchListener : View.OnTouchListener {
+        private var downRawX = 0f
+        private var downRawY = 0f
+        private var startX = 0f
+        private var startY = 0f
+        private var downAtMs = 0L
+
+        override fun onTouch(v: View, e: MotionEvent): Boolean {
+            when (e.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    downRawX = e.rawX
+                    downRawY = e.rawY
+                    startX = bubbleX
+                    startY = bubbleY
+                    downAtMs = SystemClock.uptimeMillis()
+                    bubbleDragging = false
+                    mainHandler.removeCallbacks(bubbleIdleRunnable)
+                    v.animate().cancel()
+                    v.alpha = BubbleDrag.ALPHA_DRAG
+                    v.bringToFront()
+                    return true
+                }
+
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = e.rawX - downRawX
+                    val dy = e.rawY - downRawY
+                    if (!bubbleDragging) {
+                        val slop = dp(BubbleDrag.TAP_SLOP_DP).toFloat()
+                        bubbleDragging = abs(dx) > slop || abs(dy) > slop
+                    }
+                    if (bubbleDragging) moveBubble(startX + dx, startY + dy)
+                    return true
+                }
+
+                MotionEvent.ACTION_UP -> {
+                    val dx = e.rawX - downRawX
+                    val dy = e.rawY - downRawY
+                    val heldMs = SystemClock.uptimeMillis() - downAtMs
+                    val tap = !bubbleDragging &&
+                        BubbleDrag.isTap(dx, dy, heldMs, dp(BubbleDrag.TAP_SLOP_DP).toFloat())
+                    bubbleDragging = false
+                    v.animate().cancel()
+                    v.animate().alpha(BubbleDrag.ALPHA_IDLE).setDuration(160).start()
+                    armBubbleIdleFade()
+                    if (tap) {
+                        // TAP = mở màn Kết nối. Gọi qua performClick() để giữ nguyên accessibility/onClick đã gắn.
+                        v.performClick()
+                        return true
+                    }
+                    // KÉO: chỉ nhớ vị trí, KHÔNG mở màn nào (yêu cầu 3).
+                    saveBubblePos()
+                    return true
+                }
+
+                MotionEvent.ACTION_CANCEL -> {
+                    bubbleDragging = false
+                    v.animate().cancel()
+                    v.animate().alpha(BubbleDrag.ALPHA_IDLE).setDuration(160).start()
+                    armBubbleIdleFade()
+                    return true
+                }
+            }
+            return false
+        }
     }
 
     /**
@@ -1051,7 +1299,12 @@ class MainActivity : Activity() {
     }
 
     private fun disposeWebView() {
-        mainHandler.removeCallbacks(hideOverlayRunnable)
+        // (1.7) Bong bóng thuộc màn WebView vừa bị huỷ: bỏ hẹn giờ mờ + quên tham chiếu (listener bố cục còn treo trên
+        // view cũ, nhưng nó chỉ gọi applyBubblePos() và hàm đó thoát ngay khi bubbleHost == null).
+        mainHandler.removeCallbacks(bubbleIdleRunnable)
+        bubbleHost = null
+        urlBubble = null
+        bubbleDragging = false
         // (27/11/2026) GD15 / (28/11/2026) GD16 — bỏ timeout + hẹn giờ promote còn treo (WebView sắp bị huỷ).
         mainHandler.removeCallbacks(promoteTimeoutRunnable)
         mainHandler.removeCallbacks(promoteAfterPanelRunnable)
@@ -1700,7 +1953,7 @@ class MainActivity : Activity() {
         }
         loginFailed = false
         // (1.5) Trang vừa nạp KHÔNG phải add-on (SPA HA / sai đường dẫn) = **cần thật** (người dùng phải biết),
-        // nhưng nếu đã có phiên thì [LoginBar] vẫn ẩn (yêu cầu 3) — khi đó lối thoát là nút "URL" + màn hình lỗi.
+        // nhưng nếu đã có phiên thì [LoginBar] vẫn ẩn (yêu cầu 3) — khi đó lối thoát là BONG BÓNG ở góc màn hình + màn hình lỗi.
         showLoginBar(true, LoginBar.Reason.WRONG_PAGE)
         showRetryButton(false)
         if (!loginFlowActive) {
@@ -2529,12 +2782,8 @@ class MainActivity : Activity() {
             navLog(request.url?.toString(), "net")
             loginLog()
             toast(getString(R.string.err_load))
-            // Keep the URL button reachable so the user can fix a bad address.
-            val button: Button? = findViewById(R.id.changeUrlButton)
-            button?.animate()?.cancel()
-            button?.alpha = 0.75f
-            button?.visibility = View.VISIBLE
-            mainHandler.removeCallbacks(hideOverlayRunnable)
+            // Keep the URL bubble reachable (and above the WebView) so the user can fix a bad address.
+            bringBubbleToFront()
         }
     }
 
@@ -2637,7 +2886,7 @@ class MainActivity : Activity() {
     override fun onDestroy() {
         searchToken++
         searching = false
-        mainHandler.removeCallbacks(hideOverlayRunnable)
+        mainHandler.removeCallbacks(bubbleIdleRunnable)
         mainHandler.removeCallbacks(promoteTimeoutRunnable)
         mainHandler.removeCallbacks(promoteAfterPanelRunnable)
         mainHandler.removeCallbacks(promoteStartGuardRunnable)

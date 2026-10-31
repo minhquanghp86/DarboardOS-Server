@@ -8,7 +8,9 @@
          trạng thái ngắn. Mọi khối mô tả dài (gợi ý panel, ghi chú IP LAN, footer…) đã bỏ khỏi giao diện. -->
     <string name="url_subtitle">Kết nối Home Assistant của bạn</string>
     <string name="action_connect">Kết nối</string>
-    <string name="action_change_url">URL</string>
+    <!-- (1.7) BONG BÓNG thay nút "URL": chỉ còn icon bánh răng nên cần contentDescription cho trình đọc màn hình;
+         chuỗi chữ "URL" trên nút (`url_button_short`) đã bỏ hẳn. -->
+    <string name="action_change_url">Mở màn Kết nối</string>
     <string name="action_settings">Cài đặt</string>
     <string name="action_close">Đóng</string>
     <!-- (1.6) YÊU CẦU 5 — "Chẩn đoán" và "Đăng xuất" ra trang đầu (vẫn còn trong Cài đặt). -->
@@ -26,7 +28,6 @@
     <string name="err_bad_api">Địa chỉ máy chủ API không hợp lệ. Nhập IP và cổng, vd 192.168.10.2:18080</string>
     <string name="err_load">Không tải được trang. Kiểm tra URL hoặc kết nối mạng.</string>
     <string name="perm_denied">Cần quyền micro/camera để dùng tính năng đàm thoại</string>
-    <string name="url_button_short">URL</string>
 
     <!-- (30/10/2026) GD4 — trạng thái ở màn nhập địa chỉ.
          (1.6) Chỉ còn các dòng NGẮN: đã bỏ "Đã kết nối: <webUrl> · API · Điện thoại", các dòng "Gợi ý…" và
@@ -220,4 +221,56 @@
     <string name="diag_file_missing">Tệp không còn trên máy — hãy lưu lại</string>
     <string name="diag_file_chooser">Chia sẻ tệp chẩn đoán</string>
     <string name="diag_file_reason">lý do tự lưu: %1$s</string>
+
+    <!-- (1.7) MÀN CÀI ĐẶT THIẾT KẾ LẠI (activity_settings.xml): 4 nhóm card (Kết nối · Nhận cuộc gọi · Quyền cần thiết ·
+         Chẩn đoán). Mỗi hàng = tiêu đề 14sp + phụ đề 12sp (màu phụ) + công tắc hoặc CHIP gọn. Các dòng chữ dài đã bỏ. -->
+    <string name="st_sec_connect">Kết nối</string>
+    <string name="st_sec_receive">Nhận cuộc gọi</string>
+    <string name="st_row_server">Máy chủ</string>
+    <string name="st_row_phone_id">Mã máy</string>
+    <string name="st_row_url">Trang đang dùng</string>
+    <string name="st_row_ha">Home Assistant</string>
+    <string name="st_row_service">Dịch vụ nền</string>
+    <string name="st_row_call">Cuộc gọi đang đến</string>
+    <string name="st_row_ring">Chuông</string>
+    <string name="st_row_poll">Lần kiểm tra cuối</string>
+    <string name="st_row_channel">Kênh thông báo</string>
+    <string name="st_row_notif">Thông báo</string>
+    <string name="st_row_battery">Tối ưu pin</string>
+    <string name="st_row_full">Toàn màn hình</string>
+    <string name="st_row_overlay">Cửa sổ nổi</string>
+    <string name="st_row_dnd">Không làm phiền</string>
+    <string name="st_row_diag">Log &amp; chẩn đoán</string>
+    <string name="st_row_app">Thông tin app</string>
+    <string name="st_receive_hint_short">Dịch vụ nền · đổ chuông cả khi app đóng</string>
+    <string name="st_sub_token">Chuỗi sau /api/hassio_ingress/ trong URL add-on</string>
+    <string name="st_sub_diag">300 dòng log · sao chép / chia sẻ</string>
+    <string name="st_sub_app">Cài đặt hệ thống của Android</string>
+    <!-- Chip hành động gọn (không full-width). -->
+    <string name="st_chip_ha_login">Đăng nhập</string>
+    <string name="st_chip_ha_home">Trang chủ HA</string>
+    <string name="st_chip_ha_relogin">Đăng nhập lại</string>
+    <string name="st_chip_save">Lưu</string>
+    <string name="st_chip_enable">Bật</string>
+    <string name="st_chip_allow">Cho phép</string>
+    <string name="st_chip_battery">Bỏ</string>
+    <string name="st_chip_open">Mở</string>
+    <string name="st_chip_notif_app">Thông báo app</string>
+    <string name="st_chip_autostart">Tự khởi động</string>
+    <string name="st_chip_miui">Quyền MIUI</string>
+    <!-- Giá trị trạng thái NGẮN (đúng 1 dòng) cho từng hàng. -->
+    <string name="st_val_none">không có</string>
+    <string name="st_val_on">đã bật</string>
+    <string name="st_val_off">chưa bật</string>
+    <string name="st_val_allowed">đã cho phép</string>
+    <string name="st_val_not_allowed">chưa cho phép</string>
+    <string name="st_val_batt_ok">đã bỏ tối ưu</string>
+    <string name="st_val_ring_on">đang đổ chuông</string>
+    <string name="st_val_ring_off">dừng</string>
+    <string name="st_val_channel_ok">ưu tiên cao</string>
+    <string name="st_val_channel_bad">bị hạ mức — hãy đặt lại kênh</string>
+    <string name="st_val_logged">đã đăng nhập</string>
+    <string name="st_val_not_logged">chưa đăng nhập</string>
+    <string name="st_val_need_login"> · cần đăng nhập</string>
+    <string name="st_url_self"> · chứng chỉ tự ký</string>
 </resources>

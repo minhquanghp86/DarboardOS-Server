@@ -8,7 +8,10 @@
 //   adapter = { self, base, contacts(): Promise<list>, start(to), accept(), decline(), hangup(), mute(on), cam(on),
 //               selfVideo(el?): gan hinh cua minh vao khung nho (man: WS /call/video; web: <video> getUserMedia),
 //               rename?(id, name), remove?(id, name): (GD8) SUA TEN / XOA thiet bi "Điện thoại" trong danh ba —
-//               trang nao khong co 2 ham nay (vd call.html cua man) thi khong hien 2 nut nho }
+//               trang nao khong co 2 ham nay (vd call.html cua man) thi khong hien 2 nut nho,
+//               log?(): (01/12/2026) NHAT KY CUOC GOI — chi co o call-web.html. Co `log` -> man danh ba co 2 TAB:
+//               "Nhật ký" (mac dinh, tu cap nhat 5 s/lan) va "Thiết bị" (danh ba nhu cu). Trang khong co `log` (man P4,
+//               call.html) giu nguyen giao dien cu (khong tab). }
 //   va goi ui.set(state) moi khi trang thai doi: {view:'contacts'|'out'|'in'|'active'|'ended'|'join', call, peer, peerName,
 //   since, peerMuted, peerCamOff, reason}. Sau khi sua/xoa thiet bi, trang goi ui.refresh() de ve lai danh ba.
 //   (GD3) view 'join' = DIEN THOAI dang vao cuoc goi co san (call-web.html?call=<id>): hien ten nguoi goi + `sub`
@@ -112,7 +115,26 @@
     var bar = el('div', 'bar');
     var list = el('div', 'contacts');
     var toast = el('div', 'toast'); toast.hidden = true;
-    root.append(bigCv, bigVid, shade, camOffBox, pip, top, center, bar, list, toast);
+    // (01/12/2026) HAI TAB duoi header (chi trang co adapter.log): "Nhật ký" (mac dinh) + "Thiết bị".
+    // Trang khong co `log` (call.html cua man P4) khong doi gi: danh ba cu, khong tab.
+    var hasTabs = typeof A.log === 'function';
+    var tabs = null, tabBar = [], logBox = null, tab = 'log', logT = 0, logSig = '';
+    if (hasTabs) {
+      root.classList.add('has-tabs');
+      tabs = el('div', 'tabs');
+      tabs.setAttribute('role', 'tablist');
+      [['log', 'Nhật ký'], ['devices', 'Thiết bị']].forEach(function (kv) {
+        var b = el('button', 'tb', kv[1]);
+        b.type = 'button'; b.dataset.tab = kv[0]; b.setAttribute('role', 'tab');
+        b.onclick = function () { pickTab(kv[0]); };
+        tabBar.push(b); tabs.append(b);
+      });
+      logBox = el('div', 'loglist');
+      logBox.hidden = true;
+    }
+    root.append(bigCv, bigVid, shade, camOffBox, pip, top, center, bar, list);
+    if (hasTabs) root.append(tabs, logBox);
+    root.append(toast);
 
     var S = { view: '' }, remote = null, remoteKey = '', selfFeed = null, tickT = 0, hideT = 0, muted = false, camOff = false, toastT = 0, waitT = 0;
     function say(t) { toast.textContent = t; toast.hidden = false; clearTimeout(toastT); toastT = setTimeout(function () { toast.hidden = true; }, 2600); }
@@ -135,7 +157,7 @@
     root.addEventListener('click', function () { if (S.view === 'active') chrome(root.classList.contains('bare')); });
 
     function renderContacts() {
-      list.replaceChildren(el('div', 'lt', 'Gọi video'));
+      list.replaceChildren(el('div', 'lt', hasTabs ? 'Thiết bị' : 'Gọi video'));
       var box = el('div', 'cl'); list.append(box);
       A.contacts().then(function (l) {
         if (S.view !== 'contacts') return;
@@ -177,17 +199,111 @@
       return w;
     }
 
+    // ── (01/12/2026) TAB "Nhật ký" / "Thiết bị" ────────────────────────────────────────────────────────────
+    /** Chon tab (nut bam). Chi ve lai khi dang o man danh ba. */
+    function pickTab(k) {
+      tab = k === 'devices' ? 'devices' : 'log';
+      if (S.view === 'contacts') showTab();
+    }
+    /** Ve noi dung tab dang chon + bat/tat tu cap nhat nhat ky (5 s/lan, chi khi dang mo tab Nhật ký). */
+    function showTab() {
+      if (!tabs) { renderContacts(); return; }
+      tabBar.forEach(function (b) {
+        var on = b.dataset.tab === tab;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      var isLog = tab === 'log';
+      list.hidden = isLog;
+      logBox.hidden = !isLog;
+      clearInterval(logT); logT = 0;
+      if (isLog) {
+        renderLog(false);
+        logT = setInterval(function () { if (S.view === 'contacts' && tab === 'log') renderLog(true); }, 5000);
+      } else {
+        renderContacts();
+      }
+    }
+    /** Nhat ky cuoc goi (server: GET /calls/log?self=<id>) — moi nhat truoc; `quiet` = cap nhat ngam, chi ve khi doi. */
+    function renderLog(quiet) {
+      if (!logBox) return;
+      Promise.resolve().then(function () { return A.log(); }).then(function (items) {
+        items = items || [];
+        if (S.view !== 'contacts' || tab !== 'log') return;
+        var sig = items.map(function (i) { return i.id + i.state + i.endedAt + i.peerId; }).join('|');
+        if (quiet && sig === logSig) return;
+        logSig = sig;
+        logBox.replaceChildren(el('div', 'lt', 'Nhật ký'));
+        if (!items.length) {
+          logBox.append(el('div', 'empty', 'Chưa có cuộc gọi nào. Mở tab “Thiết bị” để gọi màn hình, điện thoại hoặc trình duyệt khác.'));
+          return;
+        }
+        var boxL = el('div', 'lg');
+        items.forEach(function (it) { boxL.append(logRow(it)); });
+        logBox.append(boxL);
+      }).catch(function () {
+        if (quiet || S.view !== 'contacts' || tab !== 'log') return;
+        logBox.replaceChildren(el('div', 'lt', 'Nhật ký'), el('div', 'empty', 'Không tải được nhật ký.'));
+      });
+    }
+    /** Mot dong nhat ky: mui ten (goi di ↖ xanh / goi den ↙ xanh la / nho ↙ do), ten thiet bi, thoi gian, thoi luong. */
+    function logRow(it) {
+      var answered = it.state === 'answered';
+      var cls = it.dir === 'out' ? 'out' : (answered ? 'in' : 'missed');
+      var row = el('button', 'lr');
+      row.type = 'button';
+      row.title = (it.peerName || it.peerId) + ' · ' + whenOf(it.endedAt || it.startedAt) + ' · ' + stateText(it);
+      var ico = el('span', 'li ' + cls);
+      ico.append(svg(it.dir === 'out' ? 'arrow-top-right' : 'arrow-bottom-left'));
+      var m = el('span', 'lm'), sub = el('small', '');
+      sub.append(el('i', 'st ' + it.state), document.createTextNode(whenOf(it.endedAt || it.startedAt) + ' · ' + kindLabel(it.peerKind)));
+      m.append(el('b', '', it.peerName || it.peerId || '?'), sub);
+      row.append(ico, m, el('span', 'lv' + (answered ? '' : ' bad'), stateText(it)));
+      if (it.peerId) row.onclick = function () { A.start(it.peerId, it.peerName); };   // bam 1 muc = GOI LAI thiet bi do
+      else row.disabled = true;
+      return row;
+    }
+    /** Thoi luong 00:42 (hoac 1:02:03) / "Nhỡ" / "Từ chối" / "Đã huỷ" / "Lỗi". */
+    function stateText(it) {
+      if (it.state === 'answered') return dur(it.durationMs || (it.endedAt - it.startedAt));
+      if (it.state === 'missed') return 'Nhỡ';
+      if (it.state === 'declined') return 'Từ chối';
+      if (it.state === 'cancelled') return 'Đã huỷ';
+      return 'Lỗi';
+    }
+    function dur(ms) {
+      var s = Math.max(0, Math.round((Number(ms) || 0) / 1000));
+      var h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60;
+      return (h ? h + ':' : '') + p2(m) + ':' + p2(x);
+    }
+    /** Thoi gian tuong doi: "Hôm nay 14:32" / "Hôm qua 14:32" / "05/03". */
+    function whenOf(ts) {
+      var t = Number(ts) || 0;
+      if (!t) return '';
+      var d = new Date(t), now = new Date();
+      var today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      var hm = p2(d.getHours()) + ':' + p2(d.getMinutes());
+      if (t >= today) return 'Hôm nay ' + hm;
+      if (t >= today - 86400000) return 'Hôm qua ' + hm;
+      return p2(d.getDate()) + '/' + p2(d.getMonth() + 1);
+    }
+
     function render() {
       clearInterval(tickT);
       clearTimeout(waitT);
+      clearInterval(logT); logT = 0;                       // (01/12/2026) chi chay khi dang mo tab "Nhật ký"
       if (S.view === 'in' && A.ringUrl) ringTone(A.ringUrl); else if (S.view === 'out') ringback(); else stopTones();
       root.dataset.view = S.view;
       list.hidden = S.view !== 'contacts';
+      if (tabs) { tabs.hidden = S.view !== 'contacts'; logBox.hidden = true; }
       top.hidden = center.hidden = bar.hidden = S.view === 'contacts';
       camOffBox.hidden = true; pip.hidden = true; bigCv.hidden = false;
       center.replaceChildren(); bar.replaceChildren();
       if (S.view !== 'active' && remote) { remote.close(); remote = null; remoteKey = ''; }
-      if (S.view === 'contacts') { showSelf(null); bigCv.hidden = true; renderContacts(); chrome(true); return; }
+      if (S.view === 'contacts') {
+        // (01/12/2026) Man danh ba co 2 tab: "Nhật ký" (mac dinh) | "Thiết bị" (danh ba nhu cu).
+        showSelf(null); bigCv.hidden = true; showTab(); chrome(true); return;
+      }
       if (S.view === 'out' || S.view === 'in') {
         showSelf('big');
         center.append(avatar(S.peerName, true), el('div', 'cname', S.peerName || ''), el('div', 'csub', S.view === 'out' ? 'Đang gọi…' : 'Cuộc gọi video đến'));
@@ -254,7 +370,7 @@
       },
       get: function () { return S; },
       /** (GD8) Ve lai danh ba (sau khi sua ten / xoa thiet bi — set() chi ve lai khi trang thai DOI). */
-      refresh: function () { if (S.view === 'contacts') renderContacts(); },
+      refresh: function () { if (S.view === 'contacts') showTab(); },
       toast: say,
     };
   }

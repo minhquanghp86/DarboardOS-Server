@@ -44,12 +44,28 @@ class SettingsActivity : Activity() {
 
     companion object {
         private const val REQ_NOTIFICATIONS = 2001
+
+        /** Màu phụ đề (#8c9ab2) và màu "chưa đạt" (#ff8f8f) — cùng bảng màu trang Kết nối. */
+        private const val COLOR_SUB = 0xFF8C9AB2.toInt()
+        private const val COLOR_BAD = 0xFFFF8F8F.toInt()
     }
 
+    // (1.7) Màn Cài đặt thiết kế lại: mỗi hàng chỉ còn MỘT dòng trạng thái ngắn (phụ đề 12sp), không còn khối chữ dài.
     private lateinit var receiveSwitch: Switch
-    private lateinit var statusView: TextView
-    private lateinit var targetsView: TextView
+    private lateinit var serverView: TextView
+    private lateinit var phoneIdView: TextView
+    private lateinit var urlView: TextView
     private lateinit var haStatusView: TextView
+    private lateinit var serviceView: TextView
+    private lateinit var callView: TextView
+    private lateinit var ringView: TextView
+    private lateinit var pollView: TextView
+    private lateinit var channelView: TextView
+    private lateinit var notifView: TextView
+    private lateinit var batteryView: TextView
+    private lateinit var fullView: TextView
+    private lateinit var overlayView: TextView
+    private lateinit var dndView: TextView
     private lateinit var tokenInput: EditText
     private var receiverRegistered = false
 
@@ -64,9 +80,20 @@ class SettingsActivity : Activity() {
         setContentView(R.layout.activity_settings)
 
         receiveSwitch = findViewById(R.id.receiveSwitch)
-        statusView = findViewById(R.id.statusView)
-        targetsView = findViewById(R.id.targetsView)
+        serverView = findViewById(R.id.serverView)
+        phoneIdView = findViewById(R.id.phoneIdView)
+        urlView = findViewById(R.id.urlView)
         haStatusView = findViewById(R.id.haStatusView)
+        serviceView = findViewById(R.id.serviceView)
+        callView = findViewById(R.id.callView)
+        ringView = findViewById(R.id.ringView)
+        pollView = findViewById(R.id.pollView)
+        channelView = findViewById(R.id.channelView)
+        notifView = findViewById(R.id.notifView)
+        batteryView = findViewById(R.id.batteryView)
+        fullView = findViewById(R.id.fullView)
+        overlayView = findViewById(R.id.overlayView)
+        dndView = findViewById(R.id.dndView)
         tokenInput = findViewById(R.id.tokenInput)
 
         receiveSwitch.isChecked = Prefs.receiveEnabled(this)
@@ -353,28 +380,14 @@ class SettingsActivity : Activity() {
      * với "trang đăng nhập Home Assistant".
      */
     private fun renderTargets() {
-        val none = getString(R.string.st_none)
         val saved = Prefs.webUrl(this)
-        val web = saved ?: none
-        val api = Prefs.apiBase(this) ?: none
         // (21/11/2026) GD13 — URL ĐANG DÙNG (thật sự mở trong WebView): `webUrl` nếu hợp lệ, không thì ứng viên dựng
         // lại (với IP LAN: `https://<ip>:18443/launcher-config.html` — HTTPS tự ký của add-on).
         val inUse = saved?.takeIf { DashboardTarget.isValidSaved(it) } ?: webDashboardUrl()
-        targetsView.text = buildString {
-            append(getString(R.string.st_url_in_use, inUse ?: none)).append('\n')
-            append(getString(R.string.st_web_url, web)).append('\n')
-            if (saved != null && !DashboardTarget.isValidSaved(saved)) {
-                append(getString(R.string.st_web_url_rebuilt, webDashboardUrl() ?: none)).append('\n')
-            }
-            append(getString(R.string.st_login_url, Prefs.loginUrl(this@SettingsActivity) ?: none)).append('\n')
-            append(getString(R.string.st_api_base, api)).append('\n')
-            append(getString(R.string.st_ingress_token, Prefs.ingressToken(this@SettingsActivity)))
-            // (21/11/2026) GD13 — CẢNH BÁO chứng chỉ tự ký: nói rõ đang dùng HTTPS của add-on (cổng 18443) và chỉ
-            // dùng được trong LAN/Tailscale.
-            if (TlsPolicy.isSelfSignedUrl(inUse)) {
-                append('\n').append(getString(R.string.st_tls_self_signed))
-                append('\n').append(getString(R.string.st_tls_hint))
-            }
+        // (1.7) Chỉ MỘT dòng ngắn: URL đang dùng (+ "chứng chỉ tự ký" khi là HTTPS của add-on).
+        urlView.text = buildString {
+            append(inUse ?: getString(R.string.st_none))
+            if (TlsPolicy.isSelfSignedUrl(inUse)) append(getString(R.string.st_url_self))
         }
     }
 
@@ -402,17 +415,12 @@ class SettingsActivity : Activity() {
             }
         }
         val logged = WebTargetResolver.hasSessionCookie(cookie) || HaLogin.hasAnyCookie(cookie)
+        // (1.7) Một dòng ngắn: "đã đăng nhập" / "chưa đăng nhập" (+ " · cần đăng nhập" khi đang chờ).
         haStatusView.text = buildString {
-            append(
-                getString(
-                    R.string.st_ha_status,
-                    getString(if (logged) R.string.st_ha_yes else R.string.st_ha_no)
-                )
-            )
-            if (Prefs.needHaLogin(this@SettingsActivity)) {
-                append('\n').append(getString(R.string.status_need_login))
-            }
+            append(getString(if (logged) R.string.st_val_logged else R.string.st_val_not_logged))
+            if (Prefs.needHaLogin(this@SettingsActivity)) append(getString(R.string.st_val_need_login))
         }
+        haStatusView.setTextColor(if (logged) COLOR_SUB else COLOR_BAD)
     }
 
     /**
@@ -532,64 +540,67 @@ class SettingsActivity : Activity() {
     private fun renderStatus() {
         renderTargets()
         renderHaLogin()
-        val lines = StringBuilder()
-        lines.append(getString(R.string.st_phone_id, Prefs.phoneId(this))).append('\n')
-        lines.append(
-            getString(R.string.st_server, Prefs.apiBase(this) ?: getString(R.string.st_no_server))
-        ).append('\n')
-        lines.append(
-            getString(
-                R.string.st_service,
-                if (PhoneService.isRunning()) getString(R.string.st_on) else getString(R.string.st_off)
-            )
-        ).append('\n')
+
+        // (1.7) Mỗi thông tin = MỘT dòng ngắn dưới tiêu đề hàng (không còn khối chữ dài như bản 1.6).
+        phoneIdView.text = Prefs.phoneId(this)
+        serverView.text = Prefs.apiBase(this) ?: getString(R.string.st_none)
+        serviceView.text = getString(if (PhoneService.isRunning()) R.string.st_on else R.string.st_off)
 
         // Cuộc gọi đang đến / chuông / lần poll cuối (service cập nhật liên tục).
         val callId = PhoneStatus.callId
-        lines.append(
-            if (callId.isNullOrBlank()) getString(R.string.st_no_call)
-            else getString(R.string.st_call_active, callId)
-        ).append('\n')
-        lines.append(
-            getString(if (PhoneStatus.ringing) R.string.st_ring_on else R.string.st_ring_off)
-        ).append('\n')
-        lines.append(getString(R.string.st_last_poll, formatTime(PhoneStatus.lastPollAt))).append('\n')
+        callView.text = if (callId.isNullOrBlank()) getString(R.string.st_val_none) else callId
+        ringView.text = getString(if (PhoneStatus.ringing) R.string.st_val_ring_on else R.string.st_val_ring_off)
+        pollView.text = formatTime(PhoneStatus.lastPollAt)
 
-        // Quyền / thiết lập của máy.
-        lines.append(
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-                checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-            ) getString(R.string.st_notif_ok) else getString(R.string.st_notif_no)
-        ).append('\n')
+        // Quyền thông báo (Android 13+): chưa bật thì tô đỏ để người dùng thấy ngay.
+        val notifOk = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        setState(notifView, notifOk, R.string.st_val_on, R.string.st_val_off)
 
+        // Kênh thông báo "Cuộc gọi đến" (âm thanh + rung + hiện trên màn khoá do kênh này phát).
         val nm = getSystemService(NotificationManager::class.java)
         val channel = try {
             nm?.getNotificationChannel(CallNotifications.CHANNEL_ID)
         } catch (t: Throwable) {
             null
         }
-        lines.append(
-            getString(
-                R.string.st_channel,
-                when {
-                    channel == null -> getString(R.string.st_never)
-                    channel.importance >= NotificationManager.IMPORTANCE_HIGH -> getString(R.string.st_channel_high)
-                    else -> getString(R.string.st_channel_low)
-                }
-            )
-        ).append('\n')
+        val channelOk = channel != null && channel.importance >= NotificationManager.IMPORTANCE_HIGH
+        channelView.text = when {
+            channel == null -> getString(R.string.st_never)
+            channelOk -> getString(R.string.st_val_channel_ok)
+            else -> getString(R.string.st_val_channel_bad)
+        }
+        channelView.setTextColor(if (channelOk) COLOR_SUB else COLOR_BAD)
 
         val pm = getSystemService(PowerManager::class.java)
-        lines.append(
-            if (pm?.isIgnoringBatteryOptimizations(packageName) == true) getString(R.string.st_battery_ok)
-            else getString(R.string.st_battery_no)
-        ).append('\n')
-        lines.append(
-            if (CallNotifications.canUseFullScreen(this)) getString(R.string.st_full_ok)
-            else getString(R.string.st_full_no)
-        )
+        val batteryOk = pm?.isIgnoringBatteryOptimizations(packageName) == true
+        batteryView.text = getString(if (batteryOk) R.string.st_val_batt_ok else R.string.st_val_not_allowed)
+        batteryView.setTextColor(if (batteryOk) COLOR_SUB else COLOR_BAD)
 
-        statusView.text = lines.toString()
+        setState(fullView, CallNotifications.canUseFullScreen(this), R.string.st_val_allowed, R.string.st_val_not_allowed)
+        setState(overlayView, canDrawOverlays(), R.string.st_val_allowed, R.string.st_val_not_allowed)
+        setState(dndView, canBypassDnd(), R.string.st_val_allowed, R.string.st_val_not_allowed)
+    }
+
+    /** Ghi một dòng trạng thái ngắn: đạt -> chữ màu phụ, chưa đạt -> chữ đỏ nhạt. */
+    private fun setState(view: TextView, ok: Boolean, okText: Int, badText: Int) {
+        view.text = getString(if (ok) okText else badText)
+        view.setTextColor(if (ok) COLOR_SUB else COLOR_BAD)
+    }
+
+    /** "Hiện cửa sổ nổi" — cho phép app mở màn gọi từ nền (Android 10+). */
+    private fun canDrawOverlays(): Boolean = try {
+        Settings.canDrawOverlays(this)
+    } catch (t: Throwable) {
+        false
+    }
+
+    /** Quyền bỏ qua Không làm phiền (để kênh cuộc gọi đặt setBypassDnd). */
+    private fun canBypassDnd(): Boolean = try {
+        val nm = getSystemService(NotificationManager::class.java)
+        nm != null && CallNotifications.canBypassDnd(nm)
+    } catch (t: Throwable) {
+        false
     }
 
     private fun formatTime(at: Long): String {

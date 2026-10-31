@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- (1.7) Card của màn Cài đặt — CÙNG bảng màu với trang Kết nối (activity_url): nền #16202f, viền #25334a, bo 14dp
+     (giống url_input_bg, nhưng tách tên riêng để sau này đổi card mà không ảnh hưởng ô nhập địa chỉ). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#FF16202F" />
+    <corners android:radius="14dp" />
+    <stroke
+        android:width="1dp"
+        android:color="#FF25334A" />
+</shape>

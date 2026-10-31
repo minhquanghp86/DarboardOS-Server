@@ -551,7 +551,7 @@
     <a href="#man-khoa" id="tabLock" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="tabLockPath" d=""/></svg>Màn khóa</a>
     <!-- (14/10/2026) Goi video toi man (call-web.html — giao dien chung voi man, call-ui.js). -->
     <a href="door-log.html" id="tabDoorLog"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="tabDoorLogPath" d=""/></svg>Chuông cổng</a>
-    <a href="call-web.html" id="tabCall"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="tabCallPath" d=""/></svg>Gọi</a>
+    <a href="call-web.html" id="tabCall"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="tabCallPath" d=""/></svg>Cuộc gọi</a>
     <a href="#menu" id="tabApps" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="tabAppsPath" d=""/></svg>Menu ứng dụng</a>
   </div>
 </div></nav>
@@ -1143,7 +1143,7 @@
     // (27/10/2026) Bao thuc: chon man hinh -> mo dung trinh Bao thuc cua man do (public/alarm-ctl.html).
     { h: 'alarm-ctl.html', n: 'Báo thức', ic: 'alarm', c: ['#6366f1', '#4338ca'] },
     { h: 'door-log.html', n: 'Chuông cổng', ic: 'doorbell-video', c: ['#fb923c', '#c2410c'] },
-    { h: 'call-web.html', n: 'Gọi', ic: 'video', c: ['#4ade80', '#15803d'] },
+    { h: 'call-web.html', n: 'Cuộc gọi', ic: 'video', c: ['#4ade80', '#15803d'] },
     { h: '#menu', n: 'Menu ứng dụng', ic: 'view-grid-plus-outline', c: ['#818cf8', '#4338ca'] }
   ];
   function appIcon(a) { var i = document.createElement('span'); i.className = 'ai'; i.style.setProperty('--c1', a.c[0]); i.style.setProperty('--c2', a.c[1]); i.append(svg(a.ic) ); return i; }

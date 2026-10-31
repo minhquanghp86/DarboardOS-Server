@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  (1.7) STYLE DÙNG CHUNG CHO MÀN CÀI ĐẶT (activity_settings.xml) — phong cách trang "Kết nối" (activity_url, 1.6):
+  nền #0b1220 · card #16202f + viền #25334a · bo 14dp · chip bo 21dp · chữ phụ #8c9ab2.
+
+  Chú ý: các style ở đây CHỈ giữ thuộc tính HIỂN THỊ (màu, cỡ chữ, nền, padding, bo góc). Kích thước/khoảng cách
+  layout (layout_width/height/weight/margin) được ghi thẳng trong layout để không phụ thuộc việc style có được áp
+  vào LayoutParams hay không.
+-->
+<resources>
+
+    <!-- Tiêu đề NHÓM CARD: chữ hoa, 11sp, màu phụ (Kết nối / Nhận cuộc gọi / Quyền cần thiết / Chẩn đoán). -->
+    <style name="SettingsSection">
+        <item name="android:textColor">#FF8C9AB2</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.08</item>
+    </style>
+
+    <!-- Card: nền #16202f, viền mảnh #25334a, bo 14dp (cùng bảng màu trang Kết nối). -->
+    <style name="SettingsCard">
+        <item name="android:orientation">vertical</item>
+        <item name="android:background">@drawable/settings_card_bg</item>
+        <item name="android:padding">14dp</item>
+    </style>
+
+    <!-- Tiêu đề một hàng: 14sp trắng. -->
+    <style name="SettingsRowTitle">
+        <item name="android:textColor">#FFFFFFFF</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
+    <!-- Phụ đề một hàng: 12sp màu phụ #8c9ab2 (trạng thái ngắn: mã máy, máy chủ, dịch vụ…). -->
+    <style name="SettingsRowSub">
+        <item name="android:textColor">#FF8C9AB2</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:maxLines">1</item>
+    </style>
+
+    <!-- Chip hành động GỌN (bo 21dp, không full-width): nền #16202f + viền #2a3850 như chip trang Kết nối. -->
+    <style name="SettingsChip">
+        <item name="android:background">@drawable/url_chip_bg</item>
+        <item name="android:textColor">#FFC7D2E2</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:gravity">center</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">0dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:stateListAnimator">@null</item>
+        <item name="android:paddingStart">14dp</item>
+        <item name="android:paddingEnd">14dp</item>
+    </style>
+
+    <!-- Ghi chú 1 dòng rất nhỏ dưới một hàng (chỉ dùng cho TOKEN ingress). -->
+    <style name="SettingsFootnote">
+        <item name="android:textColor">#FF7D8CA3</item>
+        <item name="android:textSize">11sp</item>
+    </style>
+
+</resources>

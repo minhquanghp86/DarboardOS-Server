@@ -26,9 +26,10 @@ android {
         applicationId = "vn.mqsmarthome.dashboardos"
         minSdk = 29
         targetSdk = 35
-        // (1.6) YÊU CẦU: versionCode = 7, versionName = "1.6" (trang nhập địa chỉ gọn + Đăng xuất + phiên bản).
-        versionCode = 7
-        versionName = "1.6"
+        // (1.7) YÊU CẦU: versionCode = 8, versionName = "1.7" — nút URL lên góc phải TRÊN (44dp, alpha 0.55),
+        // màn Cài đặt thiết kế lại theo phong cách trang Kết nối (4 nhóm card).
+        versionCode = 8
+        versionName = "1.7"
     }
 
     signingConfigs {

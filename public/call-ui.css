@@ -74,6 +74,43 @@
 .call .cact button:focus-visible { outline: 2px solid #34c759; outline-offset: 1px; }
 .call .cact button.del:hover { background: #7f1d1d; color: #fff; }
 .call .empty { color: #9aa4b2; padding: 24px 0; line-height: 1.5; }
+/* (01/12/2026) HAI TAB duoi header (trang Cuộc gọi trong Dashboard): "Nhật ký" (mặc định) | "Thiết bị".
+   Chỉ bật khi trang có adapter.log: `.has-tabs` do call-ui.js gắn vào root. */
+.call .tabs { position: fixed; z-index: 4; left: 0; right: 0; top: 56px; display: flex; gap: 8px;
+  padding: 0 clamp(16px, 4vw, 48px); }
+.call .tabs .tb { height: 38px; padding: 0 20px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #171b21; color: #c7d0da; font: 600 14px "Be Vietnam Pro", Roboto, sans-serif; cursor: pointer; }
+.call .tabs .tb:hover { background: #222831; color: #fff; }
+.call .tabs .tb.on { background: #34c759; border-color: #34c759; color: #04210d; }
+.call .tabs .tb:focus-visible { outline: 2px solid #34c759; outline-offset: 2px; }
+/* Danh bạ (tab "Thiết bị") phải chừa chỗ cho header + 2 tab. */
+.call.has-tabs .contacts { padding-top: calc(clamp(22px, 5vmin, 40px) + 76px) !important; }
+/* Nhật ký cuộc gọi: danh sách dòng (icon mũi tên · tên thiết bị · thời gian · thời lượng). */
+.call .loglist { position: absolute; inset: 0; overflow-y: auto; background: #0b0d10;
+  padding: calc(clamp(22px, 5vmin, 40px) + 76px) clamp(16px, 4vw, 48px) 24px; }
+.call .loglist .lt { font-size: clamp(22px, 5vmin, 30px); font-weight: 700; margin-bottom: clamp(10px, 2.4vmin, 18px); }
+.call .lg { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); }
+.call .lr { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: none; border-radius: 16px;
+  background: #171b21; color: #fff; font: inherit; text-align: left; cursor: pointer; }
+.call .lr:hover { background: #1e232b; }
+.call .lr:focus-visible { outline: 2px solid #34c759; outline-offset: 2px; }
+.call .lr:disabled { opacity: 0.5; cursor: default; }
+.call .lr .li { flex: none; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.call .lr .li svg { width: 20px; height: 20px; fill: currentColor; }
+.call .lr .li.out { background: rgba(56, 189, 248, 0.16); color: #38bdf8; }       /* gọi đi ↖ */
+.call .lr .li.in { background: rgba(52, 199, 89, 0.16); color: #34c759; }          /* gọi đến ↙ */
+.call .lr .li.missed { background: rgba(255, 59, 48, 0.16); color: #ff453a; }      /* nhỡ / từ chối ↙ đỏ */
+.call .lr .lm { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.call .lr .lm b { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.call .lr .lm small { color: #9aa4b2; font-size: 12.5px; display: flex; align-items: center; gap: 6px; }
+/* Chấm màu theo trạng thái: xanh = đã nghe, đỏ = nhỡ, vàng = bị từ chối, xám = huỷ/lỗi. */
+.call .lr .st { width: 7px; height: 7px; border-radius: 50%; flex: none; background: #6b7280; }
+.call .lr .st.answered { background: #34c759; }
+.call .lr .st.missed { background: #ff453a; }
+.call .lr .st.declined { background: #f59e0b; }
+.call .lr .lv { flex: none; font: 600 14px "Be Vietnam Pro", Roboto, sans-serif; color: #c7d0da;
+  font-variant-numeric: tabular-nums; }
+.call .lr .lv.bad { color: #ff8f8f; }
 .call .toast { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 12px 20px; border-radius: 999px;
   background: rgba(20, 23, 28, 0.92); font-weight: 600; max-width: 86vw; text-align: center; }
 @media (prefers-reduced-motion: reduce) { .call .bar, .call .top { transition: none; } }

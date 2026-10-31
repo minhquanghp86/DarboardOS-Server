@@ -1,319 +1,833 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- (11/11/2026) GD3 — man Cai dat: bat/tat nhan cuoc goi khi app dong, quyen, loi tat cai dat MIUI, trang thai debug. -->
+<!--
+  (1.7) MÀN CÀI ĐẶT — THIẾT KẾ LẠI THEO PHONG CÁCH TRANG "KẾT NỐI" (activity_url bản 1.6):
+    nền #0b1220 · card #16202f · viền #25334a · bo 14dp · chip bo 21dp · chữ phụ #8c9ab2.
+
+  Bố cục từ trên xuống:
+    1. Tiêu đề "Cài đặt" (24sp) + chip "Đóng" ở góc phải;
+    2. Bốn NHÓM CARD, mỗi nhóm có tiêu đề nhỏ (chữ hoa 11sp, màu phụ):
+         KẾT NỐI         — máy chủ, mã máy, trang đang dùng, Home Assistant, TOKEN ingress;
+         NHẬN CUỘC GỌI    — công tắc nhận cuộc gọi khi app đóng, dịch vụ nền, cuộc gọi đang đến, chuông, lần kiểm tra
+                            cuối, kênh thông báo "Cuộc gọi đến";
+         QUYỀN CẦN THIẾT  — thông báo, tối ưu pin, toàn màn hình, cửa sổ nổi, Không làm phiền + lối tắt MIUI;
+         CHẨN ĐOÁN       — log & chẩn đoán, thông tin app.
+
+  MỖI HÀNG: tiêu đề 14sp trắng + phụ đề 12sp #8c9ab2 bên trái; công tắc hoặc CHIP GỌN (bo 21dp, không full-width)
+  bên phải. Các dòng chữ dài (hint nhiều dòng, danh sách URL thử, ghi chú MIUI…) đã BỎ; chỉ giữ trạng thái NGẮN
+  (mã máy, máy chủ, dịch vụ…). Bọc ScrollView + fillViewport để xoay ngang / máy màn nhỏ vẫn xem hết.
+
+  Id do SettingsActivity.kt dùng: receiveSwitch, tokenInput, saveTokenButton, haLoginButton, haHomeButton,
+  haReloginButton, notifButton, batteryButton, fullScreenButton, overlayButton, dndButton, notifSettingsButton,
+  callChannelButton, miuiAutostartButton, miuiPermButton, appDetailsButton, closeButton, diagButton,
+  serverView, phoneIdView, urlView, haStatusView, serviceView, callView, ringView, pollView, channelView,
+  notifView, batteryView, fullView, overlayView, dndView.
+-->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#FF0B1220"
-    android:padding="24dp">
+    android:fillViewport="true"
+    android:scrollbarStyle="insideOverlay">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingTop="18dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="28dp">
 
+        <!-- ── Tiêu đề + chip Đóng ─────────────────────────────────────────────────────────── -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:baselineAligned="false"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/settings_title"
+                android:textColor="#FFFFFFFF"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/closeButton"
+                style="@style/SettingsChip"
+                android:layout_width="wrap_content"
+                android:layout_height="34dp"
+                android:text="@string/action_close" />
+        </LinearLayout>
+
+        <!-- ══ 1. KẾT NỐI ══ -->
         <TextView
+            style="@style/SettingsSection"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/settings_title"
-            android:textColor="#FFFFFFFF"
-            android:textSize="22sp"
-            android:textStyle="bold" />
-
-        <Switch
-            android:id="@+id/receiveSwitch"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="22dp"
-            android:minHeight="48dp"
-            android:text="@string/st_receive"
-            android:textColor="#FFFFFFFF"
-            android:textSize="16sp" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/st_receive_hint"
-            android:textColor="#FF9AA7BD"
-            android:textSize="12sp" />
-
-        <!-- ── trạng thái (debug): cuộc gọi đang đến / chuông / lần poll cuối ── -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
             android:layout_marginTop="20dp"
-            android:text="@string/st_status_section"
-            android:textColor="#FFFFFFFF"
-            android:textSize="15sp"
-            android:textStyle="bold" />
+            android:layout_marginBottom="8dp"
+            android:text="@string/st_sec_connect" />
 
+        <LinearLayout
+            style="@style/SettingsCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:baselineAligned="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/SettingsRowTitle"
+                        android:text="@string/st_row_server" />
+
+                    <TextView
+                        android:id="@+id/serverView"
+                        style="@style/SettingsRowSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/st_none" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:baselineAligned="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/SettingsRowTitle"
+                        android:text="@string/st_row_phone_id" />
+
+                    <TextView
+                        android:id="@+id/phoneIdView"
+                        style="@style/SettingsRowSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/st_none" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:baselineAligned="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/SettingsRowTitle"
+                        android:text="@string/st_row_url" />
+
+                    <TextView
+                        android:id="@+id/urlView"
+                        style="@style/SettingsRowSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/st_none"
+                        android:maxLines="2" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:baselineAligned="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/SettingsRowTitle"
+                        android:text="@string/st_row_ha" />
+
+                    <TextView
+                        android:id="@+id/haStatusView"
+                        style="@style/SettingsRowSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/st_none" />
+
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/haReloginButton"
+                    style="@style/SettingsChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:layout_marginStart="8dp"
+                    android:text="@string/st_chip_ha_relogin" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/haLoginButton"
+                    style="@style/SettingsChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:text="@string/st_chip_ha_login" />
+                <Button
+                    android:id="@+id/haHomeButton"
+                    style="@style/SettingsChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:layout_marginStart="8dp"
+                    android:text="@string/st_chip_ha_home" />
+            </LinearLayout>
+
+            <!-- TOKEN ingress: ô nhập 1 dòng + chip "Lưu" (không phải nút full-width). -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:baselineAligned="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <EditText
+                    android:id="@+id/tokenInput"
+                    android:layout_width="0dp"
+                    android:layout_height="42dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/url_input_bg"
+                    android:hint="@string/st_token_hint_example"
+                    android:imeOptions="actionDone"
+                    android:inputType="text"
+                    android:maxLines="1"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:singleLine="true"
+                    android:textColor="#FFFFFFFF"
+                    android:textColorHint="#FF5B6B85"
+                    android:textSize="13sp" />
+
+                <Button
+                    android:id="@+id/saveTokenButton"
+                    style="@style/SettingsChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:layout_marginStart="8dp"
+                    android:text="@string/st_chip_save" />
+            </LinearLayout>
+
+            <TextView
+                style="@style/SettingsFootnote"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="@string/st_sub_token" />
+        </LinearLayout>
+
+        <!-- ══ 2. NHẬN CUỘC GỌI ══ -->
         <TextView
-            android:id="@+id/statusView"
+            style="@style/SettingsSection"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:background="#FF16202F"
-            android:padding="12dp"
-            android:textColor="#FF9AA7BD"
-            android:textIsSelectable="true"
-            android:textSize="12sp" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
             android:layout_marginTop="20dp"
-            android:text="@string/st_targets_section"
-            android:textColor="#FFFFFFFF"
-            android:textSize="15sp"
-            android:textStyle="bold" />
+            android:layout_marginBottom="8dp"
+            android:text="@string/st_sec_receive" />
 
-        <!-- (13/11/2026) GD6: 2 giá trị đang dùng — webUrl (WebView) và apiBase (API LAN). -->
+        <LinearLayout
+            style="@style/SettingsCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:baselineAligned="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/SettingsRowTitle"
+                        android:text="@string/st_receive" />
+
+                    <TextView
+                        style="@style/SettingsRowSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/st_receive_hint_short" />
+
+                </LinearLayout>
+
+                <Switch
+                    android:id="@+id/receiveSwitch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:minHeight="44dp" />
+
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:baselineAligned="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/SettingsRowTitle"
+                        android:text="@string/st_row_service" />
+
+                    <TextView
+                        android:id="@+id/serviceView"
+                        style="@style/SettingsRowSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/st_off" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:baselineAligned="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/SettingsRowTitle"
+                        android:text="@string/st_row_call" />
+
+                    <TextView
+                        android:id="@+id/callView"
+                        style="@style/SettingsRowSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/st_val_none" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:baselineAligned="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/SettingsRowTitle"
+                        android:text="@string/st_row_ring" />
+
+                    <TextView
+                        android:id="@+id/ringView"
+                        style="@style/SettingsRowSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/st_val_ring_off" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:baselineAligned="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/SettingsRowTitle"
+                        android:text="@string/st_row_poll" />
+
+                    <TextView
+                        android:id="@+id/pollView"
+                        style="@style/SettingsRowSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/st_never" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:baselineAligned="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/SettingsRowTitle"
+                        android:text="@string/st_row_channel" />
+
+                    <TextView
+                        android:id="@+id/channelView"
+                        style="@style/SettingsRowSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/st_never" />
+
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/callChannelButton"
+                    style="@style/SettingsChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:layout_marginStart="8dp"
+                    android:text="@string/st_chip_open" />
+
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ══ 3. QUYỀN CẦN THIẾT ══ -->
         <TextView
-            android:id="@+id/targetsView"
+            style="@style/SettingsSection"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:background="#FF16202F"
-            android:padding="12dp"
-            android:textColor="#FF9AA7BD"
-            android:textIsSelectable="true"
-            android:textSize="12sp" />
-
-        <!-- (28/11/2026) GD16 — CHẨN ĐOÁN: mở màn hiện log [nav]/[promote]/[login]/[api] + 5 giá trị, có nút
-             Sao chép / Chia sẻ / Xoá log. Người dùng không cần adb. -->
-        <Button
-            android:id="@+id/diagButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:minHeight="52dp"
-            android:text="@string/st_diag_button"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="@string/st_diag_hint"
-            android:textColor="#FF9AA7BD"
-            android:textSize="12sp" />
-
-        <!-- (13/11/2026) GD6: đăng nhập Home Assistant một lần (cookie giữ cho các lần sau). -->
-        <Button
-            android:id="@+id/haLoginButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:minHeight="48dp"
-            android:text="@string/st_ha_login_button" />
-
-        <Button
-            android:id="@+id/haHomeButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:minHeight="48dp"
-            android:text="@string/st_ha_home_button" />
-
-        <!-- (14/11/2026) GD7 — trạng thái phiên HA (dò cookie) + "Đăng nhập lại Home Assistant". -->
-        <TextView
-            android:id="@+id/haStatusView"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:background="#FF16202F"
-            android:padding="12dp"
-            android:textColor="#FFC7D2E2"
-            android:textIsSelectable="true"
-            android:textSize="12sp" />
-
-        <Button
-            android:id="@+id/haReloginButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:minHeight="48dp"
-            android:text="@string/st_ha_relogin_button" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="@string/st_ha_relogin_hint"
-            android:textColor="#FF9AA7BD"
-            android:textSize="12sp" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="@string/st_ha_login_hint"
-            android:textColor="#FF9AA7BD"
-            android:textSize="12sp" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
             android:layout_marginTop="20dp"
-            android:text="@string/st_token_section"
-            android:textColor="#FFFFFFFF"
-            android:textSize="15sp"
-            android:textStyle="bold" />
+            android:layout_marginBottom="8dp"
+            android:text="@string/st_permissions" />
 
-        <EditText
-            android:id="@+id/tokenInput"
+        <LinearLayout
+            style="@style/SettingsCard"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:background="#FF16202F"
-            android:hint="@string/st_token_hint_example"
-            android:imeOptions="actionDone"
-            android:inputType="text"
-            android:maxLines="1"
-            android:minHeight="48dp"
-            android:padding="12dp"
-            android:textColor="#FFFFFFFF"
-            android:textColorHint="#FF5B6B85"
-            android:textSize="13sp" />
+            android:layout_height="wrap_content">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:baselineAligned="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-        <Button
-            android:id="@+id/saveTokenButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:minHeight="48dp"
-            android:text="@string/st_token_button" />
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
 
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/SettingsRowTitle"
+                        android:text="@string/st_row_notif" />
+
+                    <TextView
+                        android:id="@+id/notifView"
+                        style="@style/SettingsRowSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/st_val_off" />
+
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/notifButton"
+                    style="@style/SettingsChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:layout_marginStart="8dp"
+                    android:text="@string/st_chip_enable" />
+
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:baselineAligned="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/SettingsRowTitle"
+                        android:text="@string/st_row_battery" />
+
+                    <TextView
+                        android:id="@+id/batteryView"
+                        style="@style/SettingsRowSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/st_val_not_allowed" />
+
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/batteryButton"
+                    style="@style/SettingsChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:layout_marginStart="8dp"
+                    android:text="@string/st_chip_battery" />
+
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:baselineAligned="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/SettingsRowTitle"
+                        android:text="@string/st_row_full" />
+
+                    <TextView
+                        android:id="@+id/fullView"
+                        style="@style/SettingsRowSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/st_val_not_allowed" />
+
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/fullScreenButton"
+                    style="@style/SettingsChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:layout_marginStart="8dp"
+                    android:text="@string/st_chip_allow" />
+
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:baselineAligned="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/SettingsRowTitle"
+                        android:text="@string/st_row_overlay" />
+
+                    <TextView
+                        android:id="@+id/overlayView"
+                        style="@style/SettingsRowSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/st_val_not_allowed" />
+
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/overlayButton"
+                    style="@style/SettingsChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:layout_marginStart="8dp"
+                    android:text="@string/st_chip_allow" />
+
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:baselineAligned="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/SettingsRowTitle"
+                        android:text="@string/st_row_dnd" />
+
+                    <TextView
+                        android:id="@+id/dndView"
+                        style="@style/SettingsRowSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/st_val_not_allowed" />
+
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/dndButton"
+                    style="@style/SettingsChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:layout_marginStart="8dp"
+                    android:text="@string/st_chip_allow" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/notifSettingsButton"
+                    style="@style/SettingsChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:text="@string/st_chip_notif_app" />
+                <Button
+                    android:id="@+id/miuiAutostartButton"
+                    style="@style/SettingsChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:layout_marginStart="8dp"
+                    android:text="@string/st_chip_autostart" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/miuiPermButton"
+                    style="@style/SettingsChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:text="@string/st_chip_miui" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ══ 4. CHẨN ĐOÁN ══ -->
         <TextView
+            style="@style/SettingsSection"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="@string/st_token_hint"
-            android:textColor="#FF9AA7BD"
-            android:textSize="12sp" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
             android:layout_marginTop="20dp"
-            android:text="@string/st_permissions"
-            android:textColor="#FFFFFFFF"
-            android:textSize="15sp"
-            android:textStyle="bold" />
+            android:layout_marginBottom="8dp"
+            android:text="@string/diag_title" />
 
-        <Button
-            android:id="@+id/notifButton"
+        <LinearLayout
+            style="@style/SettingsCard"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:minHeight="48dp"
-            android:text="@string/st_notif_button" />
+            android:layout_height="wrap_content">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:baselineAligned="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-        <Button
-            android:id="@+id/batteryButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:minHeight="48dp"
-            android:text="@string/st_battery_button" />
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
 
-        <Button
-            android:id="@+id/fullScreenButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:minHeight="48dp"
-            android:text="@string/st_full_button" />
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/SettingsRowTitle"
+                        android:text="@string/st_row_diag" />
 
-        <Button
-            android:id="@+id/overlayButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:minHeight="48dp"
-            android:text="@string/st_overlay_button" />
+                    <TextView
+                        style="@style/SettingsRowSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/st_sub_diag" />
 
-        <Button
-            android:id="@+id/dndButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:minHeight="48dp"
-            android:text="@string/st_dnd_button" />
+                </LinearLayout>
 
-        <!-- ── cài đặt thông báo + lối tắt MIUI ── -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="@string/st_device_section"
-            android:textColor="#FFFFFFFF"
-            android:textSize="15sp"
-            android:textStyle="bold" />
+                <Button
+                    android:id="@+id/diagButton"
+                    style="@style/SettingsChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:layout_marginStart="8dp"
+                    android:text="@string/st_chip_open" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="@string/st_device_hint"
-            android:textColor="#FF9AA7BD"
-            android:textSize="12sp" />
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:baselineAligned="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-        <Button
-            android:id="@+id/notifSettingsButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:minHeight="48dp"
-            android:text="@string/st_notif_settings_button" />
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
 
-        <Button
-            android:id="@+id/callChannelButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:minHeight="48dp"
-            android:text="@string/st_call_channel_button" />
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/SettingsRowTitle"
+                        android:text="@string/st_row_app" />
 
-        <!-- (12/11/2026) GD5: chuông/rung do kênh "Cuộc gọi đến" phát -> chọn nhạc chuông tại đây. -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="@string/st_call_channel_hint"
-            android:textColor="#FF9AA7BD"
-            android:textSize="12sp" />
+                    <TextView
+                        style="@style/SettingsRowSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/st_sub_app" />
 
-        <Button
-            android:id="@+id/miuiAutostartButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:minHeight="48dp"
-            android:text="@string/st_miui_autostart_button" />
+                </LinearLayout>
 
-        <Button
-            android:id="@+id/miuiPermButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:minHeight="48dp"
-            android:text="@string/st_miui_perm_button" />
+                <Button
+                    android:id="@+id/appDetailsButton"
+                    style="@style/SettingsChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:layout_marginStart="8dp"
+                    android:text="@string/st_chip_open" />
 
-        <Button
-            android:id="@+id/appDetailsButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:minHeight="48dp"
-            android:text="@string/st_app_details_button" />
-
-        <Button
-            android:id="@+id/closeButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="22dp"
-            android:minHeight="52dp"
-            android:text="@string/action_close" />
-
+            </LinearLayout>
+        </LinearLayout>
     </LinearLayout>
 </ScrollView>

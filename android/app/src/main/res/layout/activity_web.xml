@@ -9,7 +9,8 @@
     "Thử lại" (chỉ hiện khi tự dò thất bại) và "Tôi đã đăng nhập".
 
   Bar nằm trong luồng layout nên ĐẨY WebView xuống, KHÔNG che nội dung trang.
-  FrameLayout (weight 1) — WebView full phần còn lại + nút "URL" 40dp ở góc phải dưới.
+  FrameLayout `webHost` (weight 1) — WebView full phần còn lại + **BONG BÓNG 44dp KÉO ĐƯỢC** (`urlBubble`, 1.7:
+  icon bánh răng thay chữ "URL", dời được khắp màn hình và nhớ vị trí — xem khối chú thích ngay trên ImageView).
 
   (1.5) **THANH NÀY MẶC ĐỊNH `gone` VÀ CHỈ ĐƯỢC BẬT KHI THẬT SỰ CẦN ĐĂNG NHẬP** — mọi lần đổi visibility đi qua
   `MainActivity.showLoginBar(show, reason)` + chính sách `LoginBar` (đã có phiên `ingress_session` thì KHÔNG bao giờ
@@ -105,6 +106,7 @@
     </LinearLayout>
 
     <FrameLayout
+        android:id="@+id/webHost"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1">
@@ -114,28 +116,39 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
-        <!-- Small overlay to get back to the URL screen. It hides itself a few
-             seconds after launch (and on any tap elsewhere) so the dashboard really
-             is full screen, and it stays visible when a page fails to load. -->
-        <!-- (12/11/2026) Nut tron nho o goc phai DUOI: goc phai TREN bi cac trang dung mat (nut "Chọn" của trang
-             Chuông cổng, nut banh rang cua trang Cuoc goi) -> chuyen xuong duoi, 40dp, alpha 0.45, van luon bam duoc. -->
-        <Button
-            android:id="@+id/changeUrlButton"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_gravity="bottom|end"
-            android:layout_marginBottom="14dp"
-            android:layout_marginEnd="96dp"
-            android:alpha="0.45"
+        <!-- (1.7) **BONG BÓNG “KẾT NỐI” KÉO ĐƯỢC** — thay hẳn nút tròn chữ “URL” cố định ở góc.
+
+             Vì sao phải đổi: nút cũ nằm ĐÈ lên nội dung một số trang (góc phải trên là chỗ các trang đặt nút riêng),
+             không dời được, và chữ “URL” ở 44dp gần như không đọc được khi alpha 0.55.
+
+               • 44dp, icon bánh răng trắng (@drawable/ic_bubble_settings) trên nền tròn @drawable/url_button_bg
+                 (#CC16202F + viền mảnh #55FFFFFF) — KHÔNG còn chữ;
+               • KÉO TỰ DO trong `webHost` (MainActivity: onTouchListener → ACTION_DOWN ghi offset, ACTION_MOVE cập nhật
+                 margin, ACTION_UP phân biệt TAP < 8dp & < 200 ms với KÉO; xem BubbleDrag);
+               • vị trí nhớ theo TỈ LỆ 0..1 trong Prefs (`bubble_x`, `bubble_y`), khôi phục khi mở lại;
+                 chưa có ⇒ góc phải trên, cách mép 12dp, dưới status bar;
+               • alpha 0.55 khi rảnh, 0.85 khi kéo, 0.4 sau 5 s không chạm — KHÔNG BAO GIỜ tự ẩn;
+                 elevation + bringToFront() ⇒ luôn nằm TRÊN WebView;
+               • chỉ 44dp nên KHÔNG cản cuộn trang (sự kiện chạm ngoài bong bóng vẫn tới WebView bình thường).
+
+             `layout_gravity="top|start"` + margin đặt LÚC CHẠY (margin mặc định 12dp/12dp trùng vị trí mặc định, để
+             khung hình đầu tiên trước khi có kích thước không nhảy). `visibility="invisible"` trong XML để KHÔNG có
+             khung hình nào bong bóng hiện sai chỗ: MainActivity bật `VISIBLE` ngay sau lần đặt vị trí đầu tiên
+             (`applyBubblePos`). -->
+        <ImageView
+            android:id="@+id/urlBubble"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_gravity="top|start"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="12dp"
             android:background="@drawable/url_button_bg"
             android:contentDescription="@string/action_change_url"
-            android:minWidth="0dp"
-            android:paddingStart="0dp"
-            android:paddingEnd="0dp"
-            android:text="@string/url_button_short"
-            android:textAllCaps="false"
-            android:textColor="#FFFFFFFF"
-            android:textSize="11sp" />
+            android:elevation="8dp"
+            android:padding="10dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_bubble_settings"
+            android:visibility="invisible" />
 
     </FrameLayout>
 

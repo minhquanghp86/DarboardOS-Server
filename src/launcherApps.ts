@@ -79,7 +79,8 @@ export function listAllApps(homeUrl: string | undefined): LauncherAppInfo[] {
   add('nha', 'Sự kiện camera', 'events', '#0e7490', `${LOCAL}/events.html`, undefined, 'events', 'mdi:cctv');
   // (01/10/2026) The SD cua panel co camera: Thu vien (anh/video da chup, trinh phat) va Tep (duyet / xoa ca the).
   // (14/10/2026) Goi video giua cac man co camera + mic va tab "Gọi" trong Dashboard (src/calls.ts, public/call.html).
-  add('nha', 'Gọi', 'call', '#16a34a', `${LOCAL}/call.html`, undefined, 'call', 'mdi:video');
+  // (01/12/2026) TEN UNG DUNG: "Gọi" -> "Cuộc gọi" (nhu app goi dien: co Nhat ky cuoc goi + thiet bi). Icon giu nguyen.
+  add('nha', 'Cuộc gọi', 'call', '#16a34a', `${LOCAL}/call.html`, undefined, 'call', 'mdi:video');
   // (14/10/2026) Nhat ky chuong cong: anh moi lan bam chuong / goi nho, giu 30 ngay (src/door.ts, public/door-log.html).
   add('nha', 'Chuông cổng', 'doorlog', '#ea580c', `${LOCAL}/door-log.html`, undefined, 'doorlog', 'mdi:doorbell-video');
   add('nha', 'Thư viện', 'gallery', '#0d9488', `${LOCAL}/files.html?view=gallery`, undefined, 'gallery', 'mdi:image-album');

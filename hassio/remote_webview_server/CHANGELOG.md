@@ -1,3 +1,9 @@
+## V2.9.309
+- **Nhật ký cuộc gọi**: lưu 200 cuộc gần nhất (`/data/rwv-call-log.json`) với hướng gọi, thiết bị, thời điểm,
+  thời lượng, trạng thái (đã nói / nhỡ / từ chối / huỷ / lỗi); API `GET /calls/log?self=&limit=`.
+- Trang **Cuộc gọi** có 2 tab **Nhật ký / Thiết bị**, bấm một dòng để gọi lại; app “Gọi” đổi tên thành **“Cuộc gọi”**.
+- App Android: nút URL thành **bong bóng bánh răng kéo được** (nhớ vị trí), màn Cài đặt thiết kế lại theo trang Kết nối.
+
 ## V2.9.308
 - **Add-on tự phục vụ HTTPS (port 18443) với chứng chỉ tự ký** → app Android có secure context cho micro/camera mà
   **không cần ingress của Home Assistant** (trước đây phải mở add-on từ sidebar HA một lần mới tạo được phiên).

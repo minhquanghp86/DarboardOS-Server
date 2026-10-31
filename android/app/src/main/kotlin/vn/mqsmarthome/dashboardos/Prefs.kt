@@ -65,6 +65,19 @@ object Prefs {
 
     const val KEY_PHONE_ID = "phone_id"
 
+    // ─────────────────────────────────────────── (1.7) VỊ TRÍ BONG BÓNG “KẾT NỐI”
+
+    /**
+     * (1.7) Toạ độ **TỈ LỆ 0..1** của bong bóng nổi trong khung WebView (`webHost`): `bubble_x` theo trục ngang,
+     * `bubble_y` theo trục dọc. Lưu tỉ lệ (không lưu px) để **xoay máy / đổi độ phân giải** vẫn đúng chỗ — bong bóng
+     * đang ở góc phải trên thì xoay ngang vẫn ở góc phải trên (xem [BubbleDrag.ratioOf] / [BubbleDrag.fromRatio]).
+     * Chưa có khoá nào ⇒ góc phải trên, cách mép 12dp, dưới status bar ([BubbleDrag.defaultPos]).
+     */
+    const val KEY_BUBBLE_X = "bubble_x"
+
+    /** Xem [KEY_BUBBLE_X]. */
+    const val KEY_BUBBLE_Y = "bubble_y"
+
     /** "Nhan cuoc goi khi app dong" (foreground service + poll). Mac dinh BAT. */
     const val KEY_RECEIVE = "receive_calls"
 
@@ -250,6 +263,33 @@ object Prefs {
 
     fun setReceiveEnabled(ctx: Context, on: Boolean) {
         get(ctx).edit().putBoolean(KEY_RECEIVE, on).apply()
+    }
+
+    // ─────────────────────────────────────────── (1.7) BONG BÓNG “KẾT NỐI” — NHỚ VỊ TRÍ
+
+    /**
+     * (1.7) Vị trí bong bóng **đã lưu** dưới dạng tỉ lệ 0..1 ([KEY_BUBBLE_X] / [KEY_BUBBLE_Y]), `null` = chưa có
+     * (hoặc dữ liệu hỏng) ⇒ [MainActivity] dùng vị trí mặc định góc phải trên ([BubbleDrag.defaultPos]).
+     *
+     * Giá trị ngoài [0, 1] / `NaN` bị coi là **chưa có** (không bao giờ đặt bong bóng ra ngoài màn hình).
+     */
+    fun bubblePos(ctx: Context): BubbleDrag.Pos? {
+        val p = get(ctx)
+        if (!p.contains(KEY_BUBBLE_X) || !p.contains(KEY_BUBBLE_Y)) return null
+        val x = p.getFloat(KEY_BUBBLE_X, Float.NaN)
+        val y = p.getFloat(KEY_BUBBLE_Y, Float.NaN)
+        if (!x.isFinite() || !y.isFinite()) return null
+        if (x < 0f || x > 1f || y < 0f || y > 1f) return null
+        return BubbleDrag.Pos(x, y)
+    }
+
+    /** (1.7) Lưu vị trí bong bóng sau một lần KÉO (tỉ lệ 0..1, đã kẹp lại trước khi ghi). */
+    fun setBubblePos(ctx: Context, pos: BubbleDrag.Pos) {
+        if (!pos.x.isFinite() || !pos.y.isFinite()) return
+        get(ctx).edit()
+            .putFloat(KEY_BUBBLE_X, pos.x.coerceIn(0f, 1f))
+            .putFloat(KEY_BUBBLE_Y, pos.y.coerceIn(0f, 1f))
+            .apply()
     }
 
     // ─────────────────────────────────────────── (1.6) ĐĂNG XUẤT
