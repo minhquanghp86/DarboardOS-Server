@@ -399,6 +399,67 @@ promote.
 cd android && ./gradlew testDebugUnitTest --offline --no-daemon   # AutoOpenTest: 8 test (cờ một-lần, 3 lần/1,5 s, reset, định dạng log)
 ```
 
+## 4i. (1.5) — HẾT NHẤP NHÁY THANH THÔNG BÁO ĐĂNG NHẬP
+
+**Người dùng báo:** ở các lần mở app **sau** (đã đăng nhập, có phiên ingress), khi app khởi động vẫn **hiện thanh
+thông báo trên cùng với 2 nút** (“Đăng nhập Home Assistant” / “Tôi đã đăng nhập” / “Mở Dashboard”) trong **1–2 giây**
+rồi mới tự ẩn. Chức năng đúng, chỉ là nhấp nháy.
+
+**Nguyên nhân (bản 1.4):** thanh bị bật bởi **mọi** chỗ gọi `showLoginBar(true)` — kể cả những chỗ **không cần đăng
+nhập**. Nặng nhất là `openDashboardNow` (đường **tự động** mở dashboard, chạy mỗi lần mở app khi đã có phiên): panel
+vừa nạp xong là thanh hiện ra, rồi `onPromoteLoaded` (`ok=top`) ẩn đi ⇒ nhấp nháy đúng 1–2 s; thanh nằm trong luồng
+layout nên WebView còn bị **đẩy xuống rồi kéo lên**.
+
+### 4i.1 Chính sách mới (`LoginBar.kt` — THUẦN, unit test được)
+
+Mọi lần đổi visibility đi qua **một cửa duy nhất** `MainActivity.showLoginBar(show, reason)`; `LoginBar.decide` lọc:
+
+1. `reason` **không cần** (`startup`, `session_check`, `panel_wait`, `open_dashboard`, `connect`) ⇒ **KHÔNG hiện**;
+2. **đã có phiên** (`session=yes`) ⇒ **KHÔNG BAO GIỜ hiện** (kể cả khung hình đầu);
+3. còn **thời gian ân hạn** `LoginBar.SETTLE_MS` = **2,5 s** mà lần mở app này đã có phiên ⇒ **hoãn**; hết ân hạn mà
+   vẫn cần thì xét lại (`recheckLoginBarAfterSettle`) — chức năng “Thử lại” không mất, chỉ không nhấp nháy;
+4. ẩn luôn **NGAY** (`View.GONE`, không animate) — đăng nhập xong là thanh biến mất.
+
+### 4i.2 Các chỗ đã siết điều kiện
+
+| Chỗ gọi | Bản 1.4 | Bản 1.5 (lý do) |
+| --- | --- | --- |
+| `openDashboardNow` (đường **tự động** + nút) | `showLoginBar(true)` vô điều kiện ⇒ **nguyên nhân nhấp nháy** | `OPEN_DASHBOARD` → **không hiện** |
+| `onPromoteFailed` (quay lại panel) | `true` | `PANEL_WAIT` → **không hiện** (panel nạp xong là đủ) |
+| `startLoginFlow(openOrigin = true)` | `true` | `LOGIN_FLOW` (cần thật) |
+| `onAuthRequired` (401/403 ingress) | chỉ khi luồng chưa chạy | `AUTH_HTTP` (cần thật, **luôn** xét) |
+| `loginTick` (URL `/auth/…`), `onPageFinished` (LOGIN, LOAD_LOGIN_PAGE) | `true` | `AUTH_URL` (cần thật) |
+| `onWrongPage` | `true` | `WRONG_PAGE` (cần thật) |
+| `goPanel` hết lượt / `onLoginFailed` | `true` | `GIVE_UP` (cần thật; nếu thanh bị ẩn vì có phiên ⇒ mở màn hình lỗi có “Thử lại”) |
+| `onRetryClicked` / `onLoginConfirmed` / `dashboardos://login` | `true` | `USER_RETRY` / `USER_LOGIN_DONE` / `USER_LOGIN_AGAIN` |
+| `loginTick` thấy `session=yes` | — | `SESSION_READY` → **ẩn ngay** |
+| `onPanelLoaded` / `onPromoteLoaded` / `onRootFallbackLoaded` | `false` | `PANEL_OK` / `TOP_OK` / `ROOT_OK` (ẩn ngay) |
+| `buildWebScreen` | `false` | `GONE` ngay sau `setContentView` + `STARTUP` |
+| IP LAN | `false` | `LAN_NO_LOGIN` |
+
+### 4i.3 Log kỳ vọng (Cài đặt → Chẩn đoán, chỉ ghi khi trạng thái **đổi** — không kích hoạt tự lưu tệp)
+
+```
+# lần mở app SAU (đã đăng nhập, có phiên) — KHÔNG có dòng bar=show
+[ui] bar=hide reason=startup session=yes
+[ui] bar=hide reason=panel_ok session=yes
+[ui] bar=hide reason=open_dashboard why=not_needed session=yes
+[ui] bar=hide reason=session_ready session=yes
+```
+
+```
+# lần đầu (chưa có phiên) — thanh hiện đúng lúc cần
+[ui] bar=show reason=login_flow session=no
+[ui] bar=show reason=auth_url session=no
+[ui] bar=hide reason=session_ready session=yes     ← đăng nhập xong: ẩn ngay
+```
+
+### 4i.4 Kiểm thử
+
+```bash
+cd android && ./gradlew testDebugUnitTest --offline --no-daemon   # LoginBarTest: 10 test (mặc định ẩn, cần thật mới hiện, có phiên ⇒ không bao giờ hiện, ân hạn, định dạng log, không kích hoạt auto-save)
+```
+
 ## 5. Smoke test trên máy thật
 
 `android/scripts/smoke-test.sh` chạy cả chuỗi "cài app → mở app → PhoneService sống → server thấy máy →

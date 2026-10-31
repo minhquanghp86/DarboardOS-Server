@@ -92,6 +92,22 @@ import android.widget.Toast
  *  - Fallback giữ nguyên: top-level trả 401 / SPA HA → **quay lại panel** + log lý do; auto thử tối đa
  *    [AutoOpen.MAX_ATTEMPTS] = 3 lần, cách ≥ [AutoOpen.RETRY_GAP_MS] = 1,5 s rồi thôi (`[auto] give_up`).
  *
+ * (1.5) **HẾT NHẤP NHÁY THANH THÔNG BÁO ĐĂNG NHẬP** (người dùng báo: lần mở app SAU — đã đăng nhập, có phiên
+ * ingress — thanh trên cùng vẫn hiện 1–2 s rồi mới tự ẩn):
+ *  - **Nguyên nhân**: thanh bị bật bởi mọi chỗ gọi `showLoginBar(true)`, kể cả những chỗ **không cần đăng nhập** —
+ *    nặng nhất là [openDashboardNow] (đường TỰ ĐỘNG mở dashboard, chạy mỗi lần mở app khi đã có phiên): panel vừa
+ *    nạp xong là thanh hiện ra, rồi `onPromoteLoaded` (`ok=top`) ẩn đi ⇒ nhấp nháy đúng 1–2 s + layout giật (thanh
+ *    nằm trong luồng layout nên đẩy WebView xuống rồi kéo lên).
+ *  - **Cách sửa**: mọi lần đổi visibility đi qua **một cửa duy nhất** [showLoginBar] + chính sách thuần [LoginBar]:
+ *    mặc định `GONE`; chỉ HIỆN với lý do *cần thật* (`401/403` trên ingress → [LoginBar.Reason.AUTH_HTTP], URL
+ *    `/auth/…` → [LoginBar.Reason.AUTH_URL], [startLoginFlow] mở trang đăng nhập → [LoginBar.Reason.LOGIN_FLOW],
+ *    trang sai, hết cách, hoặc nút người dùng bấm); **đã có phiên ⇒ KHÔNG BAO GIỜ hiện** (kể cả khung hình đầu);
+ *    và có **thời gian ân hạn** [LoginBar.SETTLE_MS] (2,5 s) khi lần mở app này đã có phiên (panel/promote đang tự
+ *    phục hồi) — hết ân hạn mà vẫn cần thì thanh mới hiện ([recheckLoginBarAfterSettle]).
+ *  - **Kiểm chứng trên máy thật**: Cài đặt → Chẩn đoán có dòng `[ui] bar=show|hide reason=…` (chỉ ghi khi trạng
+ *    thái ĐỔI, tiền tố `[ui]` **không** kích hoạt tự lưu tệp chẩn đoán). Lần mở app sau phải thấy
+ *    `[ui] bar=hide reason=startup session=yes` → `[ui] bar=hide reason=open_dashboard …` — **không** có `bar=show`.
+ *
  * Chế độ **IP LAN** (bản GD13) vẫn được giữ nhưng KHÔNG khuyến nghị: nó dựa vào chứng chỉ tự ký cổng 18443, không
  * có phiên HA nào để API native dùng. Giao diện đã ghi rõ điều này.
  *
@@ -208,6 +224,29 @@ class MainActivity : Activity() {
     /** Thanh thông báo đăng nhập + câu chữ của nó (chỉ có ở màn WebView). */
     private var loginBar: View? = null
     private var loginBarText: TextView? = null
+
+    // ── (1.5) THANH THÔNG BÁO: **MẶC ĐỊNH ẨN**, chỉ hiện khi THẬT SỰ cần đăng nhập (xem [LoginBar])
+
+    /**
+     * Lý do **đang chờ xét lại** sau thời gian ân hạn ([LoginBar.SETTLE_MS]) — chỉ đặt khi thanh bị hoãn vì còn ân
+     * hạn (`why=settling`), để hết ân hạn mà vẫn cần đăng nhập thì thanh mới hiện ([recheckLoginBarAfterSettle]).
+     */
+    private var pendingLoginBarReason: LoginBar.Reason? = null
+
+    /**
+     * Lần mở app này (lần dựng màn WebView) **đã có phiên ingress** chưa — nếu có thì trong [LoginBar.SETTLE_MS]
+     * đầu KHÔNG hiện thanh (panel/promote đang tự phục hồi; đây chính là 1–2 s nhấp nháy người dùng báo).
+     */
+    private var launchHadSession = false
+
+    /** Thời điểm dựng màn WebView (ms) — mốc của thời gian ân hạn [LoginBar.SETTLE_MS]. */
+    private var launchAtMs = 0L
+
+    /** Dòng `[ui] bar=…` gần nhất đã ghi — chỉ ghi khi trạng thái ĐỔI (không spam ring buffer 300 dòng). */
+    private var lastBarLine: String? = null
+
+    /** Hết thời gian ân hạn → xét lại thanh nếu còn lý do cần đăng nhập đang chờ. */
+    private val loginBarSettleRunnable = Runnable { recheckLoginBarAfterSettle() }
 
     /** ĐÍCH hiện tại của WebView (panel của HA khi ở chế độ domain, `https://<ip>:18443/…` khi ở chế độ IP LAN). */
     private var targetUrl: String? = null
@@ -690,6 +729,16 @@ class MainActivity : Activity() {
 
         setContentView(R.layout.activity_web)
 
+        // (1.5) YÊU CẦU 1 — THANH THÔNG BÁO **GONE NGAY TỪ KHUNG HÌNH ĐẦU** (đã `gone` trong `activity_web.xml`,
+        // đặt lại ngay sau `setContentView` để không có khung hình nào thanh hiện ra trong lúc kiểm tra phiên).
+        // Chỉ [showLoginBar] với lý do "cần thật" của [LoginBar] mới bật nó lên.
+        loginBar = findViewById(R.id.haLoginBar)
+        loginBarText = findViewById(R.id.haLoginText)
+        loginBar?.visibility = View.GONE
+        lastBarLine = null
+        pendingLoginBarReason = null
+        mainHandler.removeCallbacks(loginBarSettleRunnable)
+
         val web = findViewById<WebView>(R.id.webView)
         webView = web
         configureWebView(web)
@@ -714,6 +763,11 @@ class MainActivity : Activity() {
             token = Prefs.ingressToken(this)
         ).firstOrNull()
         afterLoginUrl = targetUrl
+        // (1.5) YÊU CẦU 3 — GHI NHỚ "lần mở app này đã có phiên chưa" để bật **thời gian ân hạn** [LoginBar.SETTLE_MS]:
+        // có phiên ⇒ trong 2,5 s đầu KHÔNG hiện thanh dù có 401/`/auth` tạm thời (panel/promote đang tự phục hồi) —
+        // đây chính là 1–2 s nhấp nháy người dùng báo; hết ân hạn mà vẫn cần thì thanh mới hiện.
+        launchAtMs = System.currentTimeMillis()
+        launchHadSession = hasPanelSession()
         loginWatch = null
         loginFlowActive = false
         loginFailed = false
@@ -745,13 +799,13 @@ class MainActivity : Activity() {
                 "origin=${haOrigin ?: "-"} session=${yn(hasPanelSession())}"
         )
 
-        loginBar = findViewById(R.id.haLoginBar)
         loginBarText = findViewById(R.id.haLoginText)
         loginBarText?.text = getString(R.string.ha_login_banner)
         findViewById<Button>(R.id.haLoginDoneButton).setOnClickListener { onLoginConfirmed() }
         findViewById<Button>(R.id.haDashboardButton).setOnClickListener { onOpenDashboardClicked() }
         findViewById<Button>(R.id.haRetryButton).setOnClickListener { onRetryClicked() }
-        showLoginBar(false)
+        // (1.5) YÊU CẦU 1 — dựng màn xong vẫn KHÔNG hiện thanh: "chưa biết trạng thái" không phải "cần đăng nhập".
+        showLoginBar(false, LoginBar.Reason.STARTUP)
 
         val changeUrlButton = findViewById<Button>(R.id.changeUrlButton)
         changeUrlButton.setOnClickListener { showUrlScreen() }
@@ -810,6 +864,9 @@ class MainActivity : Activity() {
         DiagState.currentUrl = null
         stopLoginTick()
         loginFlowActive = false
+        // (1.5) Bỏ hẹn giờ "xét lại thanh sau ân hạn" — WebView/thanh sắp bị huỷ.
+        mainHandler.removeCallbacks(loginBarSettleRunnable)
+        pendingLoginBarReason = null
         loginBar = null
         loginBarText = null
         val web = webView ?: return
@@ -823,8 +880,55 @@ class MainActivity : Activity() {
 
     // ------------------------------------------------------------------ luồng "đăng nhập Home Assistant → panel"
 
-    private fun showLoginBar(shown: Boolean) {
-        loginBar?.visibility = if (shown) View.VISIBLE else View.GONE
+    /**
+     * (1.5) **CỬA DUY NHẤT** đổi visibility của thanh thông báo đăng nhập — mọi chỗ gọi (kể cả `true`) đều bị chính
+     * sách thuần [LoginBar.decide] lọc lại:
+     *
+     *  1. lý do **không cần** (đang kiểm tra phiên, panel đang nạp, đường tự động mở dashboard…) ⇒ **KHÔNG hiện** —
+     *     đây là chỗ giết hiệu ứng nhấp nháy 1–2 s của bản 1.4 (bật thanh vì "chưa biết trạng thái");
+     *  2. **đã có phiên** (`session=yes`) ⇒ **KHÔNG BAO GIỜ hiện**, kể cả khung hình đầu (yêu cầu 3) ⇒ WebView không
+     *     bị đẩy xuống rồi kéo lên (thanh nằm trong luồng layout);
+     *  3. còn **thời gian ân hạn** ([LoginBar.SETTLE_MS]) mà lần mở app này đã có phiên ⇒ **hoãn**, hết ân hạn thì
+     *     xét lại ([loginBarSettleRunnable] → [recheckLoginBarAfterSettle]) — chức năng không mất, chỉ không nhấp nháy;
+     *  4. ẩn luôn là ẩn **NGAY** (`View.GONE`, không animate) — yêu cầu 5.
+     *
+     * Mỗi lần trạng thái **ĐỔI** ghi một dòng chẩn đoán `[ui] bar=show|hide reason=…` (xem [LoginBar.line]) vào
+     * [Diag] + Logcat, **không** kích hoạt tự lưu tệp chẩn đoán ([DiagFile.shouldAutoSave] không khớp `[ui]`).
+     *
+     * @return `true` ⇔ thanh **THẬT SỰ** đang hiện sau khi xét chính sách (caller cần biết để mở lối thoát khác).
+     */
+    private fun showLoginBar(show: Boolean, reason: LoginBar.Reason): Boolean {
+        val bar = loginBar ?: return false
+        val hasSession = hasPanelSession()
+        val settling = loginBarSettling()
+        val decision = LoginBar.decide(show, reason, hasSession, settling)
+        // Ẩn/hiện TRỰC TIẾP — không animate (yêu cầu 5: đăng nhập xong là thanh biến mất ngay, không "chậm").
+        bar.visibility = if (decision.visible) View.VISIBLE else View.GONE
+        mainHandler.removeCallbacks(loginBarSettleRunnable)
+        // Bị hoãn CHỈ vì ân hạn ⇒ hẹn xét lại đúng lúc hết ân hạn (bị chặn vì `session` thì không bao giờ hiện).
+        val recheck = show && reason.needed && decision.settling
+        pendingLoginBarReason = if (recheck) reason else null
+        if (recheck) {
+            val elapsed = System.currentTimeMillis() - launchAtMs
+            mainHandler.postDelayed(loginBarSettleRunnable, LoginBar.settleRemainingMs(elapsed) + 50L)
+        }
+        val line = LoginBar.line(decision, hasSession)
+        if (line != lastBarLine) {
+            lastBarLine = line
+            log(line)
+        }
+        return decision.visible
+    }
+
+    /** Đang trong **thời gian ân hạn** [LoginBar.SETTLE_MS] kể từ lúc dựng màn WebView (chỉ khi đã có phiên). */
+    private fun loginBarSettling(): Boolean =
+        LoginBar.settling(launchHadSession, System.currentTimeMillis() - launchAtMs)
+
+    /** Hết ân hạn: nếu vẫn còn lý do cần đăng nhập đang chờ thì xét lại (thanh hiện đúng lúc, không nhấp nháy). */
+    private fun recheckLoginBarAfterSettle() {
+        if (isFinishing || isDestroyed) return
+        val reason = pendingLoginBarReason ?: return
+        showLoginBar(true, reason)
     }
 
     /**
@@ -843,7 +947,7 @@ class MainActivity : Activity() {
             log("[login] skip=ha_login (IP LAN: HTTPS tự ký của add-on, không cần đăng nhập HA)")
             Prefs.setNeedHaLogin(this, false)
             loginFlowActive = false
-            showLoginBar(false)
+            showLoginBar(false, LoginBar.Reason.LAN_NO_LOGIN)
             showLoginPanel(
                 getString(R.string.lan_no_ha_title),
                 getString(R.string.lan_no_ha_hint, DashboardTarget.shortUrl(targetUrl ?: savedWebUrl)),
@@ -871,7 +975,9 @@ class MainActivity : Activity() {
         if (openOrigin && !originShown) {
             originShown = true
             Prefs.setNeedHaLogin(this, true)
-            showLoginBar(true)
+            // (1.5) LÝ DO "CẦN THẬT" DUY NHẤT ở đây: chủ động mở trang đăng nhập HA (`startLoginFlow(openOrigin=true)`)
+            // — chưa có phiên nên thanh hiện ngay; đã có phiên thì [LoginBar] ẩn (yêu cầu 3).
+            showLoginBar(true, LoginBar.Reason.LOGIN_FLOW)
             loginBarText?.text = getString(R.string.ha_login_banner)
             log(DashboardTarget.navLine(loginPageUrl(origin), "login", "(bắt đầu luồng đăng nhập)"))
             loadWeb(loginPageUrl(origin), LOAD_LOGIN_PAGE)
@@ -964,7 +1070,9 @@ class MainActivity : Activity() {
         loadingReason = LOAD_OTHER
         Prefs.setNeedHaLogin(this, false)
         showRetryButton(false)
-        showLoginBar(false)
+        // (1.5) Panel đã nạp xong ⇒ ẨN NGAY (yêu cầu 5). Bản 1.4 gọi `showLoginBar(true)` ở `openDashboardNow`
+        // sau đúng bước này ⇒ thanh nhấp nháy 1–2 s.
+        showLoginBar(false, LoginBar.Reason.PANEL_OK)
         afterLoginUrl = u
         targetUrl = u
         haOrigin = DashboardTarget.originOf(u) ?: haOrigin
@@ -1253,7 +1361,7 @@ class MainActivity : Activity() {
         loginFlowActive = false
         loginFailed = false
         stopLoginTick()
-        showLoginBar(false)
+        showLoginBar(false, LoginBar.Reason.TOP_OK)
         // (4) API native dùng đúng base ingress + cookie `ingress_session` đã có ⇒ PhoneService chạy bình thường.
         ensureIngressApiBase(top)
         runCatching { CookieManager.getInstance().flush() }
@@ -1292,12 +1400,15 @@ class MainActivity : Activity() {
         if (panel == null) {
             // Không có panel để quay lại (dữ liệu cũ) → hiện thông báo + nhịp dò tiếp tục.
             loginBarText?.text = getString(R.string.ha_panel_banner)
-            showLoginBar(true)
+            showLoginBar(true, LoginBar.Reason.GIVE_UP)
             return
         }
         // QUAY LẠI PANEL: nạp lại đúng panel của HA (iframe) — người dùng vẫn vào được UI như trước.
         loginBarText?.text = getString(R.string.ha_panel_banner)
-        showLoginBar(true)
+        // (1.5) Quay lại panel = "đang nạp lại", KHÔNG phải "cần đăng nhập" ⇒ lý do [LoginBar.Reason.PANEL_WAIT]
+        // KHÔNG bật thanh (bản 1.4 bật ở đây ⇒ nhấp nháy mỗi lần promote thất bại). Panel nạp xong thì
+        // `onPanelLoaded` ẩn; panel vẫn hỏng thì `onAuthRequired`/`onLoginFailed` sẽ bật với lý do đúng.
+        showLoginBar(true, LoginBar.Reason.PANEL_WAIT)
         loadWeb(panel, LOAD_PANEL)
     }
 
@@ -1345,7 +1456,7 @@ class MainActivity : Activity() {
             loginFlowActive = false
             loginFailed = false
             stopLoginTick()
-            showLoginBar(false)
+            showLoginBar(false, LoginBar.Reason.ROOT_OK)
             Prefs.setNeedHaLogin(this, false)
             runCatching { CookieManager.getInstance().flush() }
             registerInBackground()
@@ -1391,7 +1502,9 @@ class MainActivity : Activity() {
             return
         }
         loginFailed = false
-        showLoginBar(true)
+        // (1.5) Trang vừa nạp KHÔNG phải add-on (SPA HA / sai đường dẫn) = **cần thật** (người dùng phải biết),
+        // nhưng nếu đã có phiên thì [LoginBar] vẫn ẩn (yêu cầu 3) — khi đó lối thoát là nút "URL" + màn hình lỗi.
+        showLoginBar(true, LoginBar.Reason.WRONG_PAGE)
         showRetryButton(false)
         if (!loginFlowActive) {
             loginFlowActive = true
@@ -1476,6 +1589,9 @@ class MainActivity : Activity() {
         val url = webView?.url
         val cookiePresent = !currentCookieHeader().isNullOrBlank()
         val sessionPresent = hasPanelSession()
+        // (1.5) YÊU CẦU 5 — vừa thấy **đã có phiên** ⇒ đăng nhập xong: ẨN THANH NGAY (không chờ panel/promote chốt,
+        // không animate). Ngược lại (chưa có phiên) thì không đụng gì: thanh chỉ hiện theo lý do "cần thật".
+        if (sessionPresent) showLoginBar(false, LoginBar.Reason.SESSION_READY)
         // (1.4) ƯU TIÊN SỐ 1 — **ĐƯỜNG TỰ ĐỘNG**: có phiên ⇒ gọi **đúng hàm mà nút "Mở Dashboard" gọi**
         // ([openDashboardNow]). KHÔNG gate, KHÔNG `promoteIfSessionReady`, KHÔNG chờ hẹn giờ 2,5 s — đó chính là
         // các điều kiện trung gian đã **không** kích hoạt trên máy thật (1.2) dù log có `cookie=yes session=yes`.
@@ -1499,7 +1615,9 @@ class MainActivity : Activity() {
                 navLog(url, "login", cookieInfo)
                 showLoginDiag(url, cookiePresent)
                 Prefs.setNeedHaLogin(this, true)
-                showLoginBar(true)
+                // (1.5) URL là `/auth/…` = **cần thật** (yêu cầu 2) — nhưng nếu đã có phiên thì [LoginBar] vẫn ẩn
+                // (yêu cầu 3: không bao giờ nhấp nháy); trang đăng nhập của HA vẫn dùng được bình thường.
+                showLoginBar(true, LoginBar.Reason.AUTH_URL)
                 // Đã có cookie (HA vừa đặt sau khi đăng nhập) mà vẫn đứng ở /auth → sang panel.
                 if (cookiePresent) goPanel("login_cookie")
                 return
@@ -1585,9 +1703,18 @@ class MainActivity : Activity() {
         }
         if (panelNavCount >= MAX_PANEL_NAV) {
             log(DashboardTarget.navLine(panel, "ha-spa", "panel_nav_limit=$panelNavCount reason=$reason"))
-            showLoginBar(true)
             showRetryButton(true)
             loginBarText?.text = getString(R.string.ha_panel_retry_hint, DashboardTarget.shortUrl(panel))
+            // (1.5) Hết lượt điều hướng = **cần thật** (cần lối thoát "Thử lại"), nhưng nếu đã có phiên thì
+            // [LoginBar] ẩn thanh (yêu cầu 3) ⇒ mở màn hình lỗi của WebView, vẫn còn liên kết "Thử lại".
+            val shown = showLoginBar(true, LoginBar.Reason.GIVE_UP)
+            if (!shown) {
+                showLoginPanel(
+                    getString(R.string.ha_login_failed_title),
+                    getString(R.string.ha_panel_retry_hint, DashboardTarget.shortUrl(panel)),
+                    withRetry = true
+                )
+            }
             return
         }
         val now = System.currentTimeMillis()
@@ -1637,7 +1764,9 @@ class MainActivity : Activity() {
     private fun onLoginFailed(status: Int?) {
         loginFailed = true
         stopLoginTick()
-        showLoginBar(true)
+        // (1.5) Hết cách = **cần thật** (lối thoát "Thử lại"/"Đăng nhập"). Đã có phiên ⇒ [LoginBar] ẩn thanh
+        // (yêu cầu 3); lối thoát vẫn còn nhờ màn hình lỗi của WebView ngay bên dưới ([showLoginPanel]).
+        showLoginBar(true, LoginBar.Reason.GIVE_UP)
         showRetryButton(true)
         val code = status?.toString() ?: "-"
         loadResult = if (loadResult == "pending") code else loadResult
@@ -1661,7 +1790,9 @@ class MainActivity : Activity() {
     private fun onRetryClicked() {
         loginFlowActive = true
         loginFailed = false
-        showLoginBar(true)
+        // (1.5) Người dùng bấm "Thử lại" ⇒ **cần thật** (yêu cầu 2): hiện thanh để thấy tiến trình; có phiên thì
+        // [LoginBar] vẫn ẩn (yêu cầu 3).
+        showLoginBar(true, LoginBar.Reason.USER_RETRY)
         showRetryButton(false)
         resetLoginWatch()
         startLoginTick()
@@ -1718,7 +1849,10 @@ class MainActivity : Activity() {
         if (loginWatch == null || loginFailed) resetLoginWatch()
         loginFlowActive = true
         loginFailed = false
-        showLoginBar(true)
+        // (1.5) **ĐÂY LÀ NGUYÊN NHÂN NHẤP NHÁY CỦA BẢN 1.4**: hàm này được đường TỰ ĐỘNG gọi mỗi lần mở app (khi đã
+        // có phiên) và bản 1.4 bật thanh vô điều kiện ⇒ thanh hiện 1–2 s rồi `onPromoteLoaded` ẩn. Nay lý do là
+        // [LoginBar.Reason.OPEN_DASHBOARD] — **KHÔNG** phải "cần đăng nhập" ⇒ không bao giờ bật thanh.
+        showLoginBar(true, LoginBar.Reason.OPEN_DASHBOARD)
         showRetryButton(false)
         startLoginTick()
         runCatching { CookieManager.getInstance().flush() }
@@ -1784,7 +1918,9 @@ class MainActivity : Activity() {
         loginFlowActive = true
         loginFailed = false
         originShown = true
-        showLoginBar(true)
+        // (1.5) Người dùng bấm "Tôi đã đăng nhập": nếu phiên đã có thì [LoginBar] ẩn **NGAY** (yêu cầu 5); chưa có
+        // thì thanh còn hiện tới khi panel/promote chốt.
+        showLoginBar(true, LoginBar.Reason.USER_LOGIN_DONE)
         showRetryButton(false)
         startLoginTick()
         resetLoginWatch()
@@ -1889,8 +2025,11 @@ class MainActivity : Activity() {
         if (!loginFlowActive) {
             loginFlowActive = true
             startLoginTick()
-            showLoginBar(true)
         }
+        // (1.5) YÊU CẦU 2 — 401/403 trên ingress là lý do **cần thật**: hiện thanh (bản 1.4 chỉ hiện khi luồng đăng
+        // nhập chưa chạy, nên nhiều ca 401 thật lại không thấy thanh; ngược lại ca nhấp nháy lại do đường khác).
+        // Đã có phiên / còn ân hạn thì [LoginBar] vẫn ẩn ⇒ không nhấp nháy (yêu cầu 3).
+        showLoginBar(true, LoginBar.Reason.AUTH_HTTP)
         // 401 chỉ có nghĩa "chưa có phiên ingress" — phiên đó do CHÍNH panel tạo, nên việc cần làm là mở panel.
         if (panelTarget != null) {
             goPanel("auth_required")
@@ -1924,7 +2063,8 @@ class MainActivity : Activity() {
                             toast(getString(R.string.st_ha_login_no_web))
                         } else {
                             loginFlowActive = true
-                            showLoginBar(true)
+                            // (1.5) Người dùng chủ động bấm "Đăng nhập lại Home Assistant" trên trang lỗi.
+                            showLoginBar(true, LoginBar.Reason.USER_LOGIN_AGAIN)
                             startLoginTick()
                             originShown = true
                             Prefs.setLoginUrl(this@MainActivity, loginPageUrl(origin))
@@ -2008,7 +2148,9 @@ class MainActivity : Activity() {
                     loginFlowActive = true
                     startLoginTick()
                 }
-                showLoginBar(true)
+                // (1.5) Trang nạp CÓ CHỦ ĐÍCH là trang đăng nhập ⇒ lý do **cần thật** [LoginBar.Reason.AUTH_URL]
+                // (chưa có phiên thì thanh hiện; đã có phiên thì ẩn — yêu cầu 3).
+                showLoginBar(true, LoginBar.Reason.AUTH_URL)
                 showLoginDiag(loaded, !currentCookieHeader().isNullOrBlank())
                 return
             }
@@ -2029,7 +2171,8 @@ class MainActivity : Activity() {
                     }
                     navLog(loaded, "login")
                     Prefs.setNeedHaLogin(this@MainActivity, true)
-                    showLoginBar(true)
+                    // (1.5) HA điều hướng về `/auth/…` ⇒ **cần thật** (yêu cầu 2); có phiên thì [LoginBar] ẩn.
+                    showLoginBar(true, LoginBar.Reason.AUTH_URL)
                     if (!loginFlowActive) {
                         loginFlowActive = true
                         startLoginTick()
@@ -2303,6 +2446,9 @@ class MainActivity : Activity() {
         mainHandler.removeCallbacks(promoteStartGuardRunnable)
         promotePending = false
         stopLoginTick()
+        // (1.5) Không còn hẹn giờ nào được chạy sau khi Activity bị huỷ.
+        mainHandler.removeCallbacks(loginBarSettleRunnable)
+        pendingLoginBarReason = null
         pendingPermissionRequest?.let {
             it.deny()
             pendingPermissionRequest = null

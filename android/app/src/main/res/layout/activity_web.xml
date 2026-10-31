@@ -10,6 +10,11 @@
 
   Bar nằm trong luồng layout nên ĐẨY WebView xuống, KHÔNG che nội dung trang.
   FrameLayout (weight 1) — WebView full phần còn lại + nút "URL" 40dp ở góc phải dưới.
+
+  (1.5) **THANH NÀY MẶC ĐỊNH `gone` VÀ CHỈ ĐƯỢC BẬT KHI THẬT SỰ CẦN ĐĂNG NHẬP** — mọi lần đổi visibility đi qua
+  `MainActivity.showLoginBar(show, reason)` + chính sách `LoginBar` (đã có phiên `ingress_session` thì KHÔNG bao giờ
+  hiện; "chưa biết trạng thái" cũng không hiện). Nhờ vậy lần mở app sau (đã đăng nhập) không còn cảnh thanh hiện
+  1–2 giây rồi tự ẩn, và WebView không bị đẩy xuống rồi kéo lên.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
