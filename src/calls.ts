@@ -54,7 +54,7 @@ import type { Duplex } from 'node:stream';
 import { WebSocket, WebSocketServer } from 'ws';
 import { telegramNotify, tgText } from './telegram.js';
 
-import { endCall, isInCall, linkCalls, onMicListener, sendToDevice, setMuted, startCall } from './callBridge.js';
+import { endCall, isInCall, linkCalls, onMicListener, sendToSpeaker, setMuted, startCall } from './callBridge.js';
 // (01/12/2026) NHAT KY CUOC GOI — 200 muc gan nhat trong /data/rwv-call-log.json (tab "Nhật ký" cua trang Cuộc gọi).
 import { DEFAULT_LIMIT, callLog, type CallSide } from './callLog.js';
 import { answerDoorbell, closeDoorbell, connectedScreens, openRingPage, postNotify } from './deviceManager.js';
@@ -687,7 +687,9 @@ function webMessage(w: WebSession, data: Buffer, isBinary: boolean): void {
     // ca truong hop `c.from`/`c.to` con tro toi phien da bi thay (WS rot roi noi lai).
     const peer = audioPeerOf(c, w);
     if (!peer || c.muted.has(w.id)) return;                     // dang tat mic / khong xac dinh duoc ben kia
-    if (peer.kind === 'panel') { sendToDevice(peer.id, data.subarray(1)); return; }
+    // (31/10/2026) AGC + limiter CHI cho nhanh xuong MAN (P4): xem src/audioAgc.ts. Web <-> web (dien thoai <->
+    // dien thoai dang tot) khong ap. Tat bang CCR_CALL_AGC=0 (A/B), khong doi kich thuoc goi.
+    if (peer.kind === 'panel') { sendToSpeaker(peer.id, data.subarray(1)); return; }
     if (peer.kind === 'web') {
       if (sendWebAudio(peer.id, data.subarray(1))) return;
       // Khong gui duoc (phien ben kia vua tat / nghen): ghi MOT lan de biet vi sao "khong co tieng".

@@ -66,6 +66,8 @@ export MORNING_TTS="$(get_opt morning_tts "false")"
 # (27/09/2026) Truyen YouTube tu dien thoai (DIAL: SSDP UDP 1900 + HTTP dial_port)
 export CAST_ENABLED="$(get_opt cast_enabled "true")"
 export DIAL_PORT="$(get_opt dial_port "56790")"
+# (31/10/2026) AGC + limiter cho tieng DIEN THOAI -> LOA MAN (src/audioAgc.ts). 'false' -> tat (A/B).
+export CCR_CALL_AGC="$(get_opt call_agc "true")"
 # (27/09/2026) Link album Google Photos chia se cho khung anh (chinh duoc ca o Cai dat tren man hinh).
 export GPHOTOS_ALBUM="$(get_opt gphotos_album "")"
 export USER_DATA_DIR="$(get_opt user_data_dir "/data/pw-data")"

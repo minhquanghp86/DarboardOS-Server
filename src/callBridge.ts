@@ -17,6 +17,7 @@ import http from 'node:http';
 import type { Duplex } from 'node:stream';
 import { WebSocket, WebSocketServer } from 'ws';
 
+import { newAgcState, processPcm, AGC_ENABLED, type AgcState } from './audioAgc.js';
 import { callHold } from './audioCapture.js';
 import { subscribeLiveFrames } from './camProxy.js';
 import { isDoor, subscribeDoorFrames } from './door.js';
@@ -41,6 +42,8 @@ interface Leg {
   muted?: boolean;
 }
 const calls = new Map<string, Leg>();
+/** (31/10/2026) Gain AGC/limiter rieng cho tung man (xem src/audioAgc.ts) — chi cho nhanh xuong LOA MAN. */
+const agc = new Map<string, AgcState>();
 
 export function isInCall(dev: string): boolean { return calls.has(dev); }
 
@@ -58,6 +61,7 @@ export function endCall(dev: string): void {
   const leg = calls.get(dev);
   if (!leg) return;
   calls.delete(dev);
+  agc.delete(dev);
   callHold.delete(dev);
   broadcaster.sendDeviceControl(dev, ControlField.Call, 0);
   for (const p of leg.peers) { try { p.close(1000, 'het cuoc goi'); } catch { /* */ } }
@@ -76,7 +80,7 @@ export function onMicFrame(dev: string, buf: Buffer): void {
   const pcm = buf.subarray(4);
   const at = Date.now();
   for (const p of leg.peers) if (p.readyState === WebSocket.OPEN && p.bufferedAmount < 64 * 1024) p.send(pcm);
-  if (leg.link && !leg.muted && calls.has(leg.link)) sendToDevice(leg.link, pcm);
+  if (leg.link && !leg.muted && calls.has(leg.link)) sendToSpeaker(leg.link, pcm);
   for (const f of leg.listeners) f(pcm, at);
 }
 
@@ -103,6 +107,22 @@ export function setMuted(dev: string, on: boolean): boolean { const l = calls.ge
 /** Tieng cua dau goi xuong loa man (chia dung khung 20 ms). */
 export function sendToDevice(dev: string, pcm: Buffer): void {
   for (let o = 0; o + 1 < pcm.length; o += FRAME_BYTES) broadcaster.sendAudioFrame(dev, pcm.subarray(o, Math.min(pcm.length, o + FRAME_BYTES)));
+}
+
+/**
+ * (31/10/2026) Tieng MIC -> LOA MAN co AGC + limiter (src/audioAgc.ts). Day la duong DUY NHAT xuong loa man cho
+ * tieng nguoi noi (trang goi -> man, chuong cong -> man); tieng may phat ra (bip do vong lap) van di thang qua
+ * `sendToDevice` de phep do khong bi AGC lam sai lech.
+ *   - Muc nham -18 dBFS, attack 5 ms / release 200 ms, gain [-6 dB, +24 dB], limiter mem -1 dBFS.
+ *   - Khong im lang: khung < -60 dBFS di nguyen (khong khuech dai nhieu nen phong).
+ *   - Khong them do tre (xu ly tung khung 20 ms) va KHONG doi kich thuoc goi (vao 640 byte, ra 640 byte).
+ *   - Tat bang env CCR_CALL_AGC=0 (A/B: so sanh truc tiep tren cung mot cuoc goi).
+ */
+export function sendToSpeaker(dev: string, pcm: Buffer): void {
+  if (!AGC_ENABLED) { sendToDevice(dev, pcm); return; }
+  let st = agc.get(dev);
+  if (!st) { st = newAgcState(); agc.set(dev, st); }
+  sendToDevice(dev, processPcm(pcm, st));
 }
 
 // ── Do vong lap ──────────────────────────────────────────────────────────────────────────────────────────────

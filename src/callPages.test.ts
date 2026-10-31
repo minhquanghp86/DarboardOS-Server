@@ -57,6 +57,24 @@ describe('call-web.html (Dashboard / dien thoai) — xoa nhat ky', () => {
   });
 });
 
+describe('call-web.html — chong alias khi ha mau xuong 16 kHz', () => {
+  const html = pub('call-web.html');
+
+  it('uu tien AudioContext 16 kHz, va co luoi BiquadFilter lowpass 7 kHz du phong', () => {
+    expect(html).toContain('new AudioContext({ sampleRate: 16000 })');
+    expect(html).toContain('function antiAlias(node)');
+    expect(html).toContain('AA_CUTOFF = 7000');
+    expect(html).toMatch(/createBiquadFilter\(\)/);
+    expect(html).toContain('antiAlias(actx.createMediaStreamSource(media)).connect(capNode)');
+  });
+
+  it('khung 20 ms (320 mau) va giao thuc [0x01][PCM] giu nguyen', () => {
+    expect(html).toContain('new Int16Array(320)');
+    expect(html).toContain('b[0] = 1');
+    expect(html).toContain("ws.send(b)");
+  });
+});
+
 describe('call-ui.js / call-ui.css — thanh tab + nut xoa', () => {
   const js = pub('call-ui.js');
 

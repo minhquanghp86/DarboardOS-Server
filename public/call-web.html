@@ -310,12 +310,36 @@
     "process(i,o){const out=o[0][0];for(let k=0;k<out.length;k++){if(!this.cur||this.pos>=this.cur.length){this.cur=this.q.shift()||null;this.pos=0}",
     "if(!this.cur){out[k]=0;continue}out[k]=this.cur[Math.floor(this.pos)]/32768;this.f+=this.r;while(this.f>=1){this.f-=1;this.pos++}}return true}}",
     "registerProcessor('play',Play);"].join('\n');
+  // (31/10/2026) CHỐNG ALIAS khi hạ mẫu (decimate) ở worklet 'cap': AudioContext của trình duyệt thường chạy
+  // 44,1/48 kHz còn worklet chỉ LẤY MỖI MẪU THỨ r (r = sampleRate/16000 ≈ 3). Không lọc thấp trước thì mọi thứ
+  // trên 8 kHz (Nyquist của 16 kHz) bị gập xuống dải nghe thành tiếng "xoẹt"/"rè", và tiếng gió/thổi hơi nhẹ vào
+  // mic biến thành tiếng RẤT TO. Hai lớp bảo vệ:
+  //   1) Tạo AudioContext NGAY Ở 16 kHz (Chrome/WebView hỗ trợ) -> trình duyệt tự resample bằng bộ lọc chất
+  //      lượng cao, worklet thấy sampleRate = 16 kHz nên r = 1, KHÔNG hạ mẫu -> không thể alias.
+  //   2) Nếu trình duyệt bỏ qua lựa chọn đó (sampleRate vẫn 44,1/48 kHz): chèn 2 tầng BiquadFilter lowpass
+  //      7 kHz (Butterworth bậc 4, Q = 0,5412 / 1,3066) trước worklet — đúng dải tiếng nói wideband 50-7000 Hz.
+  var AA_CUTOFF = 7000, AA_Q = [0.5412, 1.3066];
+  function newCtx() {
+    try { return new AudioContext({ sampleRate: 16000 }); } catch (e) { /* trinh duyet cu: dung mac dinh */ }
+    return new AudioContext();
+  }
+  function antiAlias(node) {
+    if (actx.sampleRate / 16000 < 1.01) return node;          // không decimate -> không thể alias
+    if (typeof actx.createBiquadFilter !== 'function') return node;
+    var tail = node;
+    for (var i = 0; i < AA_Q.length; i++) {
+      var f = actx.createBiquadFilter();
+      f.type = 'lowpass'; f.frequency.value = AA_CUTOFF; f.Q.value = AA_Q[i];
+      tail.connect(f); tail = f;
+    }
+    return tail;
+  }
   function startAudio() {
     if (actx || !media) return;
-    actx = new AudioContext();
+    actx = newCtx();
     actx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: 'text/javascript' }))).then(function () {
       capNode = new AudioWorkletNode(actx, 'cap'); playNode = new AudioWorkletNode(actx, 'play', { outputChannelCount: [1] });
-      actx.createMediaStreamSource(media).connect(capNode); playNode.connect(actx.destination);
+      antiAlias(actx.createMediaStreamSource(media)).connect(capNode); playNode.connect(actx.destination);
       capNode.port.onmessage = function (e) {
         if (muted || !ws || ws.readyState !== 1 || ws.bufferedAmount > 256 * 1024) return;
         var b = new Uint8Array(1 + e.data.byteLength); b[0] = 1; b.set(new Uint8Array(e.data), 1); ws.send(b);

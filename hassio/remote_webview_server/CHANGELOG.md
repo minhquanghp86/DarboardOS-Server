@@ -1,3 +1,24 @@
+## Sắp tới (chưa bump version)
+- **Tiếng gọi từ điện thoại xuống loa P4 to và đều hơn**: thêm **AGC + limiter** cho nhánh PCM điện thoại → màn
+  (`src/audioAgc.ts`, gọi từ `sendToSpeaker`): mỗi khung 20 ms được đưa về **−18 dBFS** (attack 5 ms, release 200 ms,
+  gain trong **[−6 dB, +24 dB]**), sau đó **limiter mềm −1 dBFS** để không rách tiếng khi nói to. Khung im lặng
+  (< −60 dBFS) **không** bị khuếch đại (không ù nền phòng). Không thêm độ trễ, không đổi kích thước gói 640 byte.
+  Chỉ áp cho nhánh xuống màn — gọi **điện thoại ↔ điện thoại** giữ nguyên (đang tốt).
+  Tắt để A/B bằng biến môi trường **`CCR_CALL_AGC=0`** (mặc định `1` = bật; log khởi động `[audio] agc=on target=-18dBFS`).
+  Add-on có thêm tuỳ chọn **`call_agc`** (mặc định `true`) trong Cấu hình, `run.sh` xuất thành `CCR_CALL_AGC`.
+- **Trang gọi chống alias khi hạ mẫu xuống 16 kHz** (`public/call-web.html`): tạo `AudioContext` ngay ở **16 kHz** để
+  trình duyệt tự resample (worklet thấy `r = 1`, không hạ mẫu), và nếu trình duyệt bỏ qua lựa chọn đó thì chèn
+  **2 tầng BiquadFilter lowpass 7 kHz** (Butterworth bậc 4) trước worklet. Nhờ vậy tiếng gió/thổi hơi nhẹ vào mic
+  không còn bị gập tần số thành tiếng “xoẹt” rất to. Khung 320 mẫu / 20 ms và giao thức `[0x01][PCM]` giữ nguyên.
+- Test: `src/audioAgc.test.ts` (im lặng, khung nhỏ/khung lớn, attack/release, giới hạn gain, limiter −1 dBFS, tắt env
+  → passthrough y nguyên byte, khung 20 ms vào 640 byte ra 640 byte).
+
+## V2.9.313
+- **Âm thanh điện thoại → P4 rõ hơn**: thêm **AGC + limiter** cho luồng tiếng xuống màn (mục tiêu −18 dBFS,
+  attack 5 ms / release 200 ms, gain −6…+24 dB, limiter −1 dBFS) — trước đây PCM gửi thô nên nói vừa bị chìm dưới
+  nền phòng. Bật/tắt bằng option add-on **`call_agc`** (mặc định bật) để A/B.
+- Trang gọi: **chống alias** khi hạ mẫu (AudioContext 16 kHz hoặc lọc lowpass 7 kHz) → giảm nhiễu nền, tăng độ rõ.
+
 ## V2.9.312
 - Trang **Cuộc gọi**: khối “Chuông trên điện thoại” được chuyển vào **hộp thoại Cài đặt** (bánh răng), không còn
   đè lên thanh tab Nhật ký / Thiết bị khi mở trong Home Assistant.

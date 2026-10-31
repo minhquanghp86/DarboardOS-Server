@@ -1,5 +1,5 @@
 name: "Dashboard OS Server"
-version: "2.9.312"
+version: "2.9.313"
 slug: "remote_webview_server"
 # (02/10/2026) Anh dung san tren ghcr (CI tag = version). Truoc day addon build tai may HA tu build.yaml + Dockerfile,
 # va Supervisor xuat ca anh Docker (~1,1 GB sau nen) vao moi ban sao luu; anh keo ve thi khong. build.yaml/Dockerfile
@@ -92,6 +92,9 @@ options:
   gphotos_album: ""
   cast_enabled: true
   dial_port: 56790
+  # (31/10/2026) AGC + limiter cho tieng dien thoai -> loa man P4 (src/audioAgc.ts): dua muc am luong ve -18 dBFS
+  # roi chan dinh -1 dBFS. false = tat han (A/B, nghe lai dung nhu cu).
+  call_agc: true
   # (23/09/2026) /pw-data KHONG nam trong volume ben cua addon — mat het khi
   # container tao lai (moi lan update). /data la thu muc rieng cua addon nay
   # do Supervisor tu cap, LUON ben qua update/restart.
@@ -122,4 +125,5 @@ schema:
   gphotos_album: "str?"
   cast_enabled: "bool?"
   dial_port: "port?"
+  call_agc: "bool?"
   user_data_dir: str
