@@ -121,6 +121,132 @@ object HaIngress {
     const val STEP_NAV = "nav"
 
     /**
+     * (26/11/2026) GD14 — bước `panel`: kiểm tra **panel của add-on đã được HA nhúng chưa**.
+     *
+     * Từ bản này app KHÔNG tự tạo phiên ingress nữa ([sessionScript] chỉ còn là đường dự phòng/ tham chiếu): phiên
+     * ingress do CHÍNH HA FRONTEND tạo khi mở panel `https://<domain>/b39feb53_remote_webview_server`. Việc app cần
+     * làm chỉ là xác nhận "add-on đã nằm trong iframe của panel" — xem [panelFrameScript].
+     */
+    const val STEP_PANEL = "panel"
+
+    /**
+     * (26/11/2026) GD14 — đoạn JS chạy trong WebView để trả lời "panel đã nhúng add-on chưa?":
+     * `true` khi tồn tại `iframe` có `src` chứa `hassio_ingress` (dò cả **shadow DOM** — HA dựng panel trong
+     * `ha-panel-*` có shadow root, nên `document.querySelector` thường không thấy).
+     *
+     * Dùng với `WebView.evaluateJavascript(...)`: kết quả WebView trả về là chuỗi `"true"` / `"false"` →
+     * đọc bằng [isFrameResult].
+     */
+    fun panelFrameScript(): String = PANEL_FRAME_SCRIPT
+
+    /** Đọc kết quả của [panelFrameScript] (`"true"` / `true` / có khoảng trắng → true). */
+    fun isFrameResult(raw: String?): Boolean =
+        raw?.trim()?.trim('"')?.trim()?.equals("true", ignoreCase = true) == true
+
+    // ────────────────────────────────────────────────────── (27/11/2026) GD15 — promote panel → top-level
+
+    /**
+     * (27/11/2026) GD15 — đoạn JS trả về **`src` của iframe ingress** trong panel (chuỗi rỗng nếu chưa có).
+     *
+     * Vì sao cần: bước promote (`IngressPromote`) phải mở **đúng** URL top-level
+     * `…/api/hassio_ingress/<TOKEN>/launcher-config.html`. TOKEN mà Supervisor cấp nằm ngay trong `src` của iframe do
+     * HA frontend vừa dựng — lấy từ đó chính xác hơn TOKEN lưu trong `Prefs` (Supervisor có thể đổi TOKEN sau khi
+     * add-on được cập nhật).
+     *
+     * Dùng với `WebView.evaluateJavascript(...)`; đọc kết quả bằng [readFrameSrc]. Dò cả **shadow DOM** vì HA dựng
+     * panel trong `ha-panel-*` có shadow root.
+     */
+    fun panelFrameSrcScript(): String = PANEL_FRAME_SRC_SCRIPT
+
+    /**
+     * Đọc kết quả của [panelFrameSrcScript]: WebView trả về **chuỗi JSON** (`"https:\/\/…"`, `""` khi không có).
+     * null = không có iframe ingress / giá trị không dùng được.
+     */
+    fun readFrameSrc(raw: String?): String? {
+        val v = raw?.trim().orEmpty()
+        if (v.isEmpty() || v == "null" || v == "undefined") return null
+        val unquoted = v.removeSurrounding("\"")
+            .replace("\\/", "/")
+            .replace("\\u0026", "&")
+            .replace("\\u003d", "=")
+            .replace("\\u003c", "<")
+            .replace("\\u003e", ">")
+            .replace("\\\"", "\"")
+            .trim()
+        if (unquoted.isEmpty() || unquoted == "null") return null
+        if (!unquoted.startsWith("http://", ignoreCase = true) &&
+            !unquoted.startsWith("https://", ignoreCase = true)
+        ) {
+            return null
+        }
+        // Chỉ nhận iframe CỦA INGRESS (phòng khi HA nhúng thứ khác có src http).
+        if (!unquoted.contains(WebTargetResolver.INGRESS_PREFIX, ignoreCase = true)) return null
+        return unquoted
+    }
+
+    private val PANEL_FRAME_SCRIPT: String = """
+(function () {
+  function hasIngressFrame(root) {
+    try {
+      if (root.querySelector && root.querySelector('iframe[src*="hassio_ingress"]')) { return true; }
+    } catch (e) {}
+    return false;
+  }
+  function walk(node, depth) {
+    if (!node || depth > 8) { return false; }
+    if (hasIngressFrame(node)) { return true; }
+    var all = null;
+    try { all = node.querySelectorAll ? node.querySelectorAll('*') : null; } catch (e) { all = null; }
+    if (!all) { return false; }
+    for (var i = 0; i < all.length; i++) {
+      var el = all[i];
+      if (el.tagName === 'IFRAME' && String(el.src || '').indexOf('hassio_ingress') >= 0) { return true; }
+      if (el.shadowRoot && walk(el.shadowRoot, depth + 1)) { return true; }
+    }
+    return false;
+  }
+  return walk(document, 0) ? "true" : "false";
+})()
+""".trimIndent()
+
+    /**
+     * (27/11/2026) GD15 — như [PANEL_FRAME_SCRIPT] nhưng trả về **`src`** của iframe ingress (chuỗi rỗng nếu
+     * không có). Dùng cho bước promote: lấy đúng TOKEN ingress mà HA frontend vừa cấp
+     * (`IngressPromote.tokenFromUrl`).
+     */
+    private val PANEL_FRAME_SRC_SCRIPT: String = """
+(function () {
+  function srcIn(root) {
+    try {
+      var f = root.querySelector ? root.querySelector('iframe[src*="hassio_ingress"]') : null;
+      if (f && f.src) { return String(f.src); }
+    } catch (e) {}
+    return "";
+  }
+  function walk(node, depth) {
+    if (!node || depth > 8) { return ""; }
+    var direct = srcIn(node);
+    if (direct) { return direct; }
+    var all = null;
+    try { all = node.querySelectorAll ? node.querySelectorAll('*') : null; } catch (e) { all = null; }
+    if (!all) { return ""; }
+    for (var i = 0; i < all.length; i++) {
+      var el = all[i];
+      if (el.tagName === 'IFRAME' && String(el.src || '').indexOf('hassio_ingress') >= 0) {
+        return String(el.src);
+      }
+      if (el.shadowRoot) {
+        var inner = walk(el.shadowRoot, depth + 1);
+        if (inner) { return inner; }
+      }
+    }
+    return "";
+  }
+  return walk(document, 0) || "";
+})()
+""".trimIndent()
+
+    /**
      * Đọc JSON do JS gửi về. Chỉ nhận đúng những trường mình phát ra (chuỗi + boolean), nên không cần
      * `org.json` (không có trên JVM test) và không bị ảnh hưởng bởi dữ liệu lạ.
      */

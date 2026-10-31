@@ -134,6 +134,18 @@ object HaLogin {
             if (dashboard) return Step(Action.NAVIGATE, url)
 
             val code = status ?: 0
+            // (26/11/2026) GD14 — PANEL của add-on trên HA: đường dẫn này do HA frontend phục vụ (SPA của chính nó)
+            // rồi mới nhúng add-on vào iframe, nên **200 KHÔNG phải "SPA sai chỗ" mà là ĐÚNG đích**; 3xx (HA chuyển
+            // sang /auth/login) cũng đúng đích. 404 = HA không có panel đó → thử ứng viên kế tiếp. 401 khi CHƯA có
+            // cookie = còn phải đăng nhập → chờ (không đổi biến thể).
+            if (DashboardTarget.isPanel(url)) {
+                return when {
+                    code == HttpURLConnection.HTTP_NOT_FOUND -> nextVariantOrGiveUp()
+                    WebTargetResolver.needsHaLogin(code) && !cookiePresent -> Step(Action.WAIT, url)
+                    code == 0 || code >= 500 -> Step(Action.WAIT, url)
+                    else -> Step(Action.NAVIGATE, url)
+                }
+            }
             if (WebTargetResolver.needsHaLogin(code)) {
                 // 401 mà CHƯA có cookie: người dùng còn ở trang đăng nhập — không phải "kẹt vòng".
                 if (!cookiePresent) return Step(Action.WAIT, url)
@@ -230,17 +242,20 @@ object HaLogin {
     // ────────────────────────────────────────────────────────────── biến thể URL (chống kẹt 401)
 
     /**
-     * Danh sách URL ứng viên cho trang điều khiển, theo đúng thứ tự yêu cầu (loại trùng, giữ thứ tự):
+     * Danh sách URL ứng viên cho trang điều khiển / panel, theo đúng thứ tự (loại trùng, giữ thứ tự).
      *
-     *  1. `webUrl` đang lưu — **chỉ khi** đó là trang điều khiển thật ([DashboardTarget.isValidSaved]),
-     *  2. `https://<domain>/api/hassio_ingress/<TOKEN>/launcher-config.html` (dựng lại từ [token]),
-     *  3. `https://<domain>/<slug>/launcher-config.html`,
-     *  4. `https://<domain>/launcher-config.html`,
-     *  5. `http://<host>:18080/launcher-config.html`.
+     * (26/11/2026) GD14 — PANEL của add-on trên HA đứng ĐẦU (đường duy nhất hoạt động được):
+     *  1. `https://<domain>/b39feb53_remote_webview_server` (HA dựng panel + tạo phiên ingress + nhúng add-on),
+     *  2. `https://<domain>/b39feb53_remote_webview_server/launcher-config.html`,
+     *  3. `webUrl` đang lưu — **chỉ khi** đó là đích hợp lệ ([DashboardTarget.isValidSaved]),
+     *  4. `https://<domain>/api/hassio_ingress/<TOKEN>/launcher-config.html` (dự phòng, cần phiên sẵn),
+     *  5. `https://<domain>/launcher-config.html`,
+     *  6. `http://<host>:18080/launcher-config.html`.
      *
-     * (19/11/2026) GD11 — `webUrl` là **origin** (`https://<domain>/`) hoặc URL đăng nhập (`/auth/…`, `/lovelace`)
-     * thì KHÔNG được đưa vào danh sách (nạp nó = hiện Lovelace của HA đã đăng nhập); thay vào đó là ứng viên
-     * dựng lại từ TOKEN. `webUrl` có thể là URL đầy đủ hoặc chỉ chuỗi domain người dùng gõ.
+     * IP LAN (KHÔNG khuyến nghị): `https://<ip>:18443/<page>` → `http://<ip>:18080/<page>` rồi phần đuôi trên.
+     *
+     * `webUrl` là **origin** (`https://<domain>/`) hoặc URL đăng nhập (`/auth/…`, `/lovelace`) thì KHÔNG được đưa
+     * vào danh sách (nạp nó = hiện Lovelace của HA đã đăng nhập).
      *
      * Danh sách rỗng = không dựng được URL http(s) nào.
      */
@@ -250,18 +265,13 @@ object HaLogin {
         port: Int = ServerResolver.ADDON_PORT,
         page: String = WebTargetResolver.LAUNCHER_PAGE,
         token: String? = null,
-    ): List<String> {
-        val u = webUrl?.trim().orEmpty()
-        val origin = DashboardTarget.originOf(u) ?: return emptyList()
-        val out = LinkedHashSet<String>()
-        if (DashboardTarget.isValidSaved(u)) out.add(u)
-        out.add("$origin${WebTargetResolver.INGRESS_PREFIX}/${WebTargetResolver.sanitizeToken(token)}/$page")
-        out.add("$origin/$slug/$page")
-        out.add("$origin/$page")
-        val host = hostOf(origin)
-        if (host.isNotEmpty()) out.add("http://$host:$port/$page")
-        return out.toList()
-    }
+    ): List<String> = DashboardTarget.candidates(
+        saved = webUrl,
+        token = token,
+        slug = slug,
+        port = port,
+        page = page
+    )
 
     /** `https://hass:8123` → `hass`; `[fe80::1]:8123` → `[fe80::1]`. */
     private fun hostOf(origin: String): String {

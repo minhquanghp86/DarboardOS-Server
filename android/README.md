@@ -119,8 +119,8 @@ Chênh lệch APK (clean build, cùng máy):
 | release | 3.187.361 B (3,04 MB) | 2.314.298 B (2,21 MB) | −873.063 B (−27,4 %) |
 
 APK phát hành hiện tại (`android/DashboardOS-release.apk`, đã bỏ luôn cấu hình chữ ký v1 không cần thiết):
-**2.352.825 B** — md5 `a9e5c76ecea9302262a465f13d881272`,
-sha256 `9f8de608c40d9046314e9a188b621455067596728f6f3357389731aaec6a9995`.
+**2.388.021 B** — md5 `f5209124eff417b8668451a8ec109376`,
+sha256 `cf40c283dcdcddfc18207433ca0d4d371c8812daa7095f60144992469f0de123`.
 
 ## 4. Luồng "nhập một ô địa chỉ → đăng nhập Home Assistant → dashboard" (GD10)
 
@@ -196,6 +196,64 @@ cd android
 ./scripts/login-flow-check.sh verdict
 ./scripts/login-flow-check.sh fresh      # xoá dữ liệu app để thử lại kịch bản (a) từ đầu
 ```
+
+## 4d. GD14 (26/11/2026) — MỞ THẲNG PANEL CỦA ADD-ON TRONG HOME ASSISTANT
+
+**Bối cảnh đã kiểm chứng**: add-on có ingress nên HA tạo mục ở thanh bên với `url_path` =
+`b39feb53_remote_webview_server`. Mở `https://<domain>/b39feb53_remote_webview_server` trong trình duyệt **đã đăng
+nhập** thì **chính HA frontend** tạo phiên ingress, dựng panel và nhúng add-on vào
+`<iframe src="…/api/hassio_ingress/<TOKEN>/…">`. Vào thẳng `/api/hassio_ingress/<TOKEN>/…` thì **luôn 401** — đó là
+lý do 4 bản trước thất bại (chúng cố tự tạo phiên thay vì để HA frontend làm).
+
+**Cách làm hiện tại** (không cần TOKEN, không cần IP LAN, không cần Tailscale, chỉ **một ô domain**):
+
+| Hạng mục | Chi tiết |
+| --- | --- |
+| Ứng viên | `https://<domain>/b39feb53_remote_webview_server` → `…/b39feb53_remote_webview_server/launcher-config.html` → (webUrl hợp lệ đã lưu) → `…/api/hassio_ingress/<TOKEN>/launcher-config.html` (dự phòng) → `https://<domain>/launcher-config.html` → `http://<host>:18080/launcher-config.html` (`DashboardTarget.candidates`) |
+| Nhận diện "đã vào đúng" | trang có `<iframe … hassio_ingress>` **hoặc** URL bắt đầu bằng `https://<domain>/b39feb53_remote_webview_server` (khi tiêu đề là `<title>Home Assistant</title>` **trần** thì kiểm tra lại bằng JS dò iframe trong cả shadow DOM, `HaIngress.panelFrameScript`). **SPA HA thuần không phải thành công** (`DashboardTarget.arrival`) |
+| Luồng đăng nhập | chưa có phiên → mở `https://<domain>/` (HA chuyển sang `/auth/login`) → đăng nhập → nhịp dò **1 s** thấy URL rời `/auth/` (hoặc có cookie) thì **tự chuyển sang panel**; đang ở Lovelace cũng bị điều hướng sang panel (không để kẹt) |
+| API native | `/app/register`, `/app/incoming`, `/app/answer`, `/app/decline`, `/app/hangup` đi qua `https://<domain>/api/hassio_ingress/<TOKEN>` kèm cookie `ingress_session` — chỉ chạy **sau khi panel mở**; chưa có cookie thì `PhoneService` **chờ, thử lại mỗi 5 s**, không bắn 401 liên tục |
+| Giao diện | một ô domain, gợi ý "Nhập domain Home Assistant, ví dụ hass.example.com"; chế độ IP LAN vẫn giữ nhưng ghi rõ **KHÔNG khuyến nghị** |
+| Logcat | `[nav] url=… ok=panel|ha-spa|login|401` (`adb logcat -s DashboardOS-login`) |
+
+```bash
+adb logcat -c && adb logcat -s DashboardOS-login
+# lần đầu: nhập hass.example.com → Kết nối → đăng nhập HA → log ra
+#          [nav] url=…/auth/login ok=login  →  [nav] url=…/b39feb53_remote_webview_server ok=panel
+# lần sau: mở app → vào thẳng panel (không thấy Lovelace), API native chạy vì đã có ingress_session
+```
+
+## 4e. GD15 (27/11/2026) — PROMOTE PANEL → TOP-LEVEL INGRESS (micro/camera hoạt động)
+
+**Triệu chứng**: bản GD14 mở **panel của HA** (`https://<domain>/b39feb53_remote_webview_server`) — đúng UI, nhưng
+**không gọi điện được**: panel nhúng add-on trong `<iframe src="…/api/hassio_ingress/<TOKEN>/…">` **của HA**, mà iframe
+đó **không có** `allow="microphone; camera"`. Permissions Policy của khung cha chặn `navigator.mediaDevices.getUserMedia`
+⇒ `NotAllowedError`, dù app đã xin và được cấp `RECORD_AUDIO`/`CAMERA` (`WebChromeClient.onPermissionRequest` không
+bao giờ được gọi vì request bị chặn ở tầng tài liệu).
+
+**Cách sửa (thêm MỘT bước, không đổi phần còn lại)** — `IngressPromote` + `MainActivity`:
+
+| Hạng mục | Chi tiết |
+| --- | --- |
+| Điều kiện "đã có phiên, được phép promote" | (1) `promoteAttempted == false` — **cờ trong bộ nhớ**, chỉ một lần cho mỗi lần mở app; (2) dựng được URL top-level; (3) **`hasPanelSession() == true`** — đã có cookie `ingress_session` (`WebTargetResolver.hasSessionCookie`, dò `CookieManager.getCookie(origin)` **và** `getCookie(origin + "/api/hassio_ingress/")`). Chưa có → chờ tối đa 3 × 700 ms (`IngressPromote.COOKIE_TRIES/COOKIE_RETRY_MS`), **không** promote (sẽ 401 vô ích) |
+| URL đích | `https://<domain>/api/hassio_ingress/<TOKEN>/launcher-config.html` (`IngressPromote.topUrl`). **TOKEN lấy từ `src` của iframe** mà HA vừa dựng — `HaIngress.panelFrameSrcScript()` + `HaIngress.readFrameSrc` + `IngressPromote.tokenFromUrl` (dò cả shadow DOM); không đọc được → TOKEN đã lưu (`Prefs.ingressToken`) |
+| Thành công | top-level trả trang add-on ⇒ log `[promote] url=… ok=top`, **flush cookie**, chốt `apiBase = https://<domain>/api/hassio_ingress/<TOKEN>`, `registerInBackground()` + `PhoneService.start` ⇒ API native chạy với base ingress + cookie `ingress_session` |
+| Fallback | 401/403/404/5xx, **SPA của HA** (tiêu đề `Home Assistant`/`Lovelace`), redirect, mất mạng, hoặc **quá 3 s** (`IngressPromote.TOP_TIMEOUT_MS`) ⇒ log `[promote] url=… ok=401 fail=401 fallback=panel` rồi **nạp lại panel** (iframe) — người dùng vẫn dùng được UI như bản GD14 |
+| Chỉ một lần | `promoteAttempted` đặt `true` ngay khi bắt đầu; người dùng tự quay lại panel (nút Back) → log `[promote] url=… ok=panel skip=already`, **không** kéo đi nữa. Chỉ reset khi bấm **Kết nối** |
+| Logcat | `[promote] url=… ok=top\|panel\|401` (+ `[promote] start url=… token=frame\|prefs timeout=3000ms`, `[promote] … ok=401 fail=timeout\|ha-spa\|auth\|net\|404 fallback=panel`) |
+
+```bash
+adb logcat -c && adb logcat -s DashboardOS-login
+# đăng nhập → panel mở:  [nav] url=…/b39feb53_remote_webview_server ok=panel
+# promote:               [promote] start url=…/api/hassio_ingress/KJjH…/launcher-config.html token=frame timeout=3000ms
+#                        [promote] url=…/api/hassio_ingress/KJjH…/launcher-config.html ok=top
+# phiên hết hạn (401):   [promote] url=… ok=401 fail=401 fallback=panel
+```
+
+Kịch bản kiểm thử trên máy thật: **xoá dữ liệu app** (`adb shell pm clear vn.mqsmarthome.dashboardos`) → mở app → nhập
+domain → Kết nối → đăng nhập HA → (a) thấy **add-on full-screen**, **không** còn thanh bên của HA; (b) bấm micro trong
+add-on ⇒ hộp thoại xin quyền của Android hiện ra ⇒ đồng ý ⇒ biểu tượng micro nhấp nháy (đang thu); (c) gọi thử từ màn
+hình → chuông + Nghe được. Log phải có đúng một dòng `ok=top` và **không** có dòng `fallback=panel` nào.
 
 ## 5. Smoke test trên máy thật
 

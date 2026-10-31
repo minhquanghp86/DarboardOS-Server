@@ -52,6 +52,20 @@ object WebTargetResolver {
     /** Trang điều khiển (thư mục public của add-on). */
     const val LAUNCHER_PAGE = "launcher-config.html"
 
+    /**
+     * (26/11/2026) GD14 — **PANEL CỦA ADD-ON TRONG HOME ASSISTANT** (`/b39feb53_remote_webview_server`).
+     *
+     * Đây là đường vào ĐÚNG và DUY NHẤT hoạt động được, đã kiểm chứng:
+     *  - add-on có ingress nên HA tự tạo một mục ở thanh bên với `url_path` = slug add-on;
+     *  - mở `https://<domain>/<slug>` trong trình duyệt **đã đăng nhập** thì CHÍNH HA FRONTEND dựng panel, tạo phiên
+     *    ingress rồi nhúng add-on vào `<iframe src="…/api/hassio_ingress/<TOKEN>/…">`;
+     *  - vào thẳng `/api/hassio_ingress/<TOKEN>/…` thì thất bại (401) vì phiên ingress chỉ được tạo khi HA frontend
+     *    mở panel — đúng lỗi mà 4 bản trước mắc phải.
+     *
+     * ⇒ WebView chỉ cần mở đúng đường dẫn panel này; mọi việc còn lại HA tự làm (và https sẵn nên micro/camera chạy).
+     */
+    const val PANEL_PATH = "/${ServerResolver.ADDON_SLUG}"
+
     /** Trang gọi (video) — cùng thư mục với trang điều khiển. */
     const val CALL_PAGE = "call-web.html"
 
@@ -140,14 +154,66 @@ object WebTargetResolver {
             if (prefix.isNotEmpty()) add("http", port, "$prefix/$LAUNCHER_PAGE")
             add("http", a.port, "/$LAUNCHER_PAGE")
         } else {
-            // (1) ingress của Home Assistant — dạng CHÍNH, cần đăng nhập HA một lần trong WebView.
+            // (26/11/2026) GD14 — ĐÚNG THỨ TỰ của chế độ domain (panel của HA là đường CHÍNH):
+            // (1) `https://<domain>/<slug>` — panel của add-on trên HA; CHÍNH HA frontend dựng panel + tạo phiên
+            //     ingress + nhúng add-on. Không cần app tự tạo phiên, không cần TOKEN.
+            add("https", a.port, PANEL_PATH)
+            // (2) cùng panel nhưng trỏ thẳng trang điều khiển (một số bản HA phục vụ tĩnh được đường này).
+            add("https", a.port, "$PANEL_PATH/$LAUNCHER_PAGE")
+            // (3) ingress của Home Assistant — dự phòng khi panel không mở được (cần phiên ingress sẵn có).
             add("https", a.port, "$INGRESS_PREFIX/$tok/$LAUNCHER_PAGE")
-            // (2) reverse proxy giữ tên add-on.
-            add("https", a.port, "/$ADDON_SLUG/$LAUNCHER_PAGE")
-            // (3) add-on phục vụ thẳng ở gốc domain.
+            // (4) add-on phục vụ thẳng ở gốc domain.
             add("https", a.port, "/$LAUNCHER_PAGE")
         }
         return out.toList()
+    }
+
+    // ────────────────────────────────────────────────────────────── panel của add-on trên HA (GD14)
+
+    /**
+     * URL panel của add-on trên Home Assistant: `https://<domain>/b39feb53_remote_webview_server`.
+     *
+     * [origin] phải là origin (`https://<domain>`, có hoặc không có `/` cuối); chuỗi rỗng → null.
+     */
+    fun panelUrl(origin: String?): String? {
+        val o = origin?.trim()?.trimEnd('/').orEmpty()
+        if (o.isEmpty()) return null
+        if (!o.startsWith("http://", ignoreCase = true) && !o.startsWith("https://", ignoreCase = true)) return null
+        return o + PANEL_PATH
+    }
+
+    /**
+     * Đường dẫn của [url] có phải panel của add-on không (`/b39feb53_remote_webview_server` hoặc
+     * `/b39feb53_remote_webview_server/…`). So khớp theo **đoạn đường dẫn**, nên
+     * `/b39feb53_remote_webview_server_x` KHÔNG khớp.
+     */
+    fun isPanelUrl(url: String?): Boolean {
+        val path = pathOf(url)?.lowercase() ?: return false
+        val panel = PANEL_PATH.lowercase()
+        return path == panel || path.startsWith("$panel/")
+    }
+
+    /** Phần đường dẫn của [url] (`https://h/a/b?x=1#y` → `/a/b`); null = không phải URL http(s). */
+    fun pathOf(url: String?): String? {
+        val u = url?.trim().orEmpty()
+        if (u.isEmpty()) return null
+        val origin = originUrl(u) ?: return null
+        val rest = u.substring(origin.length)
+        val noQuery = rest.substringBefore('#').substringBefore('?')
+        return if (noQuery.isEmpty()) "/" else noQuery
+    }
+
+    /**
+     * (26/11/2026) GD14 — trang HTML (hoặc chính WebView) có nhúng add-on qua ingress không:
+     * `<iframe src="…/api/hassio_ingress/…">` — đây là DẤU HIỆU CHẮC CHẮN NHẤT "đã vào đúng panel".
+     *
+     * Dùng cho: (a) chẩn đoán trong `probeWeb`/`connect` (body của panel), (b) kiểm tra bằng JS trong WebView
+     * (`document.querySelector('iframe[src*="hassio_ingress"]')`).
+     */
+    fun hasIngressIframe(html: String?): Boolean {
+        val h = html ?: return false
+        if (h.isEmpty()) return false
+        return INGRESS_IFRAME_RE.containsMatchIn(h)
     }
 
     /**
@@ -171,6 +237,30 @@ object WebTargetResolver {
     fun isAcceptedWeb(status: Int, body: String?): Boolean {
         if (status != HttpURLConnection.HTTP_OK && status != HttpURLConnection.HTTP_UNAUTHORIZED) return false
         return !isHomeAssistantSpa(body)
+    }
+
+    /**
+     * (26/11/2026) GD14 — như [isAcceptedWeb] nhưng biết [url], vì PANEL của add-on trên HA **luôn** trả SPA của HA
+     * (`<title>Home Assistant</title>`) rồi mới nhúng add-on vào iframe: 200 cho đường dẫn panel = ĐÚNG đích.
+     *
+     * Nhờ vậy bước "Kết nối" không loại panel chỉ vì body là SPA của HA (bản GD11 loại ⇒ không bao giờ tìm ra
+     * đường vào hoạt động được).
+     */
+    fun isAcceptedWeb(url: String?, status: Int, body: String?): Boolean {
+        if (isPanelUrl(url) && status == HttpURLConnection.HTTP_OK) return true
+        return isAcceptedWeb(status, body)
+    }
+
+    /**
+     * (26/11/2026) GD14 — tiêu đề **TRẦN** của Home Assistant (`Home Assistant` đúng nguyên văn, không có hậu tố).
+     *
+     * Panel của add-on có tiêu đề riêng (vd `Dashboard OS - Home Assistant`), nên tiêu đề trần = trang SPA của HA
+     * chưa dựng panel (hoặc đường dẫn không tồn tại) — KHÔNG được tính là "đã vào panel".
+     */
+    fun isBareHomeAssistantTitle(title: String?): Boolean {
+        val t = title?.trim().orEmpty()
+        if (t.isEmpty()) return false
+        return t.equals("home assistant", ignoreCase = true)
     }
 
     // ────────────────────────────────────────────────────────────── ô 2: máy chủ API (LAN)
@@ -471,6 +561,15 @@ object WebTargetResolver {
     /** `<title>Home Assistant</title>` — cho phép khoảng trắng/xuống dòng giữa các phần. */
     private val HA_TITLE_RE = Regex(
         "<title>\\s*Home\\s*Assistant\\s*</title>",
+        RegexOption.IGNORE_CASE
+    )
+
+    /**
+     * (26/11/2026) GD14 — `<iframe … hassio_ingress …>`: dấu hiệu CHẮC CHẮN panel của add-on đã được HA nhúng.
+     * Không đòi thứ tự thuộc tính (`src` có thể đứng sau `id`/`class`), không phân biệt hoa/thường.
+     */
+    private val INGRESS_IFRAME_RE = Regex(
+        "<iframe\\b[^>]*hassio_ingress",
         RegexOption.IGNORE_CASE
     )
 

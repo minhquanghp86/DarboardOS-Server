@@ -33,6 +33,12 @@ object DashboardTarget {
     /** Trang điều khiển của add-on (thư mục public). */
     const val LAUNCHER_PAGE = WebTargetResolver.LAUNCHER_PAGE
 
+    /**
+     * (26/11/2026) GD14 — **PANEL của add-on trên Home Assistant**: `/b39feb53_remote_webview_server`.
+     * Đây là ĐÍCH của WebView ở chế độ domain (xem [WebTargetResolver.PANEL_PATH]).
+     */
+    const val PANEL_PATH = WebTargetResolver.PANEL_PATH
+
     /** Tiền tố ingress của Home Assistant. */
     const val INGRESS_PREFIX = WebTargetResolver.INGRESS_PREFIX
 
@@ -43,17 +49,24 @@ object DashboardTarget {
     const val ADDON_PORT = ServerResolver.ADDON_PORT
 
     /**
-     * Kết luận về trang vừa nạp xong ([arrival]). [label] là chuỗi ghi vào log `result=…`
-     * (`ok` / `ha-spa` / `off-ingress` / `other`) — đúng định dạng yêu cầu chẩn đoán.
+     * Kết luận về trang vừa nạp xong ([arrival]). [label] là chuỗi ghi vào log `[nav] … ok=…` :
+     * `panel` / `login` / `ha-spa` / `off-ingress` / `other`.
      */
     enum class Arrival(val label: String) {
-        /** Đúng trang điều khiển của add-on. */
-        ADDON("ok"),
+        /**
+         * (26/11/2026) GD14 — ĐÚNG ĐÍCH: panel của add-on trên Home Assistant
+         * (`https://<domain>/b39feb53_remote_webview_server`) **hoặc** trang điều khiển của add-on
+         * (`…/launcher-config.html`) **hoặc** trang có `<iframe … hassio_ingress …>`.
+         */
+        ADDON("panel"),
 
-        /** Trang (SPA) của Home Assistant — Lovelace / trang chủ / form đăng nhập. */
+        /** Trang SPA của Home Assistant — Lovelace / trang chủ. */
         HOME_ASSISTANT("ha-spa"),
 
-        /** URL nằm NGOÀI ingress mà cũng không phải trang điều khiển (vd `https://<domain>/lovelace`). */
+        /** Trang ĐĂNG NHẬP của Home Assistant (`/auth/login`, `/auth/authorize`…) — người dùng đang gõ mật khẩu. */
+        LOGIN("login"),
+
+        /** URL nằm NGOÀI ingress mà cũng không phải trang điều khiển/panel (vd `https://<domain>/lovelace`). */
         OFF_INGRESS("off-ingress"),
 
         /** `about:blank`, `data:`, trang tạm — không kết luận gì. */
@@ -89,7 +102,21 @@ object DashboardTarget {
     fun isIngress(url: String?): Boolean = WebTargetResolver.isIngressUrl(url)
 
     /**
-     * `webUrl` đã lưu có DÙNG ĐƯỢC không: phải là URL http(s) **có đường dẫn** và phải là trang điều khiển.
+     * (26/11/2026) GD14 — URL có phải **panel của add-on trên HA** không
+     * (`https://<domain>/b39feb53_remote_webview_server[,…]`).
+     */
+    fun isPanel(url: String?): Boolean = WebTargetResolver.isPanelUrl(url)
+
+    /** `https://<domain>` → `https://<domain>/b39feb53_remote_webview_server` (null = origin không dùng được). */
+    fun panelUrl(origin: String?): String? = WebTargetResolver.panelUrl(origin)
+
+    /** Trang HTML (hoặc chính trang trong WebView) có `<iframe … hassio_ingress …>` — panel đã nhúng add-on. */
+    fun hasIngressIframe(html: String?): Boolean = WebTargetResolver.hasIngressIframe(html)
+
+    /**
+     * `webUrl` đã lưu có DÙNG ĐƯỢC không: URL http(s) **có đường dẫn** và là một trong hai ĐÍCH hợp lệ:
+     *  - panel của add-on trên HA (`https://<domain>/b39feb53_remote_webview_server` — (26/11/2026) GD14), hoặc
+     *  - trang điều khiển của add-on (`…/launcher-config.html`).
      *
      * Origin (`https://<domain>/`) trả `false` — đây chính là giá trị khiến app "refresh rồi lại vào Lovelace".
      * URL đăng nhập của HA (`/auth/login`, `/lovelace`) cũng `false`.
@@ -99,7 +126,7 @@ object DashboardTarget {
         if (u.isEmpty()) return false
         if (!isHttp(u)) return false
         if (isOriginOnly(u)) return false
-        return hasLauncherPage(u)
+        return isPanel(u) || hasLauncherPage(u)
     }
 
     /** Origin của một URL / chuỗi người dùng gõ (`hass.mqsmarthome.io.vn` → `https://hass.mqsmarthome.io.vn`). */
@@ -122,13 +149,19 @@ object DashboardTarget {
     // ────────────────────────────────────────────────────────────── danh sách ứng viên
 
     /**
-     * Ứng viên trang điều khiển, ĐÚNG thứ tự yêu cầu (loại trùng, giữ thứ tự):
+     * Ứng viên ĐÍCH của WebView, ĐÚNG thứ tự yêu cầu (loại trùng, giữ thứ tự).
      *
-     *  1. `webUrl` đã lưu — **chỉ khi** [isValidSaved] (origin/URL đăng nhập bị loại);
-     *  2. `https://<domain>/api/hassio_ingress/<TOKEN>/launcher-config.html` (dựng lại từ TOKEN);
-     *  3. `https://<domain>/<slug>/launcher-config.html` (reverse proxy giữ tên add-on);
-     *  4. `https://<domain>/launcher-config.html` (add-on phục vụ thẳng ở gốc domain);
-     *  5. `http://<host>:18080/launcher-config.html` (add-on mở thẳng, không cần ingress).
+     * Chế độ **domain** (26/11/2026 GD14 — panel của HA là đường CHÍNH):
+     *  1. `https://<domain>/b39feb53_remote_webview_server` — panel của add-on trên HA; CHÍNH HA frontend dựng
+     *     panel, tạo phiên ingress rồi nhúng add-on. Không cần TOKEN, không cần tự tạo phiên;
+     *  2. `https://<domain>/b39feb53_remote_webview_server/launcher-config.html` (cùng panel, trỏ trang điều khiển);
+     *  3. `webUrl` đã lưu — **chỉ khi** [isValidSaved] (origin/URL đăng nhập bị loại);
+     *  4. `https://<domain>/api/hassio_ingress/<TOKEN>/launcher-config.html` (ingress — DỰ PHÒNG, cần phiên sẵn);
+     *  5. `https://<domain>/launcher-config.html` (add-on phục vụ thẳng ở gốc domain);
+     *  6. `http://<host>:18080/launcher-config.html` (add-on mở thẳng, không cần ingress).
+     *
+     * Chế độ **IP LAN** (vẫn giữ, KHÔNG khuyến nghị): `https://<ip>:18443/<page>` → `http://<ip>:18080/<page>` rồi
+     * phần đuôi như trên (panel của HA không áp dụng cho IP LAN).
      *
      * Origin lấy từ [saved] → [loginUrl] (`Prefs.KEY_LOGIN_URL`, origin của HA) → [typed] (chuỗi người dùng đã gõ).
      * Danh sách rỗng = không có domain nào để dựng URL.
@@ -146,15 +179,20 @@ object DashboardTarget {
         val out = LinkedHashSet<String>()
         val keep = saved?.trim().orEmpty()
         val valid = isValidSaved(keep)
-        if (valid) out.add(keep)
-        // (21/11/2026) GD13 — chế độ IP LAN: khi CHƯA có `webUrl` hợp lệ thì ứng viên ĐẦU TIÊN là HTTPS tự ký của
-        // chính add-on (`https://<ip>:18443/launcher-config.html`) — có secure context (micro/camera) và KHÔNG cần
-        // đăng nhập Home Assistant. `webUrl` đã xác thực vẫn đứng trước (nó là địa chỉ đã dò được 200).
-        val addr = ServerResolver.parse(saved?.takeIf { isValidSaved(it) } ?: loginUrl ?: typed)
-        if (!valid && addr != null && addr.lan) {
+        // Địa chỉ người dùng đã cấu hình: `saved` khi hợp lệ, ngược lại `loginUrl`/`typed`.
+        val addr = ServerResolver.parse(keep.takeIf { valid } ?: loginUrl ?: typed)
+        if (addr != null && addr.lan) {
+            // (21/11/2026) GD13 — IP LAN (KHÔNG khuyến nghị): HTTPS tự ký của chính add-on (`https://<ip>:18443`) —
+            // có secure context (micro/camera) nhưng phải chấp nhận chứng chỉ tự ký và chỉ dùng trong LAN/Tailscale.
             out.add("https://${addr.host}:${ServerResolver.ADDON_TLS_PORT}/$page")
             out.add("http://${addr.host}:${if (addr.port > 0) addr.port else port}/$page")
+        } else {
+            // (26/11/2026) GD14 — chế độ domain: PANEL của add-on trên HA là ứng viên ĐẦU TIÊN (đường duy nhất
+            // hoạt động được), rồi mới tới trang điều khiển cùng panel và các ứng viên ingress cũ (dự phòng).
+            WebTargetResolver.panelUrl(origin)?.let { out.add(it) }
+            out.add("${origin.trimEnd('/')}$PANEL_PATH/$page")
         }
+        if (valid) out.add(keep)
         out.add(ingressUrl(origin, token, page))
         out.add("$origin/$slug/$page")
         out.add("$origin/$page")
@@ -166,16 +204,30 @@ object DashboardTarget {
     // ────────────────────────────────────────────────────────────── xác thực trang vừa nạp
 
     /**
-     * Kết luận về trang VỪA NẠP XONG (`onPageFinished(view, url)`, `title = view.title`):
+     * Kết luận về trang VỪA NẠP XONG (`onPageFinished(view, url)`, `title = view.title`, HTML nếu có):
      *
-     *  - tiêu đề là của Home Assistant (`Home Assistant`, `… - Home Assistant`, `Lovelace`) → [Arrival.HOME_ASSISTANT];
-     *  - URL có `launcher-config.html` → [Arrival.ADDON] (trang add-on có `<title>Dashboard</title>`);
-     *  - URL ngoài ingress mà không phải trang điều khiển (vd `/lovelace`, `/auth/login`, `/`) →
-     *    [Arrival.OFF_INGRESS] — **chưa vào được add-on**, caller phải thử ứng viên kế tiếp;
-     *  - còn lại (trang con bên trong ingress, `about:blank`, …) → [Arrival.OTHER] (không kết luận).
+     *  1. không phải URL http(s) → [Arrival.OTHER] (`about:blank`, `data:`);
+     *  2. URL là trang ĐĂNG NHẬP của HA (`/auth/…`) → [Arrival.LOGIN] — người dùng đang gõ mật khẩu, KHÔNG phải lỗi;
+     *  3. [html] có `<iframe … hassio_ingress …>` → [Arrival.ADDON] (panel đã nhúng add-on — bằng chứng chắc nhất);
+     *  4. URL là **panel của add-on** (`https://<domain>/b39feb53_remote_webview_server`) →
+     *     [Arrival.ADDON] **trừ khi** tiêu đề là `<title>Home Assistant</title>` trần (frontend chưa dựng panel /
+     *     đường dẫn không tồn tại) → [Arrival.HOME_ASSISTANT]. SPA HA thuần KHÔNG BAO GIỜ là thành công;
+     *  5. tiêu đề là của HA (`Home Assistant`, `… - Home Assistant`, `Lovelace`) → [Arrival.HOME_ASSISTANT];
+     *  6. URL có `launcher-config.html` → [Arrival.ADDON];
+     *  7. URL ngoài ingress (vd `/lovelace`, `/`) → [Arrival.OFF_INGRESS];
+     *  8. còn lại (trang con bên trong ingress) → [Arrival.OTHER].
      */
-    fun arrival(url: String?, title: String?): Arrival {
+    fun arrival(url: String?, title: String?, html: String? = null): Arrival {
         if (!isHttp(url)) return Arrival.OTHER
+        if (isAuthPage(url)) return Arrival.LOGIN
+        if (hasIngressIframe(html)) return Arrival.ADDON
+        if (isPanel(url)) {
+            return if (WebTargetResolver.isBareHomeAssistantTitle(title)) {
+                Arrival.HOME_ASSISTANT
+            } else {
+                Arrival.ADDON
+            }
+        }
         if (looksLikeHomeAssistant(title)) return Arrival.HOME_ASSISTANT
         if (hasLauncherPage(url)) return Arrival.ADDON
         if (!isIngress(url)) return Arrival.OFF_INGRESS
@@ -221,6 +273,32 @@ object DashboardTarget {
         }
         return "…" + path
     }
+
+    /** URL có đang ở LUỒNG ĐĂNG NHẬP của HA không (`/auth/login`, `/auth/authorize`, `/auth/token`…). */
+    fun isAuthPage(url: String?): Boolean {
+        val path = pathOf(url)?.lowercase() ?: return false
+        return path == "/auth" || path.startsWith("/auth/")
+    }
+
+    /**
+     * (26/11/2026) GD14 — dòng log chuẩn của luồng điều hướng:
+     *
+     *     [nav] url=…/b39feb53_remote_webview_server ok=panel
+     *     [nav] url=…/lovelace/0 ok=ha-spa
+     *     [nav] url=…/auth/login ok=login
+     *     [nav] url=…/api/hassio_ingress/KJjH…/launcher-config.html ok=401
+     *
+     * `ok` = `panel` | `ha-spa` | `login` | `401` (+ `net`/`other` khi cần). [extra] là phần thêm tuỳ chọn.
+     */
+    fun navLine(url: String?, ok: String, extra: String? = null): String {
+        val sb = StringBuilder("[nav] url=").append(shortUrl(url)).append(" ok=").append(ok.trim().ifEmpty { "-" })
+        val e = extra?.trim().orEmpty()
+        if (e.isNotEmpty()) sb.append(' ').append(e)
+        return sb.toString()
+    }
+
+    /** URL panel của [origin] (hoặc `-`) — chỉ để ghi log. */
+    fun panelLine(origin: String?): String = panelUrl(origin) ?: "-"
 
     /** `https://hass:8123` → `hass`; `[fe80::1]:8123` → `[fe80::1]`. */
     private fun hostOf(origin: String): String {

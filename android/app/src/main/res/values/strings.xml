@@ -5,17 +5,20 @@
     <string name="url_hint">Địa chỉ Home Assistant</string>
     <string name="url_hint_example">192.168.10.2 hoặc hass.example.com</string>
     <!-- (17/11/2026) GD9 — MỘT Ô: nhập domain hoặc IP LAN, app tự lo cả trang điều khiển và API. -->
-    <string name="url_hint_web">Địa chỉ máy chủ Dashboard OS (một ô duy nhất)</string>
-    <string name="url_hint_web_example">192.168.10.2 hoặc hass.mqsmarthome.io.vn</string>
-    <!-- (21/11/2026) GD13 — KHUYẾN NGHỊ IP LAN: add-on tự phục vụ HTTPS (cổng 18443, chứng chỉ tự ký) nên KHÔNG
-         cần đăng nhập Home Assistant, KHÔNG cần phiên ingress. Đây là dòng ghi chú ngay dưới ô nhập. -->
-    <string name="url_web_recommend">Khuyến nghị: IP LAN, vd 192.168.10.2 — không cần đăng nhập HA</string>
-    <string name="url_web_hint">App tự dò: IP LAN (vd 192.168.10.2) → ưu tiên https://&lt;ip&gt;:18443 (HTTPS tự ký của add-on, có micro/camera, KHÔNG cần đăng nhập HA) rồi http://&lt;ip&gt;:18080. Tên miền → https://&lt;domain&gt;/api/hassio_ingress/&lt;TOKEN&gt;/ (cần đăng nhập HA một lần — phương án phụ).</string>
+    <string name="url_hint_web">Domain Home Assistant (một ô duy nhất)</string>
+    <string name="url_hint_web_example">hass.example.com</string>
+    <!-- (26/11/2026) GD14 — CHẾ ĐỘ KHUYẾN NGHỊ: chỉ nhập domain của Home Assistant. App mở thẳng panel của add-on
+         trên HA (`https://<domain>/b39feb53_remote_webview_server`); chính HA frontend dựng panel, tạo phiên ingress
+         và nhúng add-on vào iframe. Người dùng chỉ phải đăng nhập HA một lần trong app. -->
+    <string name="url_web_recommend">Nhập domain Home Assistant, ví dụ hass.example.com</string>
+    <string name="url_web_hint">App mở https://&lt;domain&gt;/b39feb53_remote_webview_server — panel của Dashboard OS trong Home Assistant. Home Assistant tự dựng panel, tạo phiên ingress và nhúng add-on vào iframe (không cần mở thanh bên, không cần TOKEN, không cần IP LAN). Lần đầu chỉ cần đăng nhập Home Assistant trong app; các lần sau vào thẳng.</string>
+    <!-- (21/11/2026) GD13 — chế độ IP LAN VẪN GIỮ nhưng KHÔNG khuyến nghị (chứng chỉ tự ký, không có phiên HA để API dùng). -->
+    <string name="url_web_lan_note">Chế độ IP LAN (vd 192.168.10.2 — https://&lt;ip&gt;:18443, chứng chỉ tự ký) vẫn dùng được nhưng KHÔNG khuyến nghị: không có phiên Home Assistant nên phần nhận cuộc gọi/chuông có thể không chạy.</string>
     <string name="action_connect">Kết nối</string>
     <string name="action_change_url">URL</string>
     <string name="action_settings">Cài đặt</string>
     <string name="action_close">Đóng</string>
-    <string name="url_footer">Chỉ cần MỘT địa chỉ. Chế độ IP LAN (khuyến nghị): app mở https://&lt;ip&gt;:18443 của add-on — có micro/camera, không cần đăng nhập HA (chứng chỉ tự ký, chỉ dùng trong LAN/Tailscale). Chế độ tên miền vẫn giữ: mọi thứ đi qua ingress Home Assistant (phải đăng nhập HA trong app).</string>
+    <string name="url_footer">Chỉ cần MỘT địa chỉ: domain của Home Assistant. App mở panel Dashboard OS trong Home Assistant (https://&lt;domain&gt;/b39feb53_remote_webview_server) — micro/camera hoạt động vì là HTTPS. Chế độ IP LAN không còn khuyến nghị.</string>
     <string name="err_empty_url">Vui lòng nhập địa chỉ Home Assistant</string>
     <string name="err_bad_address">Địa chỉ không hợp lệ. Nhập IP (vd 192.168.10.2) hoặc tên miền (vd hass.example.com)</string>
     <string name="err_empty_web">Vui lòng nhập địa chỉ Home Assistant (tên miền hoặc IP LAN)</string>
@@ -132,6 +135,12 @@
     <string name="ha_login_banner">Đăng nhập Home Assistant để tiếp tục</string>
     <string name="ha_login_done">Tôi đã đăng nhập</string>
     <string name="ha_login_ok">Đã có phiên Home Assistant — đang mở trang điều khiển…</string>
+
+    <!-- (26/11/2026) GD14 — LUỒNG PANEL: app mở https://<domain>/b39feb53_remote_webview_server; HA tự dựng panel,
+         tạo phiên ingress rồi nhúng add-on. Ba dòng dưới là chữ trên thanh thông báo của luồng đó. -->
+    <string name="ha_panel_banner">Đang mở Dashboard OS trong Home Assistant…</string>
+    <string name="ha_panel_login_hint">Đăng nhập Home Assistant — app sẽ tự mở panel Dashboard OS</string>
+    <string name="ha_panel_retry_hint">Chưa mở được panel Dashboard OS: %1$s\nKiểm tra add-on đã chạy trong Home Assistant (Cài đặt → Add-on) rồi bấm “Thử lại”, hoặc mở panel bằng tay một lần trong Home Assistant.</string>
 
     <!-- (18/11/2026) GD10 — tự chuyển sang dashboard add-on sau khi đăng nhập; nút chủ động + thông báo thất bại. -->
     <string name="ha_dashboard_button">Mở Dashboard</string>

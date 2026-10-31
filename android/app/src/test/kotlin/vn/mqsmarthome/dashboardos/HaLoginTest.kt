@@ -88,13 +88,15 @@ class HaLoginTest {
 
     // ─────────────────────────────────────────── 2) biến thể URL chống kẹt 401
 
+    // (26/11/2026) GD14 — panel của add-on trên HA đứng ĐẦU; URL ingress đã lưu chỉ là DỰ PHÒNG.
     @Test
-    fun bien_the_url_dung_thu_tu_va_khong_trung() {
+    fun bien_the_url_dung_thu_tu_panel_truoc_roi_ingress() {
         val list = HaLogin.dashboardVariants(webUrl)
         assertEquals(
             listOf(
-                webUrl,
+                "$origin/$slug",
                 "$origin/$slug/${WebTargetResolver.LAUNCHER_PAGE}",
+                webUrl,
                 "$origin/${WebTargetResolver.LAUNCHER_PAGE}",
                 "http://$domain:18080/${WebTargetResolver.LAUNCHER_PAGE}"
             ),
@@ -107,7 +109,9 @@ class HaLoginTest {
     fun bien_the_url_giu_cong_va_host_cua_url_da_luu() {
         val typed = "https://hass.example.com:8123/api/hassio_ingress/$token/${WebTargetResolver.LAUNCHER_PAGE}"
         val list = HaLogin.dashboardVariants(typed)
-        assertEquals(typed, list.first())
+        // Panel đứng đầu, vẫn giữ cổng người dùng đã cấu hình.
+        assertEquals("https://hass.example.com:8123/$slug", list.first())
+        assertTrue(list.contains(typed))
         assertTrue(list.contains("https://hass.example.com:8123/$slug/${WebTargetResolver.LAUNCHER_PAGE}"))
         // Cổng add-on luôn là 18080, host KHÔNG kèm cổng của HA.
         assertTrue(list.contains("http://hass.example.com:18080/${WebTargetResolver.LAUNCHER_PAGE}"))
@@ -117,10 +121,12 @@ class HaLoginTest {
     fun bien_the_url_ip_lan_khong_sinh_dong_rac() {
         val lan = "http://192.168.10.2:18080/${WebTargetResolver.LAUNCHER_PAGE}"
         val list = HaLogin.dashboardVariants(lan)
-        assertEquals(lan, list.first())
-        assertTrue(list.contains("http://192.168.10.2:18080/$slug/${WebTargetResolver.LAUNCHER_PAGE}"))
+        // (26/11/2026) GD14 — IP LAN KHÔNG khuyến nghị: vẫn thử HTTPS tự ký (18443) trước, rồi tới http 18080.
+        assertEquals("https://192.168.10.2:18443/${WebTargetResolver.LAUNCHER_PAGE}", list.first())
         assertTrue(list.contains(lan))   // không bị nhân đôi thành :18080:18080
+        assertTrue(list.contains("http://192.168.10.2:18080/$slug/${WebTargetResolver.LAUNCHER_PAGE}"))
         assertFalse(list.any { it.contains(":18080:18080") })
+        assertFalse("IP LAN không dùng panel của HA", list.any { it == "http://192.168.10.2:18080/$slug" })
         assertTrue("URL không phải http(s)", HaLogin.dashboardVariants("ftp://x/y").isEmpty())
         assertTrue(HaLogin.dashboardVariants(null).isEmpty())
     }
@@ -130,10 +136,30 @@ class HaLoginTest {
     @Test
     fun watch_200_khong_phai_spa_ha_thi_di_thang_vao_dashboard() {
         val w = HaLogin.Watch(webUrl)
+        // Biến thể đầu tiên là PANEL (GD14) — 200 + trang add-on thật ⇒ điều hướng ngay tới đó.
+        assertEquals("$origin/$slug", w.current)
         val step = w.onProbe(200, dashboard = true, cookiePresent = true)
         assertEquals(HaLogin.Action.NAVIGATE, step.action)
-        assertEquals(webUrl, step.url)
+        assertEquals("$origin/$slug", step.url)
         assertFalse(w.gaveUp)
+    }
+
+    // (26/11/2026) GD14 — PANEL của add-on: HA trả SPA của CHÍNH NÓ (200, `<title>Home Assistant</title>`) rồi mới
+    // nhúng add-on vào iframe ⇒ 200 là ĐÚNG đích, KHÔNG được coi là "SPA sai chỗ".
+    @Test
+    fun watch_panel_200_la_dung_dich_du_body_la_spa_ha() {
+        val w = HaLogin.Watch(webUrl)
+        val step = w.onProbe(200, dashboard = false, cookiePresent = true)
+        assertEquals(HaLogin.Action.NAVIGATE, step.action)
+        assertEquals("$origin/$slug", step.url)
+        // Chuyển hướng của HA (302 → /auth/login) cũng là đúng đích: WebView tự xử lý.
+        val w2 = HaLogin.Watch(webUrl)
+        assertEquals(HaLogin.Action.NAVIGATE, w2.onProbe(302, dashboard = false, cookiePresent = false).action)
+        // Panel không tồn tại (404) → thử ứng viên kế tiếp.
+        val w3 = HaLogin.Watch(webUrl)
+        val next = w3.onProbe(404, dashboard = false, cookiePresent = true)
+        assertEquals(HaLogin.Action.NEXT_VARIANT, next.action)
+        assertEquals("$origin/$slug/${WebTargetResolver.LAUNCHER_PAGE}", next.url)
     }
 
     @Test
@@ -143,44 +169,51 @@ class HaLoginTest {
             val step = w.onProbe(401, dashboard = false, cookiePresent = false)
             assertEquals(HaLogin.Action.WAIT, step.action)
         }
-        assertEquals("vẫn ở biến thể đầu", webUrl, w.current)
+        assertEquals("vẫn ở biến thể đầu (panel)", "$origin/$slug", w.current)
         assertEquals(0, w.failStreak)
         assertFalse(w.gaveUp)
+        // Panel: đã có cookie mà vẫn 401 → mở panel (HA sẽ hiện form đăng nhập nếu phiên hỏng).
+        assertEquals(HaLogin.Action.NAVIGATE, w.onProbe(401, false, cookiePresent = true).action)
     }
 
     @Test
     fun watch_401_hai_lan_lien_tiep_du_co_cookie_moi_doi_bien_the() {
+        // Bỏ qua 2 biến thể panel (đã có luật riêng ở trên) để kiểm tra luật 401 của các biến thể DỰ PHÒNG.
         val w = HaLogin.Watch(webUrl)
+        w.skip()
+        w.skip()
+        assertEquals(webUrl, w.current)
         assertEquals(HaLogin.Action.WAIT, w.onProbe(401, false, cookiePresent = true).action)
         val step = w.onProbe(401, false, cookiePresent = true)
         assertEquals(HaLogin.Action.NEXT_VARIANT, step.action)
-        assertEquals("$origin/$slug/${WebTargetResolver.LAUNCHER_PAGE}", step.url)
+        assertEquals("$origin/${WebTargetResolver.LAUNCHER_PAGE}", step.url)
         assertEquals(0, w.failStreak)
-        // Biến thể mới trả 200 → điều hướng tới CHÍNH biến thể đó.
-        val ok = w.onProbe(200, dashboard = true, cookiePresent = true)
-        assertEquals(HaLogin.Action.NAVIGATE, ok.action)
-        assertEquals("$origin/$slug/${WebTargetResolver.LAUNCHER_PAGE}", ok.url)
     }
 
     @Test
     fun watch_200_nhung_la_spa_cua_ha_thi_khong_dieu_huong() {
+        // Với biến thể KHÔNG phải panel (vd `https://<domain>/launcher-config.html`), 200 + `<title>Home Assistant</title>`
+        // = SAI chỗ → biến thể kế tiếp (không bao giờ nạp Lovelace vào WebView).
         val w = HaLogin.Watch(webUrl)
-        // probeWeb trả 200 + body `<title>Home Assistant</title>` → MainActivity truyền dashboard = false.
+        repeat(3) { w.skip() }                    // panel → panel/launcher → ingresURL → gốc domain
+        assertEquals("$origin/${WebTargetResolver.LAUNCHER_PAGE}", w.current)
         val step = w.onProbe(200, dashboard = false, cookiePresent = true)
         assertNotEquals(HaLogin.Action.NAVIGATE, step.action)
-        // 200 mà là SPA của HA = SAI chỗ → biến thể kế tiếp (không bao giờ nạp Lovelace vào WebView).
         assertEquals(HaLogin.Action.NEXT_VARIANT, step.action)
-        assertEquals("$origin/$slug/${WebTargetResolver.LAUNCHER_PAGE}", step.url)
+        assertEquals("http://$domain:18080/${WebTargetResolver.LAUNCHER_PAGE}", step.url)
         assertEquals(1, w.probes)
         assertFalse(w.gaveUp)
     }
 
     @Test
     fun watch_3xx_doi_bien_the_ngay() {
+        // Panel: 3xx = HA chuyển sang /auth/login ⇒ ĐÚNG đích (WebView tự xử), đã kiểm ở test panel.
+        // Biến thể dự phòng: 3xx = đi đâu đó khác ⇒ biến thể kế tiếp ngay.
         val w = HaLogin.Watch(webUrl)
+        repeat(3) { w.skip() }
         val step = w.onProbe(302, dashboard = false, cookiePresent = true)
         assertEquals(HaLogin.Action.NEXT_VARIANT, step.action)
-        assertEquals("$origin/$slug/${WebTargetResolver.LAUNCHER_PAGE}", step.url)
+        assertEquals("http://$domain:18080/${WebTargetResolver.LAUNCHER_PAGE}", step.url)
     }
 
     @Test
@@ -198,23 +231,24 @@ class HaLoginTest {
     @Test
     fun watch_404_doi_bien_the_ngay() {
         val w = HaLogin.Watch(webUrl)
+        repeat(3) { w.skip() }
         val step = w.onProbe(404, dashboard = false, cookiePresent = true)
         assertEquals(HaLogin.Action.NEXT_VARIANT, step.action)
-        assertEquals("$origin/$slug/${WebTargetResolver.LAUNCHER_PAGE}", step.url)
+        assertEquals("http://$domain:18080/${WebTargetResolver.LAUNCHER_PAGE}", step.url)
     }
 
     @Test
     fun watch_het_bien_the_thi_give_up_roi_reset_duoc() {
         val w = HaLogin.Watch(webUrl)
+        // 404 ở MỌI biến thể (panel không tồn tại, ingress sai TOKEN, không có trang nào) → đi hết danh sách rồi GIVE_UP.
         var last = HaLogin.Step(HaLogin.Action.WAIT, null)
-        // 4 biến thể × 2 lần 401 liên tiếp.
-        repeat(8) { last = w.onProbe(401, false, cookiePresent = true) }
+        repeat(6) { last = w.onProbe(404, false, cookiePresent = true) }
         assertEquals(HaLogin.Action.GIVE_UP, last.action)
         assertTrue(w.gaveUp)
 
         w.reset()
         assertFalse(w.gaveUp)
-        assertEquals(webUrl, w.current)
+        assertEquals("$origin/$slug", w.current)
         assertEquals(0, w.failStreak)
         assertEquals(HaLogin.Action.NAVIGATE, w.onProbe(200, true, true).action)
     }
@@ -232,7 +266,7 @@ class HaLoginTest {
         val w = HaLogin.Watch(webUrl)
         assertEquals(HaLogin.Action.WAIT, w.onProbe(null, false, true).action)
         assertEquals(HaLogin.Action.WAIT, w.onProbe(502, false, true).action)
-        assertEquals(webUrl, w.current)
+        assertEquals("$origin/$slug", w.current)
     }
 
     // ─────────────────────────────────────────── 4) token HA + phiên ingress

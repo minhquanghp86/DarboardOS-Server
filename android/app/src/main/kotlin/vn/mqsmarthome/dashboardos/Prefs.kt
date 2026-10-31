@@ -28,7 +28,13 @@ object Prefs {
     /** Chuoi nguoi dung da nhap (IP/domain/URL) — giu lai cho du lieu cua ban cu (GD4). */
     const val KEY_URL = "url"
 
-    /** Trang dieu khien (https) da do duoc — WebView mo gia tri nay. */
+    /**
+     * ĐÍCH của WebView (https) — WebView mở giá trị này.
+     *
+     * (26/11/2026) GD14 — giá trị ĐÚNG là **panel của add-on trên Home Assistant**
+     * (`https://<domain>/b39feb53_remote_webview_server`): chính HA frontend dựng panel, tạo phiên ingress rồi nhúng
+     * add-on. Giá trị cũ (`…/api/hassio_ingress/<TOKEN>/launcher-config.html`) vẫn được chấp nhận để nâng cấp.
+     */
     const val KEY_WEB_URL = "web_url"
 
     /** Goc API da do duoc (`http://192.168.10.2:18080`) — MOI loi goi toi duong dan app/... dung gia tri nay. */
@@ -102,9 +108,11 @@ object Prefs {
      * ([HaLogin.dashboardVariants]): lần mở app sau vào thẳng đúng biến thể đó, không dò/vòng qua Lovelace nữa.
      * Giữ nguyên `apiBase` và chuỗi người dùng đã gõ.
      *
-     * `webUrl` CHỈ nhận **trang điều khiển của add-on** ([DashboardTarget.isValidSaved]): origin của HA
-     * (`https://<domain>/`) và URL đăng nhập (`/auth/…`, `/lovelace`) bị **từ chối** — đó chính là giá trị khiến
-     * app "refresh rồi lại vào Lovelace" (xem KDoc đầu [DashboardTarget]). Dùng [setLoginUrl] cho origin.
+     * `webUrl` CHỈ nhận **đích hợp lệ** ([DashboardTarget.isValidSaved]): panel của add-on trên HA
+     * (`https://<domain>/b39feb53_remote_webview_server` — (26/11/2026) GD14) hoặc trang điều khiển cũ
+     * (`…/launcher-config.html`). Origin của HA (`https://<domain>/`) và URL đăng nhập (`/auth/…`, `/lovelace`) bị
+     * **từ chối** — đó chính là giá trị khiến app "refresh rồi lại vào Lovelace" (xem KDoc đầu [DashboardTarget]).
+     * Dùng [setLoginUrl] cho origin.
      */
     fun setWebUrl(ctx: Context, url: String?) {
         val v = url?.trim().orEmpty()
@@ -145,9 +153,9 @@ object Prefs {
     /**
      * Luu ket qua: webUrl (WebView) + apiBase (API) + 2 chuoi nguoi dung go.
      *
-     * (19/11/2026) GD11 — `webUrl` chi duoc ghi khi la **trang dieu khien cua add-on**
-     * ([DashboardTarget.isValidSaved]); origin cua HA / URL dang nhap bi bo qua (giu gia tri cu), nho vay
-     * "mo dashboard" khong bao gio nap lai origin (Lovelace).
+     * (19/11/2026) GD11 / (26/11/2026) GD14 — `webUrl` chi duoc ghi khi la **dich hop le** cua app
+     * ([DashboardTarget.isValidSaved]: panel cua add-on tren HA, hoac trang dieu khien cu); origin cua HA / URL dang
+     * nhap bi bo qua (giu gia tri cu), nho vay "mo dashboard" khong bao gio nap lai origin (Lovelace).
      */
     fun saveTargets(ctx: Context, webUrl: String, apiBase: String, webInput: String?, apiInput: String?) {
         val web = webUrl.trim().takeIf { DashboardTarget.isValidSaved(it) }

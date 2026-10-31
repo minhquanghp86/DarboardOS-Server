@@ -64,8 +64,9 @@
             android:textColorHint="#FF5B6B85"
             android:textSize="15sp" />
 
-        <!-- (21/11/2026) GD13 — KHUYẾN NGHỊ IP LAN ngay dưới ô nhập: add-on tự phục vụ HTTPS (cổng 18443, chứng chỉ
-             tự ký) nên KHÔNG cần đăng nhập Home Assistant. Đây là đường chính; chế độ tên miền/ingress chỉ là phụ. -->
+        <!-- (26/11/2026) GD14 — KHUYẾN NGHỊ: CHỈ nhập domain của Home Assistant. App mở thẳng panel
+             `https://<domain>/b39feb53_remote_webview_server`; chính HA frontend dựng panel, tạo phiên ingress và
+             nhúng add-on vào iframe. Không cần Tailscale, không cần IP LAN, không cần TOKEN. -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -82,6 +83,16 @@
             android:text="@string/url_web_hint"
             android:textColor="#FF7D8CA3"
             android:textSize="11sp" />
+
+        <!-- (21/11/2026) GD13 — chế độ IP LAN vẫn giữ nhưng KHÔNG khuyến nghị: chữ mờ, cỡ nhỏ, không nổi bật. -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:alpha="0.65"
+            android:text="@string/url_web_lan_note"
+            android:textColor="#FF5B6B85"
+            android:textSize="10sp" />
 
         <!-- Trạng thái: đã kết nối / đang dò (1/3) / danh sách đã thử + gợi ý / cảnh báo không có micro. -->
         <TextView

@@ -109,11 +109,13 @@ class TlsPolicyTest {
     }
 
     @Test
-    fun nhap_ten_mien_thi_ingress_van_la_phuong_an_chinh_khong_doi() {
+    fun nhap_ten_mien_thi_panel_cua_ha_la_ung_vien_dau_tien() {
+        // (26/11/2026) GD14 — chế độ domain: panel của add-on trên HA đứng đầu; ingress chỉ là dự phòng.
         val domain = "hass.mqsmarthome.io.vn"
         val token = WebTargetResolver.DEFAULT_INGRESS_TOKEN
         val list = WebTargetResolver.webCandidates(domain, token)
-        assertEquals("https://$domain/api/hassio_ingress/$token/launcher-config.html", list.first())
+        assertEquals("https://$domain/${WebTargetResolver.ADDON_SLUG}", list.first())
+        assertTrue(list.contains("https://$domain/api/hassio_ingress/$token/launcher-config.html"))
         assertFalse("tên miền không tự thêm cổng 18443", list.any { it.contains(":18443") })
     }
 
@@ -145,12 +147,15 @@ class TlsPolicyTest {
     }
 
     @Test
-    fun web_url_da_xac_thuc_van_dung_dau_tien() {
-        // Máy đang chạy tốt bằng http 18080 (bản add-on cũ) không bị "nâng cấp" mù sang 18443.
+    fun web_url_lan_da_xac_thuc_van_nam_trong_danh_sach() {
+        // Máy đang chạy tốt bằng http 18080 (bản add-on cũ) vẫn có trong danh sách;
+        // (21/11/2026) GD13 — ứng viên https://<ip>:18443 vẫn đứng trước để có secure context (micro/camera),
+        // nhưng chế độ IP LAN nói chung KHÔNG còn được khuyến nghị ((26/11/2026) GD14 — panel của HA là đường chính).
         val saved = "http://$ip:18080/launcher-config.html"
         val list = DashboardTarget.candidates(saved = saved, typed = ip)
-        assertEquals(saved, list.first())
-        assertFalse(list.contains("https://$ip:18443/launcher-config.html"))
+        assertEquals("https://$ip:18443/launcher-config.html", list.first())
+        assertTrue(list.contains(saved))
+        assertTrue(list.indexOf(saved) > 0)
     }
 
     @Test

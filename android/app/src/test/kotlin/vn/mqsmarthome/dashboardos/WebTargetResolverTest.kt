@@ -25,34 +25,48 @@ class WebTargetResolverTest {
 
     // ─────────────────────────────────────────── 1) ô 1: domain → ứng viên
 
+    // (26/11/2026) GD14 — chế độ domain: PANEL của add-on trên HA là ứng viên ĐẦU TIÊN (đường duy nhất hoạt động
+    // được: chính HA frontend dựng panel + tạo phiên ingress + nhúng add-on), rồi tới trang điều khiển cùng panel,
+    // rồi mới tới các ứng viên ingress cũ (DỰ PHÒNG).
     @Test
-    fun domain_ba_ung_vien_dung_thu_tu_ingress_slug_goc() {
+    fun domain_bon_ung_vien_panel_truoc_roi_ingress_roi_goc() {
         assertEquals(
             listOf(
-                "https://$domain/api/hassio_ingress/$token/launcher-config.html",
+                "https://$domain/b39feb53_remote_webview_server",
                 "https://$domain/$slug/launcher-config.html",
+                "https://$domain/api/hassio_ingress/$token/launcher-config.html",
                 "https://$domain/launcher-config.html"
             ),
             WebTargetResolver.webCandidates(domain, token)
+        )
+        assertEquals(
+            "panel của add-on = slug add-on",
+            WebTargetResolver.PANEL_PATH,
+            "/$slug"
         )
     }
 
     @Test
     fun domain_dung_token_mac_dinh_khi_khong_truyen_token() {
-        val first = WebTargetResolver.webCandidates(domain).first()
-        assertEquals("https://$domain/api/hassio_ingress/$token/launcher-config.html", first)
+        val ingress = "https://$domain/api/hassio_ingress/$token/launcher-config.html"
+        val list = WebTargetResolver.webCandidates(domain)
+        assertEquals("panel trước, không phụ thuộc TOKEN", "https://$domain/b39feb53_remote_webview_server", list.first())
+        assertTrue("TOKEN mặc định vẫn có trong ứng viên dự phòng: $list", list.contains(ingress))
         // token rỗng / toàn khoảng trắng -> quay về token mặc định
-        assertEquals(first, WebTargetResolver.webCandidates(domain, "   ").first())
-        assertEquals(first, WebTargetResolver.webCandidates(domain, "").first())
+        assertEquals(list, WebTargetResolver.webCandidates(domain, "   "))
+        assertEquals(list, WebTargetResolver.webCandidates(domain, ""))
     }
 
     @Test
     fun token_nguoi_dung_sua_duoc_va_bo_khoang_trang_gach_cheo() {
         val custom = "AbC_123-xyz"
-        assertEquals(
-            "https://$domain/api/hassio_ingress/$custom/launcher-config.html",
-            WebTargetResolver.webCandidates(domain, "  /$custom/  ").first()
+        val list = WebTargetResolver.webCandidates(domain, "  /$custom/  ")
+        assertTrue(
+            "TOKEN người dùng sửa phải có trong ứng viên ingress: $list",
+            list.contains("https://$domain/api/hassio_ingress/$custom/launcher-config.html")
         )
+        assertFalse("không dùng TOKEN mặc định nữa", list.any { it.contains(token) })
+        assertEquals("panel vẫn đứng đầu", "https://$domain/b39feb53_remote_webview_server", list.first())
     }
 
     @Test
@@ -77,7 +91,9 @@ class WebTargetResolverTest {
     @Test
     fun domain_co_cong_rieng_thi_giu_cong_do() {
         val list = WebTargetResolver.webCandidates("hass.example.com:8123", token)
-        assertEquals("https://hass.example.com:8123/api/hassio_ingress/$token/launcher-config.html", list.first())
+        assertEquals("https://hass.example.com:8123/$slug", list.first())
+        assertTrue(list.contains("https://hass.example.com:8123/$slug/launcher-config.html"))
+        assertTrue(list.contains("https://hass.example.com:8123/api/hassio_ingress/$token/launcher-config.html"))
         assertTrue(list.contains("https://hass.example.com:8123/launcher-config.html"))
         assertFalse(list.contains("https://hass.example.com:8123:8123/$slug/launcher-config.html"))
     }
@@ -277,7 +293,8 @@ class WebTargetResolverTest {
     fun web_url_va_api_la_hai_gia_tri_khac_nhau() {
         val web = WebTargetResolver.webCandidates(domain, token).first()
         val api = WebTargetResolver.apiBaseOrNull(domain, "192.168.10.2:18080")!!
-        assertTrue(web.startsWith("https://$domain/api/hassio_ingress/"))
+        assertTrue(web.startsWith("https://$domain/"))
+        assertTrue("panel không nằm sau ingress", !WebTargetResolver.isIngressUrl(web))
         assertTrue(api.startsWith("http://192.168.10.2:18080"))
         assertFalse(api.contains("/api/hassio_ingress/"))
         assertFalse(web.contains("192.168.10.2"))
@@ -396,12 +413,12 @@ class WebTargetResolverTest {
     // ─────────────────────────────────────────── 7) (GD9) MỘT Ô ĐỊA CHỈ
 
     @Test
-    fun mot_o_domain_dung_ingress_cho_ca_trang_lan_api() {
+    fun mot_o_domain_dung_panel_cho_webview_va_ingress_cho_api() {
         val web = WebTargetResolver.webCandidates(domain, token).first()
         val api = WebTargetResolver.apiBaseForInput(domain, token)
-        // Trang điều khiển: đúng URL ingress + launcher-config.html.
-        assertEquals("https://$domain/api/hassio_ingress/$token/launcher-config.html", web)
-        // API: CÙNG ingress (không có /launcher-config.html), để /app/* nằm sau ingress.
+        // (26/11/2026) GD14 — WebView mở PANEL của add-on trên HA (HA tự dựng panel + tạo phiên ingress).
+        assertEquals("https://$domain/b39feb53_remote_webview_server", web)
+        // API: ingress (không có /launcher-config.html), để /app/* nằm sau ingress + cookie `ingress_session`.
         assertEquals("https://$domain/api/hassio_ingress/$token", api)
         assertTrue("API phải nằm sau ingress: $api", WebTargetResolver.isIngressBase(api))
         // Cùng origin → cookie phiên HA đọc từ CookieManager dùng được cho cả hai.
@@ -424,9 +441,10 @@ class WebTargetResolverTest {
     @Test
     fun mot_o_token_nguoi_dung_sua_thi_doi_ca_trang_lan_api() {
         val custom = "TokenKhac_9"
-        assertEquals(
-            "https://$domain/api/hassio_ingress/$custom/launcher-config.html",
-            WebTargetResolver.webCandidates(domain, custom).first()
+        // Panel không phụ thuộc TOKEN; ứng viên ingress mang TOKEN người dùng sửa.
+        assertTrue(
+            WebTargetResolver.webCandidates(domain, custom)
+                .contains("https://$domain/api/hassio_ingress/$custom/launcher-config.html")
         )
         assertEquals(
             "https://$domain/api/hassio_ingress/$custom",
@@ -494,5 +512,62 @@ class WebTargetResolverTest {
             "https://$domain/api/hassio_ingress/$token/call-web.html?call=abc-1",
             WebTargetResolver.callPageUrl(web, "abc-1", "  ")
         )
+    }
+
+    // ─────────────────────────────────────────── 8) (26/11/2026) GD14 — PANEL của add-on trên HA
+
+    @Test
+    fun panel_url_va_nhan_dien_duong_dan_panel() {
+        assertEquals("https://$domain/$slug", WebTargetResolver.panelUrl("https://$domain"))
+        assertEquals("https://$domain/$slug", WebTargetResolver.panelUrl("https://$domain/"))
+        assertEquals("https://$domain:8123/$slug", WebTargetResolver.panelUrl("https://$domain:8123"))
+        assertNull(WebTargetResolver.panelUrl(null))
+        assertNull("thiếu scheme", WebTargetResolver.panelUrl("hass.example.com"))
+        assertNull(WebTargetResolver.panelUrl("ftp://x/y"))
+
+        assertTrue(WebTargetResolver.isPanelUrl("https://$domain/$slug"))
+        assertTrue(WebTargetResolver.isPanelUrl("https://$domain/$slug/"))
+        assertTrue(WebTargetResolver.isPanelUrl("https://$domain/$slug/launcher-config.html"))
+        assertTrue(WebTargetResolver.isPanelUrl("https://$domain/$slug?x=1#y"))
+        assertFalse(WebTargetResolver.isPanelUrl("https://$domain/lovelace/0"))
+        assertFalse(WebTargetResolver.isPanelUrl("https://$domain/"))
+        assertFalse("đoạn đường dẫn phải khớp trọn", WebTargetResolver.isPanelUrl("https://$domain/${slug}_x"))
+        assertFalse(WebTargetResolver.isPanelUrl("https://$domain/api/hassio_ingress/t/launcher-config.html"))
+        assertFalse(WebTargetResolver.isPanelUrl("about:blank"))
+        assertFalse(WebTargetResolver.isPanelUrl(null))
+    }
+
+    @Test
+    fun nhan_dien_iframe_ingress_trong_trang_panel() {
+        assertTrue(
+            WebTargetResolver.hasIngressIframe("<iframe src=\"/api/hassio_ingress/abc/launcher-config.html\"></iframe>")
+        )
+        assertTrue(WebTargetResolver.hasIngressIframe("<IFRAME id=\"x\" SRC=\"https://h/api/hassio_ingress/t/x.html\">"))
+        assertFalse(WebTargetResolver.hasIngressIframe("<html><body>không có iframe</body></html>"))
+        assertFalse(WebTargetResolver.hasIngressIframe(""))
+        assertFalse(WebTargetResolver.hasIngressIframe(null))
+        // iframe KHÔNG phải ingress → không tính là panel đã nhúng add-on.
+        assertFalse(WebTargetResolver.hasIngressIframe("<iframe src=\"https://youtube.com/embed/x\"></iframe>"))
+    }
+
+    @Test
+    fun tieu_de_tran_cua_ha_khong_phai_thanh_cong() {
+        assertTrue(WebTargetResolver.isBareHomeAssistantTitle("Home Assistant"))
+        assertTrue(WebTargetResolver.isBareHomeAssistantTitle("  home assistant "))
+        assertFalse(WebTargetResolver.isBareHomeAssistantTitle("Dashboard OS - Home Assistant"))
+        assertFalse(WebTargetResolver.isBareHomeAssistantTitle("Lovelace"))
+        assertFalse(WebTargetResolver.isBareHomeAssistantTitle(null))
+        assertFalse(WebTargetResolver.isBareHomeAssistantTitle(""))
+    }
+
+    @Test
+    fun chap_nhan_panel_200_du_body_la_spa_ha() {
+        // Panel: HA trả SPA của chính nó (200, `<title>Home Assistant</title>`) rồi mới nhúng add-on ⇒ ĐÚNG đích.
+        assertTrue(WebTargetResolver.isAcceptedWeb("https://$domain/$slug", 200, "<title>Home Assistant</title>"))
+        // Cùng body nhưng KHÔNG phải đường dẫn panel ⇒ vẫn bị loại như trước.
+        assertFalse(
+            WebTargetResolver.isAcceptedWeb("https://$domain/launcher-config.html", 200, "<title>Home Assistant</title>")
+        )
+        assertFalse(WebTargetResolver.isAcceptedWeb("https://$domain/$slug", 404, "Not Found"))
     }
 }

@@ -41,6 +41,15 @@ class PhoneService : Service() {
         const val POLL_MS = 2_000L
 
         /**
+         * (26/11/2026) GD14 — nhịp CHỜ khi gốc API nằm sau ingress mà CHƯA có cookie `ingress_session`.
+         *
+         * Cookie đó chỉ xuất hiện SAU KHI panel của add-on được mở trong WebView (chính HA frontend tạo phiên — xem
+         * `MainActivity`/`DashboardTarget`). Nên thay vì bắn `/app/incoming` mỗi 2 s để ăn 401 liên tục, service
+         * **chờ** và thử lại mỗi 5 s.
+         */
+        const val WAIT_MS = 5_000L
+
+        /**
          * (23/11/2026) GD10 — nhịp ĐĂNG LẠI thông báo cuộc gọi = [CallNotifications.REPOST_MS] (30 s, ≥ 25 s).
          * Trước đây 4 s -> cắt nhạc chuông dài. Xem [RepostPolicy].
          */
@@ -226,18 +235,20 @@ class PhoneService : Service() {
                     continue
                 }
                 // (17/11/2026) GD9 — goc API co the nam sau ingress cua Home Assistant (khi nguoi dung chi nhap domain):
-                // MOI loi goi /app/* phai kem COOKIE phien HA, khong thi ingress tra 401. Chua dang nhap -> DUNG poll
-                // (khong ban 401 moi 2 s) va cho: dang nhap xong, MainActivity goi PhoneService.start + da co cookie.
+                // MOI loi goi /app/* phai kem COOKIE phien HA, khong thi ingress tra 401.
+                // (26/11/2026) GD14 — phải là cookie `ingress_session` (do CHÍNH PANEL của add-on tạo khi mở trong
+                // WebView), không phải "cookie bất kỳ": trước khi panel mở thì KHÔNG gọi gì cả, CHỜ và thử lại mỗi
+                // [WAIT_MS] (5 s) — không bắn 401 liên tục mỗi 2 s.
                 val ingress = WebTargetResolver.isIngressBase(base)
                 val cookie = if (ingress) HaCookie.header(base) else null
-                if (ingress && cookie.isNullOrBlank()) {
+                if (ingress && !WebTargetResolver.hasSessionCookie(cookie)) {
                     if (!needLoginLogged) {
                         needLoginLogged = true
-                        Log.i(TAG, "goc API qua ingress nhung CHUA co cookie Home Assistant -> cho dang nhap")
+                        Log.i(TAG, "gốc API qua ingress nhưng CHƯA có cookie ingress_session (panel chưa mở) → chờ 5 s/nhịp")
                     }
                     PhoneStatus.needLogin = true
                     PhoneStatus.publish(this)
-                    if (!sleep()) break
+                    if (!sleep(WAIT_MS)) break
                     continue
                 }
                 if (needLoginLogged) { needLoginLogged = false; PhoneStatus.needLogin = false }
@@ -275,13 +286,20 @@ class PhoneService : Service() {
                     is PhoneApi.Poll.Denied -> {
                         // (17/11/2026) GD9 — 401/403 = thieu cookie / can dang nhap HA; 404 = sai TOKEN ingress.
                         // Thu MOT lan cac ung viên khác (ingress -> slug add-on -> goc domain) roi ghi lai goc API.
+                        // (26/11/2026) GD14 — ingress mà 401 thường là phiên `ingress_session` đã hết hạn/ chưa có:
+                        // đánh dấu "cần đăng nhập", chờ 5 s mới thử lại (không spam 401 mỗi 2 s).
                         PhoneStatus.lastPollAt = System.currentTimeMillis()
+                        if (ingress) {
+                            PhoneStatus.needLogin = true
+                            needLoginLogged = true
+                        }
                         if (deniedBase != base) {
                             deniedBase = base
-                            Log.w(TAG, "API $base tra ${r.code} (thieu cookie HA hoac sai TOKEN ingress)")
+                            Log.w(TAG, "API $base tra ${r.code} (thiếu cookie ingress_session hoặc sai TOKEN ingress)")
                             reprobeApi(base)
                         }
                         PhoneStatus.publish(this)
+                        if (ingress && !sleep(WAIT_MS)) break
                     }
                     PhoneApi.Poll.Error -> {
                         // mat mang: giu nguyen trang thai (chuong vẫn kêu), thu lai sau 2 s.
@@ -320,9 +338,12 @@ class PhoneService : Service() {
         }
     }
 
-    /** Ngu 2 s (ngat duoc khi service bi dung). false = phai thoat vong lap. */
-    private fun sleep(): Boolean = try {
-        Thread.sleep(POLL_MS)
+    /** Ngu [POLL_MS] (ngat duoc khi service bi dung). false = phai thoat vong lap. */
+    private fun sleep(): Boolean = sleep(POLL_MS)
+
+    /** Ngu [ms] (dùng [WAIT_MS] khi còn chờ cookie `ingress_session`). false = phải thoát vòng lặp. */
+    private fun sleep(ms: Long): Boolean = try {
+        Thread.sleep(ms)
         true
     } catch (e: InterruptedException) {
         false
