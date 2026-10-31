@@ -17,7 +17,8 @@ import { describe, expect, it } from 'vitest';
 import { AGC_MAX_GAIN_DB, newAgcState, processPcm, rmsDbOf, peakOf } from './audioAgc.js';
 import { eqApply, newEqState } from './callEq.js';
 import {
-  FRAME_BYTES as TA_FRAME_BYTES, frameCount, listTestAudio, loadTestAudio, parseWav, playPaced, readPlayParams, sanitizeName,
+  FRAME_BYTES as TA_FRAME_BYTES, frameCount, listTestAudio, loadTestAudio, parseWav, playPaced, readPlayParams,
+  sanitizeName, testAudioDirCandidates,
 } from './testAudio.js';
 
 const DIR = path.join(process.cwd(), 'test-audio');
@@ -171,6 +172,35 @@ describe('testAudio — ten tep va danh sach', () => {
     expect(sanitizeName('x'.repeat(80) + '.wav')).toBeNull();
   });
 
+  it('sanitizeName: thieu .wav thi TU THEM (file=speech-like), van chan duong dan/duoi la', () => {
+    expect(sanitizeName('speech-like')).toBe('speech-like.wav');
+    expect(sanitizeName('  speech-like  ')).toBe('speech-like.wav');      // khoang trang bi cat
+    expect(sanitizeName('tone-1k')).toBe('tone-1k.wav');
+    expect(sanitizeName('noise')).toBe('noise.wav');
+    expect(sanitizeName('speech-like.WAV')).toBe('speech-like.wav');      // duoi hoa -> chu thuong
+    expect(sanitizeName('speech-like.wav')).toBe('speech-like.wav');      // da co .wav -> giu nguyen
+    expect(sanitizeName('speech-like.mp3')).toBeNull();                   // KHONG thanh speech-like.mp3.wav
+    expect(sanitizeName('../etc/passwd')).toBeNull();                     // khong tu them roi lot ra ngoai
+    expect(sanitizeName('/app/test-audio/noise')).toBeNull();
+    expect(sanitizeName('a b')).toBeNull();                               // khoang trang ben trong: khong hop le
+    expect(sanitizeName('x'.repeat(70))).toBeNull();                      // qua dai sau khi them .wav
+  });
+
+  it('testAudioDirCandidates: co ca duong dev (<cwd>/test-audio) va container (/app/test-audio)', () => {
+    const dirs = testAudioDirCandidates({});
+    expect(dirs[0]).toBe(path.resolve(process.cwd(), 'test-audio'));     // dev: goc repo
+    expect(dirs).toContain('/app/test-audio');                            // container HA add-on (WORKDIR /app)
+    expect(dirs).toContain(path.resolve(process.cwd(), 'test-audio'));     // node dist/index.js tai goc repo
+    expect(dirs.every((d) => path.isAbsolute(d))).toBe(true);
+    expect(new Set(dirs).size).toBe(dirs.length);                         // khong trung
+    // Chay tu dist/ (node dist/index.js): <module>/../test-audio phai co mat.
+    const modDir = path.dirname(path.resolve(process.cwd(), 'src', 'testAudio.ts'));
+    expect(dirs).toContain(path.resolve(modDir, '..', 'test-audio'));
+    // CCR_TEST_AUDIO_DIR ghi de hoan toan (dung trong test va khi thu muc nam cho khac).
+    expect(testAudioDirCandidates({ CCR_TEST_AUDIO_DIR: '/tmp/x' })).toEqual(['/tmp/x']);
+    expect(testAudioDirCandidates({ CCR_TEST_AUDIO_DIR: '  ' })[0]).toBe(dirs[0]);
+  });
+
   it('listTestAudio: thay dung 3 tep, moi tep 10 s', () => {
     const list = listTestAudio(fs, [DIR]);
     expect(list.map((f) => f.name)).toEqual(FILES_SORTED);
@@ -178,9 +208,28 @@ describe('testAudio — ten tep va danh sach', () => {
     expect(list.every((f) => f.bytes === 320044)).toBe(true);
   });
 
+  it('listTestAudio: khong truyen dirs -> tu tim thay test-audio/ cua repo (duong dung trong image)', () => {
+    const list = listTestAudio(fs);                                       // testAudioDirCandidates() that
+    expect(list.map((f) => f.name)).toEqual(FILES_SORTED);
+    expect(list.every((f) => f.ms === 10000)).toBe(true);
+  });
+
   it('loadTestAudio: ten sai -> loi; thu muc khong ton tai -> loi ro rang', () => {
     expect(() => loadTestAudio('../x.wav', fs, [DIR])).toThrow(/khong hop le/);
     expect(() => loadTestAudio('khong-co.wav', fs, [DIR])).toThrow(/khong co tep/);
+    // Thong diep phai chi ra da tim o dau va dang co tep nao (chan doan "image thieu test-audio/").
+    expect(() => loadTestAudio('khong-co.wav', fs, [DIR])).toThrow(/da tim: .*test-audio/);
+    expect(() => loadTestAudio('khong-co.wav', fs, [DIR])).toThrow(/dang co: .*speech-like\.wav/);
+  });
+
+  it('loadTestAudio: goi KHONG co .wav van doc dung tep -> 500 khung 20 ms (10 s)', () => {
+    const { name, wav } = loadTestAudio('speech-like', fs, [DIR]);        // file=speech-like (thieu .wav)
+    expect(name).toBe('speech-like.wav');
+    expect(wav.sampleRate).toBe(16000);
+    expect(wav.channels).toBe(1);
+    expect(wav.samples).toBe(160000);
+    expect(wav.data.length).toBe(320000);
+    expect(frameCount(wav.data.length)).toBe(500);
   });
 });
 
@@ -196,6 +245,19 @@ describe('testAudio — tham so /call/test/play', () => {
       .toEqual({ file: 'tone-1k.wav', loop: 3, agc: false, eq: true, gainDb: -6 });
     expect(readPlayParams(q('agc=1&eq=0')).agc).toBe(true);
     expect(readPlayParams(q('agc=1&eq=0')).eq).toBe(false);
+  });
+
+  it('file= thieu .wav -> tu them: speech-like va speech-like.wav la MOT', () => {
+    expect(readPlayParams(q('file=speech-like')).file).toBe('speech-like.wav');
+    expect(readPlayParams(q('file=speech-like.wav')).file).toBe('speech-like.wav');
+    expect(readPlayParams(q('file=speech-like&loop=2')).file).toBe('speech-like.wav');
+    expect(readPlayParams(q('file=tone-1k')).file).toBe('tone-1k.wav');
+    expect(readPlayParams(q('file=noise')).file).toBe('noise.wav');
+    // Ten la: giu nguyen van de loadTestAudio bao loi "khong hop le" (400), khong lang le doi tep khac.
+    expect(readPlayParams(q('file=../etc/passwd')).file).toBe('../etc/passwd');
+    expect(readPlayParams(q('file=tone.mp3')).file).toBe('tone.mp3');
+    expect(readPlayParams(q('file=')).file).toBe('speech-like.wav');       // rong -> mac dinh
+    expect(readPlayParams(q('file=%20%20')).file).toBe('speech-like.wav'); // chi khoang trang -> mac dinh
   });
 
   it('gia tri sai -> kep ve khoang hop le, khong nem loi', () => {

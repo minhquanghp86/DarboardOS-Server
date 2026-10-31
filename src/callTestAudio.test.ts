@@ -128,6 +128,19 @@ describe('POST /call/test/play', () => {
     expect(r.body.ms).toBeGreaterThanOrEqual(80);
   });
 
+  it('file= thieu .wav -> van phat duoc: {file:"short"} = {file:"short.wav"}', async () => {
+    const sent: number[] = [];
+    vi.spyOn(broadcaster, 'sendAudioFrame').mockImplementation((_dev: string, pcm: Buffer) => { sent.push(pcm.length); return true; });
+    const log = vi.spyOn(console, 'log').mockImplementation(() => { });
+    const short = await call('POST', `/call/test/play?dev=${DEV}&file=short`);
+    expect(short.code).toBe(200);
+    expect(short.body.ok).toBe(true);
+    expect(short.body.file).toBe('short.wav');                 // ten da chuan hoa (them .wav)
+    expect(short.body.frames).toBe(5);
+    expect(sent).toEqual(Array(5).fill(FRAME_BYTES));
+    expect(log.mock.calls.map((c) => String(c[0])).find((s) => s.startsWith('[test] play'))).toContain('file=short.wav');
+  });
+
   it('loop=2 -> 10 khung, ms >= 180 (khong bun no)', async () => {
     const sent: number[] = [];
     vi.spyOn(broadcaster, 'sendAudioFrame').mockImplementation((_dev: string, pcm: Buffer) => { sent.push(pcm.length); return true; });
@@ -181,6 +194,7 @@ describe('POST /call/test/play', () => {
     const missing = await call('POST', `/call/test/play?dev=${DEV}&file=khong-co.wav`);
     expect(missing.code).toBe(400);
     expect(missing.body.error).toMatch(/khong co tep/);
+    expect(missing.body.error).toMatch(/da tim: /);          // thong diep chi ra thu muc da tim (chan doan image)
     expect((await call('GET', `/call/test/play?dev=${DEV}`)).code).toBe(405);
   });
 

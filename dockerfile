@@ -81,6 +81,16 @@ COPY self-test ./self-test
 # internet qua Cloudflare Tunnel). Xem ghi chú trong src/index.ts.
 COPY public ./public
 
+# (06/12/2026) SUA LOI: ba tep mau `test-audio/*.wav` chi nam trong git, KHONG duoc
+# copy vao image -> trong container `/app/test-audio` khong ton tai, nen
+# `GET /call/test/files` tra `{"ok":true,"files":[]}` va `POST /call/test/play` bao
+# "ten tep khong hop le"/"khong co tep". WORKDIR la /app (xem ben duoi) nen
+# `COPY test-audio ./test-audio` dat tep dung tai `/app/test-audio` — mot trong cac
+# duong ma `testAudioDirCandidates()` (src/testAudio.ts) tim, cung voi
+# `/app/dist/../test-audio`. Giu tep o goc repo (khong chuyen vao public/) de
+# `npm run dev` va `node scripts/verify-test-audio.mjs` van doc duoc ngay.
+COPY test-audio ./test-audio
+
 # (16/10/2026) Giay phep + thong bao di kem anh (Apache-2.0 §4(a)/(d), LGPL cua libvips trong sharp, OFL cua font dong ho):
 # nguoi nhan anh phai thay duoc LICENSE / NOTICE / THIRD-PARTY-NOTICES ngay trong anh (docker run ... ls /licenses).
 COPY LICENSE LICENSE-MIT LICENSE-OFL-BebasNeue.txt NOTICE THIRD-PARTY-NOTICES.md TRADEMARKS.md /licenses/

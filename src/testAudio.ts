@@ -17,6 +17,15 @@
 // Duong phat THAT (AGC/EQ/pacer/pacer -> broadcaster) nam o `sendToSpeaker()` trong src/callBridge.ts; module nay chi
 // goi callback `send` ma callBridge truyen vao, nho vay test duoc bang vitest voi dong ho gia (src/testAudio.test.ts).
 
+// (06/12/2026) Thu muc `test-audio/` PHAI co trong image (dockerfile: `COPY test-audio ./test-audio`):
+// truoc day ba tep mau chi nam trong git -> trong container `/app/test-audio` khong ton tai, nen
+// `GET /call/test/files` tra `{"ok":true,"files":[]}` va `POST /call/test/play` bao "khong co tep".
+// `testAudioDirCandidates()` duoi day tim theo CA hai duong: tu `process.cwd()` (dev: goc repo;
+// container: /app) VA tu vi tri module da build (`dist/testAudio.js` -> `../test-audio`) — nho vay
+// dung duoc du tien trinh duoc khoi dong tu thu muc khac (vd. WORKDIR bi doi, hoac `node /app/dist/index.js`).
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 /** Dinh dang bat buoc: khop voi AudioFrame ma firmware phat ra loa (`i2s_audio` 16 kHz, s16le mono). */
 export const WAV_SAMPLE_RATE = 16000;
 export const WAV_CHANNELS = 1;
@@ -79,22 +88,55 @@ export function parseWav(buf: Buffer): Wav {
   return { sampleRate: f.sampleRate, channels: f.channels, bitsPerSample: f.bits, data: pcm, samples, ms: Math.round((samples / f.sampleRate) * 1000) };
 }
 
-/** Thu muc tep mau: `CCR_TEST_AUDIO_DIR` neu dat, nguoc lai `test-audio/` canh repo (hoac canh dist/ khi da build). */
+/** Thu muc chua module da nap (dev: `<repo>/src`, da build: `<app>/dist`) — dung de tim `../test-audio`. */
+function moduleDir(): string | null {
+  try { return path.dirname(fileURLToPath(import.meta.url)); } catch { return null; }
+}
+
+/**
+ * Thu muc tep mau, theo thu tu uu tien (thu muc dau tien CO tep thang — xem `listTestAudio`):
+ *   1. `CCR_TEST_AUDIO_DIR` neu dat (ghi de hoan toan — dung trong test);
+ *   2. `<cwd>/test-audio`             — dev (`npm run dev` tai goc repo) va container HA (`WORKDIR /app` -> `/app/test-audio`);
+ *   3. `<thu muc module>/../test-audio` — `dist/testAudio.js` -> `<app>/test-audio`; `src/testAudio.ts` -> `<repo>/test-audio`
+ *      (van dung khi tien trinh khoi dong tu thu muc khac: `node /app/dist/index.js` tu `/`);
+ *   4. `<cwd>/../test-audio`          — kieu cu (`node dist/index.js` khi cwd = `dist/`);
+ *   5. `/app/test-audio`              — duong dan tuyet doi trong image add-on HA, de doc lai loi cai dat.
+ * Ket qua da bo trung va da chuan hoa tuyet doi.
+ */
 export function testAudioDirCandidates(env: NodeJS.ProcessEnv = process.env): string[] {
   const custom = (env.CCR_TEST_AUDIO_DIR ?? '').trim();
   if (custom) return [custom];
-  return [
-    `${process.cwd()}/test-audio`,
-    `${process.cwd()}/../test-audio`,     // chay tu dist/ (node dist/index.js)
+  const mod = moduleDir();
+  const raw = [
+    path.join(process.cwd(), 'test-audio'),
+    ...(mod ? [path.join(mod, '..', 'test-audio')] : []),
+    path.join(process.cwd(), '..', 'test-audio'),     // chay tu dist/ (node dist/index.js)
+    '/app/test-audio',                                // container add-on HA (WORKDIR /app)
   ];
+  const out: string[] = [];
+  for (const p of raw) {
+    const n = path.resolve(p);
+    if (!out.includes(n)) out.push(n);
+  }
+  return out;
 }
 
-/** Ten tep hop le: chi chu/so/._- va phai la .wav — khong cho `../`, khong cho duong dan tuyet doi. */
+/**
+ * Ten tep hop le: chi chu/so/._- va phai la `.wav` — khong cho `../`, khong cho duong dan tuyet doi.
+ *
+ * (06/12/2026) THAN THIEN HON: thieu duoi `.wav` thi TU THEM (`file=speech-like` -> `speech-like.wav`).
+ * Van tu choi: ten co duoi khac (`tone.mp3` -> null, KHONG thanh `tone.mp3.wav`), ten qua 64 ky tu,
+ * va moi thu co `/`, `\` hoac `..`.
+ */
 export function sanitizeName(name: string): string | null {
-  const n = (name || '').trim();
-  if (!n || n.length > 64) return null;
+  const raw = (name || '').trim();
+  if (!raw || raw.length > 64 + 4) return null;
+  if (raw.includes('..') || raw.includes('/') || raw.includes('\\')) return null;
+  // Khong co dau cham nao -> coi la ten thieu duoi, tu them `.wav`; co duoi `.wav` (khong phan biet hoa/thuong)
+  // thi chuan hoa ve chu thuong; con lai (duoi khac) -> de nguyen cho regex duoi day tu choi.
+  const n = /\.wav$/i.test(raw) ? `${raw.slice(0, -4)}.wav` : (raw.includes('.') ? raw : `${raw}.wav`);
+  if (n.length > 64) return null;
   if (!/^[A-Za-z0-9._-]+\.wav$/.test(n)) return null;
-  if (n.includes('..')) return null;
   return n;
 }
 
@@ -122,16 +164,24 @@ export function listTestAudio(fs: typeof import('node:fs'), dirs: string[] = tes
   return out;
 }
 
-/** Doc MOT tep mau theo ten. Khong tim thay / sai dinh dang -> nem loi co thong diep ro rang. */
+/**
+ * Doc MOT tep mau theo ten. Khong tim thay / sai dinh dang -> nem loi co thong diep ro rang
+ * (kem danh sach tep CO THAT va cac thu muc da tim — de chan doan "image thieu test-audio/" tu log).
+ */
 export function loadTestAudio(name: string, fs: typeof import('node:fs'), dirs: string[] = testAudioDirCandidates()): { name: string; wav: Wav } {
   const safe = sanitizeName(name);
-  if (!safe) throw new Error(`ten tep khong hop le: "${name}" (chi ten.wav trong test-audio/)`);
+  if (!safe) throw new Error(`ten tep khong hop le: "${name}" (chi ten.wav hoac ten trong test-audio/)`);
   for (const dir of dirs) {
     const p = `${dir}/${safe}`;
     if (!fs.existsSync(p)) continue;
     return { name: safe, wav: parseWav(fs.readFileSync(p)) };
   }
-  throw new Error(`khong co tep "${safe}" trong test-audio/ (xem scripts/gen-test-audio.mjs)`);
+  const have = listTestAudio(fs, dirs).map((f) => f.name);
+  const where = dirs.join(', ');
+  throw new Error(
+    `khong co tep "${safe}" trong test-audio/ (xem scripts/gen-test-audio.mjs)`
+    + ` — da tim: ${where}; dang co: ${have.length ? have.join(', ') : 'khong co tep .wav nao'}`,
+  );
 }
 
 /** So khung 20 ms cua mot do dai PCM (lam tron LEN: duoi le van duoc gui thanh mot khung cuoi ngan hon). */
@@ -151,7 +201,13 @@ export interface PlayParams {
   gainDb: number;
 }
 
-/** Doc tham so tu query: `file=`, `loop=`, `agc=0|1`, `eq=0|1`, `gain=<dB>`. Gia tri sai -> mac dinh, khong nem loi. */
+/**
+ * Doc tham so tu query: `file=`, `loop=`, `agc=0|1`, `eq=0|1`, `gain=<dB>`. Gia tri sai -> mac dinh, khong nem loi.
+ *
+ * (06/12/2026) `file=` duoc chuan hoa qua `sanitizeName`: thieu `.wav` thi tu them, nen `file=speech-like` va
+ * `file=speech-like.wav` la MOT. Ten van sai (co `../`, duong dan, duoi khac) thi giu NGUYEN VAN de `loadTestAudio`
+ * bao loi "ten tep khong hop le" (endpoint tra 400) thay vi lang le doi sang tep khac.
+ */
 export function readPlayParams(get: (k: string) => string | null): PlayParams {
   const num = (k: string): number | null => {
     const v = get(k);
@@ -167,8 +223,9 @@ export function readPlayParams(get: (k: string) => string | null): PlayParams {
   };
   const loopRaw = num('loop');
   const gainRaw = num('gain');
+  const fileRaw = (get('file') ?? '').trim() || 'speech-like.wav';
   return {
-    file: (get('file') || 'speech-like.wav').trim(),
+    file: sanitizeName(fileRaw) ?? fileRaw,
     loop: loopRaw === null ? 1 : Math.max(1, Math.min(600, Math.round(loopRaw))),
     agc: bit('agc'),
     eq: bit('eq'),

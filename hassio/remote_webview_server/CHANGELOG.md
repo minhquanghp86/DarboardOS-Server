@@ -13,6 +13,10 @@
 - Test: `src/audioAgc.test.ts` (im lặng, khung nhỏ/khung lớn, attack/release, giới hạn gain, limiter −1 dBFS, tắt env
   → passthrough y nguyên byte, khung 20 ms vào 640 byte ra 640 byte).
 
+## V2.9.316
+- Đóng gói **`test-audio/`** vào image (3 file WAV mẫu) để `POST /call/test/play` và `GET /call/test/files` hoạt động;
+  `file=speech-like` tự thêm `.wav`. Đây là công cụ đo đường phát của màn bằng tín hiệu cố định.
+
 ## V2.9.315
 - **Nhịp gửi đều 20 ms/khung** xuống loa màn (audio pacer, trần hàng đợi 100 ms + trần `bufferedAmount`) — sửa lỗi
   “giật cục, hụt hơi” do server dồn khung theo nhịp điện thoại rồi làm tràn ring buffer 250 ms của loa.
