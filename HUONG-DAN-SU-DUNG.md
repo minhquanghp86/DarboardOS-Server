@@ -305,6 +305,7 @@ Không ai nhận trong 30 giây → cuộc gọi nhỡ: P4 hiện thông báo tr
 | Gọi điện thoại ↔ điện thoại không có tiếng | Bản add-on cũ (chưa chuyển tiếng giữa hai phiên web) | Cập nhật add-on mới (tiếng đi **hai chiều** giữa hai điện thoại) |
 | Không thấy **tab Nhật ký** | Bản add-on cũ (chưa có nhật ký) | Cập nhật add-on **2.9.309** trở lên rồi tải lại trang |
 | Nhật ký trống dù vừa gọi | Cuộc gọi **chưa kết thúc** (đang đổ chuông / đang nói) | Nhật ký chỉ ghi cuộc **đã xong**; kết thúc cuộc gọi rồi xem lại |
+| Nhật ký **chỉ hiện cuộc gọi đi**, thiếu "gọi đến" / "gọi đến nhỡ" (nhất là trên **điện thoại**) | Bản add-on cũ: nhật ký ghi 2 mục theo id lúc **bắt đầu** gọi, nên mục "gọi đến" của điện thoại nằm dưới **id máy** trong khi trang `call-web.html` của máy lại hỏi bằng **id phiên web** | Cập nhật add-on (bản sửa 03/12/2026): mỗi cuộc **một bản ghi**, `dir` tính theo máy đang hỏi và id máy ↔ id phiên web được nối với nhau |
 
 ### 7.9. Nhật ký cuộc gọi (tab **Nhật ký**)
 
@@ -316,19 +317,20 @@ trên màn P4 mở sẵn tab **Thiết bị** (danh bạ để gọi ngay như t
 
 | Biểu tượng / cột | Ý nghĩa |
 |---|---|
-| Mũi tên chéo **lên** (↗) | Cuộc gọi **đi** — máy này gọi đi |
+| Mũi tên chéo **lên** (↖) | Cuộc gọi **đi** — máy này gọi đi |
 | Mũi tên chéo **xuống** màu xanh lá (↙) | Cuộc gọi **đến, đã nghe** |
 | Mũi tên chéo **xuống** màu đỏ (↙) | Cuộc gọi **đến nhưng nhỡ** |
 | Tên + dòng phụ | Tên thiết bị bên kia · `Hôm nay 14:32` / `Hôm qua 14:32` / `05/03` · loại (màn hình / điện thoại / trình duyệt) |
-| Cuối dòng | `00:42` = thời lượng đã nói · **Nhỡ** · **Từ chối** · **Đã huỷ** · **Lỗi** |
+| Cuối dòng | `00:42` = thời lượng đã nói · **Nhỡ** · **Từ chối** (máy kia từ chối) / **Đã từ chối** (máy này từ chối) · **Đã huỷ** · **Lỗi** |
 | **Bấm vào dòng** | **Gọi lại** đúng thiết bị đó — không cần sang tab **Thiết bị** |
 
 - Mỗi máy chỉ thấy **cuộc của mình**, hướng đi/đến đúng; tab tự cập nhật **5 giây/lần** khi đang mở.
-- Server giữ **200 mục** gần nhất (`/data/rwv-call-log.json`) — mỗi cuộc 2 mục (bên gọi + bên nhận) nên tương đương
-  ~**100 cuộc gần nhất**. Nâng cấp add-on hay khởi động lại **không mất**; bản sao lưu add-on có tệp này.
+- Server giữ **200 cuộc** gần nhất (`/data/rwv-call-log.json`) — mỗi cuộc **một bản ghi** (cả bên gọi + bên nhận),
+  server tách thành mục **gọi đi** / **gọi đến** theo máy đang hỏi. Nâng cấp add-on hay khởi động lại **không mất**;
+  bản sao lưu add-on có tệp này. Nhật ký cũ (định dạng 2 mục/cuộc) được **tự gộp** khi nâng cấp, không mất dữ liệu.
 - Cuộc **đang đổ chuông** chưa vào nhật ký (đã hiện ở màn hình gọi); nhật ký chỉ liệt kê cuộc **đã kết thúc**.
 - API cho trang đọc: `GET /calls/log?self=<id>&limit=` (mặc định 50 mục, tối đa 200); xoá: `POST /calls/log/clear?self=<id>`
-  (`self` rỗng = xoá toàn bộ) trả `{ok, removed:n}`.
+  (`self` rỗng = xoá toàn bộ) trả `{ok, removed:n}` — `n` là số **cuộc gọi** đã xoá.
 - **Trên màn P4**: ứng dụng **Cuộc gọi** có đủ 2 tab — **Thiết bị** (danh bạ, mở sẵn) và **Nhật ký** (cùng nút **Xoá nhật ký**);
   bấm một dòng nhật ký = **gọi lại** thiết bị đó bằng luồng gọi của màn.
 

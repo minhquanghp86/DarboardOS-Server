@@ -1,3 +1,8 @@
+## V2.9.311
+- **Nhật ký cuộc gọi 2 chiều**: mỗi cuộc chỉ lưu **một bản ghi** rồi chiếu theo thiết bị đang xem, nên máy nhận
+  thấy đúng **gọi đến** (nhỡ/đã nghe kèm thời lượng) và máy gọi thấy **gọi đi**. Trước đây điện thoại không thấy
+  mục gọi đến vì bản ghi gắn với id phiên web. Tự gộp dữ liệu cũ khi khởi động; giới hạn nay là **200 cuộc**.
+
 ## V2.9.310
 - **Điện thoại ↔ điện thoại có tiếng**: PCM 16 kHz được định tuyến giữa hai phiên web (`audioPeerOf`), chịu được
   phiên vừa bị thay/join.

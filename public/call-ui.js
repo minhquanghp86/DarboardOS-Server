@@ -263,7 +263,7 @@
       Promise.resolve().then(function () { return A.log(); }).then(function (items) {
         items = items || [];
         if (S.view !== 'contacts' || tab !== 'log') return;
-        var sig = items.map(function (i) { return i.id + i.state + i.endedAt + i.peerId; }).join('|');
+        var sig = items.map(function (i) { return i.id + i.dir + i.state + i.endedAt + i.peerId; }).join('|');
         if (quiet && sig === logSig) return;
         logSig = sig;
         logBox.replaceChildren(logHeader());
@@ -279,15 +279,26 @@
         logBox.replaceChildren(logHeader(), el('div', 'empty', 'Không tải được nhật ký.'));
       });
     }
-    /** Mot dong nhat ky: mui ten (goi di ↖ xanh / goi den ↙ xanh la / nho ↙ do), ten thiet bi, thoi gian, thoi luong. */
+    /**
+     * Mot dong nhat ky: mui ten (goi di ↖ xanh / goi den ↙ xanh la / goi den nhỡ ↙ do), ten thiet bi, thoi gian,
+     * thoi luong.
+     * (03/12/2026) SUA LOI "NHAT KY CHI HIEN CHIEU GOI DI": `dir` do SERVER tinh theo dung thiet bi dang hoi
+     * (src/callLog.ts, list()) — client chi hien thi, khong tu suy doan. Nhan trang thai theo chieu:
+     *   - `in` + `missed`  -> "Nhỡ" (to do);
+     *   - `in` + `answered`-> thoi luong;
+     *   - `declined`: nguoi NHAN thay "Đã từ chối", nguoi GOI thay "Từ chối".
+     */
     function logRow(it) {
       var answered = it.state === 'answered';
-      var cls = it.dir === 'out' ? 'out' : (answered ? 'in' : 'missed');
+      var isOut = it.dir === 'out';
+      var cls = isOut ? 'out' : (answered ? 'in' : 'missed');
       var row = el('button', 'lr');
       row.type = 'button';
-      row.title = (it.peerName || it.peerId) + ' · ' + whenOf(it.endedAt || it.startedAt) + ' · ' + stateText(it);
+      row.setAttribute('data-dir', isOut ? 'out' : 'in');
+      row.title = (isOut ? 'Gọi đi' : 'Gọi đến') + ' · ' + (it.peerName || it.peerId) + ' · '
+        + whenOf(it.endedAt || it.startedAt) + ' · ' + stateText(it);
       var ico = el('span', 'li ' + cls);
-      ico.append(svg(it.dir === 'out' ? 'arrow-top-right' : 'arrow-bottom-left'));
+      ico.append(svg(isOut ? 'arrow-top-left' : 'arrow-bottom-left'));
       var m = el('span', 'lm'), sub = el('small', '');
       sub.append(el('i', 'st ' + it.state), document.createTextNode(whenOf(it.endedAt || it.startedAt) + ' · ' + kindLabel(it.peerKind)));
       m.append(el('b', '', it.peerName || it.peerId || '?'), sub);
@@ -296,11 +307,11 @@
       else row.disabled = true;
       return row;
     }
-    /** Thoi luong 00:42 (hoac 1:02:03) / "Nhỡ" / "Từ chối" / "Đã huỷ" / "Lỗi". */
+    /** Thoi luong 00:42 (hoac 1:02:03) / "Nhỡ" / "Từ chối" (minh tu choi) / "Đã từ chối" (ben kia tu choi) / "Đã huỷ" / "Lỗi". */
     function stateText(it) {
       if (it.state === 'answered') return dur(it.durationMs || (it.endedAt - it.startedAt));
       if (it.state === 'missed') return 'Nhỡ';
-      if (it.state === 'declined') return 'Từ chối';
+      if (it.state === 'declined') return it.dir === 'in' ? 'Đã từ chối' : 'Từ chối';
       if (it.state === 'cancelled') return 'Đã huỷ';
       return 'Lỗi';
     }

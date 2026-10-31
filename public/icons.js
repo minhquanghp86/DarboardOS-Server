@@ -39,6 +39,8 @@ window.RwvIcons = {
   "alert-circle-outline": "M11,15H13V17H11V15M11,7H13V13H11V7M12,2C6.47,2 2,6.5 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20Z",
   "arrow-left": "M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z",
   // (01/12/2026) Mui ten cua tab "Nhật ký" trong trang Cuộc gọi: goi di (↖) / goi den (↙).
+  // (03/12/2026) Them "arrow-top-left" = ↖ dung cho muc "gọi đi" (call-ui.js: dir 'out').
+  "arrow-top-left": "M19,17.59L8.41,7H15V5H5V15H7V8.41L17.59,19L19,17.59Z",
   "arrow-top-right": "M5,17.59L15.59,7H9V5H19V15H17V8.41L6.41,19L5,17.59Z",
   "arrow-bottom-left": "M19,6.41L17.59,5L7,15.59V9H5V19H15V17H8.41L19,6.41Z",
   "camera": "M4,4H7L9,2H15L17,4H20A2,2 0 0,1 22,6V18A2,2 0 0,1 20,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4M12,7A5,5 0 0,0 7,12A5,5 0 0,0 12,17A5,5 0 0,0 17,12A5,5 0 0,0 12,7M12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9Z",

@@ -79,3 +79,31 @@ describe('call-ui.js / call-ui.css — thanh tab + nut xoa', () => {
     expect(css).toMatch(/\.call \.loglist \.lclr \{/);
   });
 });
+
+// (03/12/2026) SUA LOI "NHAT KY CHI HIEN CHIEU GOI DI" — phan HIEN THI: muc `in` phai khac muc `out` (mui ten,
+// nhan trang thai, mau). Server tinh `dir` theo dung thiet bi dang hoi (src/callLog.ts); client chi ve theo `dir`.
+describe('call-ui.js — hien thi dung CHIEU (in ↙ / out ↖)', () => {
+  const js = pub('call-ui.js');
+
+  it('muc "gọi đi" (out) dung mui ten ↖, "gọi đến" (in) dung ↙', () => {
+    expect(js).toContain("svg(isOut ? 'arrow-top-left' : 'arrow-bottom-left')");
+    expect(pub('icons.js')).toContain('"arrow-top-left"');
+  });
+
+  it('lop mau theo chieu: out = xanh duong, in = xanh la, in + nho = do', () => {
+    expect(js).toMatch(/var cls = isOut \? 'out' : \(answered \? 'in' : 'missed'\)/);
+    expect(pub('call-ui.css')).toMatch(/\.li\.out \{[^}]*#38bdf8/);
+    expect(pub('call-ui.css')).toMatch(/\.li\.missed \{[^}]*#ff453a/);
+  });
+
+  it('nhan trang thai theo chieu: in + nho = "Nhỡ", in + answered = thoi luong, tu choi khac nhau 2 ben', () => {
+    expect(js).toContain("if (it.state === 'missed') return 'Nhỡ'");
+    expect(js).toContain("if (it.state === 'answered') return dur(it.durationMs || (it.endedAt - it.startedAt))");
+    expect(js).toContain("if (it.state === 'declined') return it.dir === 'in' ? 'Đã từ chối' : 'Từ chối'");
+  });
+
+  it('moi dong co `data-dir` + title "Gọi đi"/"Gọi đến" (doc duoc bang trinh doc man hinh)', () => {
+    expect(js).toContain("row.setAttribute('data-dir', isOut ? 'out' : 'in')");
+    expect(js).toContain("(isOut ? 'Gọi đi' : 'Gọi đến')");
+  });
+});

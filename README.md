@@ -217,22 +217,24 @@ Chi tiết đầy đủ (sơ đồ, bảng nút, xử lý lỗi): **chương 7**
 
 | Tab | Nội dung |
 |---|---|
-| **Nhật ký** (mở sẵn) | Các cuộc **đã xong** của riêng máy bạn (tối đa 200 mục ≈ 100 cuộc): hướng gọi, thiết bị, thời gian, thời lượng, trạng thái; tự cập nhật **5 giây/lần** |
+| **Nhật ký** (mở sẵn) | Các cuộc **đã xong** của riêng máy bạn (tối đa **200 cuộc**): hướng gọi, thiết bị, thời gian, thời lượng, trạng thái; tự cập nhật **5 giây/lần** |
 | **Thiết bị** | Danh bạ như cũ — **Màn hình → Điện thoại → Trình duyệt**, chấm xanh = online, kèm nút sửa tên / xoá điện thoại |
 
 **Đọc một dòng nhật ký**
 
 | Thành phần | Ý nghĩa |
 |---|---|
-| Mũi tên chéo **lên** (↗) | Cuộc gọi **đi** (máy này gọi) |
+| Mũi tên chéo **lên** (↖) | Cuộc gọi **đi** (máy này gọi) |
 | Mũi tên chéo **xuống** màu xanh lá (↙) | Cuộc gọi **đến và đã nghe** |
 | Mũi tên chéo **xuống** màu đỏ (↙) | Cuộc gọi **đến nhưng nhỡ** |
 | Tên thiết bị + dòng phụ | Tên bên kia · `Hôm nay 14:32` / `Hôm qua 14:32` / `05/03` · loại thiết bị (màn hình / điện thoại / trình duyệt) |
-| Cuối dòng | `00:42` = thời lượng đã nói · **Nhỡ** · **Từ chối** · **Đã huỷ** · **Lỗi** |
+| Cuối dòng | `00:42` = thời lượng đã nói · **Nhỡ** (gọi nhỡ) · **Từ chối** (máy kia từ chối) / **Đã từ chối** (máy này từ chối) · **Đã huỷ** · **Lỗi** |
 | **Bấm vào một dòng** | **Gọi lại** đúng thiết bị đó |
 
-- Nhật ký do **server** giữ (`/data/rwv-call-log.json`, giới hạn **200 mục** ≈ 100 cuộc gần nhất; mỗi cuộc ghi **2
-  mục** — một cho bên gọi, một cho bên nhận) nên **ai cũng thấy đúng hướng gọi của mình**, và nâng cấp add-on không mất.
+- Nhật ký do **server** giữ (`/data/rwv-call-log.json`, giới hạn **200 cuộc** gần nhất; mỗi cuộc **một bản ghi** có cả
+  hai bên `from`/`to`, server tách thành mục **gọi đi** / **gọi đến** theo máy đang hỏi) nên **ai cũng thấy đúng hướng
+  gọi của mình**, và nâng cấp add-on không mất. Điện thoại: dù cuộc gọi được ghi dưới id máy hay id phiên web của
+  trang `call-web.html` của máy đó, **cả hai đều thấy cùng một mục**.
 - Cuộc đang đổ chuông **không** nằm trong nhật ký (nó đã hiện ở màn hình gọi); chỉ liệt kê cuộc đã xong.
 - Ứng dụng **Cuộc gọi trên P4** vẫn là danh bạ (màn P4 không có tab Nhật ký); xem nhật ký ở trang **Cuộc gọi** trên
   Dashboard.

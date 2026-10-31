@@ -12,7 +12,11 @@
 // API man (127.0.0.1): GET /calls/contacts?self=, POST /calls/start?from=&to=, GET /calls/state?call=,
 //   POST /calls/accept|decline|hangup?call=&dev=, POST /calls/mute|cam?call=&dev=&on=.
 //   (01/12/2026) GET /calls/log?self=<id>&limit=50 -> {ok, items:[...]} — NHAT KY CUOC GOI cua MOT thiet bi (moi
-//   nhat truoc, toi da 200 muc trong /data/rwv-call-log.json; xem src/callLog.ts).
+//   nhat truoc, toi da 200 cuoc goi trong /data/rwv-call-log.json; xem src/callLog.ts).
+//   (03/12/2026) Moi cuoc goi = MOT ban ghi (`from`/`to`); API PROJECT theo `self` thanh {dir, peerId, peerName,
+//   peerKind, …} — `dir:'out'` khi self la ben GOI, `'in'` khi self la ben NHAN. Nho vay ca hai ben deu thay muc cua
+//   minh (truoc day muc "gọi đến" cua DIEN THOAI nam duoi id may, con trang call-web.html cua may hoi bang id phien
+//   web -> khong bao gio thay). `alias()` noi id may <-> id phien web cua cung mot thiet bi.
 // Phien web (ingress): WS /calls/web?name= — JSON dieu khien + nhi phan (0x01 tieng, 0x02 hinh).
 //
 // (10/11/2026) GD2 — DIEN THOAI (app Android, src/phoneStore.ts + src/phones.ts): moi dien thoai da dang ky la mot
@@ -113,12 +117,38 @@ export function setCallHooks(h: { name: (id: string) => string | undefined }): v
 
 const partyName = (p: Party) => (p.kind === 'web' ? webs.get(p.id)?.name || 'Trình duyệt'
   : p.kind === 'phone' ? phoneLabel(phones.get(p.id)) : nameOf(p.id) || p.id);
-/** (01/12/2026) Mot dau cuoc goi kem TEN hien thi — nhat ky ghi ten ngay luc bat dau (phien web co the tat sau do). */
-const sideOf = (p: Party): CallSide => ({ id: p.id, kind: p.kind, name: partyName(p) });
+/**
+ * (01/12/2026) Mot dau cuoc goi kem TEN hien thi — nhat ky ghi ten ngay luc bat dau (phien web co the tat sau do).
+ * (03/12/2026) SUA LOI "NHAT KY CHI HIEN CHIEU GOI DI": mot thiet bi co the co NHIEU id (id may dien thoai <->
+ * id phien web cua trang `call-web.html?call=&phone=` cua no). Ghi kem `also` ngay tu dau khi da biet (phien web tu
+ * khai `phone` qua `hello`/`start`), va `join()`/`resumeSession()` dang ky them — de `GET /calls/log?self=<id nao cua
+ * may do>` cung thay CUNG mot muc (src/callLog.ts, list()/alias()).
+ */
+const sideOf = (p: Party): CallSide => {
+  const alias = sessionPhone(p);
+  return alias && alias !== p.id
+    ? { id: p.id, kind: p.kind, name: partyName(p), also: [alias] }
+    : { id: p.id, kind: p.kind, name: partyName(p) };
+};
 // (GD3) Dien thoai da "join" bang trang call-web: c.to la phien web, id may nam o `c.phone` -> van phai coi la BAN.
 // (02/12/2026) GD11 — BEN GOI cung co the la dien thoai: khi phien web cua may tu khai id may (`w.phone`, tu
 // `{type:'hello'|'join', phone}` hoac tu `join()`) thi id may do cung tinh la BAN (`c.phone` chi biet ben NHAN).
 const sessionPhone = (p: Party): string => (p.kind === 'web' ? webs.get(p.id)?.phone || '' : '');
+/**
+ * (03/12/2026) Id KHAC cua CUNG mot thiet bi, biet duoc LUC HOI nhat ky: phien web tu khai id may (`hello.phone` /
+ * `join`), hoac hoi bang id may trong khi phien web cua no dang mo. Dung cho `GET /calls/log?self=` — de cuoc goi ma
+ * may TU CHOI tu app (khong `join`, nen ban ghi chi co id may) van hien trong tab "Nhật ký" cua trang tren may do.
+ */
+function selfIds(self: string): string[] {
+  const id = (self || '').trim();
+  if (!id) return [];
+  const out = new Set<string>();
+  const me = webs.get(id);
+  if (me?.phone) out.add(me.phone);
+  for (const s of webs.values()) if (s.phone === id) out.add(s.id);
+  out.delete(id);
+  return [...out];
+}
 const busy = (id: string) => [...calls.values()].some((c) => c.from.id === id || c.to.id === id || c.phone === id
   || sessionPhone(c.from) === id || sessionPhone(c.to) === id) || isInCall(id);
 const callOf = (id: string) => calls.get(id);
@@ -223,6 +253,8 @@ function webHello(w: WebSession, m: { id?: unknown; name?: unknown; phone?: unkn
   if (old && old !== w) takeOver(old, w);
   webs.delete(prev);
   webs.set(id, w);
+  // (03/12/2026) Doi id phien khi dang giu cuoc goi -> id cu van phai tra ra CUNG cuoc goi trong nhat ky.
+  if (w.call) callLog.alias(w.call, prev, id);
   sendWeb(id, { type: 'hello', id, list: contacts(id) });
 }
 
@@ -271,8 +303,11 @@ function resumeSession(w: WebSession, callId: string): void {
     const slot = c.from.kind === 'web' && !webs.has(c.from.id) ? 'from'
       : c.to.kind === 'web' && !webs.has(c.to.id) ? 'to' : '';
     if (!slot) { sendWeb(w.id, { type: 'resumed', ok: false, call: callId, error: 'Cuộc gọi đang do một trang khác giữ.' }); return; }
+    // (03/12/2026) Gan lai dau cuoi web bang phien MOI -> nhat ky phai tra ra cuoc goi bang CA id cu lan id moi.
+    const was = slot === 'from' ? c.from.id : c.to.id;
     if (slot === 'from') c.from = { kind: 'web', id: w.id };
     else c.to = { kind: 'web', id: w.id };
+    callLog.alias(c.id, was, w.id);
   }
   w.call = c.id;
   sendWeb(w.id, { type: 'resumed', ok: true, call: c.id, ...(state(c.id) as object) });
@@ -289,8 +324,8 @@ export function start(fromId: string, toId: string): { ok: boolean; call?: strin
   const c: Call = { id, from, to, state: 'ringing', ringT: setTimeout(() => finish(id, 'Không trả lời', true), RING_S * 1000),
     startedAt: 0, ringId: null, muted: new Set(), camOff: new Set(), unlisten: [], wired: new Set() };
   calls.set(id, c);
-  // (01/12/2026) Nhat ky: tao MUC CHO CA HAI BEN ngay khi bat dau goi (`dir` theo ben goi) — `accept()` ghi
-  // `startedAt`, `finish()` ghi trang thai cuoi + ai cup may.
+  // (01/12/2026) Nhat ky: MOT ban ghi cho cuoc goi (ca hai dau) ngay khi bat dau goi — `accept()` ghi `startedAt`
+  // (`answered()`), `finish()` ghi trang thai cuoi + ai cup may (src/callLog.ts PROJECT theo `self` khi tra ra API).
   callLog.open(id, sideOf(from), sideOf(to));
   if (from.kind === 'web') webs.get(from.id)!.call = id;
   if (to.kind === 'panel') {
@@ -435,6 +470,10 @@ export function join(callId: string, webId: string, phoneId = ''): JoinResult {
   c.to = { kind: 'web', id: webId };
   w.call = callId;
   w.phone = phone;                    // (GD11) de `busy()` biet may nao dang trong cuoc goi qua phien web nay
+  // (03/12/2026) SUA LOI "NHAT KY CHI HIEN CHIEU GOI DI": nhat ky da ghi cuoc goi duoi id MAY (`phone`) luc `open()`.
+  // Trang `call-web.html?call=&phone=` cua may hoi nhat ky bang id PHIEN WEB cua no -> phai noi hai id la MOT thiet
+  // bi, neu khong may khong bao gio thay muc "gọi đến" cua chinh no (src/callLog.ts, alias()).
+  callLog.alias(callId, phone, webId);
   // (02/12/2026) GD11 — NOI TIENG cho ca ba truong hop, ke ca khi BEN GOI cung la phien web (dien thoai goi dien
   // thoai: `c.from` = phien web cua may A, `c.to` = phien web cua may B). Truoc day chi noi khi `c.from` la MAN
   // (`if (c.from.kind === 'panel')`) -> cuoc goi dien thoai <-> dien thoai KHONG co duong tieng nao.
@@ -728,16 +767,18 @@ export function handleCallsApi(req: http.IncomingMessage, res: http.ServerRespon
   // (01/12/2026) NHAT KY CUOC GOI cua MOT thiet bi: GET /calls/log?self=<id>&limit=50 -> {ok, items:[...]} moi nhat
   // truoc. Cung chinh sach truy cap voi cac /calls/* khac (loopback / trang LAN cung origin).
   if (p === '/calls/log' && req.method === 'GET') {
-    json(res, 200, { ok: true, items: callLog.list(q('self'), Number(q('limit')) || DEFAULT_LIMIT) });
+    const self = q('self');
+    json(res, 200, { ok: true, items: callLog.list(self, Number(q('limit')) || DEFAULT_LIMIT, selfIds(self)) });
     return true;
   }
   if (req.method !== 'POST') { json(res, 405, { error: 'POST' }); return true; }
   // (02/12/2026) XOA NHAT KY CUOC GOI: POST /calls/log/clear?self=<id> -> {ok, removed:n}.
-  //   `self` = id thiet bi (man hinh / dien thoai / phien web) -> xoa cac muc LIEN QUAN TOI no; `self` rong -> xoa het.
-  //   Cung chinh sach truy cap voi /calls/* khac (loopback / trang LAN cung origin), xem src/callLog.ts (clear()).
+  //   `self` = id thiet bi (man hinh / dien thoai / phien web) -> xoa cac CUOC GOI LIEN QUAN TOI no (ke ca id thay the
+  //   cua cung thiet bi, xem selfIds); `self` rong -> xoa het. Cung chinh sach truy cap voi /calls/* khac, xem
+  //   src/callLog.ts (clear()).
   if (p === '/calls/log/clear') {
     const self = q('self');
-    const removed = callLog.clear(self);
+    const removed = callLog.clear(self, selfIds(self));
     console.log(`[calls] xoa nhat ky (self='${self || 'tat ca'}'): ${removed} muc`);
     json(res, 200, { ok: true, removed });
     return true;
