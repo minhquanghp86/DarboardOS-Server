@@ -245,6 +245,11 @@ class PhoneService : Service() {
                     if (!needLoginLogged) {
                         needLoginLogged = true
                         Log.i(TAG, "gốc API qua ingress nhưng CHƯA có cookie ingress_session (panel chưa mở) → chờ 5 s/nhịp")
+                        // (28/11/2026) GD16 — dòng `[api]` cũng vào ring buffer [Diag] (màn Chẩn đoán).
+                        Diag.log(
+                            "[api] base=" + DashboardTarget.shortUrl(base) +
+                                " cookie=no → chờ panel tạo ingress_session (5 s/nhịp)"
+                        )
                     }
                     PhoneStatus.needLogin = true
                     PhoneStatus.publish(this)
@@ -270,6 +275,7 @@ class PhoneService : Service() {
                             Log.i(TAG, "server gop thiet bi: $sent -> $canonical")
                         }
                         Log.i(TAG, "da dang ky $id voi server")
+                        Diag.log("[api] register ok id=$id base=" + DashboardTarget.shortUrl(base))
                     }
                 }
                 when (val r = PhoneApi.incoming(base, id, cookie)) {
@@ -296,6 +302,10 @@ class PhoneService : Service() {
                         if (deniedBase != base) {
                             deniedBase = base
                             Log.w(TAG, "API $base tra ${r.code} (thiếu cookie ingress_session hoặc sai TOKEN ingress)")
+                            Diag.log(
+                                "[api] base=" + DashboardTarget.shortUrl(base) + " code=" + r.code +
+                                    " (thiếu cookie ingress_session / sai TOKEN)"
+                            )
                             reprobeApi(base)
                         }
                         PhoneStatus.publish(this)
@@ -331,6 +341,9 @@ class PhoneService : Service() {
                 Prefs.setApiBase(this, base)
                 Prefs.setNeedHaLogin(this, false)
                 Log.i(TAG, "chuyen goc API: $current -> $base")
+                Diag.log(
+                    "[api] base " + DashboardTarget.shortUrl(current) + " → " + DashboardTarget.shortUrl(base)
+                )
                 return
             }
         } catch (t: Throwable) {

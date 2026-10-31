@@ -104,6 +104,14 @@ class SettingsActivity : Activity() {
 
         findViewById<Button>(R.id.closeButton).setOnClickListener { finish() }
 
+        // (28/11/2026) GD16 — CHẨN ĐOÁN: màn hiện log vòng 300 dòng ([Diag]) + 5 giá trị, có Sao chép/Chia sẻ/Xoá log.
+        // Người dùng không cần adb: bấm Chẩn đoán → Sao chép → gửi nội dung cho hỗ trợ.
+        findViewById<Button>(R.id.diagButton).setOnClickListener {
+            if (!tryStart(Intent(this, DiagActivity::class.java))) {
+                toast(getString(R.string.st_no_screen))
+            }
+        }
+
         renderStatus()
     }
 

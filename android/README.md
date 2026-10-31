@@ -255,6 +255,54 @@ domain → Kết nối → đăng nhập HA → (a) thấy **add-on full-screen*
 add-on ⇒ hộp thoại xin quyền của Android hiện ra ⇒ đồng ý ⇒ biểu tượng micro nhấp nháy (đang thu); (c) gọi thử từ màn
 hình → chuông + Nghe được. Log phải có đúng một dòng `ok=top` và **không** có dòng `fallback=panel` nào.
 
+## 4f. GD16 (28/11/2026) — CHẨN ĐOÁN TRONG APP + PROMOTE KHÔNG PHỤ THUỘC DÒ IFRAME
+
+**Triệu chứng**: sau khi đăng nhập HA, app **không** tự vào add-on full-screen. Nguyên nhân: bản GD15 chỉ promote
+khi JS **dò thấy** `iframe[src*="hassio_ingress"]` trong panel; dò không thấy (panel dựng iframe trễ / dùng shadow DOM
+khác / HA đổi cấu trúc) ⇒ bước promote **không bao giờ chạy**.
+
+### 4f.1 Màn "Chẩn đoán" (không cần adb)
+
+Cài đặt → **Chẩn đoán** (mở `DiagActivity`):
+
+| Thành phần | Nội dung |
+| --- | --- |
+| 5 giá trị | `domain` · `webUrl đang dùng` · `URL hiện tại của WebView` · `cookie ingress_session: có/không` (dò thật `CookieManager`, cả `Path=/api/hassio_ingress/`) · `token ingress` (+ dòng "promote gần nhất" nếu có) |
+| Log | `TextView` monospace, chọn/copy được, hiện **toàn bộ ring buffer 300 dòng** (`Diag`), tự cuộn xuống dòng mới nhất |
+| Nút | **Sao chép** (clipboard + toast) · **Chia sẻ** (`ACTION_SEND` `text/plain`) · **Xoá log** (`Diag.clear()`) |
+
+`Diag` (ring buffer) giữ **300 dòng** gần nhất, mỗi dòng `HH:mm:ss <nội dung>`; **đồng thời** vẫn ghi Logcat
+(`adb logcat -s DashboardOS-login`). Mọi dòng `[nav]` / `[promote]` / `[login]` / `[api]` (kể cả từ `PhoneService`) đều
+đi qua `Diag.log(...)`.
+
+### 4f.2 Luồng promote mới
+
+| Hạng mục | Chi tiết |
+| --- | --- |
+| Thời điểm | sau khi đăng nhập (URL rời `/auth/`, hoặc ở `/`, `/lovelace…`, hoặc có cookie phiên) app nạp **panel** như cũ và **đặt hẹn giờ 2,5 s** (`IngressPromote.PANEL_PROMOTE_DELAY_MS`) kể từ lúc panel **bắt đầu** nạp |
+| Promote | hết 2,5 s → nạp `https://<domain>/api/hassio_ingress/<TOKEN>/launcher-config.html`. TOKEN: `src` iframe nếu đọc được (`token=frame`) → `Prefs.ingressToken()` (`token=prefs`) → mặc định `KJjH_rSB8SdDeyjszvdZnnH1pRlxySfVG5VmgDMVf38`. **Không** cần cookie phiên trước khi thử |
+| Kết luận | JS `HaIngress.panelProbeScript()` trả `addon` / `ha` / `auth` / `unknown` (dò `launcher-config`, `Dashboard OS`, `<home-assistant>`, tiêu đề) + `IngressPromote.verdict`: HTML có `launcher-config`/`Dashboard OS` hoặc không phải SPA HA và tiêu đề không phải `Home Assistant` ⇒ **giữ** (`ok=top`); 401/403/404, SPA HA, redirect `/auth`, quá **4 s** (`TOP_TIMEOUT_MS`) ⇒ **quay lại panel** (`ok=401 fail=… fallback=panel`) |
+| Panel không nạp được (404/mất mạng/HA chỉ trả SPA) | thử **ngay** top-level ingress (`fallback=ingress`), rồi `https://<domain>/launcher-config.html` (`fallback=root`), mỗi bước một lần |
+| Chỉ một lần | `IngressPromote.Once` — mỗi lần mở app chỉ thử **một** lần; bấm **Kết nối** mới mở lại quyền thử |
+| Log mẫu | xem dưới |
+
+```bash
+adb logcat -c && adb logcat -s DashboardOS-login
+# 12:31:07 [nav] url=…/auth/login ok=login cookie=no session=no
+# 12:31:21 [nav] url=…/lovelace/0 ok=ha-spa cookie=no session=no
+# 12:31:21 [promote] arm in=2500ms panel=…/b39feb53_remote_webview_server
+# 12:31:23 [promote] fire reason=panel_timer session=no
+# 12:31:23 [promote] start url=…/api/hassio_ingress/KJjH…/launcher-config.html token=prefs timeout=4000ms
+# 12:31:24 [promote] probe url=…/api/hassio_ingress/KJjH…/launcher-config.html kind=addon title=Dashboard OS
+# 12:31:24 [promote] url=…/api/hassio_ingress/KJjH…/launcher-config.html ok=top title=Dashboard OS kind=addon
+# 12:31:24 [api] base=…/api/hassio_ingress/KJjH… (promote → top-level ingress)
+# — nếu phiên chưa kịp có —
+# 12:31:24 [promote] url=…/api/hassio_ingress/KJjH…/launcher-config.html ok=401 fail=401 fallback=panel
+# — nếu panel 404 —
+# 12:31:05 [promote] panel_fail reason=404 fallback=ingress
+# 12:31:09 [promote] fallback=root url=…/launcher-config.html reason=promote_404
+```
+
 ## 5. Smoke test trên máy thật
 
 `android/scripts/smoke-test.sh` chạy cả chuỗi "cài app → mở app → PhoneService sống → server thấy máy →

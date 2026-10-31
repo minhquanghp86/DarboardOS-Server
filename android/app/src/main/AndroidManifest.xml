@@ -64,6 +64,13 @@
             android:exported="false"
             android:label="@string/settings_title" />
 
+        <!-- (28/11/2026) GD16: man Chẩn đoán (log vòng 300 dòng + 5 giá trị) — mở từ màn Cài đặt. -->
+        <activity
+            android:name=".DiagActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
+            android:exported="false"
+            android:label="@string/diag_title" />
+
         <!-- (10/11/2026) GD2: man hinh cuoc goi den toan man hinh, hien tren man khoa. -->
         <activity
             android:name=".IncomingCallActivity"

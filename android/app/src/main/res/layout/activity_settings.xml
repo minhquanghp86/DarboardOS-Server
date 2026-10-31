@@ -78,6 +78,25 @@
             android:textIsSelectable="true"
             android:textSize="12sp" />
 
+        <!-- (28/11/2026) GD16 — CHẨN ĐOÁN: mở màn hiện log [nav]/[promote]/[login]/[api] + 5 giá trị, có nút
+             Sao chép / Chia sẻ / Xoá log. Người dùng không cần adb. -->
+        <Button
+            android:id="@+id/diagButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:minHeight="52dp"
+            android:text="@string/st_diag_button"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/st_diag_hint"
+            android:textColor="#FF9AA7BD"
+            android:textSize="12sp" />
+
         <!-- (13/11/2026) GD6: đăng nhập Home Assistant một lần (cookie giữ cho các lần sau). -->
         <Button
             android:id="@+id/haLoginButton"

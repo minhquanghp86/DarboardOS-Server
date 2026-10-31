@@ -180,4 +180,33 @@
     <string name="st_url_in_use">URL đang dùng: %1$s</string>
     <string name="st_tls_self_signed">⚠ Chứng chỉ tự ký (chỉ dùng trong LAN/Tailscale): trang đang mở bằng HTTPS của add-on (cổng 18443). Không dùng địa chỉ này ra Internet. Điện thoại chỉ chấp nhận chứng chỉ cho đúng host đã cấu hình.</string>
     <string name="st_tls_hint">Cách hoạt động: add-on sinh chứng chỉ tự ký MỘT LẦN trong /data/tls (SAN = mọi IPv4 của máy + localhost + hostname), rồi phục vụ https://&lt;ip&gt;:18443 cùng nội dung với http://&lt;ip&gt;:18080. Nhờ vậy WebView có secure context (micro/camera) mà không cần ingress Home Assistant.</string>
+
+    <!-- (28/11/2026) GD16 — màn CHẨN ĐOÁN trong app (không cần adb): 5 giá trị + log vòng 300 dòng. -->
+    <string name="diag_title">Chẩn đoán</string>
+    <string name="st_diag_button">Chẩn đoán (xem log · sao chép · chia sẻ)</string>
+    <string name="st_diag_hint">Không tự vào Dashboard OS? Bấm nút trên, rồi bấm “Sao chép” và gửi nội dung cho hỗ trợ. Không cần adb.</string>
+    <string name="diag_hint">Bấm “Sao chép” rồi dán vào tin nhắn gửi hỗ trợ (không cần adb).</string>
+    <string name="diag_log_section">Log gần nhất (300 dòng)</string>
+    <string name="diag_empty_log">(chưa có dòng log nào)</string>
+    <string name="diag_copy">Sao chép</string>
+    <string name="diag_share">Chia sẻ</string>
+    <string name="diag_clear">Xoá log</string>
+    <string name="diag_copied">Đã sao chép toàn bộ chẩn đoán — dán vào tin nhắn gửi hỗ trợ</string>
+    <string name="diag_copy_failed">Không sao chép được — hãy giữ tay để chọn văn bản rồi sao chép</string>
+    <string name="diag_share_failed">Máy không có ứng dụng để chia sẻ</string>
+    <string name="diag_cleared">Đã xoá log</string>
+    <string name="diag_share_chooser">Chia sẻ chẩn đoán</string>
+    <string name="diag_share_subject">Dashboard OS — chẩn đoán</string>
+    <string name="diag_share_header">===== Dashboard OS — chẩn đoán =====</string>
+    <string name="diag_v_domain">domain: %1$s</string>
+    <string name="diag_v_web_in_use">webUrl đang dùng: %1$s</string>
+    <string name="diag_v_current">URL hiện tại của WebView: %1$s</string>
+    <string name="diag_v_cookie">cookie ingress_session: %1$s</string>
+    <string name="diag_v_token">token ingress: %1$s</string>
+    <string name="diag_v_promote">promote gần nhất: %1$s · %2$s</string>
+    <string name="diag_yes">có</string>
+    <string name="diag_no">không</string>
+    <string name="diag_none">(chưa có)</string>
+    <string name="diag_current_no_url">(WebView đang mở, chưa có URL)</string>
+    <string name="diag_current_no_webview">(WebView chưa mở trong phiên này)</string>
 </resources>

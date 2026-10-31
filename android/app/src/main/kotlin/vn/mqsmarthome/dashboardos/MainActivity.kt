@@ -12,7 +12,6 @@ import android.net.http.SslError
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
@@ -60,20 +59,26 @@ import android.widget.Toast
  *  4. **API native** (`/app/register`, `/app/incoming`, `/app/answer`, `/app/decline`, `/app/hangup`) đi qua ingress
  *     `https://<domain>/api/hassio_ingress/<TOKEN>` kèm cookie `ingress_session` — và chỉ chạy SAU KHI panel đã mở
  *     (chính panel tạo phiên). Chưa có cookie thì [PhoneService] **chờ**, thử lại mỗi 5 s, không bắn 401 liên tục.
- *  5. Log: `[nav] url=… ok=panel|ha-spa|login|401` (xem [DashboardTarget.navLine]) — xem trên máy thật bằng
- *     `adb logcat -s DashboardOS-login`.
+ *  5. Log: `[nav] url=… ok=panel|ha-spa|login|401` (xem [DashboardTarget.navLine]) — ghi vào [Diag] (Cài đặt →
+ *     Chẩn đoán) **và** Logcat (`adb logcat -s DashboardOS-login`).
  *
- * (27/11/2026) GD15 — **PROMOTE PANEL → TOP-LEVEL INGRESS** (thêm MỘT bước, phần còn lại giữ nguyên):
- *  - Lý do: panel của HA nhúng add-on trong `<iframe>` **không có** `allow="microphone; camera"` ⇒ Permissions Policy
- *    của khung cha chặn `getUserMedia` ⇒ **không gọi điện được** (quyền RECORD_AUDIO/CAMERA của app không cứu được).
- *  - Sau khi panel load xong **và** đã có cookie `ingress_session` ([hasPanelSession]), app tự chuyển sang **TOP-LEVEL**
- *    đúng trang của add-on `https://<domain>/api/hassio_ingress/<TOKEN>/launcher-config.html` ([IngressPromote]) ⇒
- *    không còn khung cha ⇒ micro/camera được cấp; phiên ingress đã có nên không 401.
- *  - Top-level trả 401/403, SPA của HA, hoặc quá 3 s ([IngressPromote.TOP_TIMEOUT_MS]) → **quay lại panel** (iframe)
- *    để người dùng vẫn dùng được UI: `[promote] url=… ok=401 fail=401 fallback=panel`.
- *  - Chỉ promote **một lần** cho mỗi lần mở app (`promoteAttempted`, cờ trong bộ nhớ); người dùng tự quay lại panel thì
- *    tôn trọng (`[promote] url=… ok=panel skip=already`).
- *  - Log: `[promote] url=… ok=top|panel|401` (cùng tag `DashboardOS-login`).
+ * (28/11/2026) GD16 — **PROMOTE CHẮC CHẮN, KHÔNG PHỤ THUỘC DÒ IFRAME** (bản GD15 dò
+ * `iframe[src*="hassio_ingress"]` rồi mới promote ⇒ dò không thấy nên promote **không bao giờ chạy**, đúng lỗi người
+ * dùng báo "đăng nhập xong không tự vào add-on"):
+ *  - Lý do promote: panel của HA nhúng add-on trong `<iframe>` **không có** `allow="microphone; camera"` ⇒
+ *    Permissions Policy của khung cha chặn `getUserMedia` ⇒ không gọi điện được. Cần **TOP-LEVEL**
+ *    `https://<domain>/api/hassio_ingress/<TOKEN>/launcher-config.html` ([IngressPromote]) để micro/camera được cấp.
+ *  - Sau khi đăng nhập (URL rời `/auth/`, hoặc ở `/`, `/lovelace…`, hoặc đã có cookie phiên) app nạp **panel URL**
+ *    như cũ, và **đặt hẹn giờ 2,5 s** ([armPromoteAfterPanel] / [IngressPromote.PANEL_PROMOTE_DELAY_MS]).
+ *  - Hết 2,5 s → promote **ngay** ([promoteNow]): TOKEN đọc từ `src` iframe nếu có, không thì [Prefs.ingressToken]
+ *    (mặc định `KJjH…`); nạp top-level, chờ tối đa **4 s** ([IngressPromote.TOP_TIMEOUT_MS]).
+ *  - Trang top-level được dò loại bằng JS ([HaIngress.panelProbeScript]): HTML có `launcher-config` / `Dashboard OS`
+ *    → **giữ**; 401/403, SPA của HA, redirect `/auth` → **quay lại panel** + log rõ
+ *    (`[promote] url=… ok=401 fail=401 fallback=panel`).
+ *  - Panel cũng không nạp được (404/mất mạng/HA chỉ trả SPA): thử **ngay** top-level ingress, rồi
+ *    `https://<domain>/launcher-config.html` ([loadRootFallback]) — mỗi bước một lần.
+ *  - Chỉ promote **một lần** cho mỗi lần mở app ([IngressPromote.Once]); bấm "Kết nối" mới mở lại quyền thử.
+ *  - Mọi bước ghi vào [Diag] → người dùng bấm Cài đặt → **Chẩn đoán** → Sao chép gửi là đủ, không cần adb.
  *
  * Chế độ **IP LAN** (bản GD13) vẫn được giữ nhưng KHÔNG khuyến nghị: nó dựa vào chứng chỉ tự ký cổng 18443, không
  * có phiên HA nào để API native dùng. Giao diện đã ghi rõ điều này.
@@ -117,11 +122,9 @@ class MainActivity : Activity() {
         /** (26/11/2026) GD14 — số lần tối đa tự điều hướng sang panel trong một luồng (chống lặp vô hạn). */
         private const val MAX_PANEL_NAV = 6
 
-        /** (26/11/2026) GD14 — số lần kiểm tra iframe của panel + giãn cách (tiêu đề `<title>Home Assistant</title>`). */
-        private const val PANEL_FRAME_TRIES = 3
-        private const val PANEL_FRAME_RETRY_MS = 1000L
-
-        /** (27/11/2026) GD15 — quá 3 s mà trang top-level chưa kết luận → quay lại panel. */
+        /**
+         * (27/11/2026) GD15 / (28/11/2026) GD16 — quá **4 s** mà trang top-level chưa kết luận → quay lại panel.
+         */
         private const val PROMOTE_TIMEOUT_MS = IngressPromote.TOP_TIMEOUT_MS
 
         /** (18/11/2026) GD10 — 2 "liên kết" của màn hình lỗi (bắt ở [DashboardWebClient.shouldOverrideUrlLoading]). */
@@ -154,6 +157,12 @@ class MainActivity : Activity() {
          * Permissions Policy của iframe HA chặn (xem [IngressPromote]).
          */
         private const val LOAD_PROMOTE = "promote"
+
+        /**
+         * (28/11/2026) GD16 — nạp **dự phòng cuối** `https://<domain>/launcher-config.html` (add-on phục vụ thẳng ở
+         * gốc domain) khi cả panel của HA và ingress đều không dùng được.
+         */
+        private const val LOAD_ROOT_FALLBACK = "root"
 
         /**
          * Trang ĐĂNG NHẬP của Home Assistant (`https://<domain>/`) — nạp có chủ đích, nên `onPageFinished`
@@ -226,16 +235,17 @@ class MainActivity : Activity() {
     /** URL sẽ mở sau khi đăng nhập xong (mặc định = [targetUrl]). */
     private var afterLoginUrl: String? = null
 
-    // ── (27/11/2026) GD15 — promote panel (iframe) → TOP-LEVEL ingress (xem [IngressPromote])
+    // ── (28/11/2026) GD16 — promote panel (iframe) → TOP-LEVEL ingress, KHÔNG phụ thuộc dò iframe
+    //    (xem [IngressPromote]; log từng bước vào [Diag] để người dùng gửi chẩn đoán).
 
     /**
-     * Đã **thử** promote trong lần mở app này chưa — cờ trong bộ nhớ, đúng yêu cầu "chỉ promote một lần".
-     * Đặt `true` NGAY khi bắt đầu nạp trang top-level để dù thành công hay thất bại cũng không promote lại; người dùng
-     * tự quay lại panel thì được tôn trọng. Chỉ reset khi người dùng bấm "Kết nối" lại ([connect]).
+     * Cờ **"chỉ promote MỘT lần cho mỗi lần mở app"** ([IngressPromote.Once]). Được "lấy" ngay khi bắt đầu promote —
+     * dù sau đó thành công hay thất bại cũng không promote lại; người dùng tự quay về panel thì tôn trọng.
+     * Chỉ [resetPromoteState] (bấm "Kết nối") mới mở lại quyền thử.
      */
-    private var promoteAttempted = false
+    private val promoteOnce = IngressPromote.Once()
 
-    /** Đang chờ kết luận của trang top-level (bật timeout 3 s, tắt khi có `onPageFinished`/lỗi). */
+    /** Đang chờ kết luận của trang top-level (bật timeout 4 s, tắt khi có `onPageFinished`/lỗi). */
     private var promotePending = false
 
     /** URL top-level đang chờ kết luận (`…/api/hassio_ingress/<TOKEN>/launcher-config.html`). */
@@ -244,9 +254,35 @@ class MainActivity : Activity() {
     /** TOKEN lấy từ đâu: `frame` (đọc `src` iframe của panel) hay `prefs` (TOKEN đã lưu) — chỉ để ghi log. */
     private var promoteTokenSource: String = "-"
 
+    /** Đã đặt hẹn giờ promote cho panel đang nạp chưa ([IngressPromote.PANEL_PROMOTE_DELAY_MS]). */
+    private var panelPromoteArmed = false
+
+    /** Promote này được kích hoạt vì **panel không nạp được** → thất bại thì thử tiếp gốc domain. */
+    private var promoteFallback = false
+
+    /** Đã thử `https://<domain>/launcher-config.html` (dự phòng cuối) chưa — chống lặp. */
+    private var rootFallbackTried = false
+
+    /** Origin dùng cho lần promote đang chạy (đọc `src` iframe là bất đồng bộ). */
+    private var promoteOrigin: String? = null
+
     /**
-     * (27/11/2026) GD15 — hết [PROMOTE_TIMEOUT_MS] mà trang top-level không kết luận được (không `onPageFinished`,
-     * không lỗi HTTP) → coi như `fail=timeout` và **quay lại panel** (iframe) để người dùng vẫn dùng được UI.
+     * (28/11/2026) GD16 — **HẸN GIỜ PROMOTE**: 2,5 s sau khi panel bắt đầu nạp thì promote NGAY (không chờ iframe).
+     */
+    private val promoteAfterPanelRunnable = Runnable {
+        panelPromoteArmed = false
+        promoteNow("panel_timer")
+    }
+
+    /**
+     * (28/11/2026) GD16 — lưới an toàn cho bước đọc `src` iframe (bất đồng bộ): quá
+     * [IngressPromote.PROMOTE_TOKEN_READ_MS] mà chưa bắt đầu nạp top-level thì promote bằng TOKEN đã lưu.
+     */
+    private val promoteStartGuardRunnable = Runnable { finishPromoteStart(null) }
+
+    /**
+     * (28/11/2026) GD16 — hết [PROMOTE_TIMEOUT_MS] (4 s) mà trang top-level không kết luận được (không
+     * `onPageFinished`, không lỗi HTTP) → coi như `fail=timeout` và **quay lại panel** (iframe).
      */
     private val promoteTimeoutRunnable = Runnable {
         if (!promotePending) return@Runnable
@@ -410,6 +446,8 @@ class MainActivity : Activity() {
         val text = webInput?.text?.toString()?.trim().orEmpty()
         // (27/11/2026) GD15 — "Kết nối" = một lần mở app mới: cho phép promote lại (vẫn chỉ MỘT lần cho lần này).
         resetPromoteState()
+        // (28/11/2026) GD16 — quên giá trị WebView của phiên trước để màn Chẩn đoán không hiện URL cũ.
+        DiagState.reset()
         // Ô thứ hai không còn trên giao diện; ghi rỗng để dữ liệu cũ không quay lại (Prefs vẫn giữ khoá cũ).
         Prefs.saveInputs(this, text, "")
 
@@ -632,6 +670,11 @@ class MainActivity : Activity() {
         loadingUrl = null
         loadingReason = "-"
         loadResult = "-"
+        // (28/11/2026) GD16 — màn Chẩn đoán đọc các giá trị này khi WebView đang mở ở nền.
+        DiagState.domain = haOrigin
+        DiagState.webUrlInUse = savedWebUrl?.takeIf { DashboardTarget.isValidSaved(it) } ?: targetUrl
+        DiagState.currentUrl = null
+        DiagState.webViewOpened = true
 
         if (savedWebUrl != null && !DashboardTarget.isValidSaved(savedWebUrl)) {
             // Dữ liệu cũ (bản trước / người dùng dán origin) — KHÔNG báo lỗi, chỉ dựng lại và ghi log.
@@ -701,9 +744,13 @@ class MainActivity : Activity() {
 
     private fun disposeWebView() {
         mainHandler.removeCallbacks(hideOverlayRunnable)
-        // (27/11/2026) GD15 — bỏ timeout promote còn treo (WebView sắp bị huỷ nên không còn gì để kết luận).
+        // (27/11/2026) GD15 / (28/11/2026) GD16 — bỏ timeout + hẹn giờ promote còn treo (WebView sắp bị huỷ).
         mainHandler.removeCallbacks(promoteTimeoutRunnable)
+        mainHandler.removeCallbacks(promoteAfterPanelRunnable)
+        mainHandler.removeCallbacks(promoteStartGuardRunnable)
         promotePending = false
+        panelPromoteArmed = false
+        DiagState.currentUrl = null
         stopLoginTick()
         loginFlowActive = false
         loginBar = null
@@ -803,6 +850,9 @@ class MainActivity : Activity() {
         loadingUrl = u
         loadingReason = reason
         loadResult = "pending"
+        DiagState.currentUrl = u
+        // (28/11/2026) GD16 — panel của add-on BẮT ĐẦU nạp ⇒ đặt hẹn giờ promote 2,5 s (không chờ iframe).
+        if (reason == LOAD_PANEL) armPromoteAfterPanel(u)
         loginLog()
         showLoginDiag(webView?.url, !currentCookieHeader().isNullOrBlank())
         webView?.loadUrl(u)
@@ -863,91 +913,131 @@ class MainActivity : Activity() {
         // Panel vừa mở ⇒ `ingress_session` đã có ⇒ API native (register/incoming/…) chạy được.
         registerInBackground()
         if (Prefs.receiveEnabled(this)) PhoneService.start(this)
-        // (27/11/2026) GD15 — BƯỚC THÊM: panel (iframe) đã mở xong và đã có phiên ingress ⇒ chuyển sang TOP-LEVEL
-        // để `getUserMedia` không bị Permissions Policy của iframe HA chặn (xem [IngressPromote]).
-        maybePromotePanel(u)
+        // (27/11/2026) GD15 — BƯỚC THÊM: chuyển sang TOP-LEVEL để `getUserMedia` không bị Permissions Policy của
+        // iframe HA chặn (xem [IngressPromote]). (28/11/2026) GD16 — KHÔNG chờ iframe nữa: chỉ cần panel đã bắt đầu
+        // nạp là đã đặt hẹn giờ promote ([armPromoteAfterPanel]); ở đây đặt lại nếu chưa kịp.
+        armPromoteAfterPanel(u)
     }
 
-    // ------------------------------------------------------------------ (27/11/2026) GD15 — promote panel → top-level
+    // ------------------------------------------------ (28/11/2026) GD16 — promote panel → top-level ingress
 
     /** Quên trạng thái promote (dùng khi người dùng bấm "Kết nối" — một "lần mở app" mới). */
     private fun resetPromoteState() {
         mainHandler.removeCallbacks(promoteTimeoutRunnable)
-        promoteAttempted = false
+        mainHandler.removeCallbacks(promoteAfterPanelRunnable)
+        mainHandler.removeCallbacks(promoteStartGuardRunnable)
+        promoteOnce.reset()
         promotePending = false
         promoteUrl = null
         promoteTokenSource = "-"
+        promoteOrigin = null
+        promoteFallback = false
+        panelPromoteArmed = false
+        rootFallbackTried = false
     }
 
     /**
-     * (27/11/2026) GD15 — quyết định có **promote panel (iframe) → TOP-LEVEL ingress** hay không.
+     * (28/11/2026) GD16 — **ĐẶT HẸN GIỜ PROMOTE 2,5 S** kể từ khi panel của add-on BẮT ĐẦU nạp
+     * ([IngressPromote.PANEL_PROMOTE_DELAY_MS]). Đây là điểm sửa chính của bản này: bản GD15 chờ dò thấy
+     * `iframe[src*="hassio_ingress"]` rồi mới promote — dò không thấy nên promote **không bao giờ chạy**.
      *
-     * Điều kiện "đã có phiên, được phép promote" (đúng thứ tự kiểm tra của [IngressPromote.decide]):
-     *  1. `promoteAttempted == false` — chưa thử trong lần mở app này (chỉ MỘT lần, không lặp vô hạn);
-     *  2. dựng được URL top-level `https://<domain>/api/hassio_ingress/<TOKEN>/launcher-config.html`
-     *     ([IngressPromote.topUrl], origin lấy từ URL panel/ `haOrigin`);
-     *  3. **[hasPanelSession] == true** — đã có cookie `ingress_session` (`WebTargetResolver.hasSessionCookie`, dò cả
-     *     `CookieManager.getCookie(origin)` và `getCookie(origin + "/api/hassio_ingress/")`). Chưa có thì promote chỉ
-     *     nhận 401 vô ích → chờ (tối đa [IngressPromote.COOKIE_TRIES] lần × [IngressPromote.COOKIE_RETRY_MS]).
-     *
-     * TOKEN ưu tiên đọc từ **`src` của iframe ingress** mà HA vừa dựng ([HaIngress.panelFrameSrcScript] +
-     * [HaIngress.readFrameSrc] + [IngressPromote.tokenFromUrl]) — đó là TOKEN Supervisor vừa cấp; không đọc được thì
-     * dùng TOKEN đã lưu ([Prefs.ingressToken]).
+     * Bỏ qua khi: đã promote lần này rồi ([promoteOnce]) hoặc chế độ IP LAN (không có ingress).
      */
-    private fun maybePromotePanel(panel: String?, attempt: Int = 1) {
+    private fun armPromoteAfterPanel(panel: String?, force: Boolean = false) {
         if (isFinishing || isDestroyed) return
-        if (isLanMode()) {
-            log(IngressPromote.skipLine(null, IngressPromote.Decision.NO_URL, "lan=yes"))
+        if (promoteOnce.done) {
+            log(IngressPromote.skipLine(panel, IngressPromote.Decision.ALREADY))
             return
         }
-        val origin = DashboardTarget.originOf(panel) ?: haOrigin
-        val preview = IngressPromote.topUrl(origin, Prefs.ingressToken(this))
-        val session = hasPanelSession()
-        val decision = IngressPromote.decide(session, promoteAttempted, preview)
-        when (decision) {
-            IngressPromote.Decision.PROMOTE -> beginPromote(origin, panel)
-            IngressPromote.Decision.NO_SESSION -> {
-                // HA vừa dựng panel nên cookie `ingress_session` có thể chưa đọc lại được ngay — thử lại vài lần,
-                // nhưng KHÔNG promote khi vẫn chưa có phiên (sẽ 401 vô ích).
-                if (attempt < IngressPromote.COOKIE_TRIES) {
-                    mainHandler.postDelayed({
-                        if (isFinishing || isDestroyed) return@postDelayed
-                        if (promoteAttempted) return@postDelayed
-                        if (!DashboardTarget.isPanel(webView?.url)) return@postDelayed
-                        maybePromotePanel(panel, attempt + 1)
-                    }, IngressPromote.COOKIE_RETRY_MS)
-                    return
-                }
-                log(IngressPromote.skipLine(preview, decision, "try=$attempt"))
-            }
-
-            else -> log(IngressPromote.skipLine(preview, decision))
+        if (isLanMode()) {
+            log(IngressPromote.skipLine(panel, IngressPromote.Decision.NO_URL, "lan=yes"))
+            return
         }
+        if (panelPromoteArmed && !force) return
+        panelPromoteArmed = true
+        mainHandler.removeCallbacks(promoteAfterPanelRunnable)
+        mainHandler.postDelayed(promoteAfterPanelRunnable, IngressPromote.PANEL_PROMOTE_DELAY_MS)
+        log(IngressPromote.armLine(panel))
     }
 
-    /** Đọc `src` iframe ingress rồi bắt đầu promote (hoặc dùng TOKEN đã lưu khi không đọc được). */
-    private fun beginPromote(origin: String?, panel: String?) {
+    /**
+     * (28/11/2026) GD16 — **PROMOTE NGAY** (không chờ phát hiện iframe):
+     *
+     *  1. cờ [promoteOnce] — mỗi lần mở app chỉ thử MỘT lần;
+     *  2. dựng `https://<domain>/api/hassio_ingress/<TOKEN>/launcher-config.html` — TOKEN ưu tiên đọc từ `src` của
+     *     iframe (nếu có), không thì [Prefs.ingressToken] (mặc định `KJjH…`);
+     *  3. nạp top-level + bật timeout [PROMOTE_TIMEOUT_MS] (4 s);
+     *  4. [fallbackFromPanel] = promote vì **panel không nạp được** → thất bại thì còn thử gốc domain
+     *     (`https://<domain>/launcher-config.html`, xem [loadRootFallback]).
+     *
+     * Phiên `ingress_session` KHÔNG còn là điều kiện bắt buộc: CookieManager có thể trễ vài trăm ms sau khi panel
+     * tạo phiên; nếu phiên thật sự thiếu thì trang top-level trả 401 và app quay lại panel (có log rõ).
+     */
+    private fun promoteNow(reason: String, fallbackFromPanel: Boolean = false) {
+        if (isFinishing || isDestroyed) return
+        if (!showingWeb || webView == null) {
+            log("[promote] skip=no_webview reason=$reason")
+            return
+        }
+        if (promoteOnce.done) {
+            log(IngressPromote.skipLine(promoteUrl, IngressPromote.Decision.ALREADY))
+            return
+        }
+        if (isLanMode()) {
+            log(IngressPromote.skipLine(null, IngressPromote.Decision.NO_URL, "lan=yes reason=$reason"))
+            return
+        }
+        val origin = DashboardTarget.originOf(webView?.url)
+            ?: DashboardTarget.originOf(targetUrl)
+            ?: haOrigin
+            ?: DashboardTarget.originOf(savedWebUrl)
+        val preview = IngressPromote.topUrl(origin, Prefs.ingressToken(this))
+        val session = hasPanelSession()
+        // requireSession = false: đặt hẹn giờ phải promote được dù cookie chưa đọc lại kịp (xem KDoc).
+        val decision = IngressPromote.decide(session, promoteOnce.done, preview, requireSession = false)
+        if (decision != IngressPromote.Decision.PROMOTE) {
+            log(IngressPromote.skipLine(preview, decision, "reason=$reason"))
+            return
+        }
+        if (!promoteOnce.take()) {
+            log(IngressPromote.skipLine(preview, IngressPromote.Decision.ALREADY, "reason=$reason"))
+            return
+        }
+        promoteFallback = fallbackFromPanel
+        promoteOrigin = origin
+        log(IngressPromote.fireLine(reason, session))
+        // Lưới an toàn: JS đọc `src` iframe là bất đồng bộ — quá hạn thì promote bằng TOKEN đã lưu.
+        mainHandler.removeCallbacks(promoteStartGuardRunnable)
+        mainHandler.postDelayed(promoteStartGuardRunnable, IngressPromote.PROMOTE_TOKEN_READ_MS)
         val web = webView
         if (web == null) {
-            startPromote(origin, null)
+            finishPromoteStart(null)
             return
         }
         try {
             web.evaluateJavascript(HaIngress.panelFrameSrcScript()) { raw ->
-                if (isFinishing || isDestroyed) return@evaluateJavascript
-                startPromote(origin ?: DashboardTarget.originOf(panel), HaIngress.readFrameSrc(raw))
+                finishPromoteStart(HaIngress.readFrameSrc(raw))
             }
         } catch (t: Throwable) {
-            startPromote(origin, null)
+            finishPromoteStart(null)
         }
     }
 
+    /** Đã có (hoặc không có) `src` iframe → nạp top-level. Chỉ chạy MỘT lần cho mỗi lần promote. */
+    private fun finishPromoteStart(frameSrc: String?) {
+        mainHandler.removeCallbacks(promoteStartGuardRunnable)
+        if (isFinishing || isDestroyed) return
+        if (promotePending) return
+        val origin = promoteOrigin ?: haOrigin ?: return
+        startPromote(origin, frameSrc)
+    }
+
     /**
-     * Nạp **TOP-LEVEL** `https://<domain>/api/hassio_ingress/<TOKEN>/launcher-config.html` + bật timeout 3 s.
+     * Nạp **TOP-LEVEL** `https://<domain>/api/hassio_ingress/<TOKEN>/launcher-config.html` + bật timeout 4 s.
      * [frameSrc] = `src` của iframe trong panel (nguồn TOKEN chính xác nhất); null = dùng TOKEN đã lưu.
      */
     private fun startPromote(origin: String?, frameSrc: String?) {
-        if (promoteAttempted || isFinishing || isDestroyed) return
+        if (promotePending || isFinishing || isDestroyed) return
         // Người dùng đã rời màn WebView (bấm "URL" / Cài đặt) trong lúc đọc iframe → không promote nữa.
         if (!showingWeb || webView == null) return
         val frameToken = IngressPromote.tokenFromUrl(frameSrc)
@@ -956,10 +1046,10 @@ class MainActivity : Activity() {
             log(IngressPromote.skipLine(null, IngressPromote.Decision.NO_URL))
             return
         }
-        promoteAttempted = true
         promotePending = true
         promoteUrl = top
         promoteTokenSource = if (frameToken != null) "frame" else "prefs"
+        DiagState.lastPromoteUrl = top
         log(IngressPromote.startLine(top, promoteTokenSource))
         mainHandler.removeCallbacks(promoteTimeoutRunnable)
         mainHandler.postDelayed(promoteTimeoutRunnable, PROMOTE_TIMEOUT_MS)
@@ -972,19 +1062,55 @@ class MainActivity : Activity() {
         promotePending && WebTargetResolver.sameUrl(url, promoteUrl)
 
     /**
-     * Trang top-level đã nạp xong: dùng được ⇒ `[promote] url=… ok=top`, chốt phiên và để API native chạy với base
-     * ingress + cookie; là SPA của HA ⇒ coi như thất bại (`fail=ha-spa`) và quay lại panel.
+     * (28/11/2026) GD16 — dò **loại trang** top-level bằng JS ([HaIngress.panelProbeScript]) rồi kết luận: add-on
+     * (`launcher-config` / `Dashboard OS`) → giữ; SPA HA / `/auth` → quay lại panel.
      */
-    private fun onPromoteLoaded(url: String?, status: Int?, title: String?) {
+    private fun probePromotePage(url: String?, title: String?) {
+        val web = webView
+        if (web == null) {
+            onPromoteLoaded(url, null, title)
+            return
+        }
+        try {
+            web.evaluateJavascript(HaIngress.panelProbeScript()) { raw ->
+                if (isFinishing || isDestroyed) return@evaluateJavascript
+                val kind = IngressPromote.pageKind(HaIngress.readProbe(raw))
+                log(
+                    "[promote] probe url=" + DashboardTarget.shortUrl(url) +
+                        " kind=" + kind.label + " title=" + (title ?: "-")
+                )
+                onPromoteLoaded(url, null, title, kind)
+            }
+        } catch (t: Throwable) {
+            onPromoteLoaded(url, null, title)
+        }
+    }
+
+    /**
+     * Trang top-level đã nạp xong: dùng được ⇒ `[promote] url=… ok=top`, chốt phiên và để API native chạy với base
+     * ingress + cookie; là SPA của HA / `/auth` ⇒ coi như thất bại và quay lại panel.
+     */
+    private fun onPromoteLoaded(
+        url: String?,
+        status: Int?,
+        title: String?,
+        kind: IngressPromote.PageKind = IngressPromote.PageKind.UNKNOWN,
+        html: String? = null,
+    ) {
         if (!promotePending) return
         mainHandler.removeCallbacks(promoteTimeoutRunnable)
         promotePending = false
         val top = promoteUrl ?: url
-        if (IngressPromote.verdict(status, title) != IngressPromote.Verdict.TOP) {
-            onPromoteFailed(IngressPromote.failReason(status, title))
+        if (IngressPromote.verdict(status, title, html, kind) != IngressPromote.Verdict.TOP) {
+            onPromoteFailed(IngressPromote.failReason(status, title, kind))
             return
         }
-        log(IngressPromote.logLine(top, IngressPromote.OK_TOP, "title=" + (title ?: "-")))
+        DiagState.lastPromoteResult = IngressPromote.OK_TOP
+        log(
+            IngressPromote.logLine(
+                top, IngressPromote.OK_TOP, "title=" + (title ?: "-") + " kind=" + kind.label
+            )
+        )
         // Đang ở top-level ingress: các lần điều hướng tiếp theo là của người dùng (trang con của add-on) — không
         // còn là "lần nạp nhắm panel" nữa.
         loadingReason = LOAD_OTHER
@@ -1003,24 +1129,95 @@ class MainActivity : Activity() {
     /**
      * Promote thất bại (401/403, SPA HA, redirect, timeout, mất mạng): ghi
      * `[promote] url=… ok=401 fail=<lý do> fallback=panel` rồi **quay lại panel (iframe)** để người dùng vẫn dùng được
-     * UI. Cờ [promoteAttempted] đã bật nên KHÔNG promote lại (không lặp vô hạn; người dùng tự quay lại panel thì tôn
-     * trọng).
+     * UI. Cờ [promoteOnce] đã bật nên KHÔNG promote lại.
+     *
+     * (28/11/2026) GD16 — nếu promote này chạy vì **panel không nạp được** thì trước khi quay lại panel còn thử
+     * dự phòng cuối `https://<domain>/launcher-config.html` (một lần).
      */
     private fun onPromoteFailed(reason: String) {
-        if (!promoteAttempted) return
+        if (!promoteOnce.done) return
         mainHandler.removeCallbacks(promoteTimeoutRunnable)
         promotePending = false
         val top = promoteUrl
+        DiagState.lastPromoteResult = IngressPromote.OK_FAIL
         log(IngressPromote.failLine(top, reason))
         loadResult = IngressPromote.OK_FAIL
+        if (promoteFallback && !rootFallbackTried) {
+            if (loadRootFallback("promote_$reason")) return
+        }
         val panel = panelTarget ?: DashboardTarget.panelUrl(haOrigin)
         if (panel == null) {
-            // Không có panel để quay lại (dữ liệu cũ) → để nguyên những gì đang có + nhịp dò tiếp tục.
+            // Không có panel để quay lại (dữ liệu cũ) → hiện thông báo + nhịp dò tiếp tục.
             loginBarText?.text = getString(R.string.ha_panel_banner)
+            showLoginBar(true)
             return
         }
-        // QUAY LẠI PANEL: nạp lại đúng panel của HA (iframe) — người dùng vẫn vào được UI như trước bản này.
+        // QUAY LẠI PANEL: nạp lại đúng panel của HA (iframe) — người dùng vẫn vào được UI như trước.
+        loginBarText?.text = getString(R.string.ha_panel_banner)
+        showLoginBar(true)
         loadWeb(panel, LOAD_PANEL)
+    }
+
+    /**
+     * (28/11/2026) GD16 — **PANEL KHÔNG NẠP ĐƯỢC** (404/không mạng/HA chỉ trả SPA của nó): thử NGAY top-level ingress
+     * (nếu chưa thử lần nào), rồi tới `https://<domain>/launcher-config.html` ([loadRootFallback]).
+     */
+    private fun onPanelUnavailable(reason: String) {
+        if (isFinishing || isDestroyed) return
+        log(IngressPromote.panelFailLine(reason, if (!promoteOnce.done) "ingress" else "root"))
+        if (!promoteOnce.done) {
+            promoteNow("panel_fail_$reason", fallbackFromPanel = true)
+            return
+        }
+        if (loadRootFallback("panel_fail_$reason")) return
+        log("[promote] give_up reason=$reason")
+        onLoginFailed(null)
+    }
+
+    /**
+     * (28/11/2026) GD16 — dự phòng CUỐI: `https://<domain>/launcher-config.html` (add-on phục vụ thẳng ở gốc domain).
+     * Chỉ một lần ([rootFallbackTried]) để không lặp vô hạn.
+     */
+    private fun loadRootFallback(reason: String): Boolean {
+        if (rootFallbackTried) return false
+        val origin = haOrigin
+            ?: DashboardTarget.originOf(webView?.url)
+            ?: DashboardTarget.originOf(targetUrl)
+            ?: DashboardTarget.originOf(savedWebUrl)
+        val root = IngressPromote.rootUrl(origin) ?: return false
+        rootFallbackTried = true
+        log(IngressPromote.rootLine(root, reason))
+        loadWeb(root, LOAD_ROOT_FALLBACK)
+        return true
+    }
+
+    /**
+     * (28/11/2026) GD16 — kết luận trang dự phòng cuối (`https://<domain>/launcher-config.html`): là add-on → giữ;
+     * không phải → quay lại panel / báo thất bại (không lặp).
+     */
+    private fun onRootFallbackLoaded(url: String?, arrival: DashboardTarget.Arrival, title: String?) {
+        if (arrival == DashboardTarget.Arrival.ADDON) {
+            log("[promote] url=" + DashboardTarget.shortUrl(url) + " ok=root title=" + (title ?: "-"))
+            DiagState.lastPromoteResult = "root"
+            loadResult = "root"
+            loadingReason = LOAD_OTHER
+            loginFlowActive = false
+            loginFailed = false
+            stopLoginTick()
+            showLoginBar(false)
+            Prefs.setNeedHaLogin(this, false)
+            runCatching { CookieManager.getInstance().flush() }
+            registerInBackground()
+            if (Prefs.receiveEnabled(this)) PhoneService.start(this)
+            return
+        }
+        log("[promote] url=" + DashboardTarget.shortUrl(url) + " ok=401 fail=root-not-addon fallback=panel")
+        val panel = panelTarget ?: DashboardTarget.panelUrl(haOrigin)
+        if (panel != null) {
+            loadWeb(panel, LOAD_PANEL)
+            return
+        }
+        onLoginFailed(null)
     }
 
     /**
@@ -1046,6 +1243,12 @@ class MainActivity : Activity() {
         loadResult = reason
         navLog(url ?: loadingUrl, reason)
         loginLog()
+        // (28/11/2026) GD16 — panel của add-on không dùng được (404 / SPA HA / lỗi): thử NGAY top-level ingress, rồi
+        // `https://<domain>/launcher-config.html` (không đi tiếp danh sách biến thể như trước).
+        if (url != null && DashboardTarget.isPanel(url)) {
+            onPanelUnavailable(reason)
+            return
+        }
         loginFailed = false
         showLoginBar(true)
         showRetryButton(false)
@@ -1082,9 +1285,13 @@ class MainActivity : Activity() {
         mainHandler.removeCallbacks(loginTickRunnable)
     }
 
-    /** Ghi một dòng log chẩn đoán (Logcat tag [LOG_TAG_LOGIN] — `adb logcat -s DashboardOS-login`). */
+    /**
+     * (28/11/2026) GD16 — ghi MỘT dòng chẩn đoán vào [Diag] (ring buffer 300 dòng, có `HH:mm:ss`) **và** Logcat
+     * (tag [LOG_TAG_LOGIN] — `adb logcat -s DashboardOS-login`). Nhờ vậy người dùng không cần adb: Cài đặt →
+     * Chẩn đoán → Sao chép.
+     */
     private fun log(line: String) {
-        Log.i(LOG_TAG_LOGIN, line)
+        Diag.log(line)
     }
 
     private fun yn(value: Boolean): String = if (value) "yes" else "no"
@@ -1120,6 +1327,8 @@ class MainActivity : Activity() {
         if (isFinishing || isDestroyed) return
         // (27/11/2026) GD15 — đang chờ kết luận của trang TOP-LEVEL (promote): nhịp dò không được kéo WebView về panel.
         if (promotePending) return
+        // (28/11/2026) GD16 — panel đang nạp và đã có hẹn giờ promote ⇒ KHÔNG điều hướng lại (chỉ cần chờ 2,5 s).
+        if (panelPromoteArmed && loadingReason == LOAD_PANEL) return
         val url = webView?.url
         val cookiePresent = !currentCookieHeader().isNullOrBlank()
         val auth = DashboardTarget.isAuthPage(url)
@@ -1193,39 +1402,18 @@ class MainActivity : Activity() {
     }
 
     /**
-     * Kiểm tra **iframe ingress** trong panel bằng JS (dò cả shadow DOM — HA dựng panel trong `ha-panel-*`).
-     * Dùng khi URL là panel nhưng tiêu đề vẫn là `<title>Home Assistant</title>` trần (frontend chưa dựng xong
-     * panel): thử tối đa [PANEL_FRAME_TRIES] lần, mỗi lần cách [PANEL_FRAME_RETRY_MS]; thấy iframe → chốt panel,
-     * không thấy → coi như SPA HA thuần và thử ứng viên kế tiếp ([onWrongPage]).
+     * (28/11/2026) GD16 — panel đang hiện SPA của HA (frontend chưa dựng panel / đường dẫn không tồn tại).
+     *
+     * KHÔNG còn dò iframe ([HaIngress.panelFrameScript] của bản GD15 — dò không thấy nên promote không bao giờ
+     * chạy): việc cần làm chỉ là **đảm bảo đã có hẹn giờ promote** ([armPromoteAfterPanel]); hết 2,5 s app tự nạp
+     * top-level ingress. Nếu đã hết lượt promote thì coi như panel không dùng được ([onPanelUnavailable]).
      */
-    private fun verifyPanelFrame(url: String?, attempt: Int = 1) {
-        if (!isDashboardAttempt() || !loginFlowActive) return
-        val web = webView ?: return
-        try {
-            web.evaluateJavascript(HaIngress.panelFrameScript()) { raw ->
-                val has = HaIngress.isFrameResult(raw)
-                log(
-                    DashboardTarget.navLine(
-                        url,
-                        if (has) "panel" else "ha-spa",
-                        "frame=" + yn(has) + " try=$attempt"
-                    )
-                )
-                if (has) {
-                    onPanelLoaded(url ?: web.url)
-                    return@evaluateJavascript
-                }
-                if (attempt < PANEL_FRAME_TRIES && loginFlowActive) {
-                    mainHandler.postDelayed({
-                        if (!isFinishing && !isDestroyed) verifyPanelFrame(url, attempt + 1)
-                    }, PANEL_FRAME_RETRY_MS)
-                } else if (loginFlowActive) {
-                    onWrongPage(url, DashboardTarget.Arrival.HOME_ASSISTANT, "ha-spa")
-                }
-            }
-        } catch (t: Throwable) {
-            onWrongPage(url, DashboardTarget.Arrival.HOME_ASSISTANT, "ha-spa")
+    private fun onPanelSpa(url: String?) {
+        if (promoteOnce.done) {
+            onPanelUnavailable("ha-spa")
+            return
         }
+        armPromoteAfterPanel(url ?: panelTarget)
     }
 
     /**
@@ -1501,16 +1689,20 @@ class MainActivity : Activity() {
 
         /**
          * (26/11/2026) GD14 — **XÁC THỰC trang vừa nạp xong**:
-         *  - panel của add-on (URL `https://<domain>/b39feb53_remote_webview_server`, hoặc trang có
-         *    `<iframe … hassio_ingress>`) → chốt `[nav] … ok=panel`;
+         *  - panel của add-on (URL `https://<domain>/b39feb53_remote_webview_server`) → chốt `[nav] … ok=panel`;
          *  - trang đăng nhập HA (`/auth/…`) → `ok=login`, chờ người dùng đăng nhập;
-         *  - SPA HA thuần (Lovelace, `/`, "Page not found") trên URL panel → kiểm tra iframe bằng JS
-         *    ([verifyPanelFrame]); trên URL khác → thử ứng viên kế tiếp ([onWrongPage]).
+         *  - SPA HA thuần (Lovelace, `/`, "Page not found") trên URL panel → [onPanelSpa] (đã có hẹn giờ promote);
+         *    trên URL khác → thử ứng viên kế tiếp ([onWrongPage]).
+         *
+         * (28/11/2026) GD16 — trang TOP-LEVEL đang chờ kết luận được dò **loại trang** bằng JS
+         * ([probePromotePage] → `addon` / `ha` / `auth`), không dò iframe; trang dự phòng cuối
+         * ([LOAD_ROOT_FALLBACK]) kết luận riêng ([onRootFallbackLoaded]).
          */
         override fun onPageFinished(view: WebView?, url: String?) {
             super.onPageFinished(view, url)
             if (isFinishing || isDestroyed) return
             val loaded = url ?: view?.url
+            DiagState.currentUrl = loaded
             val title = try {
                 view?.title
             } catch (t: Throwable) {
@@ -1522,7 +1714,20 @@ class MainActivity : Activity() {
             // (27/11/2026) GD15 — trang TOP-LEVEL đang chờ kết luận (promote): xử lý riêng TRƯỚC mọi nhánh khác để
             // panel/top-level không bị nhầm là "đã vào panel" hay "sai trang".
             if (isPromoteNavigation(loaded)) {
-                onPromoteLoaded(loaded, null, title)
+                probePromotePage(loaded, title)
+                return
+            }
+
+            // (28/11/2026) GD16 — đang chờ top-level mà PANEL vừa nạp xong: bỏ qua (không chốt panel, không điều
+            // hướng) — nếu không, panel sẽ "giật" lại WebView trong lúc promote.
+            if (promotePending && loaded != null && DashboardTarget.isPanel(loaded)) {
+                log("[promote] ignore panel_finish url=" + DashboardTarget.shortUrl(loaded))
+                return
+            }
+
+            // (28/11/2026) GD16 — dự phòng cuối `https://<domain>/launcher-config.html`: kết luận riêng.
+            if (loadingReason == LOAD_ROOT_FALLBACK) {
+                onRootFallbackLoaded(loaded, arrival, title)
                 return
             }
 
@@ -1577,10 +1782,11 @@ class MainActivity : Activity() {
 
                 DashboardTarget.Arrival.HOME_ASSISTANT,
                 DashboardTarget.Arrival.OFF_INGRESS -> {
-                    // Panel của HA trả SPA của chính nó rồi mới nhúng add-on → kiểm tra iframe trước khi kết luận.
+                    // (28/11/2026) GD16 — panel của HA trả SPA của chính nó (frontend chưa dựng panel): KHÔNG dò
+                    // iframe nữa, chỉ đảm bảo hẹn giờ promote đã bật → hết 2,5 s app tự nạp top-level ingress.
                     if (loaded != null && DashboardTarget.isPanel(loaded) && isDashboardAttempt()) {
-                        navLog(loaded, "ha-spa", "title=" + (title ?: "-") + " → kiểm tra iframe")
-                        verifyPanelFrame(loaded)
+                        navLog(loaded, "ha-spa", "title=" + (title ?: "-") + " → chờ hẹn giờ promote")
+                        onPanelSpa(loaded)
                         return
                     }
                     if (!isDashboardAttempt()) return
@@ -1610,7 +1816,28 @@ class MainActivity : Activity() {
             if (promotePending && WebTargetResolver.sameUrl(url, promoteUrl)) {
                 loadResult = code.toString()
                 view?.stopLoading()
-                onPromoteFailed(IngressPromote.failReason(code, null))
+                onPromoteFailed(IngressPromote.failReason(code, null, IngressPromote.PageKind.UNKNOWN))
+                return
+            }
+
+            // (28/11/2026) GD16 — PANEL của add-on trả 404 (`Page not found` của HA): thử NGAY top-level ingress
+            // (rồi `https://<domain>/launcher-config.html`), không để người dùng nhìn trang lỗi.
+            if (code == 404 && DashboardTarget.isPanel(url)) {
+                loadResult = code.toString()
+                navLog(url, code.toString())
+                loginLog()
+                view?.stopLoading()
+                onPanelUnavailable("404")
+                return
+            }
+
+            // (28/11/2026) GD16 — dự phòng cuối `https://<domain>/launcher-config.html` trả 404: quay lại panel.
+            if (code == 404 && loadingReason == LOAD_ROOT_FALLBACK) {
+                loadResult = code.toString()
+                navLog(url, code.toString())
+                loginLog()
+                view?.stopLoading()
+                onRootFallbackLoaded(url, DashboardTarget.Arrival.OFF_INGRESS, null)
                 return
             }
 
@@ -1682,6 +1909,23 @@ class MainActivity : Activity() {
             // "không tải được" vì người dùng vẫn còn panel dùng được).
             if (promotePending && WebTargetResolver.sameUrl(request.url?.toString(), promoteUrl)) {
                 onPromoteFailed("net")
+                return
+            }
+            // (28/11/2026) GD16 — PANEL của add-on không tải được (mất mạng / HA không có panel): thử NGAY top-level
+            // ingress rồi `https://<domain>/launcher-config.html`, không toast lỗi thô.
+            val failing = request.url?.toString()
+            if (failing != null && DashboardTarget.isPanel(failing)) {
+                loadResult = "net"
+                navLog(failing, "net")
+                loginLog()
+                onPanelUnavailable("net")
+                return
+            }
+            if (loadingReason == LOAD_ROOT_FALLBACK) {
+                loadResult = "net"
+                navLog(failing, "net")
+                loginLog()
+                onRootFallbackLoaded(failing, DashboardTarget.Arrival.OTHER, null)
                 return
             }
             loadResult = "net"
@@ -1798,6 +2042,8 @@ class MainActivity : Activity() {
         searching = false
         mainHandler.removeCallbacks(hideOverlayRunnable)
         mainHandler.removeCallbacks(promoteTimeoutRunnable)
+        mainHandler.removeCallbacks(promoteAfterPanelRunnable)
+        mainHandler.removeCallbacks(promoteStartGuardRunnable)
         promotePending = false
         stopLoginTick()
         pendingPermissionRequest?.let {

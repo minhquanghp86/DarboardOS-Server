@@ -56,7 +56,7 @@ class IngressPromoteTest {
 
     @Test
     fun chua_co_cookie_ingress_session_thi_khong_promote() {
-        // Chưa có phiên ⇒ top-level sẽ 401 ⇒ ở lại panel, chờ thêm (xem MainActivity.maybePromotePanel).
+        // Chưa có phiên ⇒ top-level sẽ 401 ⇒ ở lại panel (xem MainActivity.promoteNow / IngressPromote.decide).
         assertEquals(
             IngressPromote.Decision.NO_SESSION,
             IngressPromote.decide(hasSession = false, alreadyPromoted = false, topUrl = topUrl)
@@ -242,8 +242,139 @@ class IngressPromoteTest {
 
     @Test
     fun timeout_va_so_lan_doc_cookie_dung_yeu_cau() {
-        assertEquals(3000L, IngressPromote.TOP_TIMEOUT_MS)
+        // (28/11/2026) GD16 — yêu cầu "thử trong 4 s" và "hẹn giờ 2,5 s".
+        assertEquals(4000L, IngressPromote.TOP_TIMEOUT_MS)
+        assertEquals(2500L, IngressPromote.PANEL_PROMOTE_DELAY_MS)
         assertTrue(IngressPromote.COOKIE_TRIES >= 2)
         assertTrue(IngressPromote.COOKIE_RETRY_MS * IngressPromote.COOKIE_TRIES <= IngressPromote.TOP_TIMEOUT_MS)
+        assertTrue(
+            "đọc `src` iframe phải ngắn hơn hạn promote",
+            IngressPromote.PROMOTE_TOKEN_READ_MS < IngressPromote.PANEL_PROMOTE_DELAY_MS
+        )
+    }
+
+    // ─────────────────────────────────────────── 5) (28/11/2026) GD16 — nhận diện trang + dự phòng cuối
+
+    @Test
+    fun nhan_dien_html_cua_add_on() {
+        assertTrue(IngressPromote.isAddonHtml("<script src=\"/launcher-config.js\"></script>"))
+        assertTrue(IngressPromote.isAddonHtml("<title>Dashboard OS</title>"))
+        assertTrue(IngressPromote.isAddonHtml("<h1>dashboard os</h1>"))
+        assertFalse(IngressPromote.isAddonHtml("<title>Home Assistant</title>"))
+        assertFalse(IngressPromote.isAddonHtml(null))
+        assertFalse(IngressPromote.isAddonHtml(""))
+    }
+
+    @Test
+    fun doc_loai_trang_tu_ket_qua_js() {
+        assertEquals(IngressPromote.PageKind.ADDON, IngressPromote.pageKind("\"addon\""))
+        assertEquals(IngressPromote.PageKind.ADDON, IngressPromote.pageKind("addon"))
+        assertEquals(IngressPromote.PageKind.HA, IngressPromote.pageKind("\"ha\""))
+        assertEquals(IngressPromote.PageKind.AUTH, IngressPromote.pageKind("\"auth\""))
+        assertEquals(IngressPromote.PageKind.UNKNOWN, IngressPromote.pageKind("\"unknown\""))
+        assertEquals(IngressPromote.PageKind.UNKNOWN, IngressPromote.pageKind(""))
+        assertEquals(IngressPromote.PageKind.UNKNOWN, IngressPromote.pageKind(null))
+        // Không dò iframe: JS dò nội dung/tiêu đề (`launcher-config`, `Dashboard OS`, `home-assistant`).
+        val js = HaIngress.panelProbeScript()
+        assertTrue(js.contains("launcher-config"))
+        assertTrue(js.contains("dashboard os"))
+        assertTrue(js.contains("home-assistant"))
+        assertEquals("addon", HaIngress.readProbe("\"addon\""))
+        assertEquals("ha", HaIngress.readProbe("\"ha\""))
+        assertEquals("", HaIngress.readProbe("null"))
+    }
+
+    @Test
+    fun ket_luan_top_level_theo_noi_dung_trang() {
+        // HTML của add-on → giữ, dù tiêu đề chưa kịp cập nhật.
+        assertEquals(
+            IngressPromote.Verdict.TOP,
+            IngressPromote.verdict(200, null, "<script src=\"launcher-config.js\"></script>")
+        )
+        // JS nói `addon` → giữ.
+        assertEquals(
+            IngressPromote.Verdict.TOP,
+            IngressPromote.verdict(200, "Dashboard", null, IngressPromote.PageKind.ADDON)
+        )
+        // SPA của HA (theo tiêu đề / theo HTML / theo JS) → quay lại panel.
+        assertEquals(IngressPromote.Verdict.FAIL, IngressPromote.verdict(200, "Home Assistant", null))
+        assertEquals(
+            IngressPromote.Verdict.FAIL,
+            IngressPromote.verdict(200, null, "<title>Home Assistant</title>")
+        )
+        assertEquals(
+            IngressPromote.Verdict.FAIL,
+            IngressPromote.verdict(200, "Dashboard OS", "<html></html>", IngressPromote.PageKind.HA)
+        )
+        // `/auth` → thất bại (`fail=auth`).
+        assertEquals(
+            IngressPromote.Verdict.FAIL,
+            IngressPromote.verdict(null, null, null, IngressPromote.PageKind.AUTH)
+        )
+        assertEquals(
+            "auth",
+            IngressPromote.failReason(null, null, IngressPromote.PageKind.AUTH)
+        )
+        assertEquals(
+            "ha-spa",
+            IngressPromote.failReason(200, "x", IngressPromote.PageKind.HA)
+        )
+        assertEquals("401", IngressPromote.failReason(401, null, IngressPromote.PageKind.UNKNOWN))
+        // Trang chưa render xong (không có dấu hiệu gì) → giữ (đúng "không phải SPA HA thì giữ").
+        assertEquals(IngressPromote.Verdict.TOP, IngressPromote.verdict(null, null, null))
+    }
+
+    @Test
+    fun dung_url_du_phong_goc_domain() {
+        assertEquals("$origin/launcher-config.html", IngressPromote.rootUrl(origin))
+        assertEquals("$origin/launcher-config.html", IngressPromote.rootUrl("$origin/"))
+        assertNull(IngressPromote.rootUrl(null))
+        assertNull(IngressPromote.rootUrl(""))
+        assertNull(IngressPromote.rootUrl("hass.mqsmarthome.io.vn"))
+    }
+
+    @Test
+    fun promote_duoc_phep_du_chua_doc_duoc_cookie() {
+        // Luồng ĐẶT HẸN GIỜ: requireSession=false → vẫn promote (trang tự trả 401 nếu phiên thật sự thiếu).
+        assertEquals(
+            IngressPromote.Decision.PROMOTE,
+            IngressPromote.decide(false, false, topUrl, requireSession = false)
+        )
+        // Cờ "chỉ một lần" vẫn thắng mọi thứ.
+        assertEquals(
+            IngressPromote.Decision.ALREADY,
+            IngressPromote.decide(true, true, topUrl, requireSession = false)
+        )
+    }
+
+    @Test
+    fun co_chi_mot_lan_chi_tra_true_mot_lan() {
+        val once = IngressPromote.Once()
+        assertFalse(once.done)
+        assertTrue(once.take())
+        assertTrue(once.done)
+        assertFalse(once.take())
+        assertFalse(once.take())
+        once.reset()
+        assertFalse(once.done)
+        assertTrue(once.take())
+    }
+
+    @Test
+    fun dong_log_hen_gio_va_du_phong() {
+        assertEquals(
+            "[promote] arm in=2500ms panel=…/b39feb53_remote_webview_server",
+            IngressPromote.armLine("$origin" + DashboardTarget.PANEL_PATH)
+        )
+        assertEquals("[promote] fire reason=panel_timer session=no", IngressPromote.fireLine("panel_timer", false))
+        assertEquals("[promote] fire reason=panel_fail_404 session=yes", IngressPromote.fireLine("panel_fail_404", true))
+        assertEquals(
+            "[promote] panel_fail reason=404 fallback=ingress",
+            IngressPromote.panelFailLine("404", "ingress")
+        )
+        assertEquals(
+            "[promote] fallback=root url=…/launcher-config.html reason=promote_401",
+            IngressPromote.rootLine("$origin/launcher-config.html", "promote_401")
+        )
     }
 }

@@ -246,6 +246,54 @@ object HaIngress {
 })()
 """.trimIndent()
 
+    // ─────────────────────────────────────────── (28/11/2026) GD16 — nhận diện trang top-level
+
+    /**
+     * (28/11/2026) GD16 — đoạn JS trả lời **"trang top-level này là gì?"** — KHÔNG phụ thuộc vào việc dò iframe:
+     *
+     *  1. đường dẫn `/auth/...`                → `auth`   (HA bắt đăng nhập lại),
+     *  2. HTML có `launcher-config` / tiêu đề có `Dashboard OS` → `addon` (đúng add-on),
+     *  3. có `<home-assistant>` hoặc tiêu đề `Home Assistant`   → `ha`    (SPA của HA, không phải add-on),
+     *  4. còn lại                              → `unknown`.
+     *
+     * Kết quả là MỘT chuỗi (`"addon"`, `"ha"`, `"auth"`, `"unknown"`); đọc bằng [readProbe] rồi
+     * `IngressPromote.pageKind(...)`.
+     */
+    fun panelProbeScript(): String = PANEL_PROBE_SCRIPT
+
+    /**
+     * Đọc kết quả của [panelProbeScript] (WebView trả về JSON, vd `"addon"`): bỏ nháy + escape, trả chuỗi thường.
+     * Chuỗi rỗng khi JS không trả gì (caller coi là `unknown`).
+     */
+    fun readProbe(raw: String?): String {
+        val v = raw?.trim().orEmpty()
+        if (v.isEmpty() || v == "null" || v == "undefined") return ""
+        return v.removeSurrounding("\"")
+            .replace("\\\"", "\"")
+            .replace("\\/", "/")
+            .trim()
+            .lowercase()
+    }
+
+    private val PANEL_PROBE_SCRIPT: String = """
+(function () {
+  function low(s) { return String(s || "").toLowerCase(); }
+  try {
+    var path = low(location.pathname);
+    if (path === "/auth" || path.indexOf("/auth/") === 0) { return "auth"; }
+    var html = "";
+    try { html = String((document.documentElement && document.documentElement.innerHTML) || ""); }
+    catch (e) { html = ""; }
+    var t = low(document.title);
+    var h = low(html);
+    if (h.indexOf("launcher-config") >= 0 || t.indexOf("dashboard os") >= 0) { return "addon"; }
+    try { if (document.querySelector("home-assistant")) { return "ha"; } } catch (e) {}
+    if (t.indexOf("home assistant") >= 0) { return "ha"; }
+    return "unknown";
+  } catch (e) { return "unknown"; }
+})()
+""".trimIndent()
+
     /**
      * Đọc JSON do JS gửi về. Chỉ nhận đúng những trường mình phát ra (chuỗi + boolean), nên không cần
      * `org.json` (không có trên JVM test) và không bị ảnh hưởng bởi dữ liệu lạ.

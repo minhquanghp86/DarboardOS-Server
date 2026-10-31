@@ -41,9 +41,22 @@ object IngressPromote {
 
     /**
      * Quá thời gian này mà trang top-level chưa kết luận được (không `onPageFinished`, không lỗi HTTP) thì coi như
-     * thất bại và quay lại panel. Đúng yêu cầu "lỗi trong 3 s".
+     * thất bại và quay lại panel. Đúng yêu cầu GD16: **4 s**.
      */
-    const val TOP_TIMEOUT_MS = 3000L
+    const val TOP_TIMEOUT_MS = 4000L
+
+    /**
+     * (28/11/2026) GD16 — **ĐẶT HẸN GIỜ PROMOTE**: 2,5 s kể từ khi panel của add-on BẮT ĐẦU nạp thì promote ngay,
+     * **không** chờ phát hiện iframe (bản GD15 dò `iframe[src*="hassio_ingress"]` — dò không thấy nên promote không
+     * bao giờ chạy, đúng lỗi người dùng báo "đăng nhập xong không tự vào add-on").
+     */
+    const val PANEL_PROMOTE_DELAY_MS = 2500L
+
+    /**
+     * (28/11/2026) GD16 — thời gian tối đa chờ JS đọc `src` của iframe (chỉ để lấy TOKEN cho **chính xác hơn**).
+     * Hết thời gian này vẫn promote bằng TOKEN đã lưu — bước promote KHÔNG phụ thuộc vào việc đọc iframe.
+     */
+    const val PROMOTE_TOKEN_READ_MS = 600L
 
     /** Số lần đọc cookie phiên trước khi kết luận "chưa có phiên" (HA vừa đặt cookie, `CookieManager` có thể trễ). */
     const val COOKIE_TRIES = 3
@@ -85,12 +98,46 @@ object IngressPromote {
     /**
      * Được phép promote chưa? Thứ tự kiểm tra = đúng thứ tự log (cờ trước, rồi URL, rồi phiên) để **không bao giờ**
      * promote lần thứ hai dù phiên còn/ mất.
+     *
+     * (28/11/2026) GD16 — [requireSession] = `false` cho luồng **đặt hẹn giờ**: promote vẫn chạy dù chưa đọc được
+     * cookie `ingress_session` (CookieManager có thể trễ vài trăm ms sau khi panel tạo phiên). Trang top-level tự
+     * trả 401 nếu phiên thật sự thiếu → bước promote ghi `fail=401` rồi quay lại panel, không mất gì.
+     * Mặc định `true` = hành vi cũ (dùng cho màn Cài đặt / các đường cần chắc chắn có phiên).
      */
-    fun decide(hasSession: Boolean, alreadyPromoted: Boolean, topUrl: String?): Decision {
+    fun decide(
+        hasSession: Boolean,
+        alreadyPromoted: Boolean,
+        topUrl: String?,
+        requireSession: Boolean = true,
+    ): Decision {
         if (alreadyPromoted) return Decision.ALREADY
         if (topUrl.isNullOrBlank()) return Decision.NO_URL
-        if (!hasSession) return Decision.NO_SESSION
+        if (requireSession && !hasSession) return Decision.NO_SESSION
         return Decision.PROMOTE
+    }
+
+    /**
+     * (28/11/2026) GD16 — **CỜ "CHỈ MỘT LẦN"** của bước promote, tách riêng để unit test được
+     * (`PromoteFlowTest`): [take] trả `true` đúng **một lần** cho tới khi [reset].
+     *
+     * MainActivity dùng `Once()` làm "mỗi lần mở app chỉ promote một lần"; [reset] chỉ chạy khi người dùng bấm
+     * "Kết nối" (một lần mở app mới).
+     */
+    class Once {
+        /** Đã "lấy" chưa — đọc được từ ngoài để ghi log `skip=already`. */
+        var done: Boolean = false
+            private set
+
+        /** Lấy quyền thử: `true` ở lần gọi ĐẦU TIÊN, `false` ở mọi lần sau. */
+        fun take(): Boolean {
+            if (done) return false
+            done = true
+            return true
+        }
+
+        fun reset() {
+            done = false
+        }
     }
 
     // ────────────────────────────────────────────────────────────── URL
@@ -109,6 +156,19 @@ object IngressPromote {
         if (p.isEmpty()) return null
         val tok = WebTargetResolver.sanitizeToken(token)
         return "$o${WebTargetResolver.INGRESS_PREFIX}/$tok/$p"
+    }
+
+    /**
+     * (28/11/2026) GD16 — URL **DỰ PHÒNG CUỐI** khi cả panel của HA và ingress đều không dùng được: add-on phục vụ
+     * thẳng ở gốc domain (`https://<domain>/launcher-config.html`). null = origin không dùng được.
+     */
+    fun rootUrl(origin: String?, page: String = TOP_PAGE): String? {
+        val o = origin?.trim()?.trimEnd('/').orEmpty()
+        if (o.isEmpty()) return null
+        if (!o.startsWith("http://", ignoreCase = true) && !o.startsWith("https://", ignoreCase = true)) return null
+        val p = page.trim().trimStart('/')
+        if (p.isEmpty()) return null
+        return "$o/$p"
     }
 
     /**
@@ -144,8 +204,50 @@ object IngressPromote {
     // ────────────────────────────────────────────────────────────── kết luận trang top-level
 
     /**
+     * (28/11/2026) GD16 — **LOẠI TRANG** mà JS dò được ở top-level (xem [HaIngress.panelProbeScript] /
+     * [HaIngress.readProbe]). Dùng để kết luận "đây là add-on" **không** phụ thuộc vào việc dò iframe.
+     */
+    enum class PageKind(val label: String) {
+        /** Trang của add-on: HTML có `launcher-config` / `Dashboard OS`, hoặc có `#app` của Dashboard OS. */
+        ADDON("addon"),
+
+        /** SPA của Home Assistant (`<home-assistant>` / tiêu đề `Home Assistant`). */
+        HA("ha"),
+
+        /** Trang đăng nhập của HA (`/auth/...`). */
+        AUTH("auth"),
+
+        /** Không kết luận được (trang trắng, đang render…). */
+        UNKNOWN("unknown"),
+    }
+
+    /** Đọc kết quả của [HaIngress.panelProbeScript] (`addon` / `ha` / `auth` / `unknown`). */
+    fun pageKind(raw: String?): PageKind {
+        val v = raw?.trim()?.trim('"')?.trim()?.lowercase().orEmpty()
+        return when {
+            v.isEmpty() || v == "null" || v == "undefined" -> PageKind.UNKNOWN
+            v.contains("addon") -> PageKind.ADDON
+            v.contains("auth") -> PageKind.AUTH
+            v == "ha" || v.contains("home_assistant") || v.contains("ha-spa") -> PageKind.HA
+            else -> PageKind.UNKNOWN
+        }
+    }
+
+    /**
+     * (28/11/2026) GD16 — HTML của trang top-level có phải **add-on** không: chứa `launcher-config` hoặc
+     * `Dashboard OS` (đúng hai dấu hiệu trong yêu cầu). Không phân biệt hoa/thường.
+     */
+    fun isAddonHtml(html: String?): Boolean {
+        val h = html ?: return false
+        if (h.isEmpty()) return false
+        return h.contains("launcher-config", ignoreCase = true) ||
+            h.contains("dashboard os", ignoreCase = true)
+    }
+
+    /**
      * Trang top-level vừa nạp xong có dùng được không:
      *  - [status] 401/403 (phiên ingress hết/ chưa có), 404 (sai TOKEN), 3xx (HA điều hướng về `/auth`) → [FAIL];
+     *  - HTML là của add-on ([isAddonHtml]) → [TOP];
      *  - tiêu đề là của Home Assistant (`Home Assistant`, `… - Home Assistant`, `Lovelace`) → [FAIL] (SPA HA, không
      *    phải add-on);
      *  - còn lại → [TOP].
@@ -155,6 +257,23 @@ object IngressPromote {
             if (status >= 300) return Verdict.FAIL
         }
         if (DashboardTarget.looksLikeHomeAssistant(title)) return Verdict.FAIL
+        return Verdict.TOP
+    }
+
+    /**
+     * (28/11/2026) GD16 — như [verdict] nhưng có thêm dấu hiệu nội dung trang:
+     *  - [html] = HTML (hoặc `innerHTML`) của trang top-level; [isAddonHtml] → [TOP] **ngay** (mạnh nhất);
+     *  - không có HTML → dùng [kind] từ [pageKind] (`ha` / `auth` → [FAIL], `addon` → [TOP]);
+     *  - HTML của HA (`<title>Home Assistant</title>`) → [FAIL] (`ha-spa`);
+     *  - còn lại (chưa render xong, tiêu đề riêng) → [TOP].
+     */
+    fun verdict(status: Int?, title: String?, html: String?, kind: PageKind = PageKind.UNKNOWN): Verdict {
+        if (status != null && status >= 300) return Verdict.FAIL
+        if (isAddonHtml(html)) return Verdict.TOP
+        if (kind == PageKind.ADDON) return Verdict.TOP
+        if (DashboardTarget.looksLikeHomeAssistant(title)) return Verdict.FAIL
+        if (WebTargetResolver.isHomeAssistantSpa(html)) return Verdict.FAIL
+        if (kind == PageKind.HA || kind == PageKind.AUTH) return Verdict.FAIL
         return Verdict.TOP
     }
 
@@ -170,6 +289,22 @@ object IngressPromote {
         status >= 400 -> "http$status"
         DashboardTarget.looksLikeHomeAssistant(title) -> "ha-spa"
         else -> "unknown"
+    }
+
+    /** (28/11/2026) GD16 — như [failReason] nhưng tính cả dấu hiệu nội dung ([kind] từ [pageKind]). */
+    fun failReason(status: Int?, title: String?, kind: PageKind): String =
+        failReason(status, title, null, kind)
+
+    /**
+     * (28/11/2026) GD16 — như trên, tính cả [html]: HTML của SPA Home Assistant (`<title>Home Assistant</title>`)
+     * → `ha-spa` dù tiêu đề/JS chưa kịp cập nhật.
+     */
+    fun failReason(status: Int?, title: String?, html: String?, kind: PageKind): String = when {
+        kind == PageKind.AUTH -> "auth"
+        kind == PageKind.HA -> "ha-spa"
+        isAddonHtml(html) -> "unknown"
+        WebTargetResolver.isHomeAssistantSpa(html) -> "ha-spa"
+        else -> failReason(status, title)
     }
 
     // ────────────────────────────────────────────────────────────── log
@@ -196,6 +331,33 @@ object IngressPromote {
         LOG_PREFIX + " start url=" + DashboardTarget.shortUrl(url) +
             " token=" + tokenSource.trim().ifEmpty { "-" } +
             " timeout=" + TOP_TIMEOUT_MS + "ms"
+
+    /**
+     * (28/11/2026) GD16 — `[promote] arm in=2500ms panel=…/b39feb53_remote_webview_server` : đã đặt hẹn giờ promote
+     * kể từ lúc panel BẮT ĐẦU nạp (không chờ iframe).
+     */
+    fun armLine(panel: String?, delayMs: Long = PANEL_PROMOTE_DELAY_MS): String =
+        LOG_PREFIX + " arm in=" + delayMs + "ms panel=" + DashboardTarget.shortUrl(panel)
+
+    /**
+     * (28/11/2026) GD16 — `[promote] fire reason=panel_timer session=no` : hẹn giờ đã nổ, promote ngay.
+     */
+    fun fireLine(reason: String, session: Boolean): String =
+        LOG_PREFIX + " fire reason=" + reason.trim().ifEmpty { "-" } +
+            " session=" + (if (session) "yes" else "no")
+
+    /**
+     * (28/11/2026) GD16 — `[promote] panel_fail reason=404 fallback=ingress` : panel không nạp được → thử NGAY
+     * top-level ingress (rồi mới tới gốc domain).
+     */
+    fun panelFailLine(reason: String, next: String): String =
+        LOG_PREFIX + " panel_fail reason=" + reason.trim().ifEmpty { "unknown" } +
+            " fallback=" + next.trim().ifEmpty { "-" }
+
+    /** (28/11/2026) GD16 — `[promote] fallback=root url=https://<domain>/launcher-config.html`. */
+    fun rootLine(url: String?, reason: String): String =
+        LOG_PREFIX + " fallback=root url=" + DashboardTarget.shortUrl(url) +
+            " reason=" + reason.trim().ifEmpty { "-" }
 
     /** Dòng log "bỏ qua promote" (giữ nguyên panel — người dùng vẫn dùng được UI). */
     fun skipLine(url: String?, decision: Decision, extra: String? = null): String {
