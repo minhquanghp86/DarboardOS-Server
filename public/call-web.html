@@ -46,6 +46,7 @@
 <script src="call-ui.js"></script>
 <script src="call-join.js"></script>
 <script src="call-browser.js"></script>
+<script src="call-audio.js"></script>
 <style>
   /* (16/10/2026) Thanh tren (danh ba): "‹ Trang chủ" + bieu tuong + "Cuộc gọi" nhu cac ung dung khac; nut cai dat chuong la bieu tuong. */
   .back { position: fixed; z-index: 5; left: 12px; top: 12px; display: none; align-items: center; gap: 10px; }
@@ -141,6 +142,15 @@
         <button type="button" class="sm" id="pushBtn">Bật chuông</button>
       </div>
     </div>
+    <!-- (31/10/2026) A/B XU LY AM THANH CUA TRINH DUYET (WebRTC AEC/NS/AGC) — public/call-audio.js.
+         Mac dinh BAT (nhu hanh vi cu). Tat -> constraints ca ba = false, luu localStorage['rwv-raw-audio'] = '1'
+         (trang tu ap dung lai o lan tai sau, hoac mo thang `call-web.html?raw=1`). Phai TAI LAI TRANG vi
+         getUserMedia da chay: doi constraints giua cuoc goi khong doi duoc stream dang mo. -->
+    <div class="sec" id="auSec"><span class="k">Âm thanh cuộc gọi</span>
+      <label class="ck"><input type="checkbox" id="auProc">Xử lý âm thanh của trình duyệt (AEC/NS/AGC)</label>
+      <div class="hint">Bật (mặc định): trình duyệt khử vọng, giảm ồn và tự cân âm lượng. Tắt khi tiếng trên màn P4
+        quá nhỏ — máy gửi tín hiệu thô để so sánh (A/B), cần tải lại trang để áp dụng.</div>
+    </div>
     <div class="acts"><button type="button" id="dCancel">Đóng</button><button type="button" class="ok" id="dSave">Lưu</button></div>
   </div>
 </div>
@@ -161,6 +171,23 @@
   var CJ = window.RwvCallJoin || { parse: function () { return { call: '', phone: '' }; }, phoneOf: function (s, g) { return g || ''; }, peerOf: function () { return { peer: '', name: '' }; } };
   var QP = CJ.parse(location.search);
   var JOIN_CALL = QP.call, JOIN_PHONE = QP.phone;
+  // (31/10/2026) A/B XU LY AM THANH CUA TRINH DUYET (WebRTC AEC/NS/AGC) — xem public/call-audio.js:
+  //   `?raw=1` -> tat ca ba (nghe dung tin hieu tho cua dien thoai), `?raw=0` -> bat (nhu cu).
+  //   Lua chon LUU vao localStorage['rwv-raw-audio'] -> lan sau mo trang khong can them tham so.
+  //   Cong tac trong hop thoai Cai dat (banh rang) cung doi cung mot khoa nay.
+  var CA = window.RwvCallAudio || {
+    KEY: 'rwv-raw-audio', paramOf: function () { return ''; }, rawFrom: function () { return false; },
+    isProcessed: function () { return true; }, constraints: function () { return { echoCancellation: true, noiseSuppression: true, autoGainControl: true }; },
+    logLine: function () { return '[audio] constraints=processed'; }, storeValue: function (p) { return p ? '0' : '1'; },
+  };
+  function storeGet() { try { return localStorage.getItem(CA.KEY) || ''; } catch (e) { return ''; } }
+  function storeSet(v) { try { localStorage.setItem(CA.KEY, v); } catch (e) { /* che do rieng tu: chi ap dung cho lan tai nay */ } }
+  var RAW_AUDIO = (function () {
+    var p = CA.paramOf(location.search);
+    if (p) storeSet(p);                                    // `?raw=1|0` -> nho cho lan sau
+    return CA.rawFrom(location.search, storeGet());
+  })();
+  console.log(CA.logLine(RAW_AUDIO));                       // '[audio] constraints=processed|raw'
   var ws = null, me = '', call = '', peer = '', peerName = '', list = [], wantList = null;
   var media = null, actx = null, capNode = null, playNode = null, enc = null, vT = 0, vts = 0, forceKey = true, muted = false, camOff = false, ringT = 0;
   var camStream = null;              // (GD3) camera rieng (tuy chon) — mic van chay khi camera bi tu choi
@@ -242,7 +269,9 @@
   }
 
   // ── Camera + micro ──
-  function audioReq() { return { echoCancellation: true, noiseSuppression: true, autoGainControl: true }; }
+  // (31/10/2026) Constraints lay tu public/call-audio.js: mac dinh BAT ca ba (AEC/NS/AGC) nhu cu; `?raw=1` /
+  // cong tac trong Cai dat -> TAT ca ba de A/B tren cung mot cuoc goi (xem `RAW_AUDIO` o dau trang).
+  function audioReq() { return CA.constraints(RAW_AUDIO); }
   function videoReq() { return { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 15 }, facingMode: 'user' }; }
   function noMedia() {
     return new Error(location.protocol === 'https:'
@@ -713,8 +742,20 @@
         $('tgRes').textContent = '✓ Đã gửi tới ' + j.results.length + ' chat.'; tgLoad();
       }).catch(function (e) { $('tgRes').textContent = '✗ ' + e.message; });
     };
+    // (31/10/2026) A/B XU LY AM THANH CUA TRINH DUYET (public/call-audio.js): cong tac phan anh
+    // localStorage['rwv-raw-audio'] — `checked` = dang XU LY (AEC/NS/AGC bat, kieu cu). DOI -> luu NGAY va bao
+    // "can tai lai trang": stream micro da mo bang constraints cu, doi giua cuoc goi khong co tac dung.
+    function auSync() { $('auProc').checked = CA.isProcessed(storeGet()); }
+    $('auProc').onchange = function () {
+      var processed = !!$('auProc').checked;
+      storeSet(CA.storeValue(processed));
+      ui.toast('Đã lưu — cần tải lại trang để áp dụng.');
+      console.log('[audio] setting=' + (processed ? 'processed' : 'raw') + ' (can tai lai trang de ap dung)');
+    };
+    auSync();
     $('gear').onclick = function () {
       tgLoad();
+      auSync();
       fetch(BASE + 'door/config', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
         var dd = $('dDoors'); dd.replaceChildren();
         if (!j.doors.length) dd.append(row('hint', 'Chưa có chuông nào kết nối. Lắp và cấp nguồn chuông cổng ESP32-S3.'));

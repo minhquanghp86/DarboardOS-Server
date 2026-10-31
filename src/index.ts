@@ -246,6 +246,8 @@ const STATIC_PAGES = ['no-url.html', 'cam.html', 'camera.html', 'weather.html', 
   'iptv.html', 'events.html', 'media.html', 'call-test.html', 'door.html', 'call.html', 'call-web.html', 'call-ui.js', 'call-ui.css', 'call-join.js', 'door-log.html',
   // (30/10/2026) Trinh duyet = thiet bi goi duoc on dinh: id ben vung (localStorage 'rwv-browser-id') + nhan hien thi.
   'call-browser.js',
+  // (31/10/2026) A/B xu ly am thanh cua trinh duyet (AEC/NS/AGC) khi goi: `?raw=1` + cong tac trong Cai dat.
+  'call-audio.js',
   // (21/10/2026) Trang dieu khien man hinh tu Dashboard (src/controlApi.ts).
   'control.html', 'sw.js',
   'screens.html'];   // (16/10/2026) Dashboard → Màn hình

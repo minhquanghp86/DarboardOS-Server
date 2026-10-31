@@ -13,6 +13,11 @@
 - Test: `src/audioAgc.test.ts` (im lặng, khung nhỏ/khung lớn, attack/release, giới hạn gain, limiter −1 dBFS, tắt env
   → passthrough y nguyên byte, khung 20 ms vào 640 byte ra 640 byte).
 
+## V2.9.314
+- **Đo mức âm thanh thật** của luồng điện thoại → màn: log `[audio] dev=… in=/out=/peak=/gain=/frames=` mỗi 2 giây
+  trong cuộc gọi, để phân biệt “mic gửi nhỏ” với “đường phát của màn”.
+- Trang gọi: công tắc **“Xử lý âm thanh của trình duyệt (AEC/NS/AGC)”** (mặc định bật) và `?raw=1` để A/B.
+
 ## V2.9.313
 - **Âm thanh điện thoại → P4 rõ hơn**: thêm **AGC + limiter** cho luồng tiếng xuống màn (mục tiêu −18 dBFS,
   attack 5 ms / release 200 ms, gain −6…+24 dB, limiter −1 dBFS) — trước đây PCM gửi thô nên nói vừa bị chìm dưới

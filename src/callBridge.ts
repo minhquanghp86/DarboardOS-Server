@@ -17,7 +17,9 @@ import http from 'node:http';
 import type { Duplex } from 'node:stream';
 import { WebSocket, WebSocketServer } from 'ws';
 
-import { newAgcState, processPcm, AGC_ENABLED, type AgcState } from './audioAgc.js';
+import { newAgcState, processPcm, AGC_ENABLED, AGC_SILENCE_DBFS, peakOf, type AgcState } from './audioAgc.js';
+// (31/10/2026) DO MUC TIENG THAT (web -> man): mot dong log moi 2 s, xem src/audioMeter.ts.
+import { AudioMeters, METER_WINDOW_MS, type AudioMeter } from './audioMeter.js';
 import { callHold } from './audioCapture.js';
 import { subscribeLiveFrames } from './camProxy.js';
 import { isDoor, subscribeDoorFrames } from './door.js';
@@ -44,6 +46,32 @@ interface Leg {
 const calls = new Map<string, Leg>();
 /** (31/10/2026) Gain AGC/limiter rieng cho tung man (xem src/audioAgc.ts) — chi cho nhanh xuong LOA MAN. */
 const agc = new Map<string, AgcState>();
+/**
+ * (31/10/2026) BO DO MUC TIENG (src/audioMeter.ts) — mot bo do / man, chi song trong cuoc goi:
+ *   - `startCall()` mo bo do, `endCall()` dong (khong log gi khi dong);
+ *   - `sendToSpeaker()` cong don tung mau PCM (in = truoc AGC, out = sau AGC, peak = sau limiter, gain = hien tai);
+ *   - hen gio 0,5 s doc so lieu: moi cua so 2 s in MOT dong, khong co khung nao -> `NO-FRAMES`.
+ * Chi man dang trong cuoc goi moi co bo do => ranh thi khong spam log.
+ */
+const meters = new AudioMeters(METER_WINDOW_MS);
+/** Nhip kiem tra cua so 2 s: 0,5 s de moi man dong cua so dung luc (nhieu man khong bi lech toi 2 s). */
+const METER_TICK_MS = 500;
+let meterT: NodeJS.Timeout | null = null;
+
+/** Bat hen gio doc so lieu (mot hen gio chung, tu tat khi khong con bo do nao). */
+function meterTimer(): void {
+  if (meterT) return;
+  meterT = setInterval(() => {
+    for (const line of meters.tick(Date.now(), (d) => calls.has(d))) console.log(line);
+    if (!meters.size && meterT) { clearInterval(meterT); meterT = null; }
+  }, METER_TICK_MS);
+  meterT.unref?.();                       // khong giu tien trinh song vi bo do
+}
+
+/** Bo do cua `dev` neu man do DANG trong cuoc goi (moi lai neu hen gio chua kip mo), nguoc lai null. */
+function meterOf(dev: string): AudioMeter | undefined {
+  return meters.get(dev) || (calls.has(dev) ? (meterTimer(), meters.start(dev)) : undefined);
+}
 
 export function isInCall(dev: string): boolean { return calls.has(dev); }
 
@@ -51,6 +79,8 @@ export function startCall(dev: string): Leg | null {
   if (calls.has(dev)) return null;
   const leg: Leg = { dev, peers: new Set(), listeners: new Set(), startedAt: Date.now(), micFrames: 0, lost: 0, lastSeq: -1 };
   calls.set(dev, leg);
+  meters.start(dev);                       // (31/10/2026) bat dau do muc tieng cho man nay (chi trong cuoc goi)
+  meterTimer();
   callHold.add(dev);
   broadcaster.sendDeviceControl(dev, ControlField.Call, 1);
   console.log(`[call] ${dev}: bat dau cuoc goi`);
@@ -62,6 +92,7 @@ export function endCall(dev: string): void {
   if (!leg) return;
   calls.delete(dev);
   agc.delete(dev);
+  meters.stop(dev);                        // (31/10/2026) dong bo do: het cuoc goi thi khong log nua
   callHold.delete(dev);
   broadcaster.sendDeviceControl(dev, ControlField.Call, 0);
   for (const p of leg.peers) { try { p.close(1000, 'het cuoc goi'); } catch { /* */ } }
@@ -117,12 +148,27 @@ export function sendToDevice(dev: string, pcm: Buffer): void {
  *   - Khong im lang: khung < -60 dBFS di nguyen (khong khuech dai nhieu nen phong).
  *   - Khong them do tre (xu ly tung khung 20 ms) va KHONG doi kich thuoc goi (vao 640 byte, ra 640 byte).
  *   - Tat bang env CCR_CALL_AGC=0 (A/B: so sanh truc tiep tren cung mot cuoc goi).
+ *   - (31/10/2026) DO MUC THAT tai day: `in` = RMS truoc AGC, `out` = RMS sau AGC, `peak` = dinh sau limiter,
+ *     `gain` = gain hien tai (src/audioMeter.ts in ra mot dong log moi 2 s cho moi man dang trong cuoc goi).
  */
 export function sendToSpeaker(dev: string, pcm: Buffer): void {
-  if (!AGC_ENABLED) { sendToDevice(dev, pcm); return; }
-  let st = agc.get(dev);
-  if (!st) { st = newAgcState(); agc.set(dev, st); }
-  sendToDevice(dev, processPcm(pcm, st));
+  const m = meterOf(dev);                                   // null = man nay khong trong cuoc goi -> khong do
+  const inDb = m ? db(rms(pcm)) : 0;
+  let out: Buffer;
+  let gainDb = 0;
+  if (!AGC_ENABLED) {
+    out = pcm;                                              // A/B: y nguyen byte nhu truoc (sendToDevice chi doc)
+  } else {
+    let st = agc.get(dev);
+    if (!st) { st = newAgcState(); agc.set(dev, st); }
+    out = processPcm(pcm, st);
+    gainDb = st.gainDb;
+  }
+  sendToDevice(dev, out);
+  if (m) {
+    m.add({ inDb, outDb: db(rms(out)), peakDb: db(peakOf(out) / 32768), gainDb,
+      silent: inDb < AGC_SILENCE_DBFS, frames: pcm.length / FRAME_BYTES });   // 640 byte = 1 khung 20 ms -> ~100 khung/2 s
+  }
 }
 
 // ── Do vong lap ──────────────────────────────────────────────────────────────────────────────────────────────
